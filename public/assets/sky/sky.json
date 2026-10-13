@@ -1,0 +1,21 @@
+{
+  "source": "kloofendal_48d_partly_cloudy_puresky",
+  "sunDirection": [
+    0.5543,
+    0.7418,
+    0.3775
+  ],
+  "sunColor": [
+    0.997,
+    1.009,
+    0.9192
+  ],
+  "sunIrradiance": 4.217,
+  "skyScale": 4,
+  "skyCoverage": 0.5444444444444444,
+  "horizon": [
+    0.4285,
+    0.4608,
+    0.5568
+  ]
+}

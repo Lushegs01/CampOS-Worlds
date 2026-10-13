@@ -1,0 +1,12 @@
+{
+  "results": [
+    "place a demo order at the café counter (no payment)",
+    "sit at a café table",
+    "café door closed from inside",
+    "enter Studio D1, take a desk and read the whiteboard",
+    "pick up a basketball; possession is server-validated",
+    "a second player takes the other ball"
+  ],
+  "errors": [],
+  "failure": "TimeoutError: page.waitForFunction: Timeout 15000ms exceeded."
+}

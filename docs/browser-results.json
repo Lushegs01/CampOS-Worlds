@@ -1,0 +1,10 @@
+{
+  "results": [
+    "desktop real WebGL campus renders",
+    "customization and welcome Escape",
+    "WASD movement",
+    "jump"
+  ],
+  "errors": [],
+  "failure": "AssertionError [ERR_ASSERTION]: Walk to -14,8 ended at {\"x\":-0.27210238464748354,\"y\":0,\"z\":8.219637249299488}"
+}

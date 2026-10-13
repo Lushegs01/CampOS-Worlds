@@ -1,0 +1,23 @@
+{
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "metrics": {
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 35.362761467423525
+    },
+    "fps": 2,
+    "drawCalls": 185,
+    "triangles": 38724,
+    "peers": [
+      {
+        "id": "13c961af-d781-4d32-8da8-3667e3e9b203",
+        "x": 26.216598218591454,
+        "z": 3.98478868362351
+      }
+    ],
+    "tokens": []
+  }
+}

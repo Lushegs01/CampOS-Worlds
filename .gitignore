@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*
+!.env.example
+.claude/
+*.tsbuildinfo
+.reference/
+test-results/
+playwright-report/
+server/data/
+*.log
+
+.asset-cache/
+dist-qa/
