@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-13T19:09:24.787Z",
+  "results": [
+    "a signed-in player starts a club and owns it",
+    "the owner publishes an event at a campus location (with validation) and is guided to it",
+    "a player RSVPs",
+    "guests can browse events, see capacity, and are invited to sign in to RSVP",
+    "the board opens and closes with V and Esc without stopping the player, who keeps walking while it is open",
+    "after a reload the event and its attendees are still there; attendee profiles open",
+    "organizers edit events; players cancel their RSVP",
+    "players join clubs; owners designate organizers, who can then run events",
+    "canceled events stay visible as canceled and stop accepting RSVPs",
+    "on a phone the board is a compact bottom sheet",
+    "a backend failure shows a useful error and recovers with Try again"
+  ],
+  "errors": []
+}

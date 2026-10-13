@@ -10,6 +10,17 @@ Vite copies `public/_headers` into `dist/_headers`. Cloudflare Workers Static As
 
 After deployment verify the mobile layout and the asset response's `Cache-Control` header. See [mobile measurements and the physical-phone checklist](MOBILE-PERFORMANCE.md). A Git push only updates the live site automatically if the existing Cloudflare project is connected to that branch.
 
+## Accounts, clubs and events (Supabase)
+
+These features are optional. Without configuration the app builds and runs guest-only, and the interface says accounts are not set up. To enable them, follow [ACCOUNTS.md](ACCOUNTS.md) to create a Supabase project and apply `supabase/migrations/`. Then:
+
+1. **Cloudflare frontend build:** add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the build environment, next to the existing `VITE_WS_URL`, which stays as it is. Both are public values. Rebuild and deploy `dist/` as before.
+2. **Room server (Render or your existing host):** add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as secret environment variables, and optionally `SUPABASE_ANON_KEY`. Keep `ALLOWED_ORIGINS`, `ROOM_INVITE`, `ADMIN_TOKEN` and `ROOM_CAPACITY` unchanged. Restart the room.
+3. **Supabase Auth:** set the Site URL and redirect URLs to the frontend origin, so confirmation emails return players to the campus.
+4. **Verify:** sign up, create a profile, open the campus in a second browser and check that your @handle appears in the People panel, then create a club and an event and RSVP.
+
+The room calls Supabase over HTTPS with a 5-second timeout. If Supabase is unreachable, signed-in players continue as guests and are told why; nobody is disconnected.
+
 ## Same-origin deployment (recommended for a private demo)
 
 1. Run `npm ci && npm run build` in CI with Node 22.12+.

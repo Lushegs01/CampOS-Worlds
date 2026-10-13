@@ -29,7 +29,17 @@ async function open(name, { viewport = { width: 1280, height: 800 }, mobile = fa
 }
 const st = p => p.evaluate(() => window.__campusDebug.state());
 const focus = p => p.evaluate(() => window.__campusDebug.focus());
-const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
+// Screenshots and the results file are evidence, not assertions: on Windows another process (a scanner
+// or an image viewer) can briefly hold a file open, so retry the write, then warn rather than fail the run.
+async function save(path, data) {
+  for (let attempt = 0; ; attempt++) {
+    try { await writeFile(path, data); return; } catch (e) {
+      if (attempt >= 5) { console.warn(`  (${path} not saved: ${e.code})`); return; }
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+}
+const shot = async (p, name) => save(`${OUT}/${name}.png`, await p.screenshot());
 async function walk(p, x, z, tolerance = .35) {
   await p.evaluate(([x, z]) => window.__campusDebug.walkTo(x, z), [x, z]);
   await p.waitForFunction(() => !window.__campusDebug.walking(), null, { timeout: 40000 });
@@ -130,6 +140,8 @@ try {
   }
 
   if (want('cafe')) {
+    // Coming from the library: round the south side of the fountain, then along the café terrace.
+    if ((await st(A)).x < 0) { await walk(A, -12, -8); await walk(A, 12, -8); await walk(A, 14, -3); }
     await walk(A, 24, -2.2); await walk(A, 26.95, -2.8); await face(A, Math.PI);
     await ensureDoor(A, 'cafe-main', true);
     await walk(A, 26.95, -7); await walk(A, 26.5, -9.4); await face(A, Math.PI);
@@ -165,6 +177,8 @@ try {
   if (want('basketball')) {
     const ball = async (p, bid) => (await st(p)).world.balls.find(b => b.id === bid);
     const fetchBall = async (p, bid) => {
+      // Like a player, wait for the rebound to stop rolling (and come down off the hoop) first.
+      await until(p, id => { const b = window.__campusDebug.state().world.balls.find(b => b.id === id); return b && b.state === 'free' && b.rest > .5 && b.y < 1.7; }, bid, 20000);
       const b = await ball(p, bid); await walk(p, b.x + (b.x < 40 ? .9 : -.9), b.z, .5); await face(p, b.x < 40 ? -Math.PI / 2 : Math.PI / 2);
       await until(p, () => window.__campusDebug.focus()?.label === 'Pick up basketball'); await pressE(p);
       await until(p, () => window.__campusDebug.state().holding);
@@ -185,8 +199,10 @@ try {
       const before = (await st(A)).ui.hoops;
       await A.keyboard.down('Space');
       await until(A, () => window.__campusDebug.state().ui.zone);
-      // Release with the needle inside the gold band, as a player would.
-      await A.waitForFunction(() => { const s = window.__campusDebug.state(), z = s.ui.zone; return z && s.charge != null && s.charge > z[0] + (z[1] - z[0]) * .3 && s.charge < z[1] - (z[1] - z[0]) * .3; }, null, { timeout: 6000, polling: 'raf' });
+      // Release as the rising needle enters the gold band, as a player would: the key-up reaches
+      // the page a frame or more later, so aiming for its first part leaves room for that delay.
+      await A.evaluate(() => { window.__qaCharge = null; });
+      await A.waitForFunction(() => { const s = window.__campusDebug.state(), z = s.ui.zone, prev = window.__qaCharge; window.__qaCharge = s.charge; if (!z || s.charge == null || prev == null) return false; const w = z[1] - z[0]; return s.charge > prev && s.charge > z[0] + w * .1 && s.charge < z[0] + w * .45; }, null, { timeout: 8000, polling: 'raf' });
       if (i === 0) await shot(A, 'ball-charging');
       await A.keyboard.up('Space'); attempts++;
       if (i === 0) { await A.waitForTimeout(450); await shot(A, 'ball-in-flight'); }
@@ -217,15 +233,18 @@ try {
 
   if (want('mobile')) {
     const M = await open('Mobile QA', { viewport: { width: 390, height: 844 }, mobile: true });
-    await walk(M, -33.55, 14.6); await face(M, Math.PI);
-    await M.getByRole('button', { name: 'Sit', exact: true }).waitFor(); await M.getByRole('button', { name: 'Sit', exact: true }).tap();
+    // The touch-action buttons (the on-screen prompt above them carries the same label).
+    const touch = name => M.locator('.touch-actions').getByRole('button', { name, exact: true });
+    // Round the mango tree at (-32, 15): the QA autopilot walks in straight lines.
+    await walk(M, -30, 13.2); await walk(M, -33.55, 14.6); await face(M, Math.PI);
+    await touch('Sit').waitFor(); await touch('Sit').tap();
     await until(M, () => window.__campusDebug.state().sit?.phase === 'seated', null, 20000); await M.waitForTimeout(800); await shot(M, 'mobile-seated');
-    await M.getByRole('button', { name: 'Stand up', exact: true }).tap(); await until(M, () => !window.__campusDebug.state().sit, null, 20000);
+    await touch('Stand up').tap(); await until(M, () => !window.__campusDebug.state().sit, null, 20000);
     pass('mobile: sit and stand with the touch action button');
     await walk(M, 31, 25); const b = (await st(M)).world.balls.find(x => x.state !== 'held');
     await walk(M, b.x + .9, b.z, .6); await face(M, -Math.PI / 2);
-    await M.getByRole('button', { name: 'Pick up basketball', exact: true }).tap(); await until(M, () => window.__campusDebug.state().holding);
-    await shot(M, 'mobile-holding-ball'); await M.getByRole('button', { name: 'Drop the ball', exact: true }).tap(); await until(M, () => !window.__campusDebug.state().holding);
+    await touch('Pick up basketball').tap(); await until(M, () => window.__campusDebug.state().holding);
+    await shot(M, 'mobile-holding-ball'); await touch('Drop the ball').tap(); await until(M, () => !window.__campusDebug.state().holding);
     pass('mobile: pick up and drop a ball with touch buttons');
     timings.mobileFps = await M.evaluate(() => window.__campus?.fps);
     await M.context().close();
@@ -233,11 +252,11 @@ try {
 
   timings.fps = await A.evaluate(() => window.__campus?.fps);
   const relevant = errors.filter(e => !/Failed to load resource.*favicon/.test(e));
-  await writeFile('docs/interaction-results.json', JSON.stringify({ date: new Date().toISOString(), results, errors: relevant, timings }, null, 2));
+  await save('docs/interaction-results.json', JSON.stringify({ date: new Date().toISOString(), results, errors: relevant, timings }, null, 2));
   assert.deepEqual(relevant, [], 'no page errors'); console.log('ALL PASSED', results.length, timings);
 } catch (e) {
   console.error('FAILED', e);
   for (const p of [A, B]) if (p && !p.isClosed()) { console.log(p.label, JSON.stringify(await st(p).catch(() => null))?.slice(0, 1500)); await p.screenshot({ path: `${OUT}/failure-${p.label.replace(/\W/g, '')}.png` }).catch(() => {}); }
-  await writeFile('docs/interaction-results.json', JSON.stringify({ results, errors, failure: String(e) }, null, 2));
+  await save('docs/interaction-results.json', JSON.stringify({ results, errors, failure: String(e) }, null, 2));
   process.exitCode = 1;
 } finally { await browser.close(); }

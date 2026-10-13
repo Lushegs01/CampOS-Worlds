@@ -8,6 +8,7 @@ import { input, livePeers, player, useGame, type Peer, type SitState } from '../
 import { SEAT_BY_ID } from '../../shared/interactions.mjs';
 import { peerRelease } from '../interaction/controller';
 import { Doors, Chairs, Balls, Computers } from './Interactive';
+import { useKeepsakes } from '../account/store';
 import { Label } from './Primitives';
 import { LOCATIONS, TOKENS } from '../../shared/campus.mjs';
 import { cached, initLoaders, suspend } from './assets';
@@ -58,7 +59,7 @@ function Peers() {
 }
 
 function Collectibles() {
-  const tokens = useGame(s => s.tokens), reduced = useGame(s => s.reducedMotion), group = useRef<THREE.Group>(null!);
+  const tokens = useKeepsakes(), reduced = useGame(s => s.reducedMotion), group = useRef<THREE.Group>(null!);
   const gold = useMemo(() => new THREE.MeshStandardMaterial({ color: '#e7b85c', metalness: 1, roughness: .22, emissive: '#7a4a12', emissiveIntensity: .35 }), []);
   const glow = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffd37a', transparent: true, opacity: .35, depthWrite: false, blending: THREE.AdditiveBlending }), []);
   useFrame(({ clock }) => { group.current.children.forEach((child, i) => { const gem = child.children[0]; gem.rotation.y = reduced ? 0 : clock.elapsedTime * .8; gem.position.y = 1.15 + (reduced ? 0 : Math.sin(clock.elapsedTime * 2 + i) * .12); }); });

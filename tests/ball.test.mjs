@@ -37,3 +37,20 @@ test('a resting ball settles on the court surface', () => {
   const b = newBall(BALLS[0]); for (let i = 0; i < 300; i++) stepBall(b, 1 / 30);
   assert.ok(Math.abs(b.y - (floorAt(b.x, b.z) + BALL_R)) < .005 && b.rest > .5);
 });
+
+test('a ball wedged between rim and backboard, or resting on the arm, returns to the rack', () => {
+  const spots = { gap: { x: south.x, y: south.rimY + .15, z: (south.board.z + south.board.d / 2 + south.z - south.rimR) / 2 + .02 }, arm: { x: south.x, y: south.arm.y1 + BALL_R + .001, z: south.arm.z } };
+  for (const [name, spot] of Object.entries(spots)) {
+    const b = Object.assign(newBall(BALLS[0]), spot, { vx: 0, vy: 0, vz: 0, state: 'free' }), events = [];
+    for (let t = 0; t < 2.5; t += 1 / 30) stepBall(b, 1 / 30, events);
+    assert.ok(b.y > 2.5, `${name}: the ball really does get stuck up there`);
+    for (let t = 0; t < 2; t += 1 / 30) stepBall(b, 1 / 30, events);
+    assert.ok(events.some(e => e.type === 'respawn'), `${name}: an unreachable ball is returned`);
+    assert.ok(b.y < 1.7, `${name}: and ends within reach`);
+    // Then it drops onto the rack spot and stays put, even when stepped at a high frame rate.
+    const after = events.length;
+    for (let t = 0; t < 3; t += 1 / 144) stepBall(b, 1 / 144, events);
+    assert.equal(events.slice(after).filter(e => e.type === 'respawn').length, 0, `${name}: respawns once, not in a loop`);
+    assert.ok(Math.abs(b.y - (floorAt(b.x, b.z) + BALL_R)) < .005, `${name}: and rests on the ground`);
+  }
+});

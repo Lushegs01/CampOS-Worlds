@@ -1,12 +1,38 @@
 {
+  "date": "2026-10-13T18:59:04.065Z",
   "results": [
+    "sit on a bench with the captured sit-down; the room records the occupant",
+    "an occupied seat refuses a second player",
+    "a bench seats two players independently",
+    "movement input stands up through the stand-up motion and frees the seat",
+    "E stands up",
+    "the library door opens inwards, away from the player, and the room shares it",
+    "walk through the open doorway into the library",
+    "a door will not close on someone standing in the doorway",
+    "the door closes once the doorway is clear",
+    "a closed door is solid",
+    "a locked door explains that it is locked",
+    "sit at a library reading table (chair scoots in)",
+    "stand up from a table chair",
+    "use a library computer from its chair",
+    "browse the new-arrivals display",
     "place a demo order at the café counter (no payment)",
     "sit at a café table",
     "café door closed from inside",
     "enter Studio D1, take a desk and read the whiteboard",
     "pick up a basketball; possession is server-validated",
-    "a second player takes the other ball"
+    "a second player takes the other ball",
+    "five-shot round under real physics: 4/5 made, 8 points, each counted once",
+    "a weak shot misses",
+    "Q drops the ball",
+    "a disconnecting player releases their ball",
+    "mobile: sit and stand with the touch action button",
+    "mobile: pick up and drop a ball with touch buttons"
   ],
   "errors": [],
-  "failure": "TimeoutError: page.waitForFunction: Timeout 15000ms exceeded."
+  "timings": {
+    "sitDown": 3513,
+    "mobileFps": 23,
+    "fps": 24
+  }
 }

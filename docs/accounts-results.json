@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-13T19:05:42.633Z",
+  "results": [
+    "guests enter and play without an account",
+    "registration validates input and creates an account",
+    "profile creation with live handle check, preview and save",
+    "another player sees the verified name and handle, and the public profile card",
+    "the session and profile persist after reload",
+    "profile edits save and propagate to other players live",
+    "sign-out restores the guest identity; wrong passwords are refused; sign-in restores the profile in place, without reloading the world",
+    "an expired session falls back to guest mode safely",
+    "no account token appears in any request URL"
+  ],
+  "errors": []
+}

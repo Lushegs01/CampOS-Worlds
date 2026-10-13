@@ -19,7 +19,7 @@ const BOXES = [
   ]),
 ];
 
-export function newBall(spec) { return { id: spec.id, x: spec.x, y: floorAt(spec.x, spec.z) + BALL_R + .9, z: spec.z, vx: 0, vy: 0, vz: 0, state: 'free', holder: null, shot: null, rest: 0, idle: 0 }; }
+export function newBall(spec) { return { id: spec.id, x: spec.x, y: floorAt(spec.x, spec.z) + BALL_R + .9, z: spec.z, vx: 0, vy: 0, vz: 0, state: 'free', holder: null, shot: null, rest: 0, idle: 0, perch: 0, high: 0 }; }
 export function resetBall(b) { const spec = BALLS.find(s => s.id === b.id); Object.assign(b, newBall(spec), { y: floorAt(spec.x, spec.z) + .9 }); }
 
 function bounce(b, nx, ny, nz, e, tangentKeep = .86) {
@@ -94,6 +94,10 @@ export function stepBall(b, dt, events = []) {
   const speed = Math.hypot(b.vx, b.vy, b.vz), grounded = b.y <= floorAt(b.x, b.z) + BALL_R + .002;
   b.rest = grounded && speed < .08 ? b.rest + dt : 0;
   if (b.rest > .5) { b.vx = b.vy = b.vz = 0; }
+  // Out of reach: resting off the ground (wedged at the rim, on the arm), or circling up there.
+  b.perch = !grounded && speed < .25 ? (b.perch ?? 0) + dt : 0;
+  b.high = b.y > 1.7 ? (b.high ?? 0) + dt : 0;
+  if (b.perch > 3 || b.high > 8) { resetBall(b); events.push({ type: 'respawn', ball: b.id }); return events; }
   const outside = b.x < COURT.x0 - 3 || b.x > COURT.x1 + 3 || b.z < COURT.z0 - 3 || b.z > COURT.z1 + 3;
   b.idle = outside ? b.idle + dt : 0;
   if (b.idle > 20 || b.y < -5 || Math.abs(b.x) > 75 || Math.abs(b.z) > 70) { resetBall(b); events.push({ type: 'respawn', ball: b.id }); }

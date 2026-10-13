@@ -20,6 +20,7 @@ npm run build       # TypeScript check and production bundle
 npm test            # Shared collision and real WebSocket integration tests
 npm run server      # Room server only
 npm run dev:web     # Frontend only; works in local exploration mode
+npm run dev:local   # Full stack WITH accounts, clubs and events, no Supabase project needed (http://127.0.0.1:5175)
 npm run preview    # Preview the compiled frontend
 ```
 
@@ -38,6 +39,7 @@ Enter immediately, or select **Make it you** to choose a name, skin tone, outfit
 | Shift | Sprint |
 | Space | Jump; while holding a basketball, hold and release to shoot |
 | E | The action on the prompt: sit / stand, open / close a door, pick up a ball, use a fixture, explore a landmark |
+| V | Events and clubs board (also the dock's **Events** button) |
 | Q | Drop the ball |
 | M / C | Map / room chat |
 | 1 / 2 / 3 | Wave / dance / cheer |
@@ -61,6 +63,9 @@ Copy `.env.example` to `.env` if changing defaults. Keep server secrets out of `
 | `ROOM_INVITE` | Room | Optional private demo invitation; enter it in Settings and reconnect |
 | `ADMIN_TOKEN` | Room | Optional long random token enabling moderator removal |
 | `VITE_WS_URL` | Frontend build | Optional full `wss://host/ws`; otherwise same-origin `/ws` |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Frontend build | Optional; public values that enable accounts, clubs and events ([setup](docs/ACCOUNTS.md)) |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Room | Optional; the room verifies signed-in players and records verified badges. The service key is a **server secret** |
+| `SUPABASE_ANON_KEY` | Room | Optional; public key used for token checks |
 
 Brand, campus name, locations, collectibles and collision geometry are in `shared/campus.mjs`. Visual colours and interface typography are in `src/styles.css`. The original logo and avatar are procedural. Fonts are bundled with Fontsource, with system fallbacks.
 
@@ -68,6 +73,10 @@ Brand, campus name, locations, collectibles and collision geometry are in `share
 
 ```text
 shared/             Campus configuration and client/server collision functions
+supabase/           PostgreSQL migrations: profiles, verified progress, clubs, events, RLS
+src/services/       Typed account/community service boundary (Supabase behind it)
+src/account/        Session, profile and multiplayer identity state (outside the 3D scene)
+src/community/      Events and clubs drawer state
 src/world/          Architecture, materials, vegetation, batching and lighting
 src/game/           Movement, camera, interactions and basketball
 src/avatar/         Replaceable animated procedural avatar
@@ -82,7 +91,7 @@ docs/               Core integration, deployment, validation and screenshots
 
 Vite + React + TypeScript + React Three Fiber + Three.js + Zustand. No server rendering is needed for the game; the interface is separate from the WebGL scene. Static meshes merge by material, repeated vegetation uses instancing, and avatars interpolate remote updates. Characters (Microsoft Rocketbox, MIT) and textures and props (Poly Haven, CC0) are converted and served locally; see [asset provenance](docs/ASSETS.md). The full campus is compact, rather than streamed in chunks. The scene module loads asynchronously with a loading state.
 
-The server simulates movement at 30 Hz and broadcasts at 15 Hz. Clients send direction/jump inputs, never accepted absolute positions. Shared AABB collision sweeps stop tunnelling; the camera shortens its follow arm against building bounds. Important location/collectible requests require server-side proximity. Client prediction is corrected when divergence exceeds two metres; this MVP has no rewind/replay reconciliation.
+The server simulates movement at 30 Hz and broadcasts at 15 Hz. Clients send direction/jump inputs, never accepted absolute positions. Shared AABB collision sweeps stop tunnelling; the camera shortens its follow arm against building bounds. Important location/collectible requests require server-side proximity. Both sides integrate real elapsed time in short substeps. A standing client that drifts 0.9–2 m from the room glides back to it; beyond two metres it snaps. There is no rewind/replay reconciliation.
 
 ## Multiplayer and moderation
 
@@ -92,7 +101,7 @@ Use the People panel to mute chat or report a player. Reports append to `server/
 
 With `ADMIN_TOKEN` set, an operator can POST a JSON `{"id":"<current-player-id>"}` to `/admin/kick` with `Authorization: Bearer <ADMIN_TOKEN>`. The current room session token is denied until server restart. Guest identities are not institutional identities: a determined guest can create a fresh browser session. Production removal needs authenticated accounts, durable bans, institution-scoped rooms, and operational moderation.
 
-Gameplay progress is localStorage data. It is intentionally editable by the player and never establishes academic credit, attendance, finance status or clearance. Club interests are session-only. No passwords, SSO secrets, or student records are placed into the scene.
+Optional accounts ([docs/ACCOUNTS.md](docs/ACCOUNTS.md)) give players a persistent handle, profile and badges. The room verifies each signed-in player's Supabase token itself, takes names and appearance from the saved profile, and records badges only for actions it has validated. Guest gameplay progress is localStorage data. It is intentionally editable by the player and never establishes academic credit, attendance, finance status or clearance. In guest mode the Student Centre club interests are session-only; with accounts configured, clubs, events and RSVPs are stored in Supabase. No passwords, SSO secrets, or student records are placed into the scene.
 
 ## Validation and remaining work
 
@@ -101,13 +110,15 @@ See [validation](docs/VALIDATION.md) for measured results and [actual screenshot
 ```sh
 npx playwright install chromium
 node tests/browser-verify.mjs
+node tests/browser-accounts.mjs    # accounts and profiles, against a local stack
+node tests/browser-community.mjs   # clubs and events, against a local stack
 ```
 
-You can use an already installed Chromium browser with `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. On PowerShell:
+`npm test` also runs the account and community database tests against an embedded PostgreSQL 17 (initialised in your temp folder on first run, about 40 seconds). You can use an already installed Chromium browser with `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. On PowerShell:
 
 ```powershell
 $env:PLAYWRIGHT_CHROMIUM_EXECUTABLE='C:/Program Files/Google/Chrome/Application/chrome.exe'
 node tests/browser-verify.mjs
 ```
 
-Production Core authentication, tenant feature settings, database-backed shared progression, account-backed moderation, multi-room scaling, licensed realistic character assets, full accessible building interiors, advanced terrain physics, audio ambience, and physical mid-range phone profiling are follow-up work. The current art is bespoke procedural game art, not a photorealistic scan of a real university. The library, café and Studio D1 are enterable; other blocks are not. High quality adds screen-space AO and SMAA; there is no WebGPU dependency.
+Production Core (institutional) authentication, tenant feature settings, migrating guest progress into an account, account-backed moderation and durable bans, multi-room scaling, licensed realistic character assets, full accessible building interiors, advanced terrain physics, audio ambience, and physical mid-range phone profiling are follow-up work. The current art is bespoke procedural game art, not a photorealistic scan of a real university. The library, café and Studio D1 are enterable; other blocks are not. High quality adds screen-space AO and SMAA; there is no WebGPU dependency.

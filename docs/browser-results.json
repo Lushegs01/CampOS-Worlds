@@ -3,8 +3,13 @@
     "desktop real WebGL campus renders",
     "customization and welcome Escape",
     "WASD movement",
-    "jump"
+    "jump",
+    "library information and mini-read",
+    "open the library door",
+    "walk-in library and interior collectible",
+    "complete five-stop exploration tour",
+    "five-shot basketball round under real physics"
   ],
   "errors": [],
-  "failure": "AssertionError [ERR_ASSERTION]: Walk to -14,8 ended at {\"x\":-0.27210238464748354,\"y\":0,\"z\":8.219637249299488}"
+  "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n5 !== 6\n"
 }

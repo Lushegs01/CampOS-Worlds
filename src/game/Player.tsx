@@ -6,9 +6,10 @@ import Avatar from '../avatar/Avatar';
 import { input, player, useGame } from '../state';
 import { COLLIDERS, LOCATIONS, TOKENS, moveWithCollisions } from '../../shared/campus.mjs';
 import { SEAT_BY_ID, seatApproach } from '../../shared/interactions.mjs';
-import { send } from '../network/client';
+import { roomSelf, send } from '../network/client';
 import { activate, activity, beginSit, cancelApproach, cancelCharge, drop, releaseShot, requestSit, standUp, startCharge, tickInteractions } from '../interaction/controller';
 import { useInteraction, world } from '../interaction/world';
+import { currentKeepsakes } from '../account/store';
 import { surfaceHeight } from '../world/layout';
 
 const keys = new Set<string>();
@@ -88,7 +89,7 @@ export default function Player() {
       activate, standUp, drop, startCharge, releaseShot, sit: (id: string) => beginSit(id),
       walkTo: (x: number, z: number) => { qaTarget = { x, z, until: performance.now() + 30000 }; }, walking: () => !!qaTarget,
       focus: () => useInteraction.getState().focus,
-      state: () => ({ activity: activity(), x: player.x, z: player.z, y: player.y, yaw: player.yaw, sit: player.sit && { ...player.sit }, holding: player.holding, charge: player.charge, ui: { ...useInteraction.getState(), set: undefined }, world: world.snapshot() }),
+      state: () => ({ activity: activity(), x: player.x, z: player.z, room: { ...roomSelf }, y: player.y, yaw: player.yaw, sit: player.sit && { ...player.sit }, holding: player.holding, charge: player.charge, ui: { ...useInteraction.getState(), set: undefined }, world: world.snapshot() }),
       face: (yaw: number) => { player.yaw = yaw; input.yaw = yaw + Math.PI; cam.current.yaw = input.yaw; },
     };
     window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
@@ -141,6 +142,14 @@ export default function Player() {
       else { dx = ex / d; dz = ez / d; sprint = false; speed = Math.min(4.5, d * 4 + .3); scale = speed / 4.5; }
     }
     if (still) { dx = dz = 0; velocity.current.x = velocity.current.z = 0; }
+    // Drifted out of agreement with the room while standing: glide back (any input cancels it).
+    if (player.reconcile) {
+      if (Math.hypot(dx, dz) > .01 || player.sit) player.reconcile = null;
+      else {
+        const ex = player.reconcile.x - player.x, ez = player.reconcile.z - player.z, d = Math.hypot(ex, ez), step = Math.min(d, 3 * Math.min(raw, .1));
+        if (d < .05) player.reconcile = null; else { player.x += ex / d * step; player.z += ez / d * step; }
+      }
+    }
     // Integrate movement in real time (in ≤50 ms substeps) even when frames are slow, so the local
     // player moves at the same speed as the room server's simulation of them.
     const real = Math.min(raw, .25), steps = Math.ceil(real / .05), h = real / steps, before = { x: player.x, z: player.z };
@@ -193,7 +202,7 @@ export default function Player() {
     if (clock.elapsedTime - lastSense.current > .15) {
       lastSense.current = clock.elapsedTime;
       const near = LOCATIONS.map(l => ({ id: l.id, d: Math.hypot(l.x - player.x, l.z - player.z) })).sort((a, b) => a.d - b.d)[0]; const id = near.d < 5 ? near.id : null; if (s.nearby !== id) s.set({ nearby: id });
-      if (enabled) for (const token of TOKENS) if (!s.tokens.includes(token.id) && Math.hypot(player.x - token.x, player.z - token.z) < 1.65 && clock.elapsedTime - (collectSent.current[token.id] ?? -10) > .8) { collectSent.current[token.id] = clock.elapsedTime; if (s.status === 'connected') send({ type: 'collect', id: token.id }); else s.collect(token.id); }
+      if (enabled) for (const token of TOKENS) if (!currentKeepsakes().includes(token.id) && Math.hypot(player.x - token.x, player.z - token.z) < 1.65 && clock.elapsedTime - (collectSent.current[token.id] ?? -10) > .8) { collectSent.current[token.id] = clock.elapsedTime; if (s.status === 'connected') send({ type: 'collect', id: token.id }); else s.collect(token.id); }
     }
   });
   return <group ref={root} rotation-y={Math.PI}><Suspense fallback={null}><Avatar id="local" config={avatar} motion={() => player} /></Suspense></group>;

@@ -65,14 +65,14 @@ Decorative objects (shelves, plants, signs, lamps) offer no actions.
 3. **Hold Space** (or the **Shoot** button) and release. A meter sweeps up and down; the gold band shows the release timings that would actually score from where you stand and the way you face. It is computed by running the same physics the server runs, so it is not a decoration. Shots go where the camera looks, with gentle aim assist towards a hoop within ±28° and 13 m.
 4. On release the server launches the ball from the release point and simulates it at 240 Hz substeps. It bounces off the rim (a torus), backboard, posts and floor with restitution, and rolls to rest.
 5. A basket counts only when the ball's centre crosses the rim plane **downwards** inside the ring, and only once per shot. Beyond 6.75 m it is worth 3 points.
-6. The HUD keeps a round of five shots, with made and missed dots, total, best and today's percentage. Feedback distinguishes a swish, a shot off the glass, one in off the rim, rimmed out short or long, an air ball, and no hoop in front of you. **Q** or **Drop** puts the ball down; **Retrieve ball** returns a ball that left the court; idle balls far from the court respawn on their own.
+6. The HUD keeps a round of five shots, with made and missed dots, total, best and today's percentage. Feedback distinguishes a swish, a shot off the glass, one in off the rim, rimmed out short or long, an air ball, and no hoop in front of you. **Q** or **Drop** puts the ball down; **Retrieve ball** returns a ball that left the court; idle balls far from the court respawn on their own, and a ball that comes to rest out of reach (wedged between the rim and the backboard, or on the hoop arm) returns to the rack after three seconds, and one that stays above reach for eight seconds (still circling the rim, say) does too. In 9,000 simulated free throws, no ball stayed up longer than 4.5 seconds before dropping.
 
 Possession is validated by the server and visible to everyone. A disconnecting player's ball is dropped where they stood.
 
 ## Multiplayer consistency
 
-- Movement stays server-simulated from inputs. The client integrates in real time even when frames are slow, so both sides cover the same distance.
-- A standing player's client may ask the room to settle its position. The room accepts only small, walkable corrections (at most 0.9 m) while the player is stationary and not seated, so range checks for seats, doors and balls agree with what the player sees.
+- Movement stays server-simulated from inputs. Both the client and the room integrate real elapsed time in short substeps, so a slow frame or a late server tick never leaves one side behind the other.
+- A standing player's client may ask the room to settle its position. The room accepts only small, walkable corrections (at most 0.9 m) while the player is stationary and not seated, so range checks for seats, doors and balls agree with what the player sees. If a standing player is further out (0.9–2 m), their client glides to the room's position instead; beyond 2 m it snaps, as before.
 - Every action result carries the player's resulting seat and ball. World changes (doors and seats) are broadcast when they change; ball state rides on the 15 Hz state broadcast, with local prediction in between.
 
 ## Testing
