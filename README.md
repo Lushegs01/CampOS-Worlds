@@ -1,5 +1,7 @@
 # CampOS Worlds
 
+Mobile rendering improvements, benchmark results, and the itel S24 test checklist: [Mobile performance](docs/MOBILE-PERFORMANCE.md).
+
 A playable, standalone 3D campus for exploring, meeting people and making small discoveries. The fictional **Òrìṣun Campus** is modelled locally with procedural architecture, vegetation, a walk-in library and a bronze courtyard landmark. No production institutional account is needed.
 
 ## Run locally

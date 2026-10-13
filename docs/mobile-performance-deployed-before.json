@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-13T12:57:55.834Z",
+  "browser": "154.0.8037.98",
+  "renderer": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x00009A49) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 3
+  },
+  "environment": "Desktop Chrome with mobile viewport/touch emulation; no CPU or network throttling. Not physical phone FPS.",
+  "entryMs": 14629.199999809265,
+  "resources": {
+    "requests": 89,
+    "transferredBytes": 20152633,
+    "decodedBytes": 21618820
+  },
+  "samples": [
+    {
+      "name": "entry",
+      "fps": 60.15363337847853,
+      "medianMs": 16.69999999999709,
+      "p95Ms": 16.799999999999272,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 60,
+        "drawCalls": 120,
+        "triangles": 420508,
+        "textures": 121,
+        "geometries": 227,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "b2625e25-6605-4da3-87b9-3fd1a5d39d95",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1
+    }
+  ],
+  "errors": []
+}

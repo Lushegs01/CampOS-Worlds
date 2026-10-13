@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-13T12:54:05.334Z",
+  "results": [
+    "Phone starts on low and skips normal/ARM surface downloads",
+    "Actual touch joystick moves the player",
+    "Two-finger movement and camera rotation work together",
+    "Releasing touch stops movement",
+    "Touch jump works",
+    "Opening a menu clears held touch input",
+    "library renders nearby detail (261624 triangles, 87 draws)",
+    "cafe renders nearby detail (220138 triangles, 95 draws)",
+    "court renders nearby detail (220826 triangles, 90 draws)",
+    "Switching low → medium → high → low keeps rendering",
+    "Landscape touch controls remain accessible",
+    "No browser runtime or rendering errors"
+  ],
+  "errors": []
+}

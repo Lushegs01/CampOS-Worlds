@@ -150,7 +150,8 @@ export function Vegetation({ lib, quality, reduced }: { lib: Materials; quality:
     out.push(garden);
     return out;
   }, [materials, lib, trees, gardens]);
-  useEffect(() => () => meshes.forEach(m => { const mesh = m as THREE.Mesh; mesh.geometry?.dispose(); }), [meshes]);
+  // Geometry belongs to the session cache; quality switches must not dispose shared buffers.
+  useEffect(() => () => meshes.forEach(m => { const mesh = m as THREE.InstancedMesh; if (mesh.isInstancedMesh) mesh.dispose(); mesh.customDepthMaterial?.dispose(); }), [meshes]);
   useFrame((_, dt) => { if (!reduced) wind.uTime.value += dt; });
   return <>{meshes.map((m, i) => <primitive key={i} object={m} />)}{quality.grassBlades > 0 && <Grass count={quality.grassBlades} radius={quality.grassRadius} />}</>;
 }

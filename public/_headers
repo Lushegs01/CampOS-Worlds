@@ -1,0 +1,4 @@
+# Cloudflare Workers Static Assets / Pages. Runtime URLs have a content revision query.
+# HTML keeps the platform's must-revalidate default, so deployments are discoverable.
+/assets/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800

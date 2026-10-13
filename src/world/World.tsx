@@ -1,5 +1,5 @@
 import { QA_HOOKS } from '../qa';
-import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Player from '../game/Player';
@@ -19,7 +19,7 @@ import { buildCampus, Props, Flags, Water, DistanceCull } from './Campus';
 import { Vegetation, setSunDirection } from './Vegetation';
 import { signFontsReady } from './architecture/signage';
 import { surfaceHeight } from './layout';
-import PostFX from './PostFX';
+const PostFX = lazy(() => import('./PostFX'));
 
 const LIBRARY_CENTRE: [number, number, number] = [-30, 2, -15];
 
@@ -37,7 +37,7 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     if (m.sit?.phase === 'done') { m.sit = null; g.position.set(peer.x, peer.y + surfaceHeight(peer.x, peer.z), peer.z); m.last.copy(g.position); }
     const seat = m.sit ? SEAT_BY_ID.get(m.sit.seat) : undefined;
     if (seat) { g.position.set(seat.x, surfaceHeight(seat.x, seat.z), seat.z); g.rotation.y = seat.yaw; }
-    else g.position.lerp(new THREE.Vector3(peer.x, peer.y + surfaceHeight(peer.x, peer.z), peer.z), 1 - Math.exp(-12 * dt));
+    else { const k = 1 - Math.exp(-12 * dt); g.position.x += (peer.x - g.position.x) * k; g.position.y += (peer.y + surfaceHeight(peer.x, peer.z) - g.position.y) * k; g.position.z += (peer.z - g.position.z) * k; }
     let d = peer.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); if (!seat) g.rotation.y += d * (1 - Math.exp(-dt * 10));
     m.holding = !!peer.ball; m.release = peerRelease.get(initial.id) ?? 0;
     // Derive gait speed from the interpolated motion so remote avatars animate like the local one.
@@ -46,7 +46,8 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     m.emote = peer.emote; m.emoteUntil = peer.emoteAt + 3000;
     tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);
     tag.current.position.y = THREE.MathUtils.damp(tag.current.position.y, seat ? 1.8 : 2.25, 4, dt);
-    tag.current.visible = g.position.distanceTo(camera.position) < 30;
+    const tagDistance = g.position.distanceToSquared(camera.position);
+    tag.current.visible = tagDistance > 9 && tagDistance < 900;
   });
   return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]}><Label text={peer.name} p={[0, 0, 0]} width={2.4} height={.36} background="#203c33" /></group></group>;
 }
@@ -85,7 +86,8 @@ function AdaptiveResolution({ max, min }: { max: number; min: number }) {
     const s = state.current; s.frames++; s.time += dt;
     if (s.time < 1.5) return;
     const fps = s.frames / s.time; s.frames = 0; s.time = 0;
-    const next = fps < 32 ? Math.max(min, s.scale * .85) : fps > 55 ? Math.min(max, s.scale * 1.08) : s.scale;
+    // Aim for a responsive 60 Hz frame budget, with a dead band to avoid resolution oscillation.
+    const next = fps < 50 ? Math.max(min, s.scale * .85) : fps > 59 ? Math.min(max, s.scale * 1.04) : s.scale;
     if (Math.abs(next - s.scale) > .01) { s.scale = next; setDpr(next); }
   });
   return null;
@@ -132,7 +134,7 @@ function CompileGate({ children, post, onReady }: { children: ReactNode; post: b
     gl.setRenderTarget(target);
     const pending = gl.compileAsync(group.current, camera, scene);
     gl.setRenderTarget(previous);
-    pending.then(() => { target?.dispose(); if (!alive) return; if (QA_HOOKS) console.info(`shaders compiled in ${Math.round(performance.now() - t)} ms`); setShown(true); onReady?.(); });
+    pending.then(() => { target?.dispose(); if (!alive) return; gl.shadowMap.needsUpdate = true; scene.traverse(o => { if ((o as THREE.DirectionalLight).isDirectionalLight) (o as THREE.DirectionalLight).shadow.needsUpdate = true; }); if (QA_HOOKS) console.info(`shaders compiled in ${Math.round(performance.now() - t)} ms`); setShown(true); onReady?.(); }).catch(() => { target?.dispose(); if (alive) useGame.getState().set({ panel: 'recovery' }); });
     return () => { alive = false; };
   }, [gl, camera, scene, post, onReady]);
   return <group ref={group} visible={shown}>{children}</group>;
@@ -144,11 +146,11 @@ function Campus({ quality }: { quality: QualityProfile }) {
   initLoaders(gl, quality.anisotropy);
   const reduced = useGame(s => s.reducedMotion);
   suspend(cached('fonts', signFontsReady));
-  const surfaces = suspend(cached('surfaces', () => loadSurfaces().then(s => { if (QA_HOOKS) console.info(`surfaces ready at ${Math.round(performance.now())} ms`); return s; })));
+  const surfaces = suspend(cached(`surfaces:${quality.materialDetail}`, () => loadSurfaces(quality.materialDetail).then(s => { if (QA_HOOKS) console.info(`surfaces ready at ${Math.round(performance.now())} ms`); return s; })));
   const info = suspend(loadSkyInfo());
   // Built once per session: this component can re-render many times before it commits.
-  const lib: Materials = suspend(cached('materials', async () => createMaterials(surfaces)));
-  const campus = suspend(cached('campus', async () => { const t = performance.now(); const c = buildCampus(lib); if (QA_HOOKS) console.info(`campus built in ${Math.round(performance.now() - t)} ms (at ${Math.round(performance.now())} ms)`); return c; }));
+  const lib: Materials = suspend(cached(`materials:${quality.materialDetail}`, async () => createMaterials(surfaces, quality.materialDetail)));
+  const campus = suspend(cached(`campus:${quality.materialDetail}`, async () => { const t = performance.now(); const c = buildCampus(lib); if (QA_HOOKS) console.info(`campus built in ${Math.round(performance.now() - t)} ms (at ${Math.round(performance.now())} ms)`); return c; }));
   useEffect(() => { setSunDirection(new THREE.Vector3(...info.sunDirection)); }, [info]);
   // The welcome screen's "Enter campus" waits for the textured campus, not just a canvas.
   const reveal = useMemo(() => () => { useGame.getState().set({ ready: true }); if (QA_HOOKS) console.info(`campus ready at ${Math.round(performance.now())} ms`); }, []);
@@ -160,7 +162,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
     <Flags placements={campus.context.props} reduced={reduced} />
     <Props placements={campus.context.props} quality={quality} />
     <DistanceCull object={campus.books} centre={LIBRARY_CENTRE} distance={Math.min(60, quality.detailDistance)} />
-    <Doors lib={lib} /><Chairs /><Computers /><Balls />
+    <Doors lib={lib} distance={quality.detailDistance + 12} /><Chairs distance={quality.detailDistance} /><Computers /><Balls />
     <Collectibles /><Waypoint /><Player /><Peers />
     </CompileGate>
     <Suspense fallback={null}><CompileGate post={quality.post}><Vegetation lib={lib} quality={quality} reduced={reduced} /></CompileGate></Suspense>
@@ -176,7 +178,7 @@ export default function World() {
       <SkyDome quality={quality} />
       <Lighting quality={quality} />
       <Campus quality={quality} />
-      {quality.post && <PostFX quality={quality} />}
+      {quality.post && <Suspense fallback={null}><PostFX quality={quality} /></Suspense>}
     </Suspense>
     <AdaptiveResolution max={Math.min(quality.dpr, window.devicePixelRatio || 1)} min={qualityKey === 'high' ? .75 : .6} />
     <Telemetry />

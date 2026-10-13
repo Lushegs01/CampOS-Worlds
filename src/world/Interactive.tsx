@@ -39,16 +39,17 @@ function leafMeshes(lib: Materials, len: number, height: number, glass: boolean,
   return g;
 }
 
-export function Doors({ lib }: { lib: Materials }) {
+export function Doors({ lib, distance }: { lib: Materials; distance: number }) {
   const doors = useMemo(() => DOORS.filter(d => !d.locked).map(d => {
     const group = new THREE.Group(); group.name = `door:${d.id}`;
     const y = surfaceHeight(d.x, d.z - .05);
     const leaves = d.leaves.map(l => { const pivot = new THREE.Group(); pivot.position.set(l.hx, y, l.hz); pivot.add(leafMeshes(lib, l.len, d.height, d.glass, l.dir)); group.add(pivot); return { pivot, dir: l.dir }; });
     return { d, group, leaves, angle: 0, vel: 0, open: 0, latched: true };
   }), [lib]);
-  useFrame((_, raw) => {
+  useFrame(({ camera }, raw) => {
     const dt = Math.min(raw, .05);
     for (const s of doors) {
+      s.group.visible = Math.hypot(camera.position.x - s.d.x, camera.position.z - s.d.z) < distance;
       const open = doorOpen[s.d.id] ?? 0;
       if (open && !s.open) { sfx('door-open', s.d); s.latched = false; }
       s.open = open;
@@ -66,18 +67,25 @@ export function Doors({ lib }: { lib: Materials }) {
 type ChairModel = 'schoolChair' | 'monobloc';
 const CHAIRS = SEATS.filter(s => s.kind === 'chair') as (typeof SEATS[number] & { model: ChairModel; pull: number })[];
 /** Free-standing chairs from the shared seat list. Table chairs slide as their sitter scoots in and out. */
-export function Chairs() {
+export function Chairs({ distance }: { distance: number }) {
   const [models, setModels] = useState<Partial<Record<ChairModel, GLTF>>>({});
   useEffect(() => { let alive = true; for (const m of ['schoolChair', 'monobloc'] as const) loadModel(`props/${m}.glb`).then(g => { if (alive) setModels(v => ({ ...v, [m]: g })); }); return () => { alive = false; }; }, []);
-  const sets = useMemo(() => (Object.entries(models) as [ChairModel, GLTF][]).map(([key, gltf]) => {
-    const list = CHAIRS.filter(s => s.model === key); gltf.scene.updateMatrixWorld(true);
+  const sets = useMemo(() => (Object.entries(models) as [ChairModel, GLTF][]).flatMap(([key, gltf]) => {
+    const cells = new Map<string, typeof CHAIRS>();
+    for (const s of CHAIRS.filter(s => s.model === key)) { const cell = `${Math.floor(s.x / 16)},${Math.floor(s.z / 16)}`; if (!cells.has(cell)) cells.set(cell, []); cells.get(cell)!.push(s); }
+    gltf.scene.updateMatrixWorld(true);
     const parts: THREE.Mesh[] = []; gltf.scene.traverse(o => { if ((o as THREE.Mesh).isMesh) parts.push(o as THREE.Mesh); });
-    const meshes = parts.map(p => { const m = new THREE.InstancedMesh(p.geometry, p.material, list.length); m.castShadow = true; m.receiveShadow = true; m.name = `chairs:${key}`; m.frustumCulled = false; return { m, local: p.matrixWorld.clone() }; });
-    return { list, meshes, last: new Float32Array(list.length).fill(-1) };
+    return [...cells.values()].map(list => {
+      const meshes = parts.map(p => { const m = new THREE.InstancedMesh(p.geometry, p.material, list.length); m.castShadow = true; m.receiveShadow = true; m.name = `chairs:${key}`; return { m, local: p.matrixWorld.clone() }; });
+      const centre = new THREE.Vector3(list.reduce((a,s)=>a+s.x,0)/list.length, 0, list.reduce((a,s)=>a+s.z,0)/list.length);
+      return { list, meshes, centre, last: new Float32Array(list.length).fill(-1) };
+    });
   }), [models]);
   const tmp = useMemo(() => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), p: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1), up: new THREE.Vector3(0, 1, 0) }), []);
-  useFrame(() => {
+  useFrame(({ camera }) => {
     for (const set of sets) {
+      const visible = Math.hypot(camera.position.x - set.centre.x, camera.position.z - set.centre.z) < distance + 10;
+      for (const { m } of set.meshes) m.visible = visible;
       let dirty = false;
       set.list.forEach((s, i) => {
         const k = chairPull.get(s.id) ?? 1;
@@ -88,7 +96,7 @@ export function Chairs() {
         tmp.m.compose(tmp.p, tmp.q.setFromAxisAngle(tmp.up, s.yaw), tmp.one);
         for (const { m, local } of set.meshes) m.setMatrixAt(i, new THREE.Matrix4().multiplyMatrices(tmp.m, local));
       });
-      if (dirty) for (const { m } of set.meshes) m.instanceMatrix.needsUpdate = true;
+      if (dirty) for (const { m } of set.meshes) { m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); }
     }
   });
   return <>{sets.flatMap(s => s.meshes.map(({ m }) => <primitive key={m.uuid} object={m} />))}</>;

@@ -26,3 +26,31 @@
 .field>span{display:inline-flex;align-items:center;gap:6px}
 @media(max-width:760px){.hoops-hud{top:76px;left:20px;width:205px;padding:12px 13px 10px;gap:8px}.hoops-score b{font-size:26px}.hoops-keys{font-size:9px}}
 @media(pointer:coarse){.hoops-keys>span{display:none}}
+/* Avoid re-blurring a changing WebGL canvas every frame on phone GPUs. */
+@media (pointer:coarse) {
+  .glass,.quest-card,.game-dock,.minimap,.toast,.hoops-hud,.joystick,.modal-backdrop,.interact-prompt,.connection-pill,.destination-card {backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .joystick>span {will-change:transform}
+  .quest-card,.game-dock,.hoops-hud {background:#203c33ed}
+}
+/* Give both thumbs clear space when a phone is held sideways. */
+@media (pointer:coarse) and (max-height:500px) {
+  .topbar {top:12px;left:20px;right:20px}
+  .campus-name,.location-hud,.minimap {display:none}
+  .quest-card {top:68px;right:20px;width:190px;padding:10px 12px;max-height:95px;overflow:hidden}
+  .quest-card h3 {font-size:13px;margin:6px 0}
+  .quest-card p,.quest-card>.text-button,.quest-card .keepsake-progress {display:none}
+  .quest-top .eyebrow {font-size:8px}
+  .game-dock {bottom:10px;padding:6px 14px;gap:12px}
+  .game-dock button {gap:3px;font-size:9px}
+  .joystick {bottom:25px;left:25px;width:88px;height:88px}
+  .touch-actions {bottom:35px;right:25px}
+  .touch-look {top:22%;height:60%;width:60%}
+  .hoops-hud {top:68px;left:20px;width:190px;padding:10px 12px;gap:5px}
+  .hoops-score b {font-size:24px}
+  .interact-prompt {bottom:90px}
+}
+@media (pointer:coarse) and (max-width:760px) and (min-height:501px) {
+  .quest-card {width:190px;padding:12px 14px}
+  .quest-card h3 {font-size:15px}
+  .quest-card p {display:none}
+}

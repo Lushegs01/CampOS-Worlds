@@ -5,13 +5,14 @@ import { loadTexture } from './assets';
 // is simply "metres per texture repeat". Surface sets are CC0 scans from Poly Haven.
 type Surface = 'grass' | 'grass2' | 'laterite' | 'pavers' | 'paversGrey' | 'hexPaving' | 'stucco' | 'plaster' | 'concrete' | 'ribbed' | 'brushed' | 'brick' | 'roof' | 'terrazzo' | 'granite' | 'palmBark' | 'asphalt' | 'track' | 'wood' | 'bark';
 export const SURFACES: Surface[] = ['grass', 'grass2', 'laterite', 'pavers', 'paversGrey', 'hexPaving', 'stucco', 'plaster', 'concrete', 'ribbed', 'brushed', 'brick', 'roof', 'terrazzo', 'granite', 'palmBark', 'asphalt', 'track', 'wood', 'bark'];
-export interface SurfaceSet { color: THREE.Texture; normal: THREE.Texture; arm: THREE.Texture }
+export interface SurfaceSet { color: THREE.Texture; normal: THREE.Texture | null; arm: THREE.Texture | null }
 export type SurfaceSets = Record<Surface, SurfaceSet>;
 
-export function loadSurfaces(): Promise<SurfaceSets> {
+export function loadSurfaces(detail = true): Promise<SurfaceSets> {
   return Promise.all(SURFACES.map(async key => {
-    const [color, normal, arm] = await Promise.all(['color', 'normal', 'arm'].map(slot => loadTexture(`textures/${key}/${slot}.ktx2`)));
-    return [key, { color, normal, arm }] as const;
+    // Mobile fetches only albedo: skip 40 normal/ARM downloads, transcodes and GPU uploads.
+    const [color, normal, arm] = await Promise.all(['color', 'normal', 'arm'].map(slot => slot === 'color' || detail ? loadTexture(`textures/${key}/${slot}.ktx2`) : Promise.resolve(null)));
+    return [key, { color: color!, normal, arm }] as const;
   })).then(entries => Object.fromEntries(entries) as SurfaceSets);
 }
 
@@ -55,7 +56,7 @@ export function weather(material: THREE.MeshStandardMaterial, w: Weathering = {}
 
 function set(s: SurfaceSet, tile: number, rotation = 0) {
   const r = 1 / tile;
-  const clone = (t: THREE.Texture) => { const c = t.clone(); c.repeat.set(r, r); c.rotation = rotation; c.needsUpdate = true; return c; };
+  const clone = (t: THREE.Texture | null) => { if (!t) return null; const c = t.clone(); c.repeat.set(r, r); c.rotation = rotation; c.needsUpdate = true; return c; };
   return { map: clone(s.color), normalMap: clone(s.normal), roughnessMap: clone(s.arm), metalnessMap: clone(s.arm), aoMap: clone(s.arm) };
 }
 
@@ -67,10 +68,10 @@ function breezeAlpha() {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2.5, 2.5); t.anisotropy = 4; return t;
 }
 
-export function createMaterials(s: SurfaceSets) {
+export function createMaterials(s: SurfaceSets, detail = true) {
   const pbr = (name: string, key: Surface, tile: number, extra: THREE.MeshStandardMaterialParameters = {}, w?: Weathering | false) => {
-    const m = new THREE.MeshStandardMaterial({ name, ...set(s[key], tile), metalness: 1, roughness: 1, aoMapIntensity: .8, ...extra });
-    return w === false ? m : weather(m, w);
+    const m = new THREE.MeshStandardMaterial({ name, ...set(s[key], tile), metalness: detail ? 1 : 0, roughness: detail ? 1 : .86, aoMapIntensity: .8, ...extra });
+    return !detail || w === false ? m : weather(m, w);
   };
   const paint = (name: string, color: string, roughness = .55, metalness = 0) => new THREE.MeshStandardMaterial({ name, color, roughness, metalness });
   const lib = {
@@ -109,7 +110,7 @@ export function createMaterials(s: SurfaceSets) {
     bronze: new THREE.MeshStandardMaterial({ name: 'bronze', color: '#b5874f', roughness: .32, metalness: 1, envMapIntensity: 1.2 }),
     rubber: paint('rubber', '#1e1f1f', .85), fabricShade: paint('fabricShade', '#f1ece0', .9), fabricTerracotta: paint('fabricTerracotta', '#b5583d', .85),
     emissiveWarm: new THREE.MeshStandardMaterial({ name: 'emissiveWarm', color: '#fff4dc', emissive: '#ffe2ad', emissiveIntensity: 1.4, roughness: .5 }),
-    breezePanel: new THREE.MeshStandardMaterial({ name: 'breezePanel', ...set(s.stucco, 3.2), color: '#ecdcb9', alphaMap: breezeAlpha(), alphaTest: .5, side: THREE.DoubleSide, metalness: 1, roughness: 1 }),
+    breezePanel: new THREE.MeshStandardMaterial({ name: 'breezePanel', ...set(s.stucco, 3.2), color: '#ecdcb9', alphaMap: breezeAlpha(), alphaTest: .5, side: THREE.DoubleSide, metalness: detail ? 1 : 0, roughness: 1 }),
     soil: paint('soil', '#5a3b2a', .95), mulch: paint('mulch', '#4a3426', .95), poolTile: paint('poolTile', '#3e7c84', .3),
   };
   return lib;

@@ -1,0 +1,170 @@
+{
+  "date": "2026-10-13T12:44:20.216Z",
+  "browser": "154.0.8037.98",
+  "renderer": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x00009A49) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 3
+  },
+  "environment": "Desktop Chrome with mobile viewport/touch emulation; no CPU or network throttling. Not physical phone FPS.",
+  "entryMs": 4159,
+  "resources": {
+    "requests": 110,
+    "transferredBytes": 17554180,
+    "decodedBytes": 17521180
+  },
+  "samples": [
+    {
+      "name": "entry",
+      "fps": 59.47918228336462,
+      "medianMs": 16.69999999999891,
+      "p95Ms": 17,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 60,
+        "drawCalls": 115,
+        "triangles": 234972,
+        "textures": 65,
+        "geometries": 169,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "d7340b30-28d4-435a-af9a-05c83a4727dc",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 0.9507607104978945
+    }
+  ],
+  "scene": [
+    [
+      "trees:wood",
+      57760
+    ],
+    [
+      "books",
+      38520
+    ],
+    [
+      "chairs:monobloc",
+      34200
+    ],
+    [
+      "trees:leaves",
+      32812
+    ],
+    [
+      "chairs:schoolChair",
+      30600
+    ],
+    [
+      "campus:stucco",
+      29328
+    ],
+    [
+      "campus:bronze",
+      16780
+    ],
+    [
+      "campus:aluminium",
+      15156
+    ],
+    [
+      "prop:pottedPlant",
+      14256
+    ],
+    [
+      "Mesh",
+      12884
+    ],
+    [
+      "ground",
+      8192
+    ],
+    [
+      "m007_hipoly_81_bones_1",
+      7388
+    ],
+    [
+      "campus:darkMetal",
+      7284
+    ],
+    [
+      "campus:stuccoCream",
+      7188
+    ],
+    [
+      "m007_hipoly_81_bones_2",
+      6056
+    ],
+    [
+      "campus:paintDark",
+      5756
+    ],
+    [
+      "campus:steel",
+      5672
+    ],
+    [
+      "campus:paintTerracotta",
+      4876
+    ],
+    [
+      "campus:paintWhite",
+      4732
+    ],
+    [
+      "prop:picnic",
+      4713
+    ],
+    [
+      "prop:hydrant",
+      4708
+    ],
+    [
+      "campus:paintGreen",
+      4468
+    ],
+    [
+      "campus:brushed",
+      4036
+    ],
+    [
+      "campus:wood",
+      3692
+    ],
+    [
+      "campus:emissiveWarm",
+      3572
+    ],
+    [
+      "campus:granite",
+      3196
+    ],
+    [
+      "campus:concrete",
+      1852
+    ],
+    [
+      "gardens",
+      1652
+    ],
+    [
+      "campus:lineWhite",
+      1524
+    ],
+    [
+      "campus:bronzeFrame",
+      1104
+    ]
+  ],
+  "errors": []
+}

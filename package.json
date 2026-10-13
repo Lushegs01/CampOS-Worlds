@@ -29,6 +29,7 @@
     "@gltf-transform/extensions": "^4.2.1",
     "@gltf-transform/functions": "^4.2.1",
     "@playwright/test": "1.58.2",
+    "@types/node": "24.19.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/three": "0.183.1",

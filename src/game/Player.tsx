@@ -20,15 +20,21 @@ const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'Arro
 
 /** Fraction (0..1) of the segment origin→end that is free of collider boxes. */
 export function cameraDistance(origin: THREE.Vector3, end: THREE.Vector3, pad = .3) {
-  let closest = 1; const d = end.clone().sub(origin);
+  let closest = 1;
+  const dx = end.x - origin.x, dy = end.y - origin.y, dz = end.z - origin.z;
+  const x0 = Math.min(origin.x, end.x) - pad, x1 = Math.max(origin.x, end.x) + pad;
+  const z0 = Math.min(origin.z, end.z) - pad, z1 = Math.max(origin.z, end.z) + pad;
   for (const b of COLLIDERS) {
+    // Broad phase rejects distant buildings before the slab test. No per-collider arrays.
+    if (b.x + b.w / 2 < x0 || b.x - b.w / 2 > x1 || b.z + b.d / 2 < z0 || b.z - b.d / 2 > z1) continue;
     let near = 0, far = 1;
-    const mins = [b.x - b.w / 2 - pad, -pad, b.z - b.d / 2 - pad], maxs = [b.x + b.w / 2 + pad, b.h + pad, b.z + b.d / 2 + pad];
     let miss = false;
     for (let axis = 0; axis < 3; axis++) {
-      const o = origin.getComponent(axis), v = d.getComponent(axis);
-      if (Math.abs(v) < 1e-4) { if (o < mins[axis] || o > maxs[axis]) { miss = true; break; } }
-      else { const a = (mins[axis] - o) / v, c = (maxs[axis] - o) / v; near = Math.max(near, Math.min(a, c)); far = Math.min(far, Math.max(a, c)); }
+      const o = origin.getComponent(axis), v = axis === 0 ? dx : axis === 1 ? dy : dz;
+      const min = axis === 0 ? b.x - b.w / 2 - pad : axis === 1 ? -pad : b.z - b.d / 2 - pad;
+      const max = axis === 0 ? b.x + b.w / 2 + pad : axis === 1 ? b.h + pad : b.z + b.d / 2 + pad;
+      if (Math.abs(v) < 1e-4) { if (o < min || o > max) { miss = true; break; } }
+      else { const a = (min - o) / v, c = (max - o) / v; near = Math.max(near, Math.min(a, c)); far = Math.min(far, Math.max(a, c)); }
     }
     if (!miss && near <= far && near >= 0 && near < closest) closest = Math.max(.06, near - .02);
   }

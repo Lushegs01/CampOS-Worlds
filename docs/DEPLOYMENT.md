@@ -2,6 +2,14 @@
 
 The frontend is static. The room requires a continuously running Node process that supports WebSocket upgrades; it is not suitable for a short-lived serverless function. Nothing has been published to a production service by this task.
 
+## Existing Cloudflare frontend
+
+Build with `npm ci && npm run build` and publish `dist/` through the existing Worker Static Assets deployment. Keep the deployment's existing `VITE_WS_URL` setting. No room-server settings need to change for the mobile rendering update. Do not set `VITE_QA=1` on the public build.
+
+Vite copies `public/_headers` into `dist/_headers`. Cloudflare Workers Static Assets [reads that file](https://developers.cloudflare.com/workers/static-assets/headers/) to apply the one-day asset cache. Runtime URLs include a content-derived asset revision; HTML is revalidated so a new release loads new bundles. Deploy the entire `dist/` directory, including `_headers`, rather than just `index.html`. Custom Worker responses need equivalent headers in that Worker if they bypass static asset serving.
+
+After deployment verify the mobile layout and the asset response's `Cache-Control` header. See [mobile measurements and the physical-phone checklist](MOBILE-PERFORMANCE.md). A Git push only updates the live site automatically if the existing Cloudflare project is connected to that branch.
+
 ## Same-origin deployment (recommended for a private demo)
 
 1. Run `npm ci && npm run build` in CI with Node 22.12+.

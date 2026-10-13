@@ -67,11 +67,24 @@ function mergeAll(list: THREE.BufferGeometry[]) {
 /** Instanced Poly Haven props, grouped into 40 m cells so fine detail can be distance-culled. */
 export function Props({ placements, quality }: { placements: Placements; quality: QualityProfile }) {
   const [models, setModels] = useState<Partial<Record<PropFile, GLTF>>>({});
+  const requested = useRef(new Set<string>()), alive = useRef(true), lastLoad = useRef(-10);
   useEffect(() => {
-    let alive = true;
-    for (const key of placements.map.keys()) if ((PROP_FILES as readonly string[]).includes(key)) loadModel(`props/${key}.glb`).then(g => { if (alive) setModels(m => ({ ...m, [key]: g })); }).catch(e => console.warn('prop failed', key, e));
-    return () => { alive = false; };
-  }, [placements]);
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
+  useFrame(({ camera, clock }) => {
+    if (clock.elapsedTime - lastLoad.current < .5) return;
+    lastLoad.current = clock.elapsedTime;
+    let started = 0;
+    for (const [key, list] of placements.map) {
+      if (requested.current.has(key) || !(PROP_FILES as readonly string[]).includes(key)) continue;
+      const radius = quality.detailDistance + 18;
+      if (!list.some(m => Math.hypot(m.elements[12] - camera.position.x, m.elements[14] - camera.position.z) < radius)) continue;
+      requested.current.add(key);
+      loadModel(`props/${key}.glb`).then(g => { if (alive.current) setModels(m => ({ ...m, [key]: g })); }).catch(e => console.warn('prop failed', key, e));
+      if (++started === 2) break;
+    }
+  });
   const cells = useMemo(() => {
     const out: { mesh: THREE.InstancedMesh; centre: THREE.Vector3; detail: boolean }[] = [];
     for (const [key, gltf] of Object.entries(models) as [PropFile, GLTF][]) {
@@ -79,7 +92,7 @@ export function Props({ placements, quality }: { placements: Placements; quality
       gltf.scene.updateMatrixWorld(true);
       const parts: THREE.Mesh[] = []; gltf.scene.traverse(o => { if ((o as THREE.Mesh).isMesh) parts.push(o as THREE.Mesh); });
       const buckets = new Map<string, THREE.Matrix4[]>(), p = new THREE.Vector3();
-      for (const m of list) { p.setFromMatrixPosition(m); const k = `${Math.floor(p.x / 40)},${Math.floor(p.z / 40)}`; (buckets.get(k) ?? buckets.set(k, []).get(k)!).push(m); }
+      for (const m of list) { p.setFromMatrixPosition(m); const k = `${Math.floor(p.x / 20)},${Math.floor(p.z / 20)}`; (buckets.get(k) ?? buckets.set(k, []).get(k)!).push(m); }
       for (const mats of buckets.values()) for (const part of parts) {
         const mesh = new THREE.InstancedMesh(part.geometry, part.material, mats.length), tmp = new THREE.Matrix4(), centre = new THREE.Vector3();
         mats.forEach((m, i) => { mesh.setMatrixAt(i, tmp.multiplyMatrices(m, part.matrixWorld)); centre.add(p.setFromMatrixPosition(m)); });
@@ -91,7 +104,8 @@ export function Props({ placements, quality }: { placements: Placements; quality
     return out;
   }, [models, placements]);
   const root = useRef<THREE.Group>(null!);
-  useFrame(({ camera }) => { for (const c of cells) c.mesh.visible = !c.detail || c.centre.distanceTo(camera.position) < quality.detailDistance; });
+  useEffect(() => () => cells.forEach(c => c.mesh.dispose()), [cells]);
+  useFrame(({ camera }) => { for (const c of cells) c.mesh.visible = c.centre.distanceToSquared(camera.position) < (quality.detailDistance + (c.detail ? 10 : 25)) ** 2; });
   return <group ref={root}>{cells.map((c, i) => <primitive key={i} object={c.mesh} />)}</group>;
 }
 

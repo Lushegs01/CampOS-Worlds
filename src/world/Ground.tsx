@@ -73,7 +73,7 @@ export function terrainHeight(x: number, z: number) {
 export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: QualityProfile }) {
   const geometry = useMemo(() => {
     // Dense in the campus (1 m), coarser beyond; positions in metres with world-space UVs.
-    const g = new THREE.PlaneGeometry(1400, 1400, 200, 200); g.rotateX(-Math.PI / 2);
+    const g = new THREE.PlaneGeometry(1400, 1400, quality.terrainSegments, quality.terrainSegments); g.rotateX(-Math.PI / 2);
     const p = g.getAttribute('position') as THREE.BufferAttribute, uv = g.getAttribute('uv') as THREE.BufferAttribute;
     for (let i = 0; i < p.count; i++) {
       let x = p.getX(i), z = p.getZ(i);
@@ -84,7 +84,8 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
     }
     g.computeVertexNormals();
     return g;
-  }, []);
+  }, [quality.terrainSegments]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
   const material = useMemo(() => {
     const m = new THREE.MeshStandardMaterial({ map: surfaces.grass.color, normalMap: surfaces.grass.normal, roughness: 1, metalness: 0 });
     const mask = layoutMask();
@@ -107,7 +108,11 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
           gUv = vec2(vWorldPos.x, -vWorldPos.z);
           gMask = texture2D(uMask, (vWorldPos.xz - uMaskRect.xy) / uMaskRect.zw);
           float outside = 1. - step(abs(vWorldPos.x), 69.6) * step(-64.6, vWorldPos.z) * step(vWorldPos.z, 50.2);
-          float macro = cFbm(vWorldPos.xz * .018), detail = cFbm(vWorldPos.xz * .11 + 13.);
+          #ifdef GROUND_LAYERS
+            float macro = cFbm(vWorldPos.xz * .018), detail = cFbm(vWorldPos.xz * .11 + 13.);
+          #else
+            float macro = cNoise(vWorldPos.xz * .018), detail = cNoise(vWorldPos.xz * .11 + 13.);
+          #endif
           #ifdef GROUND_LAYERS
             vec3 g1 = mix(texture2D(uGrass, gUv / 2.6).rgb, texture2D(uGrass, ROT * gUv / 7.3).rgb, .45);
             vec3 g2 = texture2D(uGrass2, ROT * gUv / 3.4).rgb;
@@ -117,7 +122,7 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
           gBlend = smoothstep(.35, .75, detail);
           vec3 lawn = mix(g1, g2, gBlend * .55) * vec3(.82, 1.08, .74);
           lawn *= .82 + .36 * macro;
-          lawn = mix(lawn, lawn * vec3(1.18, 1.05, .72), smoothstep(.62, .85, cFbm(vWorldPos.xz * .045 + 4.)) * .5);
+          lawn = mix(lawn, lawn * vec3(1.18, 1.05, .72), smoothstep(.62, .85, detail) * .5);
           // Mown stripes on the football pitch.
           lawn *= 1. + gMask.a * (step(.5, fract((vWorldPos.x + 66.) / 5.)) - .5) * .12;
           vec3 soil = texture2D(uSoil, gUv / 2.2).rgb * vec3(1.08, .96, .9);
@@ -126,8 +131,13 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
           vec3 albedo = mix(lawn, soil, smoothstep(.12, .75, gSoil));
           albedo = mix(albedo, vec3(.085, .06, .042) * (.85 + .3 * detail), gBed * .9);
           // Beyond the walls: secondary forest and bush on the ridges, meadow in the hollows.
-          float canopy = smoothstep(.38, .62, cFbm(vWorldPos.xz * .012 + 31.) + cNoise(vWorldPos.xz * .09) * .25);
-          vec3 forest = mix(vec3(.035, .06, .025), vec3(.085, .12, .045), cFbm(vWorldPos.xz * .07));
+          #ifdef GROUND_LAYERS
+            float canopy = smoothstep(.38, .62, cFbm(vWorldPos.xz * .012 + 31.) + cNoise(vWorldPos.xz * .09) * .25);
+            vec3 forest = mix(vec3(.035, .06, .025), vec3(.085, .12, .045), cFbm(vWorldPos.xz * .07));
+          #else
+            float canopy = smoothstep(.38, .62, macro);
+            vec3 forest = mix(vec3(.035, .06, .025), vec3(.085, .12, .045), detail);
+          #endif
           vec3 meadow = mix(g2, g1, .5) * vec3(.62, .86, .48) * (.75 + .4 * macro);
           albedo = mix(albedo, mix(meadow, forest, canopy), outside);
           diffuseColor.rgb *= albedo;
@@ -147,8 +157,10 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
         `)
         .replace('#include <aomap_fragment>', /* glsl */`
           #include <aomap_fragment>
-          float gAO = mix(texture2D(uGrassARM, gUv / 2.6).r, 1., .35);
-          reflectedLight.indirectDiffuse *= gAO;
+          #ifdef GROUND_LAYERS
+            float gAO = mix(texture2D(uGrassARM, gUv / 2.6).r, 1., .35);
+            reflectedLight.indirectDiffuse *= gAO;
+          #endif
         `);
     };
     m.customProgramCacheKey = () => 'ground' + (quality.groundLayers ? 'L' : '');

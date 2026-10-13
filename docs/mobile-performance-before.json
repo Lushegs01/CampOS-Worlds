@@ -1,0 +1,310 @@
+{
+  "date": "2026-10-13T10:02:22.584Z",
+  "browser": "154.0.8037.98",
+  "renderer": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x00009A49) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 3
+  },
+  "environment": "Desktop Chrome with mobile viewport/touch emulation; no CPU or network throttling. Not physical phone FPS.",
+  "entryMs": 32670.699999809265,
+  "resources": {
+    "requests": 157,
+    "transferredBytes": 27129407,
+    "decodedBytes": 27082307
+  },
+  "samples": [
+    {
+      "name": "entry",
+      "fps": 51.31622792320996,
+      "medianMs": 16.700000000004366,
+      "p95Ms": 33.39999999999418,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 52,
+        "drawCalls": 120,
+        "triangles": 420508,
+        "textures": 122,
+        "geometries": 216,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "d7340b30-28d4-435a-af9a-05c83a4727dc",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1
+    },
+    {
+      "name": "without-chairs:",
+      "fps": 50.87958498140195,
+      "medianMs": 16.700000000004366,
+      "p95Ms": 33.400000000001455,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 53,
+        "drawCalls": 118,
+        "triangles": 355708,
+        "textures": 122,
+        "geometries": 216,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "d7340b30-28d4-435a-af9a-05c83a4727dc",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1
+    },
+    {
+      "name": "without-prop:",
+      "fps": 48.02818540028929,
+      "medianMs": 16.700000000004366,
+      "p95Ms": 33.599999999998545,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 45,
+        "drawCalls": 120,
+        "triangles": 420508,
+        "textures": 122,
+        "geometries": 216,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "d7340b30-28d4-435a-af9a-05c83a4727dc",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1
+    },
+    {
+      "name": "without-trees:",
+      "fps": 55.731559652568414,
+      "medianMs": 16.69999999999709,
+      "p95Ms": 17.10000000000582,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 56,
+        "drawCalls": 80,
+        "triangles": 294068,
+        "textures": 122,
+        "geometries": 216,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "d7340b30-28d4-435a-af9a-05c83a4727dc",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1
+    },
+    {
+      "name": "without-ground",
+      "fps": 55.42517601414288,
+      "medianMs": 16.69999999999709,
+      "p95Ms": 17.59999999999127,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 57,
+        "drawCalls": 119,
+        "triangles": 340508,
+        "textures": 122,
+        "geometries": 216,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "d7340b30-28d4-435a-af9a-05c83a4727dc",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 0.8162933760000001
+    },
+    {
+      "name": "without-campus:",
+      "fps": 56.79736167094171,
+      "medianMs": 16.69999999999709,
+      "p95Ms": 17.19999999999709,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 57,
+        "drawCalls": 79,
+        "triangles": 299064,
+        "textures": 122,
+        "geometries": 216,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "d7340b30-28d4-435a-af9a-05c83a4727dc",
+            "x": 0,
+            "z": 36
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1
+    }
+  ],
+  "scene": [
+    [
+      "ground",
+      80000
+    ],
+    [
+      "trees:wood",
+      69984
+    ],
+    [
+      "trees:leaves",
+      66340
+    ],
+    [
+      "books",
+      38520
+    ],
+    [
+      "chairs:monobloc",
+      34200
+    ],
+    [
+      "chairs:schoolChair",
+      30600
+    ],
+    [
+      "campus:stucco",
+      29328
+    ],
+    [
+      "campus:bronze",
+      16780
+    ],
+    [
+      "prop:pottedPalm",
+      16700
+    ],
+    [
+      "campus:aluminium",
+      15156
+    ],
+    [
+      "prop:pottedPlant",
+      14256
+    ],
+    [
+      "Mesh",
+      12884
+    ],
+    [
+      "m007_hipoly_81_bones_1",
+      7388
+    ],
+    [
+      "campus:darkMetal",
+      7284
+    ],
+    [
+      "campus:stuccoCream",
+      7188
+    ],
+    [
+      "m007_hipoly_81_bones_2",
+      6056
+    ],
+    [
+      "campus:paintDark",
+      5756
+    ],
+    [
+      "campus:steel",
+      5672
+    ],
+    [
+      "campus:paintTerracotta",
+      4876
+    ],
+    [
+      "campus:paintWhite",
+      4732
+    ],
+    [
+      "prop:picnic",
+      4713
+    ],
+    [
+      "prop:hydrant",
+      4708
+    ],
+    [
+      "campus:paintGreen",
+      4468
+    ],
+    [
+      "campus:brushed",
+      4036
+    ],
+    [
+      "campus:wood",
+      3692
+    ],
+    [
+      "campus:emissiveWarm",
+      3572
+    ],
+    [
+      "campus:granite",
+      3196
+    ],
+    [
+      "gardens",
+      2576
+    ],
+    [
+      "prop:chalkboard",
+      2372
+    ],
+    [
+      "campus:concrete",
+      1852
+    ]
+  ],
+  "errors": []
+}

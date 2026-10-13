@@ -13,18 +13,21 @@ const textures = new Map<string, Promise<THREE.Texture>>(), models = new Map<str
 export function initLoaders(renderer: THREE.WebGLRenderer, maxAnisotropy: number) {
   anisotropy = Math.min(maxAnisotropy, renderer.capabilities.getMaxAnisotropy());
   if (ktx2) return;
-  ktx2 = new KTX2Loader().setTranscoderPath(BASE + 'basis/').setWorkerLimit(2).detectSupport(renderer);
-  gltf = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
+  const manager = new THREE.LoadingManager();
+  // KTX2Loader constructs decoder URLs internally, so version those requests here as well.
+  manager.setURLModifier(url => url.startsWith(BASE) && !url.includes('?') ? `${url}?v=${__CAMPUS_ASSET_VERSION__}` : url);
+  ktx2 = new KTX2Loader(manager).setTranscoderPath(BASE + 'basis/').setWorkerLimit(2).detectSupport(renderer);
+  gltf = new GLTFLoader(manager).setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
 }
 
-export const assetUrl = (path: string) => BASE + path;
+export const assetUrl = (path: string) => `${BASE}${path}?v=${__CAMPUS_ASSET_VERSION__}`;
 
 /** A KTX2 texture configured for tiling. Repeats are applied per material via clone(). */
 export function loadTexture(path: string): Promise<THREE.Texture> {
   if (!ktx2) throw new Error('initLoaders() must run before loading textures');
   let p = textures.get(path);
   if (!p) {
-    p = ktx2.loadAsync(BASE + path).then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; return t; });
+    p = ktx2.loadAsync(assetUrl(path)).then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; return t; });
     textures.set(path, p);
   }
   return p;
@@ -33,12 +36,12 @@ export function loadTexture(path: string): Promise<THREE.Texture> {
 export function loadModel(path: string): Promise<GLTF> {
   if (!gltf) throw new Error('initLoaders() must run before loading models');
   let p = models.get(path);
-  if (!p) { p = gltf.loadAsync(BASE + path); models.set(path, p); }
+  if (!p) { p = gltf.loadAsync(assetUrl(path)); models.set(path, p); }
   return p;
 }
 
-export function loadHDR(path: string) { return new HDRLoader().loadAsync(BASE + path); }
-export function loadImage(path: string) { return new THREE.TextureLoader().loadAsync(BASE + path); }
+export function loadHDR(path: string) { return new HDRLoader().loadAsync(assetUrl(path)); }
+export function loadImage(path: string) { return new THREE.TextureLoader().loadAsync(assetUrl(path)); }
 
 /** Suspense-friendly cache: throws the pending promise until the value is ready. */
 const settled = new WeakMap<Promise<unknown>, { value?: unknown; error?: unknown; done: boolean }>();
