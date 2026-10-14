@@ -1,11 +1,13 @@
 // Authoritative interaction rules: seats, doors and basketballs. The room server runs one instance
 // for everyone; the client runs its own instance when exploring offline, so the rules are identical.
 import { SEAT_BY_ID, DOOR_BY_ID, BALLS, seatApproach, STAND_EXIT, SEAT_RANGE, BALL_PICKUP_RANGE } from './interactions.mjs';
-import { blocked, setDoorOpen, doorOpen } from './campus.mjs';
+import { blocked, setDoorOpen, doorOpen, moveWithCollisions } from './campus.mjs';
 import { newBall, stepBall, planShot, resetBall } from './ball.mjs';
 
 const fail = reason => ({ ok: false, reason }), ok = { ok: true };
 const near = (p, x, z, r) => Math.hypot(p.x - x, p.z - z) <= r;
+/** Can someone at p walk straight to within `slack` of (x, z)? Range alone let players sit or grab a ball through a wall. */
+const reachable = (p, x, z, slack) => { const q = moveWithCollisions(p.x, p.z, x - p.x, z - p.z); return Math.hypot(q.x - x, q.z - z) <= slack; };
 /** Is o inside the area a door leaf sweeps when it swings towards `dir` (+1 / -1 along z)? */
 const inArc = (o, d, dir) => d.leaves.some(l => { const a = (o.x - l.hx) * l.dir, b = (o.z - l.hz) * dir; return a > -.3 && b > -.1 && Math.hypot(Math.max(0, a), Math.max(0, b)) < l.len + .35; });
 const inWay = (o, c) => Math.abs(o.x - c.x) < c.w / 2 + .25 && Math.abs(o.z - c.z) < c.d / 2 + .25;
@@ -38,6 +40,8 @@ export function createWorld() {
       if (p.y > .05) return fail('Land first, then sit.');
       if (seats.has(seatId) && seats.get(seatId) !== p.id) return fail('That seat is taken.');
       if (!near(p, s.x, s.z, SEAT_RANGE + .6)) return fail('Move a little closer to sit.');
+      const stand = seatApproach(s);
+      if (!reachable(p, stand.x, stand.z, .35)) return fail('You can’t reach that seat from here.');
       seats.set(seatId, p.id); p.seat = seatId; p.vx = p.vz = 0; p.x = s.x; p.z = s.z; p.yaw = s.yaw; changed();
       return ok;
     },
@@ -48,7 +52,7 @@ export function createWorld() {
       // Prefer stepping forward; fall back to either side or behind if something is in the way.
       const f = [Math.sin(s.yaw), Math.cos(s.yaw)], r = [Math.cos(s.yaw), -Math.sin(s.yaw)];
       const ahead = STAND_EXIT - (s.pull ?? 0), options = [[f[0] * ahead, f[1] * ahead], [r[0] * .8, r[1] * .8], [-r[0] * .8, -r[1] * .8], [f[0] * .9, f[1] * .9], [-f[0] * .8, -f[1] * .8]];
-      const spot = options.map(([dx, dz]) => ({ x: s.x + dx, z: s.z + dz })).find(o => !blocked(o.x, o.z));
+      const spot = options.map(([dx, dz]) => ({ x: s.x + dx, z: s.z + dz })).find(o => !blocked(o.x, o.z) && reachable(s, o.x, o.z, .05));
       if (!spot) return fail('There is no room to stand up here.');
       seats.delete(p.seat); p.seat = null; p.x = spot.x; p.z = spot.z; changed();
       return { ok: true, x: spot.x, z: spot.z };
@@ -83,7 +87,7 @@ export function createWorld() {
       if (p.seat) return fail('Stand up first.');
       if (p.ball) return fail('You are already holding a ball.');
       if (b.state === 'held') return fail(b.holder === p.id ? 'You already have it.' : 'Someone else has that ball.');
-      if (b.y > 1.7 || !near(p, b.x, b.z, BALL_PICKUP_RANGE + .3)) return fail('Get closer to the ball.');
+      if (b.y > 1.7 || !near(p, b.x, b.z, BALL_PICKUP_RANGE + .3) || !reachable(p, b.x, b.z, .5)) return fail('Get closer to the ball.');
       b.state = 'held'; b.holder = p.id; b.shot = null; b.vx = b.vy = b.vz = 0; b.rest = 0; p.ball = b.id; changed();
       return ok;
     },
@@ -127,7 +131,9 @@ export function createWorld() {
     },
     /** Release everything a player holds (leaving, disconnecting or being removed). */
     release(p) {
-      if (p.seat && seats.get(p.seat) === p.id) { seats.delete(p.seat); p.seat = null; changed(); }
+      // Stood up at the seat's exit, as the stand-up motion would have left them (the room remembers
+      // where a disconnected player was, to put them back there when they reconnect).
+      if (p.seat && seats.get(p.seat) === p.id && !this.stand(p).ok) { seats.delete(p.seat); p.seat = null; changed(); }
       if (p.ball) this.drop(p);
     },
 
