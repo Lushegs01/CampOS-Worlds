@@ -7,6 +7,8 @@ import { getCommunityService, communityConfigured, toServiceError, NOT_CONFIGURE
 import { CLUB_CATEGORIES, CLUB_COLORS, CLUB_EMBLEMS, EVENT_CATEGORIES, type CampusEvent, type Club, type ClubCategory, type ClubEmblem, type ClubInput, type EventCategory, type EventInput } from '../services/types';
 import { useCommunity, type CommunityView } from '../community/store';
 import { Failure, Loading, useAction, useLoad } from './async';
+import { EVENT_TEMPLATES, checkIn, checkInOpen, templateById } from '../community/activities';
+import { Challenges } from './Challenges';
 import { Portrait } from './Account';
 
 // ---------------------------------------------------------------- shared bits
@@ -121,15 +123,20 @@ function EventView({ id }: { id: string }) {
     <dl className="event-facts">
       <div><dt><Clock size={14} /></dt><dd>{dayLabel(ev.starts_at)}, {time(ev.starts_at)} – {time(ev.ends_at)}<small>{ZONE.replace(/_/g, ' ')} time</small></dd></div>
       <div><dt><MapPin size={14} /></dt><dd>{ev.location.name}<button className="text-button inline" onClick={() => guideTo(ev.location)}><Navigation size={13} />Show me the way</button></dd></div>
-      <div><dt><Users size={14} /></dt><dd>{ev.attendee_count} going{ev.capacity !== null ? ` · ${Math.max(0, ev.capacity - ev.attendee_count)} of ${ev.capacity} places left` : ''}</dd></div>
+      <div><dt><Users size={14} /></dt><dd>{ev.attendee_count} going{ev.capacity !== null ? ` · ${Math.max(0, ev.capacity - ev.attendee_count)} of ${ev.capacity} places left` : ''}{(ev.checked_in_count ?? 0) > 0 && <small>{ev.checked_in_count} checked in on campus</small>}</dd></div>
     </dl>
     {ev.description && <p className="event-description">{ev.description}</p>}
+    {templateById(ev.template) && <p className="note small-text activity-hint"><b>{templateById(ev.template)!.name}</b>{templateById(ev.template)!.activity}</p>}
+    {checkInOpen(ev) && <div className="checkin">{ev.checked_in ? <p className="banner going"><CircleCheck size={15} />You’re checked in. This is attendance in the game only, not official attendance.</p>
+      : member === 'member' ? <><button className="primary wide" disabled={pending} onClick={() => void act(async () => { const r = await checkIn(ev); if (!r.ok) throw new Error(r.reason ?? 'Check-in failed.'); useGame.getState().notify(`Checked in at ${ev.title}.`); changed(); })}><MapPin size={16} />Check in at {ev.location.name}</button><small className="muted">Happening now. Be at {ev.location.name} on campus to check in. In-game attendance only; never academic attendance.</small></>
+      : <JoinPrompt what="check in" />}</div>}
     {actionError && <p className="form-error" role="alert">{actionError}</p>}
     {ev.status === 'published' && !ended && (member === 'member'
       ? <button className={ev.going ? 'secondary wide' : 'primary wide'} disabled={pending || (!ev.going && full)} onClick={() => run(async () => { const s = await svc(); return ev.going ? s.cancelRsvp(ev.id) : s.rsvp(ev.id); })}>
           {pending ? 'One moment…' : ev.going ? <><CircleCheck size={16} />You’re going · cancel RSVP</> : full ? 'This event is full' : <>RSVP<ArrowRight size={16} /></>}</button>
       : <JoinPrompt what="RSVP" />)}
-    {ended && ev.status !== 'canceled' && <p className="muted small-text">This event has ended.</p>}
+    {ended && ev.status !== 'canceled' && <p className="muted small-text">This event has ended{ev.checked_in_count ? `: ${ev.checked_in_count} player${ev.checked_in_count === 1 ? '' : 's'} checked in on campus` : ''}.</p>}
+    {!!ev.checked_in_players?.length && <><h4>Checked in on campus</h4><div className="people">{ev.checked_in_players.map(p => <button key={p.id} className="person" onClick={() => setGame({ panel: `player:${p.handle}` })}><Portrait person={p} size={30} /><span>{p.display_name}<small>@{p.handle}</small></span></button>)}</div></>}
     <h4>Going</h4>
     {ev.attendees.length ? <div className="people">{ev.attendees.map(p => <button key={p.id} className="person" onClick={() => setGame({ panel: `player:${p.handle}` })}><Portrait person={p} size={30} /><span>{p.display_name}<small>@{p.handle}</small></span></button>)}{ev.attendee_count > ev.attendees.length && <small className="muted">and {ev.attendee_count - ev.attendees.length} more</small>}</div> : <p className="muted small-text">No one yet. Be the first.</p>}
     <h4>Hosted by</h4>
@@ -157,8 +164,8 @@ function EventForm({ id, club: preset }: { id?: string; club?: string }) {
   useEffect(() => {
     if (form || existing.loading || managed.loading) return;
     const ev = existing.data, t = defaultTimes();
-    setForm(ev ? { club: ev.club.id, title: ev.title, description: ev.description, category: ev.category, location: ev.location.id, starts_at: ev.starts_at, ends_at: ev.ends_at, capacity: ev.capacity }
-      : { club: preset ?? managed.data?.[0]?.id ?? '', title: '', description: '', category: 'social', location: 'student', starts_at: t.starts, ends_at: t.ends, capacity: null });
+    setForm(ev ? { club: ev.club.id, title: ev.title, description: ev.description, category: ev.category, location: ev.location.id, starts_at: ev.starts_at, ends_at: ev.ends_at, capacity: ev.capacity, template: ev.template ?? null }
+      : { club: preset ?? managed.data?.[0]?.id ?? '', title: '', description: '', category: 'social', location: 'student', starts_at: t.starts, ends_at: t.ends, capacity: null, template: null });
   }, [existing.loading, managed.loading, existing.data, managed.data, preset, form]);
   if (existing.error) return <Failure message={existing.error} retry={existing.reload} />;
   if (managed.error) return <Failure message={managed.error} retry={managed.reload} />;
@@ -173,13 +180,19 @@ function EventForm({ id, club: preset }: { id?: string; club?: string }) {
   const valid = !errors.title && !errors.time && !errors.capacity && !!form.club;
   const save = (publish: boolean) => async (e?: FormEvent) => {
     e?.preventDefault(); setTouched(true); if (!valid) return;
-    const input: EventInput = { title: form.title.trim(), description: form.description.trim(), category: form.category, location: form.location, starts_at: form.starts_at, ends_at: form.ends_at, capacity: form.capacity };
+    const input: EventInput = { title: form.title.trim(), description: form.description.trim(), category: form.category, location: form.location, starts_at: form.starts_at, ends_at: form.ends_at, capacity: form.capacity, template: form.template ?? null };
     const saved = await act(async () => { const s = await svc(); return id ? s.updateEvent(id, input) : s.createEvent(form.club, input, publish); });
     if (saved) { changed(); if (id) back(); else show({ kind: 'event', id: saved.id }); useGame.getState().notify(id ? 'Event updated.' : publish ? 'Event published.' : 'Draft saved. Publish it when you’re ready.'); }
   };
   const patch = (p: Partial<typeof form>) => setForm({ ...form, ...p });
   return <form className="community-form" onSubmit={save(true)} noValidate>
     <h3>{id ? 'Edit event' : 'New event'}</h3>
+    <label className="field">Activity<select value={form.template ?? ''} onChange={e => { const t = templateById(e.target.value); if (!t) { patch({ template: null }); return; }
+      // A new event takes the template's place, length and suggested wording; an edit keeps its own.
+      if (id) { patch({ template: t.id }); return; }
+      patch({ template: t.id, category: t.category, location: t.location, title: form.title || t.title, description: form.description || t.description, ends_at: new Date(new Date(form.starts_at).getTime() + t.hours * 36e5).toISOString() }); }}>
+      <option value="">Something else</option>{EVENT_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+      <small className="muted">{templateById(form.template)?.activity ?? 'Templates set a place and length, and tell players what to do when they arrive.'}</small></label>
     {!id && <label className="field">Club<select value={form.club} onChange={e => patch({ club: e.target.value })}>{managed.data?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
     <label className="field">Title<input value={form.title} maxLength={80} onChange={e => patch({ title: e.target.value })} aria-invalid={touched && !!errors.title} />{touched && errors.title && <small className="field-error">{errors.title}</small>}</label>
     <div className="form-grid">
@@ -235,7 +248,7 @@ function ClubView({ id }: { id: string }) {
   const revision = useCommunity(s => s.revision), changed = useCommunity(s => s.changed), show = useCommunity(s => s.show), back = useCommunity(s => s.back), member = useMember(), setGame = useGame(s => s.set);
   const me = useAccount(s => s.profile?.id);
   const { data: club, error, loading, reload } = useLoad(async () => (await svc()).club(id), [id, revision]);
-  const { pending, error: actionError, act } = useAction(), [confirm, setConfirm] = useState(false);
+  const { pending, error: actionError, act } = useAction(), [confirm, setConfirm] = useState(false), [note, setNote] = useState('');
   if (loading && !club) return <Loading label="Loading club…" />;
   if (error && !club) return <Failure message={error} retry={reload} />;
   if (!club) return <div className="empty-state"><Users size={28} /><p>This club no longer exists.</p></div>;
@@ -246,8 +259,16 @@ function ClubView({ id }: { id: string }) {
     {club.description && <p className="event-description">{club.description}</p>}
     {actionError && <p className="form-error" role="alert">{actionError}</p>}
     {member === 'member' ? (owner ? <p className="note small-text"><Crown size={14} /> You own this club.</p>
-      : <button className={club.my_role ? 'secondary wide' : 'primary wide'} disabled={pending} onClick={() => run(async () => { const s = await svc(); return club.my_role ? s.leaveClub(club.id) : s.joinClub(club.id); })}>{pending ? 'One moment…' : club.my_role ? 'Leave club' : <>Join club<ArrowRight size={15} /></>}</button>)
+      : club.my_role ? <button className="secondary wide" disabled={pending} onClick={() => run(async () => (await svc()).leaveClub(club.id))}>{pending ? 'One moment…' : 'Leave club'}</button>
+      : club.my_request ? <div className="checkin"><p className="banner going"><Clock size={15} />Request sent. The club’s owner or organizers will answer it.</p><button className="text-button" disabled={pending} onClick={() => run(async () => (await svc()).cancelJoinRequest(club.id))}>Withdraw request</button></div>
+      : club.join_policy === 'request' ? <form className="checkin" onSubmit={e => { e.preventDefault(); run(async () => (await svc()).joinClub(club.id, note.trim())); }}><label className="field">A note for the organizers <small className="muted">optional</small><input value={note} maxLength={200} onChange={e => setNote(e.target.value)} placeholder="Why you’d like to join" /></label><button className="primary wide" disabled={pending}>{pending ? 'One moment…' : <>Ask to join<ArrowRight size={15} /></>}</button><small className="muted">This club reviews new members.</small></form>
+      : <button className="primary wide" disabled={pending} onClick={() => run(async () => (await svc()).joinClub(club.id))}>{pending ? 'One moment…' : <>Join club<ArrowRight size={15} /></>}</button>)
       : <JoinPrompt what="join" />}
+    {manager && !!club.requests?.length && <><h4>Asking to join · {club.requests.length}</h4><div className="people">{club.requests.map(r => <div key={r.id} className="person-row">
+      <button className="person" onClick={() => setGame({ panel: `player:${r.handle}` })}><Portrait person={r} size={30} /><span>{r.display_name}<small>@{r.handle}{r.message ? ` · “${r.message}”` : ''}</small></span></button>
+      <span className="member-actions"><button className="text-button inline" disabled={pending} onClick={() => run(async () => (await svc()).respondJoinRequest(club.id, r.id, true))}>Approve</button>
+        <button className="icon-button" aria-label={`Decline ${r.display_name}’s request`} disabled={pending} onClick={() => run(async () => (await svc()).respondJoinRequest(club.id, r.id, false))}><X size={14} /></button></span>
+    </div>)}</div></>}
     <h4>Upcoming events</h4>
     {club.events.length ? club.events.map(e => <EventCard key={e.id} event={e} />) : <p className="muted small-text">Nothing scheduled yet.</p>}
     {manager && <button className="text-button" onClick={() => show({ kind: 'event-form', club: club.id })}><CalendarPlus size={15} />New event for {club.name}</button>}
@@ -271,7 +292,7 @@ function ClubForm({ id }: { id?: string }) {
   const existing = useLoad(async () => (id ? (await svc()).club(id) : null), [id]);
   const [form, setForm] = useState<ClubInput | null>(null), [touched, setTouched] = useState(false);
   const { pending, error, act } = useAction();
-  useEffect(() => { if (!form && !existing.loading) { const c = existing.data; setForm(c ? { name: c.name, description: c.description, category: c.category, emblem: c.emblem, color: c.color } : { name: '', description: '', category: 'community', emblem: 'spark', color: CLUB_COLORS[0] }); } }, [existing.loading, existing.data, form]);
+  useEffect(() => { if (!form && !existing.loading) { const c = existing.data; setForm(c ? { name: c.name, description: c.description, category: c.category, emblem: c.emblem, color: c.color, join_policy: c.join_policy ?? 'open' } : { name: '', description: '', category: 'community', emblem: 'spark', color: CLUB_COLORS[0], join_policy: 'open' }); } }, [existing.loading, existing.data, form]);
   if (existing.error) return <Failure message={existing.error} retry={existing.reload} />;
   if (!form) return <Loading />;
   const nameError = form.name.trim().length < 3 ? 'Club names are 3–48 characters.' : '';
@@ -290,6 +311,7 @@ function ClubForm({ id }: { id?: string }) {
     <fieldset><legend>Emblem</legend><div className="swatches">{CLUB_EMBLEMS.map(em => { const Icon = EMBLEMS[em]; return <button type="button" key={em} aria-label={`${em} emblem`} aria-pressed={form.emblem === em} className={form.emblem === em ? 'selected icon-swatch' : 'icon-swatch'} onClick={() => patch({ emblem: em })}><Icon size={16} /></button>; })}</div></fieldset>
     <fieldset><legend>Colour</legend><div className="swatches">{CLUB_COLORS.map((c, i) => <button type="button" key={c} aria-label={`Club colour ${i + 1}`} aria-pressed={form.color === c} className={form.color === c ? 'selected' : ''} style={{ background: c }} onClick={() => patch({ color: c })} />)}</div></fieldset>
     <label className="field">Description <small className="muted">{form.description.length} / 600</small><textarea rows={4} maxLength={600} value={form.description} onChange={e => patch({ description: e.target.value })} placeholder="What do you do together, and who is it for?" /></label>
+    <fieldset><legend>Who can join</legend><div className="segments" role="radiogroup">{(['open', 'request'] as const).map(p => <button type="button" key={p} role="radio" aria-checked={form.join_policy === p} className={form.join_policy === p ? 'selected' : ''} onClick={() => patch({ join_policy: p })}>{p === 'open' ? 'Anyone, straight away' : 'People you approve'}</button>)}</div></fieldset>
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="form-actions"><button type="button" className="secondary" onClick={back}>Cancel</button><button className="primary" disabled={pending}>{pending ? 'Saving…' : id ? 'Save changes' : 'Start club'}<ArrowRight size={15} /></button></div>
   </form>;
@@ -300,6 +322,7 @@ function Body({ view }: { view: CommunityView }) {
   switch (view.kind) {
     case 'events': return <EventsBoard />;
     case 'clubs': return <ClubsDirectory />;
+    case 'challenges': return <Challenges />;
     case 'event': return <EventView key={view.id} id={view.id} />;
     case 'club': return <ClubView key={view.id} id={view.id} />;
     case 'event-form': return <EventForm key={view.id ?? 'new'} id={view.id} club={view.club} />;
@@ -324,14 +347,14 @@ export function CommunityDrawer() {
     return () => window.removeEventListener('keydown', key, { capture: true });
   }, [toggle]);
   if (!open || phase !== 'playing') return null;
-  const tab = view.kind.startsWith('club') ? 'clubs' : 'events', top = view.kind === 'events' || view.kind === 'clubs';
+  const tab = view.kind === 'challenges' ? 'challenges' : view.kind.startsWith('club') ? 'clubs' : 'events', top = view.kind === 'events' || view.kind === 'clubs' || view.kind === 'challenges';
   return <aside className="community-drawer" aria-label="Campus events and clubs">
     <header className="drawer-header">
       {!top ? <button className="icon-button" aria-label="Back" onClick={back}><ChevronLeft size={18} /></button> : <span className="drawer-mark"><CalendarDays size={16} /></span>}
-      <div className="segments" role="tablist" aria-label="Community">{(['events', 'clubs'] as const).map(t => <button key={t} role="tab" aria-selected={tab === t && top} className={tab === t ? 'selected' : ''} onClick={() => show({ kind: t })}>{t === 'events' ? 'Events' : 'Clubs'}</button>)}</div>
+      <div className="segments" role="tablist" aria-label="Community">{(['events', 'clubs', 'challenges'] as const).map(t => <button key={t} role="tab" aria-selected={tab === t && top} className={tab === t ? 'selected' : ''} onClick={() => show({ kind: t })}>{t === 'events' ? 'Events' : t === 'clubs' ? 'Clubs' : 'Challenges'}</button>)}</div>
       <button className="icon-button" aria-label="Close events and clubs" onClick={() => toggle(false)}><X size={18} /></button>
     </header>
-    <div className="drawer-body" key={`${view.kind}-${history.length}`}>{communityConfigured ? <Body view={view} /> : <div className="empty-state"><CalendarDays size={28} /><p>{NOT_CONFIGURED}</p></div>}</div>
+    <div className="drawer-body" key={`${view.kind}-${history.length}`}>{communityConfigured || view.kind === 'challenges' ? <Body view={view} /> : <div className="empty-state"><CalendarDays size={28} /><p>{NOT_CONFIGURED}</p><button className="text-button" onClick={() => show({ kind: 'challenges' })}>Challenges work without accounts →</button></div>}</div>
   </aside>;
 }
 

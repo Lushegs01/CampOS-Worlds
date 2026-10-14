@@ -1,0 +1,13 @@
+{
+  "when": "2026-10-14T14:54:33.078Z",
+  "results": [
+    "Away from the event, check-in is refused with directions",
+    "At The Courts while the event is on, check-in is recorded as in-game attendance",
+    "A challenge run shows progress and the next checkpoint, advances when the room sees the player there, and can be cancelled",
+    "An earned badge unlocks its title and accent colour; both are saved with interests",
+    "Other players see the title (the room takes it from the verified profile)",
+    "A friends-only profile shows non-friends no bio or interests, but keeps the public card",
+    "Phone: guests can start a challenge; the board and HUD fit the screen without covering the controls"
+  ],
+  "errors": []
+}

@@ -13,11 +13,13 @@ const inWay = (o, c) => Math.abs(o.x - c.x) < c.w / 2 + .25 && Math.abs(o.z - c.
 export function createWorld() {
   const seats = new Map(); // seat id -> player id
   const balls = BALLS.map(newBall);
+  // Balls reserved for a match (ball id -> player id): only that player may pick them up or reset them.
+  const reserved = new Map();
   let shotId = 0, revision = 0;
   const changed = () => { revision++; };
 
   return {
-    seats, balls, doors: doorOpen,
+    seats, balls, doors: doorOpen, reserved,
     get revision() { return revision; },
     snapshot() { return { doors: { ...doorOpen }, seats: Object.fromEntries(seats), balls: balls.map(packBall) }; },
     /** Apply a server snapshot (client side). */
@@ -77,6 +79,7 @@ export function createWorld() {
     pickup(p, ballId) {
       const b = balls.find(x => x.id === ballId);
       if (!b) return fail('There is no ball here.');
+      if (reserved.has(ballId) && reserved.get(ballId) !== p.id) return fail('That ball is being used in a Court Duel.');
       if (p.seat) return fail('Stand up first.');
       if (p.ball) return fail('You are already holding a ball.');
       if (b.state === 'held') return fail(b.holder === p.id ? 'You already have it.' : 'Someone else has that ball.');
@@ -107,11 +110,21 @@ export function createWorld() {
     resetBall(p, ballId) {
       const b = balls.find(x => x.id === ballId);
       if (!b || (b.state === 'held' && b.holder !== p.id)) return fail('That ball is in use.');
+      if (reserved.has(ballId) && reserved.get(ballId) !== p.id) return fail('That ball is being used in a Court Duel.');
       if (b.holder === p.id) p.ball = null;
       resetBall(b); changed();
       return ok;
     },
 
+    /** Reserve a ball for one player (a match), or clear the reservation with null. */
+    reserve(ballId, playerId) { if (playerId) reserved.set(ballId, playerId); else reserved.delete(ballId); changed(); },
+    /** Put a ball straight into a player's hands (the start of a match). The caller makes any current holder drop it first. */
+    give(p, ballId) {
+      const b = balls.find(x => x.id === ballId);
+      if (!b || (b.state === 'held' && b.holder !== p.id) || p.seat || p.ball) return fail('The ball could not be handed over.');
+      Object.assign(b, { state: 'held', holder: p.id, shot: null, vx: 0, vy: 0, vz: 0, rest: 0 }); p.ball = b.id; changed();
+      return ok;
+    },
     /** Release everything a player holds (leaving, disconnecting or being removed). */
     release(p) {
       if (p.seat && seats.get(p.seat) === p.id) { seats.delete(p.seat); p.seat = null; changed(); }

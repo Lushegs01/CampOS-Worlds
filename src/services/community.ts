@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AuthSession, CampusEvent, Club, ClubDetail, ClubFilter, ClubInput, ClubRole, EventDetail, EventFilter, EventInput, MyProfile, ProfileCard, ProfileInput } from './types';
+import type { AuthSession, CampusEvent, Club, ClubDetail, ClubFilter, ClubInput, ClubRole, Conversation, DirectMessage, EventDetail, EventFilter, EventInput, FriendState, MessagePage, MyProfile, PlayerResult, ProfileCard, ProfileInput, ReportContext, ReportReason, SocialOverview, SocialSettings, UnreadSummary } from './types';
 
 // The single boundary between the interface and the account/community backend. Components call
 // these typed functions; only this file knows that the backend is Supabase (Auth + PostgreSQL via
@@ -29,7 +29,9 @@ export interface CommunityService {
   createClub(input: ClubInput): Promise<ClubDetail>;
   updateClub(id: string, input: ClubInput): Promise<ClubDetail>;
   deleteClub(id: string): Promise<void>;
-  joinClub(id: string): Promise<ClubDetail>;
+  joinClub(id: string, message?: string): Promise<ClubDetail>;
+  cancelJoinRequest(id: string): Promise<ClubDetail>;
+  respondJoinRequest(club: string, user: string, accept: boolean): Promise<ClubDetail>;
   leaveClub(id: string): Promise<ClubDetail>;
   setMemberRole(club: string, user: string, role: Exclude<ClubRole, 'owner'>): Promise<ClubDetail>;
   removeMember(club: string, user: string): Promise<ClubDetail>;
@@ -41,6 +43,27 @@ export interface CommunityService {
   deleteEvent(id: string): Promise<void>;
   rsvp(id: string): Promise<CampusEvent>;
   cancelRsvp(id: string): Promise<CampusEvent>;
+  // Friends, blocks, privacy and private messages (signed-in players).
+  searchPlayers(query: string): Promise<PlayerResult[]>;
+  socialOverview(): Promise<SocialOverview>;
+  sendFriendRequest(handle: string): Promise<FriendState>;
+  respondFriendRequest(request: string, accept: boolean): Promise<FriendState>;
+  cancelFriendRequest(user: string): Promise<FriendState>;
+  removeFriend(user: string): Promise<FriendState>;
+  blockPlayer(user: string): Promise<FriendState>;
+  unblockPlayer(user: string): Promise<FriendState>;
+  saveSocialSettings(settings: SocialSettings): Promise<SocialSettings>;
+  unreadSummary(): Promise<UnreadSummary>;
+  listConversations(): Promise<Conversation[]>;
+  openConversation(user: string): Promise<Conversation>;
+  listMessages(conversation: string, before?: number | null): Promise<MessagePage>;
+  sendMessage(conversation: string, body: string, clientId: string): Promise<DirectMessage>;
+  markRead(conversation: string, upTo: number): Promise<UnreadSummary>;
+  reportPlayer(user: string, reason: ReportReason, context: ReportContext, details?: string, message?: number | null): Promise<void>;
+  // Court Duel rankings and history (read-only; results are written by the room server).
+  duelLeaderboard(): Promise<unknown>;
+  duelHistory(user: string): Promise<unknown[]>;
+  challengeBoard(challenge: string): Promise<{ best: (ProfileCard & { best_ms: number; completions: number; rank: number })[]; me: { best_ms: number; completions: number } | null }>;
 }
 
 // ---------------------------------------------------------------- error normalisation
@@ -81,9 +104,13 @@ const unavailable = async (): Promise<never> => { throw new ServiceError('not-co
 const unconfigured: CommunityService = {
   configured: false, session: async () => null, onSessionChange: () => () => {}, accessToken: async () => null,
   signUp: unavailable, signIn: unavailable, signOut: unavailable, myProfile: unavailable, checkHandle: unavailable, saveProfile: unavailable, profile: unavailable,
-  listClubs: unavailable, club: unavailable, createClub: unavailable, updateClub: unavailable, deleteClub: unavailable, joinClub: unavailable, leaveClub: unavailable,
+  listClubs: unavailable, club: unavailable, createClub: unavailable, updateClub: unavailable, deleteClub: unavailable, joinClub: unavailable, leaveClub: unavailable, cancelJoinRequest: unavailable, respondJoinRequest: unavailable,
   setMemberRole: unavailable, removeMember: unavailable, listEvents: unavailable, event: unavailable, createEvent: unavailable, updateEvent: unavailable,
   setEventStatus: unavailable, deleteEvent: unavailable, rsvp: unavailable, cancelRsvp: unavailable,
+  searchPlayers: unavailable, socialOverview: unavailable, sendFriendRequest: unavailable, respondFriendRequest: unavailable, cancelFriendRequest: unavailable,
+  removeFriend: unavailable, blockPlayer: unavailable, unblockPlayer: unavailable, saveSocialSettings: unavailable, unreadSummary: unavailable,
+  listConversations: unavailable, openConversation: unavailable, listMessages: unavailable, sendMessage: unavailable, markRead: unavailable, reportPlayer: unavailable,
+  duelLeaderboard: unavailable, duelHistory: unavailable, challengeBoard: unavailable,
 };
 
 // Responses come from the SQL functions in supabase/migrations; check their top-level shape before
@@ -115,8 +142,8 @@ function supabaseService(client: SupabaseClient): CommunityService {
     }
     throw new ServiceError('auth', 'Your session has expired. Please sign in again.');
   }
-  const clubArgs = (input: ClubInput) => ({ p_name: input.name, p_description: input.description, p_category: input.category, p_emblem: input.emblem, p_color: input.color });
-  const eventArgs = (input: EventInput) => ({ p_title: input.title, p_description: input.description, p_category: input.category, p_location: input.location, p_starts_at: input.starts_at, p_ends_at: input.ends_at, p_capacity: input.capacity });
+  const clubArgs = (input: ClubInput) => ({ p_name: input.name, p_description: input.description, p_category: input.category, p_emblem: input.emblem, p_color: input.color, p_join_policy: input.join_policy });
+  const eventArgs = (input: EventInput) => ({ p_title: input.title, p_description: input.description, p_category: input.category, p_location: input.location, p_starts_at: input.starts_at, p_ends_at: input.ends_at, p_capacity: input.capacity, p_template: input.template ?? null });
   let explicit = false;
   return {
     configured: true,
@@ -153,14 +180,16 @@ function supabaseService(client: SupabaseClient): CommunityService {
     },
     myProfile: () => call<MyProfile | null>('my_profile', {}, 'nullable'),
     checkHandle: handle => call<{ available: boolean; reason?: string }>('check_handle', { p_handle: handle }, 'object'),
-    saveProfile: input => call<MyProfile>('save_profile', { p_handle: input.handle, p_display_name: input.display_name, p_bio: input.bio, p_avatar: input.avatar }, 'object'),
+    saveProfile: input => call<MyProfile>('save_profile', { p_handle: input.handle, p_display_name: input.display_name, p_bio: input.bio, p_avatar: input.avatar, p_title: input.title, p_interests: input.interests }, 'object'),
     profile: handle => call<ProfileCard | null>('get_profile', { p_handle: handle }, 'nullable'),
     listClubs: (f = {}) => call<Club[]>('list_clubs', { p_search: f.search?.trim() || null, p_category: f.category ?? null, p_mine: !!f.mine, p_limit: f.limit ?? 24, p_offset: f.offset ?? 0 }, 'array'),
     club: id => call<ClubDetail | null>('get_club', { p_id: id }, 'nullable'),
     createClub: input => call<ClubDetail>('create_club', clubArgs(input), 'object'),
     updateClub: (id, input) => call<ClubDetail>('update_club', { p_id: id, ...clubArgs(input) }, 'object'),
     deleteClub: async id => { await call('delete_club', { p_id: id }, 'object'); },
-    joinClub: id => call<ClubDetail>('join_club', { p_id: id }, 'object'),
+    joinClub: (id, message = '') => call<ClubDetail>('join_club', { p_id: id, p_message: message }, 'object'),
+    cancelJoinRequest: id => call<ClubDetail>('cancel_join_request', { p_id: id }, 'object'),
+    respondJoinRequest: (club, user, accept) => call<ClubDetail>('respond_join_request', { p_club: club, p_user: user, p_accept: accept }, 'object'),
     leaveClub: id => call<ClubDetail>('leave_club', { p_id: id }, 'object'),
     setMemberRole: (club, user, role) => call<ClubDetail>('set_member_role', { p_club: club, p_user: user, p_role: role }, 'object'),
     removeMember: (club, user) => call<ClubDetail>('remove_member', { p_club: club, p_user: user }, 'object'),
@@ -172,6 +201,25 @@ function supabaseService(client: SupabaseClient): CommunityService {
     deleteEvent: async id => { await call('delete_event', { p_id: id }, 'object'); },
     rsvp: id => call<CampusEvent>('rsvp_event', { p_id: id }, 'object'),
     cancelRsvp: id => call<CampusEvent>('cancel_rsvp', { p_id: id }, 'nullable'),
+    searchPlayers: query => call<PlayerResult[]>('search_players', { p_query: query, p_limit: 10 }, 'array'),
+    socialOverview: () => call<SocialOverview>('social_overview', {}, 'object'),
+    sendFriendRequest: handle => call<FriendState>('send_friend_request', { p_handle: handle }, 'object'),
+    respondFriendRequest: (request, accept) => call<FriendState>('respond_friend_request', { p_request: request, p_accept: accept }, 'object'),
+    cancelFriendRequest: user => call<FriendState>('cancel_friend_request', { p_user: user }, 'object'),
+    removeFriend: user => call<FriendState>('remove_friend', { p_user: user }, 'object'),
+    blockPlayer: user => call<FriendState>('block_player', { p_user: user }, 'object'),
+    unblockPlayer: user => call<FriendState>('unblock_player', { p_user: user }, 'object'),
+    saveSocialSettings: v => call<SocialSettings>('save_social_settings', { p_friend_requests: v.friend_requests, p_direct_messages: v.direct_messages, p_party_invites: v.party_invites, p_appear_offline: v.appear_offline, p_profile_visibility: v.profile_visibility }, 'object'),
+    unreadSummary: () => call<UnreadSummary>('unread_summary', {}, 'object'),
+    listConversations: () => call<Conversation[]>('list_conversations', { p_limit: 30 }, 'array'),
+    openConversation: user => call<Conversation>('open_conversation', { p_user: user }, 'object'),
+    listMessages: (conversation, before = null) => call<MessagePage>('list_messages', { p_conversation: conversation, p_before: before, p_limit: 30 }, 'object'),
+    sendMessage: (conversation, body, clientId) => call<DirectMessage>('send_direct_message', { p_conversation: conversation, p_body: body, p_client_id: clientId }, 'object'),
+    markRead: (conversation, upTo) => call<UnreadSummary>('mark_conversation_read', { p_conversation: conversation, p_up_to: upTo }, 'object'),
+    reportPlayer: async (user, reason, context, details = '', message = null) => { await call('report_player', { p_user: user, p_reason: reason, p_context: context, p_details: details, p_message: message }, 'object'); },
+    duelLeaderboard: () => call('duel_leaderboard', { p_limit: 50 }, 'object'),
+    duelHistory: user => call<unknown[]>('duel_history', { p_user: user, p_limit: 10 }, 'array'),
+    challengeBoard: challenge => call('challenge_board', { p_challenge: challenge, p_limit: 5 }, 'object'),
   };
 }
 

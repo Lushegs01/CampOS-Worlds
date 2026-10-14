@@ -51,6 +51,17 @@ export async function migrate(pool) {
 }
 
 const IDENT = /^[a-z_][a-z0-9_]{0,62}$/;
+// PostgREST runs STABLE and IMMUTABLE functions in a read-only transaction, so one that writes
+// fails on Supabase. Mirroring that here catches a mis-declared function in tests.
+const readOnly = new WeakMap();
+async function isReadOnly(pool, client, fn) {
+  let cache = readOnly.get(pool); if (!cache) readOnly.set(pool, cache = new Map());
+  if (!cache.has(fn)) {
+    const { rows } = await client.query(`select bool_and(provolatile in ('s', 'i')) as ro from pg_proc where proname = $1 and pronamespace = 'public'::regnamespace`, [fn]);
+    cache.set(fn, rows[0]?.ro === true);
+  }
+  return cache.get(fn);
+}
 /**
  * Call `public.<fn>(named args)` as a Supabase API role. `claims` is the decoded JWT payload
  * ({ sub, role }); omit it to call as `anon`. Returns the function's JSON result.
@@ -62,7 +73,7 @@ export async function rpc(pool, fn, args = {}, claims = null) {
   for (const n of names) if (!IDENT.test(n)) throw Object.assign(new Error('Unknown argument'), { code: 'PGRST202' });
   const client = await pool.connect();
   try {
-    await client.query('begin');
+    await client.query((await isReadOnly(pool, client, fn)) ? 'begin read only' : 'begin');
     await client.query(`set local role ${role}`);
     await client.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify(claims ?? { role: 'anon' })]);
     const sql = `select public.${fn}(${names.map((n, i) => `${n} => $${i + 1}`).join(', ')}) as result`;

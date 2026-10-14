@@ -5,11 +5,13 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { startStack } from './support/stack.mjs';
+import { launch, QUERY } from './support/browser.mjs';
 
 const exe = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || 'C:/Program Files/Google/Chrome/Application/chrome.exe', OUT = 'docs/screenshots/accounts';
 await mkdir(OUT, { recursive: true });
 const stack = await startStack({ name: 'browser', webPort: 5176, roomPort: 3202, supabasePort: 54322 });
-const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+// Windows with a GPU as before; elsewhere software WebGL with the QA render scale (tests/support/browser.mjs).
+const browser = await launch();
 const results = [], errors = [], urls = [];
 const pass = label => { results.push(label); console.log('PASS', label); };
 const stamp = Date.now().toString(36);
@@ -25,7 +27,7 @@ async function open(name, viewport = { width: 1280, height: 800 }) {
   return page;
 }
 async function enter(page) {
-  await page.goto(stack.url, { waitUntil: 'domcontentloaded' });
+  await page.goto(stack.url + QUERY, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 120000 });
   await page.getByRole('button', { name: 'Enter campus', exact: true }).click();
   await page.getByRole('button', { name: /online/ }).waitFor({ timeout: 30000 });

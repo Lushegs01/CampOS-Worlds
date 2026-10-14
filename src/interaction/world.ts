@@ -67,11 +67,15 @@ export function receive(m: { type: string; [k: string]: unknown }) {
   } else if (m.type === 'world') { world.load({ doors: m.doors as Record<string, boolean>, seats: m.seats as Record<string, string> }); syncUi(); }
   else if (m.type === 'events') emit(m.list as WorldEvent[]);
   else if (m.type === 'balls') {
+    const held = me.ball;
     for (const b of m.balls as { id: string; holder: string | null }[]) {
       const ball = world.balls.find(x => x.id === b.id); if (!ball) continue;
       Object.assign(ball, b);
       if (b.holder === selfId) me.ball = b.id; else if (me.ball === b.id) me.ball = null;
     }
+    // The room can hand us a ball (the start of a Court Duel) or take it away without a request of
+    // ours; keep the HUD and touch controls in step.
+    if (me.ball !== held) syncUi();
   }
 }
 export function loadSnapshot(s: { doors: Record<string, boolean>; seats: Record<string, string>; balls: unknown[] }) { world.load(s); syncUi(); }

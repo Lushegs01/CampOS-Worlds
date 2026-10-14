@@ -5,7 +5,9 @@ import { COLLIDERS } from './campus.mjs';
 import { HOOPS, BALLS } from './interactions.mjs';
 
 export const BALL_R = .12, GRAVITY = 9.81, SUBSTEP = 1 / 240;
-const COURT = { x0: 32.6, x1: 55.4, z0: 8.6, z1: 39.4 }, COURT_Y = .03;
+/** The court's playing surface (inside the fence). */
+export const COURT = { x0: 32.6, x1: 55.4, z0: 8.6, z1: 39.4 };
+const COURT_Y = .03;
 const E = { floor: .76, board: .58, rim: .52, post: .45, wall: .4 };
 export const floorAt = (x, z) => x > COURT.x0 && x < COURT.x1 && z > COURT.z0 && z < COURT.z1 ? COURT_Y : 0;
 
