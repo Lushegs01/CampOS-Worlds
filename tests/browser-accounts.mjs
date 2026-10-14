@@ -113,7 +113,13 @@ try {
   await B.getByRole('button', { name: 'People' }).click(); await B.locator('.player-row', { hasText: 'Guest Ada' }).waitFor({ timeout: 10000 }); await closePanel(B);
   // Walk away from the spawn point first, so a position reset on sign-in would show.
   const start = await A.evaluate(() => window.__campusInspect().position);
-  await A.keyboard.down('KeyW'); await A.waitForTimeout(1200); await A.keyboard.up('KeyW'); await A.waitForTimeout(600);
+  // Hold W until the player has covered the distance rather than for a fixed time: with software
+  // WebGL the frame rate (and so the distance per second) varies a lot with machine load.
+  const walkStarted = Date.now();
+  await A.keyboard.down('KeyW');
+  await A.waitForFunction(s => { const p = window.__campusInspect().position; return Math.hypot(p.x - s.x, p.z - s.z) > 3; }, start, { timeout: 20000 }).catch(() => {});
+  await A.keyboard.up('KeyW'); await A.waitForTimeout(600);
+  console.log(`walked for ${Date.now() - walkStarted} ms`);
   const before = await A.evaluate(() => { window.__qaCanvas = document.querySelector('canvas'); return window.__campusInspect().position; });
   assert.ok(Math.hypot(before.x - start.x, before.z - start.z) > 2, 'the player walked away from where they were');
   await A.getByRole('button', { name: 'Sign in', exact: true }).click();
