@@ -63,7 +63,11 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     const tagDistance = g.position.distanceToSquared(camera.position);
     tag.current.visible = tagDistance > 9 && tagDistance < 900;
   });
-  return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]}><Label text={initial.name + (initial.verified ? ' ✓' : '')} p={[0, 0, 0]} width={2.4} height={.36} background={TAG[kind]} />{initial.title && ACHIEVEMENT_BY_ID.get(initial.title) && <Label text={ACHIEVEMENT_BY_ID.get(initial.title)!.title} p={[0, -.3, 0]} width={1.8} height={.22} color="#f2d69a" background="#1b2f28" />}</group></group>;
+  return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]} name={`tag:${initial.id}`}
+    // Click a name tag to see who it is: their profile card, or the People list for guests. A drag
+    // that started on the tag (looking around) does not count.
+    onClick={e => { if (e.delta > 6) return; e.stopPropagation(); const p = livePeers.get(initial.id) ?? initial; useGame.getState().set({ panel: p.handle ? `player:${p.handle}` : 'players' }); document.exitPointerLock?.(); }}
+    onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}><Label text={initial.name + (initial.verified ? ' ✓' : '')} p={[0, 0, 0]} width={2.4} height={.36} background={TAG[kind]} />{initial.title && ACHIEVEMENT_BY_ID.get(initial.title) && <Label text={ACHIEVEMENT_BY_ID.get(initial.title)!.title} p={[0, -.3, 0]} width={1.8} height={.22} color="#f2d69a" background="#1b2f28" />}</group></group>;
 }
 
 function Peers() {
@@ -118,12 +122,12 @@ function AdaptiveResolution({ max, min }: { max: number; min: number }) {
 }
 
 function Telemetry() {
-  const { gl, scene } = useThree(), frames = useRef(0), elapsed = useRef(0), sample = useRef({ calls: 0, triangles: 0 });
+  const { gl, scene, camera } = useThree(), frames = useRef(0), elapsed = useRef(0), sample = useRef({ calls: 0, triangles: 0 });
   // The post stack renders several passes per frame; accumulate them all and sample per frame.
   useEffect(() => { gl.info.autoReset = false; return () => { gl.info.autoReset = true; }; }, [gl]);
   useFrame(() => { sample.current = { calls: gl.info.render.calls, triangles: gl.info.render.triangles }; gl.info.reset(); }, -100);
   useEffect(() => {
-    if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene });
+    if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene, __campusCamera: camera });
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusHide = (prefix: string, hide = true) => { let n = 0; scene.traverse(o => { if (o.name.startsWith(prefix)) { o.visible = !hide; n++; } }); return n; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusStats = () => {
       const by: Record<string, number> = {};

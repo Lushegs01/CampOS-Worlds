@@ -381,7 +381,7 @@
 .challenge-hud strong{font-family:Georgia,serif;font-size:24px;font-weight:400;font-variant-numeric:tabular-nums}
 .challenge-hud strong.low{color:#f19a7c}
 .challenge-hud .text-button{color:#e7c382;margin:0;width:auto;align-self:flex-start}
-@media(max-width:760px){.challenge-hud{right:12px;top:auto;bottom:300px;width:170px;padding:8px 10px}.challenge-hud strong{font-size:18px}}
+@media(max-width:760px){.challenge-hud{left:auto;right:12px;top:auto;bottom:300px;width:170px;padding:8px 10px}.challenge-hud strong{font-size:18px}}
 @media(pointer:coarse) and (max-height:500px){.challenge-hud{bottom:auto;top:64px;right:12px}}
 /* Secondary buttons were only themed inside dialogs; drawers, cards and HUDs use them too. */
 .secondary{background:#e7e5d7;color:#3d5742;border:1px solid #345c3520}

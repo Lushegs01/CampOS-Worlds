@@ -64,6 +64,24 @@ try {
   await A.waitForFunction(h => window.__campusInspect().peers.some(p => p.handle === h), tobi.handle);
   pass('Two signed-in players in independent browser contexts see each other’s verified presence');
 
+  // ---- a profile from the world: click Tobi's name tag, six metres in front of Ada
+  const inRoom = h => [...stack.room.clients.values()].find(c => c.account?.handle === h);
+  Object.assign(inRoom(ada.handle), { x: 0, z: 36 }); Object.assign(inRoom(tobi.handle), { x: 0, z: 30 });
+  await A.waitForFunction(h => { const p = window.__campusInspect().peers.find(p => p.handle === h); return p && Math.abs(p.z - 30) < .5; }, tobi.handle);
+  await A.evaluate(() => window.__campusDebug.face(Math.PI));
+  await A.waitForTimeout(1500);
+  const spot = await A.evaluate(h => {
+    const id = window.__campusInspect().peers.find(p => p.handle === h).id, tag = window.__campusScene.getObjectByName('tag:' + id), v = tag.getWorldPosition(new tag.position.constructor());
+    v.project(window.__campusCamera); const r = window.__campusGL.domElement.getBoundingClientRect();
+    return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, visible: tag.visible };
+  }, tobi.handle);
+  assert.ok(spot.visible, 'the name tag is shown at this distance');
+  await A.mouse.click(spot.x, spot.y);
+  await A.locator('.modal').getByRole('heading', { name: '@' + tobi.handle }).waitFor();
+  await shot(A, 'profile-from-world');
+  await A.getByRole('button', { name: 'Close panel' }).click();
+  pass('Clicking a player’s name tag in the world opens their profile card');
+
   // ---- friend request by handle, live notification, accept
   await social(A, 'Friends');
   await drawer(A).getByPlaceholder('Add a friend by @handle').fill('@' + tobi.handle);

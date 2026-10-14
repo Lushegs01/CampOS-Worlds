@@ -60,6 +60,7 @@ try {
   await stack.db.pool.query(`insert into public.achievements (user_id, achievement) select id, 'court-champion' from public.profiles where handle = $1`, [tobi.handle]);
   await T.getByRole('button', { name: `Your profile, @${tobi.handle}` }).click();
   await T.getByRole('button', { name: /Edit profile/ }).click();
+  await T.locator('option[value="court-champion"]').waitFor({ state: 'attached' });
   await T.getByLabel('Title under your name').selectOption('court-champion');
   assert.equal(await T.getByRole('button', { name: 'Road Tripper colour, locked: Drive the Campus Loop: pass every district’s shuttle stop in order as the driver, in under 12 minutes.' }).isDisabled(), true, 'unearned colours stay locked');
   await T.getByRole('button', { name: 'Court Champion colour', exact: true }).click();

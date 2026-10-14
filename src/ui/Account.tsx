@@ -125,6 +125,8 @@ export function AccountPanel({ initial = 'view' }: { initial?: 'view' | 'edit' }
   const status = useAccount(s => s.status), profile = useAccount(s => s.profile), profileState = useAccount(s => s.profileState), accountError = useAccount(s => s.error), room = useAccount(s => s.room), email = useAccount(s => s.email);
   const [editing, setEditing] = useState(initial === 'edit');
   const { pending, act } = useAction();
+  // Badges earned elsewhere (another device, or awarded by the database) appear when you look.
+  useEffect(() => { if (useAccount.getState().status === 'signed-in' && useAccount.getState().profile) void reloadProfile(); }, []);
   if (status === 'unconfigured') return <div className="empty-state"><ShieldCheck size={30} /><h3>Accounts aren’t available here yet.</h3><p>{NOT_CONFIGURED}</p><small>Operators: see docs/ACCOUNTS.md to connect a Supabase project.</small></div>;
   if (status === 'loading') return <Loading label="Checking your account…" />;
   if (status === 'guest') return <><AuthForm />{accountError && <p className="form-error">{accountError}</p>}</>;
