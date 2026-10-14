@@ -10,6 +10,12 @@ const BASE = `${import.meta.env.BASE_URL}assets/`;
 let ktx2: KTX2Loader | null = null, gltf: GLTFLoader | null = null, anisotropy = 4;
 const textures = new Map<string, Promise<THREE.Texture>>(), models = new Map<string, Promise<GLTF>>();
 
+/** A failed download (a dropped mobile connection) is not cached, so the next attempt fetches it again. */
+export function forgetOnFailure<K, T>(cache: Map<K, Promise<T>>, key: K, p: Promise<T>) {
+  p.catch(() => { if (cache.get(key) === p) cache.delete(key); });
+  return p;
+}
+
 export function initLoaders(renderer: THREE.WebGLRenderer, maxAnisotropy: number) {
   anisotropy = Math.min(maxAnisotropy, renderer.capabilities.getMaxAnisotropy());
   if (ktx2) return;
@@ -28,7 +34,7 @@ export function loadTexture(path: string): Promise<THREE.Texture> {
   let p = textures.get(path);
   if (!p) {
     p = ktx2.loadAsync(assetUrl(path)).then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; return t; });
-    textures.set(path, p);
+    textures.set(path, forgetOnFailure(textures, path, p));
   }
   return p;
 }
@@ -36,7 +42,7 @@ export function loadTexture(path: string): Promise<THREE.Texture> {
 export function loadModel(path: string): Promise<GLTF> {
   if (!gltf) throw new Error('initLoaders() must run before loading models');
   let p = models.get(path);
-  if (!p) { p = gltf.loadAsync(assetUrl(path)); models.set(path, p); }
+  if (!p) { p = gltf.loadAsync(assetUrl(path)); models.set(path, forgetOnFailure(models, path, p)); }
   return p;
 }
 
@@ -63,6 +69,6 @@ export function suspend<T>(promise: Promise<T>): T {
 const keyed = new Map<string, Promise<unknown>>();
 export function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   let p = keyed.get(key) as Promise<T> | undefined;
-  if (!p) { p = load(); keyed.set(key, p); }
+  if (!p) { p = load(); keyed.set(key, forgetOnFailure(keyed, key, p)); }
   return p;
 }

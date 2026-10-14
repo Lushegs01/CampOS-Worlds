@@ -5,10 +5,11 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { AvatarConfig, Gesture, SitState } from '../state';
-import { assetUrl, cached, loadModel, suspend } from '../world/assets';
+import { assetUrl, cached, forgetOnFailure, loadModel, suspend } from '../world/assets';
 import { SEAT_BY_ID } from '../../shared/interactions.mjs';
 import { BALL_R, floorAt } from '../../shared/ball.mjs';
 import { avatars } from './registry';
+import { registerMovingCaster } from '../world/shadows';
 
 // Realistic, rigged students from the Microsoft Rocketbox library (MIT), converted by
 // scripts/assets/build-characters.mjs. Motion-captured clips are blended by speed on a shared,
@@ -18,7 +19,7 @@ import { avatars } from './registry';
 export interface CharacterInfo { id: string; name: string; body: 'm' | 'f'; style: string; skinRef: [number, number, number]; height: number; hip: number; source: string }
 interface Manifest { characters: CharacterInfo[]; animations: Record<'m' | 'f', { speeds: Record<string, number>; rootHeight: number }> }
 let manifest: Promise<Manifest> | null = null;
-export const loadCharacterManifest = (): Promise<Manifest> => manifest ??= fetch(assetUrl('characters/manifest.json')).then(r => r.json());
+export const loadCharacterManifest = (): Promise<Manifest> => manifest ??= fetch(assetUrl('characters/manifest.json')).then(r => { if (!r.ok) throw Error(`manifest ${r.status}`); return r.json(); }).catch(e => { manifest = null; throw e; });
 
 export interface AvatarMotion {
   speed: number; y: number; vy: number; emote?: string; emoteUntil?: number; turn?: number;
@@ -84,7 +85,7 @@ function loadLibrary(body: 'm' | 'f', probe: GLTF): Promise<Library> {
       // Seat height implied by the captures: seated pelvis ~14 cm above the chair surface.
       return { clips, contact, speeds: info.animations[body].speeds, down, up, seatHeight: rootY(clips.sitIdle) - .14, tableSeatHeight: rootY(clips.sitTable) - .14, armsUpTime };
     });
-    libraries.set(body, p);
+    libraries.set(body, forgetOnFailure(libraries, body, p));
   }
   return p;
 }
@@ -114,7 +115,7 @@ function patchMaterial(material: THREE.MeshStandardMaterial, uniforms: { uSkinTi
 }
 
 function accessoryMeshes(kind: string, accent: string) {
-  const group = new THREE.Group(), color = new THREE.Color(accent);
+  const group = new THREE.Group(), color = new THREE.Color(accent); group.userData.accessory = true; // disposed by its own effect
   const fabric = new THREE.MeshStandardMaterial({ color, roughness: .85 }), dark = new THREE.MeshStandardMaterial({ color: '#1e2124', roughness: .5, metalness: .3 });
   if (kind === 'backpack') {
     // Daypack in the avatar's local frame (+Z is the wearer's front, so the pack sits at -Z).
@@ -181,7 +182,10 @@ function useRig(config: AvatarConfig): Rig {
   }, [gltf, lib]);
   // (Re)start every clip on mount; StrictMode runs this cleanup once in development, so the
   // cleanup only stops actions and never uncaches the bindings the rig still owns.
-  useEffect(() => { for (const [name, a] of Object.entries(rig.actions)) { a.play(); a.setEffectiveWeight(name === 'idle' ? 1 : 0); } rig.actions.armsUp.time = rig.lib.armsUpTime; return () => { rig.mixer.stopAllAction(); }; }, [rig]);
+  // Cleanup also releases the rig's own GPU resources (cloned materials, the skeleton's bone texture);
+  // three.js re-creates them if the rig is shown again, as StrictMode does in development.
+  useEffect(() => { for (const [name, a] of Object.entries(rig.actions)) { a.play(); a.setEffectiveWeight(name === 'idle' ? 1 : 0); } rig.actions.armsUp.time = rig.lib.armsUpTime;
+    return () => { rig.mixer.stopAllAction(); rig.root.traverse(o => { const mesh = o as THREE.SkinnedMesh; if (!mesh.isMesh || o.parent?.userData.accessory) return; (mesh.material as THREE.Material).dispose(); if (mesh.isSkinnedMesh) mesh.skeleton.dispose(); }); }; }, [rig]);
   // Customization: skin tone uniform and accessory attached to a bone in bind pose.
   useEffect(() => { rig.uniforms.uSkinTint.value.copy(skinTint(config.skin, rig.info.skinRef)); }, [rig, config.skin]);
   useEffect(() => {
@@ -220,6 +224,17 @@ function contactShadowMaterial() {
 }
 
 const smooth = (t: number) => { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); };
+const FRUSTUM = new THREE.Frustum(), VIEW = new THREE.Matrix4(), BOUNDS = new THREE.Sphere(new THREE.Vector3(), 1.8);
+let frustumAt = -1;
+/** 0: outside the view; otherwise pose the skeleton every n-th frame (1 near, 2 beyond 30 m, 4 beyond 60 m). */
+function avatarLod(root: THREE.Object3D, camera: THREE.Camera, frame: number) {
+  // One frustum per frame for every avatar, from last frame's camera (a generous sphere covers the difference).
+  if (frustumAt !== frame) { frustumAt = frame; FRUSTUM.setFromProjectionMatrix(VIEW.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)); }
+  const e = (root.parent ?? root).matrixWorld.elements; BOUNDS.center.set(e[12], e[13] + 1, e[14]);
+  if (!FRUSTUM.intersectsSphere(BOUNDS)) return 0;
+  const d = BOUNDS.center.distanceTo(camera.position);
+  return d > 60 ? 4 : d > 30 ? 2 : 1;
+}
 /** How far each table chair is pulled back from the table (1 = pulled out, 0 = tucked in), by seat id. */
 export const chairPull = new Map<string, number>();
 const SCOOT = .6;
@@ -232,12 +247,15 @@ export default function Avatar({ config, motion, preview = false, id }: { config
   const state = useRef({
     phase: 0, weights: { idle: 1, walk: 0, jog: 0, run: 0, emote: 0 } as Record<string, number>, emote: '', air: 0, land: 0, wasAir: false, lean: 0, look: 0, nextLook: 6,
     sitPhase: '', sitSeat: '', sitT: 0, settle: 0, out: 0, sitLook: 0, nextSitLook: 7,
-    gesture: -1, gestureKind: '', hold: 0, dribble: 0, dribbleW: 0, raise: 0,
+    gesture: -1, gestureKind: '', hold: 0, dribble: 0, dribbleW: 0, raise: 0, poseDt: 0, poseFrame: 0, cast: true,
   });
+  const remote = !!id && id !== 'local' && !preview;
+  useEffect(() => registerMovingCaster(rig.root), [rig]);
+  useEffect(() => () => contactMat.dispose(), [contactMat]);
   const anchor = useMemo(() => ({ ball: new THREE.Vector3(), holding: false }), []);
   useEffect(() => { if (!id) return; avatars.set(id, anchor); return () => { if (avatars.get(id) === anchor) avatars.delete(id); }; }, [id, anchor]);
 
-  useFrame(({ clock }, raw) => {
+  useFrame(({ clock, camera }, raw) => {
     const dt = Math.min(raw, .05), m = motion?.() ?? { speed: 0, y: 0, vy: 0 }, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;
     const inVehicle=m.vehicleSeatHeight!=null;
     const sit = inVehicle ? {seat:'vehicle',phase:'seated',t:0} as SitState : preview ? null : m.sit ?? null, seat = inVehicle ? {id:'vehicle',y:m.vehicleSeatHeight!,table:true,pull:0} : sit ? SEAT_BY_ID.get(sit.seat) : undefined;
@@ -348,15 +366,27 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     // Dribble cadence follows the stride: about one bounce per step.
     if (dribbling) s.dribble = (s.dribble + dt * THREE.MathUtils.clamp(speed * .62, 1.5, 3.2)) % 1;
 
-    rig.mixer.update(dt);
+    // ------------------------------------------------------------------ level of detail (other players)
+    // Off screen, the skeleton is not posed or drawn at all; far away it is posed every 2nd or 4th frame.
+    // Everything above keeps running every frame, so sit-down and stand-up transitions finish on time.
+    const lod = remote ? avatarLod(rig.root, camera, clock.elapsedTime) : 1;
+    if (remote) {
+      const shown = lod > 0; rig.root.visible = shown; if (contact.current) contact.current.visible = shown;
+      const cast = shown && lod < 4; if (cast !== s.cast) { s.cast = cast; rig.root.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = cast; }); }
+    }
+    s.poseDt += dt;
+    // A ball held by someone off screen follows their room position instead of a stale hand.
+    if (!lod || ++s.poseFrame % lod) { anchor.holding = holding && lod > 0; return; }
+    const pdt = s.poseDt; s.poseDt = 0;
+    rig.mixer.update(pdt);
 
     // ------------------------------------------------------------------ procedural layers
     // Airborne tuck, landing compression and banking into turns.
     const airborne = m.y > .04;
-    s.air = THREE.MathUtils.damp(s.air, airborne ? 1 : 0, airborne ? 14 : 18, dt);
+    s.air = THREE.MathUtils.damp(s.air, airborne ? 1 : 0, airborne ? 14 : 18, pdt);
     if (s.wasAir && !airborne) s.land = 1; s.wasAir = airborne;
-    s.land = Math.max(0, s.land - dt * 5);
-    s.lean = THREE.MathUtils.damp(s.lean, THREE.MathUtils.clamp((m.turn ?? 0) * speed * .045, -.22, .22), 8, dt);
+    s.land = Math.max(0, s.land - pdt * 5);
+    s.lean = THREE.MathUtils.damp(s.lean, THREE.MathUtils.clamp((m.turn ?? 0) * speed * .045, -.22, .22), 8, pdt);
     const b = rig.bones, shooting = up > .05, tuck = s.air * (m.vy > 0 ? .75 : 1) * (shooting ? .35 : 1), comp = Math.sin(s.land * Math.PI) * .5 * (1 - sitW);
     for (const side of ['L', 'R']) {
       rotate(b[`Bip01_${side}_Thigh`], AXIS_Z, -(tuck * .55 + comp * .45));

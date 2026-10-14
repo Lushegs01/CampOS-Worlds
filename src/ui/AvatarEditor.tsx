@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Avatar, { loadCharacterManifest, preloadCharacter, type CharacterInfo } from '../avatar/Avatar';
+import { AvatarBoundary } from '../avatar/AvatarBoundary';
 import { useGame, type AvatarConfig } from '../state';
 import { MODELS, SKINS, ACCENTS, ACCESSORIES, EARNED_ACCENTS } from '../../shared/campus.mjs';
 import { LOCKED_ACCENTS, ACHIEVEMENT_BY_ID } from '../../shared/achievements.mjs';
@@ -20,7 +21,7 @@ function Preview({ avatar }: { avatar: AvatarConfig }) {
     <hemisphereLight args={['#f4efe4', '#5d5040', 1.6]} />
     <directionalLight position={[2.5, 4, 3]} intensity={3.2} color="#fff1dc" castShadow shadow-mapSize={[1024, 1024]} />
     <directionalLight position={[-3, 2, -2.5]} intensity={1.6} color="#bcd4ff" />
-    <Stage><Suspense fallback={null}><group position={[0, 0, 0]}><Avatar config={avatar} preview /></group></Suspense></Stage>
+    <Stage><AvatarBoundary accent={avatar.accent}><Suspense fallback={null}><group position={[0, 0, 0]}><Avatar config={avatar} preview /></group></Suspense></AvatarBoundary></Stage>
     <mesh rotation-x={-Math.PI / 2} receiveShadow><circleGeometry args={[.9, 64]} /><meshStandardMaterial color="#c9bb98" roughness={.9} /></mesh>
   </Canvas>;
 }

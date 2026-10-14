@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SPAWN, TOUR, LOCATIONS, sanitizeAvatar } from '../shared/campus.mjs';
 import { suggestedQuality } from './world/quality';
+import { createTrail } from '../shared/movement.mjs';
+import { createTrack } from './network/interpolation.mjs';
 export type AvatarConfig = ReturnType<typeof sanitizeAvatar>;
 export type Panel = null|'map'|'profile'|'settings'|'chat'|'players'|'avatar'|string;
 export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null;verified?:boolean;title?:string|null;vehicle?:string|null;vehicleSeat?:number|null};
@@ -19,9 +21,13 @@ export const player = {...SPAWN,yaw:Math.PI,moving:false,sprinting:false,vy:0,sp
  /** Where the room has us when we drifted too far to settle (glided to while standing still). */
  reconcile:null as {x:number;z:number}|null};
 export const input = {x:0,z:0,jump:false,yaw:0,pitch:.04,dragging:false};
+/** Where the local player has walked recently (performance.now() times), to tell network lag from drift. */
+export const trail = createTrail();
 // Latest remote positions arrive at 15 Hz; they live outside React so the scene reads them per frame
 // and React only re-renders when someone joins, leaves or changes their name or appearance.
 export const livePeers = new Map<string,Peer>();
+/** Each remote player's recent positions on our clock, drawn slightly in the past (network/interpolation.mjs). */
+export const peerTracks = new Map<string,ReturnType<typeof createTrack>>();
 export const useGame = create<Game>()(persist((set,get)=>({
  phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,volume:0,
  discovered:[],tokens:[],tour:false,tourStep:0,bestScore:0,nearby:null,toast:'',destination:null,

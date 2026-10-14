@@ -12,6 +12,7 @@ import { chairPull } from '../avatar/Avatar';
 import { avatars } from '../avatar/registry';
 import { selfIdNow, tickWorld, world } from '../interaction/world';
 import { sfx } from '../interaction/sound';
+import { registerMovingCaster } from './shadows';
 
 // Everything players can move: hinged doors, table chairs and basketballs. State comes from the
 // shared world (server-authoritative online, local rules offline); this file only presents it.
@@ -46,6 +47,7 @@ export function Doors({ lib, distance }: { lib: Materials; distance: number }) {
     const leaves = d.leaves.map(l => { const pivot = new THREE.Group(); pivot.position.set(l.hx, y, l.hz); pivot.add(leafMeshes(lib, l.len, d.height, d.glass, l.dir)); group.add(pivot); return { pivot, dir: l.dir }; });
     return { d, group, leaves, angle: 0, vel: 0, open: 0, latched: true };
   }), [lib]);
+  useEffect(() => { const off = doors.map(s => registerMovingCaster(s.group)); return () => off.forEach(f => f()); }, [doors]);
   useFrame(({ camera }, raw) => {
     const dt = Math.min(raw, .05);
     for (const s of doors) {
@@ -82,6 +84,7 @@ export function Chairs({ distance }: { distance: number }) {
     });
   }), [models]);
   const tmp = useMemo(() => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), p: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1), up: new THREE.Vector3(0, 1, 0) }), []);
+  useEffect(() => { const off = sets.flatMap(s => s.meshes.map(({ m }) => registerMovingCaster(m))); return () => off.forEach(f => f()); }, [sets]);
   useFrame(({ camera }) => {
     for (const set of sets) {
       const visible = Math.hypot(camera.position.x - set.centre.x, camera.position.z - set.centre.z) < distance + 10;
@@ -130,6 +133,7 @@ export function Balls() {
     return { id: b.id, mesh, blob, offset: new THREE.Vector3(), prev: new THREE.Vector3(b.x, b.y, b.z), state: b.state };
   }), []);
   const tmp = useMemo(() => ({ target: new THREE.Vector3(), axis: new THREE.Vector3(), q: new THREE.Quaternion(), up: new THREE.Vector3(0, 1, 0) }), []);
+  useEffect(() => { const off = balls.map(v => registerMovingCaster(v.mesh)); return () => off.forEach(f => f()); }, [balls]);
   useFrame((_, raw) => {
     const dt = Math.min(raw, .05);
     tickWorld(dt);

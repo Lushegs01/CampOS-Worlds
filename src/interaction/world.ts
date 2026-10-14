@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createWorld } from '../../shared/world.mjs';
 import { stepBall } from '../../shared/ball.mjs';
+import { SEAT_BY_ID, seatApproach, STAND_EXIT } from '../../shared/interactions.mjs';
 import { livePeers, player, useGame } from '../state';
 
 // Client view of the interactive world. Online, the room server is authoritative and this mirrors
@@ -35,7 +36,24 @@ export function emit(list: WorldEvent[]) { for (const e of list) listeners.forEa
 let sendFn: ((m: Record<string, unknown>) => boolean) | null = null, selfId = 'local', ref = 0;
 const pending = new Map<number, (r: Result) => void>();
 export function bindNetwork(send: typeof sendFn, id: string) { sendFn = send; selfId = id; me.id = id; }
-export function unbindNetwork() { sendFn = null; selfId = 'local'; me.id = 'local'; for (const r of pending.values()) r({ ok: false, reason: 'Disconnected.' }); pending.clear(); }
+export function unbindNetwork() { sendFn = null; selfId = 'local'; me.id = 'local'; for (const r of pending.values()) r({ ok: false, reason: 'Disconnected.' }); pending.clear(); releaseLocal(); }
+/**
+ * The room lets go of a departing player's seat and ball (standing them up at the seat's exit), and of
+ * everyone else's. Match that locally when the connection drops or a new session starts; otherwise the
+ * player stayed seated here while the room had them standing, and "Stand up" failed for good.
+ */
+export function releaseLocal(placed = false) {
+  player.charge = null;
+  const sit = player.sit, seat = sit ? SEAT_BY_ID.get(sit.seat) : undefined;
+  // A new session places us itself (`placed`): no stand-up motion that would end somewhere else.
+  if (placed) player.sit = null;
+  else if (sit && seat && (sit.phase === 'down' || sit.phase === 'seated')) { sit.exit = seatApproach(seat, STAND_EXIT); sit.phase = 'up'; sit.t = 0; }
+  else if (sit && sit.phase !== 'up' && sit.phase !== 'done') player.sit = null;
+  me.seat = null; me.ball = null;
+  for (const b of world.balls) if (b.state === 'held') Object.assign(b, { state: 'free', holder: null, vy: 0, rest: 0 });
+  world.load({ seats: {} });
+  syncUi();
+}
 export const selfIdNow = () => selfId;
 const online = () => useGame.getState().status === 'connected' && !!sendFn;
 
