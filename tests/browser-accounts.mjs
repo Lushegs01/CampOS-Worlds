@@ -118,7 +118,11 @@ try {
   const walkStarted = Date.now();
   await A.keyboard.down('KeyW');
   await A.waitForFunction(s => { const p = window.__campusInspect().position; return Math.hypot(p.x - s.x, p.z - s.z) > 3; }, start, { timeout: 20000 }).catch(() => {});
-  await A.keyboard.up('KeyW'); await A.waitForTimeout(600);
+  await A.keyboard.up('KeyW');
+  // Wait until the player has stopped and the room agrees where they are, so that any later movement
+  // can only come from signing in (on slow frames the room's position trails and is reconciled here).
+  await A.waitForFunction(() => { const s = window.__campusDebug.state(); return Math.hypot(s.x - s.room.x, s.z - s.room.z) < .3; }, null, { timeout: 20000 });
+  await A.waitForTimeout(600);
   console.log(`walked for ${Date.now() - walkStarted} ms`);
   const before = await A.evaluate(() => { window.__qaCanvas = document.querySelector('canvas'); return window.__campusInspect().position; });
   assert.ok(Math.hypot(before.x - start.x, before.z - start.z) > 2, 'the player walked away from where they were');
