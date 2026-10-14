@@ -222,6 +222,17 @@ test('blocks are enforced by the room: no chat either way, no invitations, no nu
     const nudge = arrives(a.ws, m => m.type === 'social');
     b.send({ type: 'socialNotify', to: ada.id, kind: 'message' });
     assert.equal(await nudge, false, 'nudges from a blocked player are dropped');
+    // A block that arrives after an invitation still stops the join.
+    for (const acct of [ada, bad, other]) await acct.sb.rpc('save_social_settings', { p_friend_requests: 'everyone', p_direct_messages: 'friends', p_party_invites: 'everyone', p_appear_offline: false });
+    for (const p of [a, b, o]) p.send({ type: 'socialRefresh' });
+    await sleep(500);
+    const inviteAda = next(a.ws, m => m.type === 'partyInvite'); await o.party('invite', { id: a.id });
+    await a.party('respond', { party: (await inviteAda).invite.party, accept: true });
+    const inviteBad = next(b.ws, m => m.type === 'partyInvite');
+    assert.equal((await o.party('invite', { id: b.id })).ok, true, 'the inviter has not blocked anyone');
+    const refused = await b.party('respond', { party: (await inviteBad).invite.party, accept: true });
+    assert.match(refused.reason, /can’t join this party/, 'Ada, already in the party, blocked this player');
+    assert.equal(aroom.parties.partyOf(aroom.clients.get(b.id)), null);
     const chat = next(o.ws, m => m.type === 'chat' && m.id === a.id); a.send({ type: 'chat', text: 'verified hello' });
     const seen = await chat; assert.equal(seen.verified, true); assert.equal(seen.handle, ada.handle);
   } finally { close(a, b, o); }

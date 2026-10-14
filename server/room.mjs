@@ -130,6 +130,12 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(pref==='friends'&&!(c.account&&t.social?.friends.has(c.account.id)))return {ok:false,reason:`${t.name} accepts party invitations from friends only.`};
   return parties.invite(c,t);
  }
+ // Blocks may have changed since the invitation was sent: nobody joins a party with someone either has blocked.
+ function joinParty(c,id,accept){
+  const p=parties.parties.get(id);
+  if(accept&&p&&[...p.members.values()].some(m=>m.client&&blockedBetween(c,m.client))){parties.respond(c,id,false);return {ok:false,reason:'You can’t join this party.'};}
+  return parties.respond(c,id,accept);
+ }
  // Meet up: travel to a party member. Only within your own party (mutual consent), never while
  // seated, driving or holding a ball, and with a cooldown. The room picks the spot, not the client.
  function meetUp(c,t){
@@ -211,7 +217,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(m.type==='party'&&rate('party',8,5000)){
     const target=typeof m.id==='string'?clients.get(m.id):null;
     const wasIn=!!parties.partyOf(c);
-    const r=m.action==='create'?parties.create(c):m.action==='invite'?(rate('partyInvite',6,30000)?inviteToParty(c,target):{ok:false,reason:'You’re sending invitations quickly. Wait a moment.'}):m.action==='respond'?parties.respond(c,String(m.party),m.accept===true):m.action==='leave'?parties.leave(c):m.action==='kick'?parties.kick(c,String(m.id)):m.action==='promote'?parties.promote(c,String(m.id)):m.action==='uninvite'?parties.uninvite(c,String(m.id)):{ok:false,reason:'Unknown party action.'};
+    const r=m.action==='create'?parties.create(c):m.action==='invite'?(rate('partyInvite',6,30000)?inviteToParty(c,target):{ok:false,reason:'You’re sending invitations quickly. Wait a moment.'}):m.action==='respond'?joinParty(c,String(m.party),m.accept===true):m.action==='leave'?parties.leave(c):m.action==='kick'?parties.kick(c,String(m.id)):m.action==='promote'?parties.promote(c,String(m.id)):m.action==='uninvite'?parties.uninvite(c,String(m.id)):{ok:false,reason:'Unknown party action.'};
     send(ws,{type:'partyResult',action:String(m.action).slice(0,16),ref:Number.isInteger(m.ref)?m.ref:null,...r});
     if(r.ok&&!wasIn&&parties.partyOf(c)&&(m.action==='create'||m.action==='invite'))analytics.track(c,'party_created');
     if(r.ok&&r.joined)analytics.track(c,'party_joined',{size:parties.partyOf(c)?.members.size??0});

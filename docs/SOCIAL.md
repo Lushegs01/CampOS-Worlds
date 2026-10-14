@@ -70,7 +70,8 @@ or party chat is never stored.
 ## Parties
 
 * Invite anyone in the room you may invite (see privacy below). Invitations expire after 60
-  seconds; a player can have at most 5 waiting. Up to 6 members.
+  seconds; a player can have at most 5 waiting. Up to 6 members. Blocks are checked again when an
+  invitation is accepted, so nobody joins a party with someone either of them has blocked.
 * Leaving, removing (leader only) and handing over leadership. If the leader leaves or loses
   connection, the longest-standing connected member leads.
 * A member who loses connection keeps their place for 45 seconds; reconnecting with the same session

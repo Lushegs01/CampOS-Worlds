@@ -86,8 +86,6 @@ benchmark.
 
 * Parties, presence and duels live in one room's memory: they reset on a room restart and do not
   span instances.
-* A party invitation is not re-checked against blocks at the moment it is accepted (party chat still
-  filters blocked pairs).
 * Real-time delivery of messages relies on the room's content-free nudges plus 20-second polling; a
   player who is not in the room sees new messages at the next poll.
 * Profile visibility hides bio and interests only; badges, records and club memberships are public
