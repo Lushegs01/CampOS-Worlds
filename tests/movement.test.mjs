@@ -69,3 +69,35 @@ test('a room position along the path just walked is lag, not drift', async () =>
   assert.ok(Math.abs(trail.distance(0, 36, 1000 + 175 + 1501) - .875 * 2) < 1e-9);
   trail.clear(); assert.equal(trail.distance(0, 0, now), Infinity);
 });
+
+/**
+ * Walk forward for `frames` frames, then let go of the key. Frame times cycle through `pattern` (ms).
+ * `retroactive` is the old client: each frame applied the input it had just computed to the time that had
+ * already passed, while the room applies an input from its arrival until the next one, so with uneven
+ * frames the two weighted each input by different durations.
+ */
+function stopAfter(frames, pattern, retroactive) {
+  const client = { x: 0, z: 36, y: 0, vx: 0, vz: 0, vy: 0 }, room = { ...client };
+  let t = 0, nextTick = 0, sent = 0, lastInput = -1e9, applied = 0;
+  for (let f = 0; f < frames + 6; f++) {
+    const ms = pattern[f % pattern.length]; t += ms;
+    for (; nextTick <= t; nextTick += 1000 / 30) { const active = nextTick - lastInput < INPUT_HOLD_MS; stepWalker(room, 0, active ? -sent * WALK_SPEED : 0, 1 / 30); }
+    const want = f < frames ? 1 : 0; // the key is down for the first `frames` frames
+    stepWalker(client, 0, -(retroactive ? want : applied) * WALK_SPEED, Math.min(ms / 1000, MAX_STEP));
+    applied = want; sent = want; lastInput = t;
+  }
+  for (; nextTick <= t + 2000; nextTick += 1000 / 30) stepWalker(room, 0, 0, 1 / 30);
+  for (let i = 0; i < 20; i++) stepWalker(client, 0, 0, .1);
+  return Math.abs(client.z - room.z);
+}
+
+test('letting go of a key on uneven slow frames: the room stops where the client does', () => {
+  // A slow start (a long frame as the key goes down) and quick frames at the end, as on a struggling phone.
+  const uneven = [340, 120, 90, 330, 110, 300, 100, 320, 90, 80, 330, 60];
+  const now = stopAfter(11, uneven, false), before = stopAfter(11, uneven, true);
+  // The client now moves each frame with the input it sent for that interval, exactly as the room does.
+  assert.ok(now < .1, `room and client stop ${now.toFixed(2)} m apart`);
+  assert.ok(stopAfter(12, [16.7], false) < .1);
+  // The old order left them apart by about a frame of walking (a glide or snap after stopping).
+  assert.ok(before > .5, `old order: ${before.toFixed(2)} m`);
+});

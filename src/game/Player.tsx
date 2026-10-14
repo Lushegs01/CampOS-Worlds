@@ -23,6 +23,10 @@ const ray = new THREE.Vector3(), side = new THREE.Vector3(), upv = new THREE.Vec
 let qaTarget: { x: number; z: number; until: number } | null = null;
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 const body = { x: 0, z: 0, y: 0, vx: 0, vz: 0, vy: 0 };
+/** Steering to a point: no faster than covers most of the distance in one more frame like the last, so slow frames don't overshoot. */
+const arrive = (d: number, frame: number) => .8 * d / Math.max(Math.min(frame, MAX_STEP), 1 / 60);
+/** The walking velocity of the last input sent: what the room is applying until the next one arrives. */
+const sentMove = { x: 0, z: 0 };
 // Vehicles block walking into them, never walking out (someone left inside a footprint can step clear).
 const footAllowed = (x: number, z: number, fromX: number, fromZ: number) => !vehicleFootBlocked(x, z) || vehicleFootBlocked(fromX, fromZ);
 
@@ -152,7 +156,7 @@ export default function Player() {
       else {
         const via = sit.path?.[0], a = via ?? seatApproach(seat), ex = a.x - player.x, ez = a.z - player.z, d = Math.hypot(ex, ez); sit.t += dt; sprint = false;
         if (via && d < .14) sit.path!.shift();
-        else if (via || d > .05) { dx = ex / d; dz = ez / d; speed = via ? 1.4 : Math.min(1.5, d * 3 + .3); scale = speed / WALK_SPEED; }
+        else if (via || d > .05) { dx = ex / d; dz = ez / d; speed = via ? 1.4 : Math.min(1.5, d * 3 + .3, arrive(d, raw)); scale = speed / WALK_SPEED; }
         else {
           dx = dz = 0; player.x = a.x; player.z = a.z; player.yaw = seat.yaw;
           let err = seat.yaw - root.current.rotation.y; err = Math.atan2(Math.sin(err), Math.cos(err));
@@ -164,7 +168,7 @@ export default function Player() {
     if (QA_HOOKS && qaTarget && !sit) {
       const ex = qaTarget.x - player.x, ez = qaTarget.z - player.z, d = Math.hypot(ex, ez);
       if (d < .1 || performance.now() > qaTarget.until) qaTarget = null;
-      else { dx = ex / d; dz = ez / d; sprint = false; speed = Math.min(WALK_SPEED, d * 4 + .3); scale = speed / WALK_SPEED; }
+      else { dx = ex / d; dz = ez / d; sprint = false; speed = Math.min(WALK_SPEED, d * 4 + .3, arrive(d, raw)); scale = speed / WALK_SPEED; }
     }
     if (still) { dx = dz = 0; velocity.current.x = velocity.current.z = 0; }
     // Drifted out of agreement with the room while standing: glide back (any input cancels it).
@@ -176,12 +180,17 @@ export default function Player() {
       }
     }
     // Integrate movement in real time (in ≤50 ms substeps) even when frames are slow, with the room's
-    // own integrator and limit, so the local player moves exactly as the room simulates them.
-    const real = Math.min(raw, MAX_STEP), beforeX = player.x, beforeZ = player.z;
+    // own integrator and limit. Connected, the time since the last frame is walked with the input the
+    // room has been applying (the last one sent), not the one just computed: applying a new input to time
+    // that had already passed weighted each input by a different frame than the room did, so on uneven
+    // slow frames the two stopped up to a frame's walk apart (then glided or snapped).
+    const real = Math.min(raw, MAX_STEP), beforeX = player.x, beforeZ = player.z, connected = s.status === 'connected';
     const jump = enabled && input.jump && player.y === 0 && !still && !sit; if (jump) player.vy = JUMP_SPEED;
     input.jump = false;
+    const wantX = dx * speed, wantZ = dz * speed;
+    if (still || !connected) { sentMove.x = wantX; sentMove.z = wantZ; }
     body.x = player.x; body.z = player.z; body.y = player.y; body.vy = player.vy; body.vx = velocity.current.x; body.vz = velocity.current.z;
-    stepWalker(body, dx * speed, dz * speed, real, footAllowed);
+    stepWalker(body, sentMove.x, sentMove.z, real, footAllowed);
     player.x = body.x; player.z = body.z; player.y = body.y; player.vy = body.vy; velocity.current.x = body.vx; velocity.current.z = body.vz;
     trail.push(player.x, player.z, performance.now());
     // Animation reads the speed actually achieved (so walking into a wall doesn't run on the spot).
@@ -217,10 +226,14 @@ export default function Player() {
       camera.position.lerpVectors(posFrom, desired, k); camera.lookAt(rayTo.copy(lookFrom).lerp(look, k));
     } else { camera.position.copy(desired); camera.lookAt(look); }
 
-    // 20 inputs a second while moving; standing still, the room only needs reminding 4 times a second
-    // (the first "stopped" still goes out at once, so the room stops us just as promptly).
-    const stillInput = Math.hypot(dx, dz) < .01 && !sprint;
-    if (jump || clock.elapsedTime - lastSend.current > (stillInput && sentStill.current ? .25 : .05)) { send({ type: 'input', dx: dx * scale, dz: dz * scale, yaw: player.yaw, sprint, jump }); lastSend.current = clock.elapsedTime; sentStill.current = stillInput; }
+    // 20 inputs a second while moving, sooner (40 ms) when the input changes; standing still, the room only
+    // needs reminding 4 times a second (the first "stopped" still goes out at once). The room allows 35 a second.
+    const stillInput = Math.hypot(dx, dz) < .01 && !sprint, since = clock.elapsedTime - lastSend.current;
+    const changed = Math.abs(wantX - sentMove.x) + Math.abs(wantZ - sentMove.z) > .05;
+    if (jump || (changed && since > .04) || since > (stillInput && sentStill.current ? .25 : .05)) {
+      if (send({ type: 'input', dx: dx * scale, dz: dz * scale, yaw: player.yaw, sprint, jump })) { sentMove.x = wantX; sentMove.z = wantZ; }
+      lastSend.current = clock.elapsedTime; sentStill.current = stillInput;
+    }
     // Standing still: keep the room's copy of our position in step with what we see.
     const resting = !player.sit && Math.hypot(dx, dz) < .01 && player.speed < .05 && player.y === 0;
     idle.current.t = resting ? idle.current.t + dt : 0;
