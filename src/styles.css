@@ -386,3 +386,33 @@
 /* Secondary buttons were only themed inside dialogs; drawers, cards and HUDs use them too. */
 .secondary{background:#e7e5d7;color:#3d5742;border:1px solid #345c3520}
 .duel-hud .secondary,.duel-modes .secondary,.class-prompt .secondary{background:#f0cf8e;color:#203b34;border:0}
+
+/* Phone touch targets and a separate map lane above both driving and court controls. */
+@media (pointer:coarse) and (max-width:760px),
+       (pointer:coarse) and (orientation:landscape) and (max-height:650px) {
+  .minimap {bottom:calc(310px + env(safe-area-inset-bottom));width:100px;height:101px;padding:4px}
+  .minimap .map-graphic {height:75px}
+  .minimap kbd {display:none}
+  .joystick {width:104px;height:104px}
+  .joystick>span {width:42px;height:42px}
+  .touch-actions button {width:60px;height:60px;font-size:12px}
+  .touch-actions span {font-size:9px}
+  .touch-actions .touch-shoot {width:80px;height:80px}
+  .touch-actions .touch-action {width:auto;min-width:82px;height:54px;border-radius:27px}
+  .driving-touch {--drive-touch-width:min(82px,calc((100vw - 70px)/4))}
+  .driving-touch button {width:var(--drive-touch-width);height:78px}
+  .driving-touch button:nth-child(2) {left:calc(30px + var(--drive-touch-width))}
+  .driving-touch button:nth-child(3) {right:calc(30px + var(--drive-touch-width))}
+  .touch-controls:has(.driving-touch) .touch-actions {bottom:210px}
+  .app:has(.driving-touch) .minimap,.app:has(.hoops-hud) .minimap {display:none}
+}
+@media (pointer:coarse) and (max-width:760px) and (orientation:portrait) {
+  .vehicle-hud {bottom:290px}
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:650px) {
+  /* The Map menu stays available without using either thumb's play area. */
+  .minimap {display:none}
+  .touch-actions {bottom:95px}
+  .touch-controls:has(.driving-touch) .touch-actions {bottom:175px}
+  .app:has(.driving-touch) .quest-card {display:none}
+}
