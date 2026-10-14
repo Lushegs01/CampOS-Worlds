@@ -1,5 +1,6 @@
 import { WORLD_LIMIT, EXPANSION_LOCATIONS, EXPANSION_WALLS, ROADSIDE_TREES, BELT_TREES } from './expansion.mjs';
 import { DOORS, TABLES } from './interactions.mjs';
+import { LOCKED_ACCENTS } from './achievements.mjs';
 export const BRAND = { name: 'CampOS', product: 'Worlds', campus: 'Òrìṣun Campus', subtitle: 'A new world. Your people.', room: 'The Courtyard' };
 // Spawn on the main avenue, facing north towards The Confluence and Horizon Auditorium.
 export const SPAWN = { x: 0, y: 0, z: 36 };
@@ -104,4 +105,7 @@ export const MODELS=['tunde','amara','chidi','ngozi','kelechi','zainab','ibrahim
 export const SKINS=['natural','#3a2219','#5b3424','#7a4a31','#a66b46','#cb9168'];
 export const ACCENTS=['#353c4c','#537d70','#b05f49','#506b96','#e8b95e','#eee9df'];
 export const ACCESSORIES=['none','backpack','headphones','glasses'];
-export function sanitizeAvatar(a={}){return {model:MODELS.includes(a.model)?a.model:MODELS[0],skin:SKINS.includes(a.skin)?a.skin:SKINS[0],accent:ACCENTS.includes(a.accent)?a.accent:ACCENTS[0],accessory:ACCESSORIES.includes(a.accessory)?a.accessory:'backpack'};}
+/** Accent colours earned with an achievement (shared/achievements.mjs): usable only once unlocked. */
+export const EARNED_ACCENTS=Object.keys(LOCKED_ACCENTS);
+/** Keep only known appearance choices; an earned accent needs its achievement id in `unlocked`. */
+export function sanitizeAvatar(a={},unlocked=[]){const earned=LOCKED_ACCENTS[a.accent];return {model:MODELS.includes(a.model)?a.model:MODELS[0],skin:SKINS.includes(a.skin)?a.skin:SKINS[0],accent:ACCENTS.includes(a.accent)||(earned&&unlocked.includes(earned))?a.accent:ACCENTS[0],accessory:ACCESSORIES.includes(a.accessory)?a.accessory:'backpack'};}

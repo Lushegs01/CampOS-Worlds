@@ -23,7 +23,9 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
   };
   const service = async (fn, args) => {
     const r = await call(`/rest/v1/rpc/${fn}`, { method: 'POST', headers: { ...keyHeaders(serviceKey), 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
-    if (!r.ok) throw Object.assign(new Error(`Account service ${fn} failed (${r.status})`), { status: r.status });
+    // Our database functions raise short, player-facing messages for refusals (bad time, wrong place);
+    // keep those so the room can pass them on. Anything else stays generic.
+    if (!r.ok) throw Object.assign(new Error(`Account service ${fn} failed (${r.status})`), { status: r.status, code: r.body?.code, reason: ['22023', 'P0002', '42501'].includes(r.body?.code) && typeof r.body?.message === 'string' ? r.body.message.slice(0, 200) : null });
     return r.body;
   };
 
@@ -50,6 +52,12 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     socialSnapshot: id => service('social_snapshot', { p_user: id }),
     recordProgress: (id, kind, item) => service('record_progress', { p_user: id, p_kind: kind, p_item: item }),
     recordHoopsRound: (id, points, made) => service('record_hoops_round', { p_user: id, p_points: points, p_made: made }),
+    /** In-game event attendance: the room has checked the player is at the event's location. */
+    checkin: (id, event, location) => service('record_event_checkin', { p_user: id, p_event: event, p_location: location }),
+    /** A challenge completed in `ms`, timed by the room. */
+    recordChallenge: (id, challenge, ms, run) => service('record_challenge', { p_user: id, p_challenge: challenge, p_ms: ms, p_run: run }),
+    /** An achievement the room measured itself (time in a party of three or more). */
+    recordRoomAchievement: (id, achievement) => service('record_room_achievement', { p_user: id, p_achievement: achievement }),
     /** A finished Court Duel between two signed-in players. Idempotent on the match id, so retries are safe. */
     recordDuel: m => service('record_duel', { p_match: m.id, p_player_a: m.a, p_player_b: m.b, p_score_a: m.scoreA, p_score_b: m.scoreB, p_outcome: m.outcome, p_forfeit_by: m.forfeitBy, p_started_at: new Date(m.startedAt).toISOString(), p_ended_at: new Date(m.endedAt).toISOString() }),
   };

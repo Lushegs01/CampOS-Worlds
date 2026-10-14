@@ -10,12 +10,13 @@ import { cleanText, guestName } from '../shared/text.mjs';
 import { createParties, PARTY_LIMITS } from './parties.mjs';
 import { createDuels, DUEL_RULES } from './duels.mjs';
 import { createAnalytics } from './analytics.mjs';
+import { createChallenges } from './challenges.mjs';
 import { TOUR } from '../shared/campus.mjs';
 // Messages stay within 2 KB except the account handshake, which carries a Supabase access token.
 const MAX_MESSAGE=2048,MAX_AUTH_MESSAGE=6144;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
-export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=24,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics()}={}){
+export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=24,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000}={}){
  const clients=new Map(),bans=new Set();let reportQueue=Promise.resolve();
  // ---- social: what others may know about a player, account-level blocks, and parties
  // A player who chose "appear offline" keeps their name and avatar (they are visibly here) but their
@@ -31,6 +32,16 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // Court Duel: one match at a time on The Courts, scored by the room's own physics.
  const duels=createDuels({world,players:()=>joined(),byId:id=>clients.get(id),send:(c,m)=>send(c.ws,m),broadcast:m=>broadcast(m),describe,rules:duelRules,record:m=>recordDuel(m),
   onStart:d=>d.players.forEach(p=>analytics.track(p,'duel_started')),onFinish:d=>d.players.forEach(p=>analytics.track(p,'duel_completed',{outcome:d.result.outcome}))});
+ // Exploration and driving challenges, timed by the room from its own positions.
+ const challenges=createChallenges({send:(c,m)=>send(c.ws,m),record:(c,ch,ms)=>{
+  analytics.track(c,'challenge_completed',{challenge:ch.id});
+  if(!c.account||!accounts.enabled){send(c.ws,{type:'notice',text:'Sign in to keep your challenge times and badges.'});return;}
+  const id=c.account.id,run=randomUUID();
+  retry(()=>accounts.recordChallenge(id,ch.id,ms,run),r=>{if(c.account?.id!==id)return;const awarded=Array.isArray(r?.awarded)?r.awarded:[];send(c.ws,{type:'progress',kind:'challenge',item:ch.id,awarded,best:r?.best_ms??ms});awarded.forEach(a=>analytics.track(c,'achievement_earned',{achievement:a}));},
+   ()=>{if(c.account?.id===id)send(c.ws,{type:'notice',text:'Your challenge time could not be saved right now.'});});
+ }});
+ /** Retry a recording a few times with backoff; the ids passed make repeats harmless in the database. */
+ function retry(call,done,failed,n=0){call().then(done).catch(e=>{if(n<3&&!e?.reason)setTimeout(()=>retry(call,done,failed,n+1),1500*2**n);else failed(e);});}
  /** Persist a duel between two signed-in players, retrying a few times; the match id makes retries safe. */
  function recordDuel(match){
   if(!accounts.enabled)return;
@@ -71,9 +82,12 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(prior){prior.authSeq++;prior.account=null;prior.social=null;prior.hoops=[];prior.name='Explorer';parties.touch(prior);send(prior.ws,{type:'auth',ok:false,code:'replaced',reason:'You opened campus with this account in another window, so this one continues as a guest.'});}
   bindAccount(c,who.id,snap);reply({ok:true,account:{handle:snap.handle,display_name:snap.display_name}});
  }
+ // Earned accents and titles are only ever taken from the saved, verified profile.
+ const earned=snap=>Array.isArray(snap?.achievements)?snap.achievements.map(a=>a.id):[];
+ const titleOf=snap=>typeof snap?.title==='string'&&earned(snap).includes(snap.title)?snap.title:null;
  // Analytics sessions start once we know who the player is (after any sign-in check), so a player keeps one pseudonym.
  function startSession(c){if(c.sessionStarted)return;c.sessionStarted=true;analytics.track(c,'session_start',{guest:!c.account});}
- function bindAccount(c,id,snap){c.account={id,handle:snap.handle,hidden:false};c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{});for(const k of snap.progress?.keepsakes??[])c.collected.add(k);c.visited=new Set(snap.progress?.landmarks??[]);c.hoops=[];applySocial(c,snap.social);parties.touch(c);}
+ function bindAccount(c,id,snap){c.account={id,handle:snap.handle,hidden:false,title:titleOf(snap)};c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{},earned(snap));for(const k of snap.progress?.keepsakes??[])c.collected.add(k);c.visited=new Set(snap.progress?.landmarks??[]);c.hoops=[];applySocial(c,snap.social);parties.touch(c);}
  function applySocial(c,s){const before=c.social?.friends.size;c.social={friends:new Set(Array.isArray(s?.friends)?s.friends:[]),blocked:new Set(Array.isArray(s?.blocked)?s.blocked:[]),settings:{party_invites:'friends',appear_offline:false,...(s?.settings??{})}};if(c.account)c.account.hidden=c.social.settings.appear_offline===true;if(before!==undefined&&c.social.friends.size>before)analytics.track(c,'friend_connected');}
  /** Re-read friends, blocks and privacy after a change (debounced, so bursts collapse into one read). */
  function refreshSocial(c){
@@ -82,7 +96,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  }
  async function refreshAccount(c){
   if(!c.account||Date.now()-c.profileAt<2000)return;c.profileAt=Date.now();const id=c.account.id;
-  try{const snap=await accounts.snapshot(id);if(c.account?.id!==id||!snap)return;c.account.handle=snap.handle;c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{});applySocial(c,snap.social);parties.touch(c);}catch{}
+  try{const snap=await accounts.snapshot(id);if(c.account?.id!==id||!snap)return;c.account.handle=snap.handle;c.account.title=titleOf(snap);c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{},earned(snap));applySocial(c,snap.social);parties.touch(c);}catch{}
  }
  function record(c,kind,item){
   if(!c.account||!accounts.enabled)return;const id=c.account.id;
@@ -94,6 +108,15 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(!c.account||c.hoops.length<5)return;const round=c.hoops.slice(0,5);if(!round.every(s=>s.done||now-s.at>4500))return;c.hoops.splice(0,5);
   const points=round.reduce((a,s)=>a+s.points,0),made=round.filter(s=>s.points>0).length,id=c.account.id;
   accounts.recordHoopsRound(id,points,made).then(r=>{if(c.account?.id===id)send(c.ws,{type:'progress',kind:'hoops',item:String(points),best:r?.best??points,awarded:Array.isArray(r?.awarded)?r.awarded:[]});}).catch(()=>{});
+ }
+ // Better Together: signed-in players accumulate time while in a party of three or more connected
+ // members; at 10 minutes (measured here, never reported by a client) the badge is recorded once.
+ let partyClock=Date.now();
+ function partyTime(t){
+  const dt=Math.min(2000,t-partyClock);partyClock=t;
+  for(const p of parties.parties.values()){const here=[...p.members.values()].filter(m=>m.client?.joined);if(here.length<3)continue;
+   for(const {client:c} of here){if(!c.account||c.togetherDone)continue;c.together=(c.together??0)+dt;
+    if(c.together>=togetherMs&&accounts.enabled){c.togetherDone=true;const id=c.account.id;retry(()=>accounts.recordRoomAchievement(id,'better-together'),r=>{const awarded=Array.isArray(r?.awarded)?r.awarded:[];if(awarded.length&&c.account?.id===id){send(c.ws,{type:'progress',kind:'party',item:'better-together',awarded});analytics.track(c,'achievement_earned',{achievement:'better-together'});}},()=>{c.togetherDone=false;});}}}
  }
  /** The third identical message within 30 s is refused (copy-paste flooding). */
  function repeated(c,text){const t=Date.now(),key=text.toLowerCase().replace(/\s+/g,' ');c.lastTexts=(c.lastTexts??[]).filter(e=>t-e.at<30000);const n=c.lastTexts.filter(e=>e.key===key).length;if(n>=2)return true;c.lastTexts.push({key,at:t});return false;}
@@ -113,6 +136,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(!t?.joined||t===c||!parties.sameParty(c,t))return {ok:false,reason:'You can travel only to members of your party.'};
   if(c.seat||c.vehicle||c.ball)return {ok:false,reason:'Stand up, leave the vehicle and put the ball down first.'};
   if(c.duel)return {ok:false,reason:'Finish your match first.'};
+  if(c.run)return {ok:false,reason:'Finish or cancel your challenge first.'};
   const wait=c.meetAt+meetCooldownMs-Date.now();if(wait>0)return {ok:false,reason:`You can travel again in ${Math.ceil(wait/1000)} s.`};
   const spot=spotNear(t);if(!spot)return {ok:false,reason:`There’s no clear space next to ${t.name} right now.`};
   Object.assign(c,spot,{y:0,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false}});c.meetAt=Date.now();
@@ -195,6 +219,26 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     const target=typeof m.id==='string'?clients.get(m.id):null;
     const r=m.action==='challenge'?(target&&blockedBetween(c,target)?{ok:false,reason:'You can’t challenge this player.'}:duels.challenge(c,target)):m.action==='respond'?duels.respond(c,String(m.challenge),m.accept===true):m.action==='concede'?duels.concede(c):{ok:false,reason:'Unknown duel action.'};
     send(ws,{type:'duelResult',action:String(m.action).slice(0,16),ref:Number.isInteger(m.ref)?m.ref:null,...r});
+   }else if(m.type==='challenge'){
+    const r=!rate('challenge',8,10000)?{ok:false,reason:'Wait a moment and try again.'}:m.action==='start'?challenges.start(c,String(m.id)):m.action==='cancel'?challenges.cancel(c):{ok:false,reason:'Unknown challenge action.'};
+    send(ws,{type:'challengeResult',action:String(m.action).slice(0,16),...r});
+   }else if(m.type==='checkin'){
+    // In-game event attendance: the room checks the player is at the event's place; the database
+    // checks the event, its place and its time window. Gameplay attendance only, never academic.
+    const loc=LOCATIONS.find(l=>l.id===m.location),reply=r=>send(ws,{type:'checkinResult',event:typeof m.event==='string'?m.event.slice(0,40):null,...r});
+    if(!rate('checkin',4,10000)){reply({ok:false,reason:'Wait a moment before checking in again.'});return;}
+    if(!c.account||!accounts.enabled){reply({ok:false,reason:'Sign in to check in at events.'});return;}
+    if(!loc||typeof m.event!=='string'||!UUID.test(m.event)){reply({ok:false,reason:'That event is not available.'});return;}
+    if(Math.hypot(c.x-loc.x,c.z-loc.z)>15){reply({ok:false,reason:`Go to ${loc.name} to check in.`});return;}
+    const id=c.account.id;
+    accounts.checkin(id,m.event,loc.id).then(r=>{
+     if(c.account?.id!==id)return;
+     reply({ok:!!r?.checked_in,reason:r?.reason,fresh:!!r?.new,title:r?.event});
+     if(r?.new)analytics.track(c,'event_checkin');
+     const awarded=Array.isArray(r?.awarded)?r.awarded:[];if(awarded.length){send(ws,{type:'progress',kind:'checkin',item:m.event,awarded});awarded.forEach(a=>analytics.track(c,'achievement_earned',{achievement:a}));}
+     // The organiser earns Community Builder when the third other player checks in.
+     if(r?.organizer)for(const o of clients.values())if(o.account?.id===r.organizer){send(o.ws,{type:'progress',kind:'checkin',item:m.event,awarded:['community-builder']});analytics.track(o,'achievement_earned',{achievement:'community-builder'});}
+    }).catch(e=>reply({ok:false,reason:e?.reason??'Check-in is unavailable right now. Try again in a moment.'}));
    }else if(m.type==='meetUp'){
     const r=rate('meetUp',5,5000)?meetUp(c,clients.get(String(m.id))):{ok:false,reason:'Wait a moment before travelling again.'};send(ws,{type:'meetUpResult',...r});
    }else if(m.type==='prefs'&&rate('prefs',4,5000)){
@@ -230,7 +274,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     reportQueue=reportQueue.then(async()=>{await mkdir(reportDir,{recursive:true});await appendFile(reportDir+'/reports.jsonl',JSON.stringify(record)+'\n');send(ws,{type:'notice',text:'Report saved for the room operator. You can also mute this player.'});}).catch(()=>send(ws,{type:'notice',text:'Report could not be saved. Please contact the room operator.'}));
    }
   });
-  ws.on('close',(code)=>{clearTimeout(c.socialTimer);if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);clients.delete(id);broadcast({type:'left',id});});ws.on('error',()=>ws.close());
+  ws.on('close',(code)=>{clearTimeout(c.socialTimer);challenges.release(c);if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);clients.delete(id);broadcast({type:'left',id});});ws.on('error',()=>ws.close());
  });
  let last=performance.now(),tick=0;
  const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,.25),steps=Math.ceil(dt/.05),h=dt/steps;last=now;
@@ -247,11 +291,12 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(events.length)broadcast({type:'events',list:events});
   duels.step(events);
   for(const e of events)if(e.type==='score'){const shot=clients.get(e.by)?.hoops.find(s=>s.id===e.shot);if(shot){shot.points=e.points;shot.done=true;}}
-  if(tick%15===0){const t=Date.now();for(const c of clients.values())settleHoops(c,t);parties.step();}
+  if(tick%3===0)challenges.step(joined());
+  if(tick%15===0){const t=Date.now();for(const c of clients.values())settleHoops(c,t);parties.step();partyTime(t);}
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
-  if(++tick%2===0)broadcast({type:'state',players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account})=>({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account})),balls:world.balls.map(packBall),vehicles:fleet.snapshot(),classes:classes.snapshot()});
+  if(++tick%2===0)broadcast({type:'state',players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account})=>({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:fleet.snapshot(),classes:classes.snapshot()});
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
- return {http,wss,clients,fleet,parties,duels,world,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};
+ return {http,wss,clients,fleet,parties,duels,challenges,world,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};
 }
 function clean(value,max){return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,max):'';}

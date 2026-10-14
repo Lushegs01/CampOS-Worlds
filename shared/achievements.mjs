@@ -17,7 +17,7 @@ export const ACHIEVEMENTS = [
  {id:'better-together',name:'Better Together',category:'social',rule:'Spend 10 minutes on campus in a party of three or more.',title:'Better Together'},
  {id:'regular',name:'Regular',category:'community',rule:'Check in at 3 different campus events, in the game, while they are happening.',title:'Regular'},
  {id:'community-builder',name:'Community Builder',category:'community',rule:'Organise an event where at least 3 other players check in.',title:'Community Builder',accent:'#7a4f9a'},
- {id:'road-tripper',name:'Road Tripper',category:'travel',rule:'Drive the Campus Loop: visit every district’s stop in order as the driver, in under 10 minutes.',title:'Road Tripper',accent:'#9b5b2a'},
+ {id:'road-tripper',name:'Road Tripper',category:'travel',rule:'Drive the Campus Loop: pass every district’s shuttle stop in order as the driver, in under 12 minutes.',title:'Road Tripper',accent:'#9b5b2a'},
 ];
 export const ACHIEVEMENT_BY_ID = new Map(ACHIEVEMENTS.map(a=>[a.id,a]));
 /** Accent colours that are earned rather than chosen freely: colour → achievement that unlocks it. */
