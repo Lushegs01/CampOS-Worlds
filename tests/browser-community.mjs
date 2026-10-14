@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { startStack } from './support/stack.mjs';
-import { launch, QUERY } from './support/browser.mjs';
+import { gpu, launch, QUERY } from './support/browser.mjs';
 import { startLocalSupabase } from './support/local-supabase.mjs';
 
 const exe = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || 'C:/Program Files/Google/Chrome/Application/chrome.exe', OUT = 'docs/screenshots/community';
@@ -27,7 +27,8 @@ async function account(handle, name) {
 async function open(label, { viewport = { width: 1280, height: 800 }, mobile = false } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: mobile, isMobile: mobile });
   await ctx.addInitScript(n => { if (!localStorage.getItem('campos-worlds-v1')) localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: n }, version: 0 })); }, label);
-  const page = await ctx.newPage(); page.setDefaultTimeout(20000); page.label = label;
+  // Software WebGL (no GPU) renders four pages on the CPU at once: allow what tests/support/browser.mjs allows.
+  const page = await ctx.newPage(); page.setDefaultTimeout(gpu ? 20000 : 45000); page.label = label;
   page.on('pageerror', e => errors.push(`${label}: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION|Failed to load resource/.test(m.text())) errors.push(`${label}: ${m.text()}`); });
   await page.goto(stack.url + QUERY, { waitUntil: 'domcontentloaded' });
