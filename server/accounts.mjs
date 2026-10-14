@@ -46,6 +46,8 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     },
     /** Public profile plus the progress the room uses, or null when the account has no profile yet. */
     snapshot: id => service('account_snapshot', { p_user: id }),
+    /** Friends, blocked players and privacy settings (refreshed after social changes). */
+    socialSnapshot: id => service('social_snapshot', { p_user: id }),
     recordProgress: (id, kind, item) => service('record_progress', { p_user: id, p_kind: kind, p_item: item }),
     recordHoopsRound: (id, points, made) => service('record_hoops_round', { p_user: id, p_points: points, p_made: made }),
   };
