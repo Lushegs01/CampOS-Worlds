@@ -178,7 +178,9 @@ try {
   await shot(C, 'events-canceled');
   pass('canceled events stay visible as canceled and stop accepting RSVPs');
 
-  // Phone layout: the board is a bottom sheet that leaves the world visible.
+  // Phone layout: the board is a bottom sheet that leaves the world visible. Ada's and Tobi's pages are
+  // not needed again; closing them leaves the CPU to the phone page when WebGL is rendered in software.
+  await A.context().close(); await B.context().close();
   M = await open('Phone visitor', { viewport: { width: 390, height: 844 }, mobile: true });
   await openBoard(M);
   await drawer(M).getByRole('button', { name: /Free-throw night/ }).waitFor();
