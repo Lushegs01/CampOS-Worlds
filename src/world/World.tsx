@@ -1,3 +1,6 @@
+import { occupiedAnchor } from '../vehicles/client';
+import Expansion from './Expansion';
+import Vehicles from './Vehicles';
 import { QA_HOOKS } from '../qa';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
@@ -36,6 +39,9 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     if (peer.seat && m.sit?.seat !== peer.seat) m.sit = { seat: peer.seat, phase: 'down', t: 0 } as SitState;
     else if (!peer.seat && m.sit && (m.sit.phase === 'down' || m.sit.phase === 'seated')) m.sit.phase = 'up';
     if (m.sit?.phase === 'done') { m.sit = null; g.position.set(peer.x, peer.y + surfaceHeight(peer.x, peer.z), peer.z); m.last.copy(g.position); }
+    const anchor=peer.vehicle?occupiedAnchor(peer.vehicle,peer.vehicleSeat??0):null;
+    m.vehicleSeatHeight=anchor?.y??null;
+    if(anchor){g.position.set(anchor.x,.025,anchor.z);g.rotation.y=anchor.yaw;m.speed=0;m.y=0;m.vy=0;m.turn=0;m.last.copy(g.position);tag.current.position.y=anchor.y+1.4;tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);return;}
     const seat = m.sit ? SEAT_BY_ID.get(m.sit.seat) : undefined;
     if (seat) { g.position.set(seat.x, surfaceHeight(seat.x, seat.z), seat.z); g.rotation.y = seat.yaw; }
     else { const k = 1 - Math.exp(-12 * dt); g.position.x += (peer.x - g.position.x) * k; g.position.y += (peer.y + surfaceHeight(peer.x, peer.z) - g.position.y) * k; g.position.z += (peer.z - g.position.z) * k; }
@@ -158,7 +164,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
   return <>
     <CompileGate post={quality.post} onReady={reveal}>
     <Ground surfaces={surfaces} quality={quality} />
-    <primitive object={campus.group} />
+    <primitive object={campus.group} /><Expansion lib={lib} /><Vehicles />
     <Water reduced={reduced} />
     <Flags placements={campus.context.props} reduced={reduced} />
     <Props placements={campus.context.props} quality={quality} />

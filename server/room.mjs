@@ -1,3 +1,5 @@
+import { createClasses } from '../shared/classes.mjs';
+import { createFleet, vehicleContains } from '../shared/vehicles.mjs';
 import { randomUUID, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { appendFile, mkdir } from 'node:fs/promises';
@@ -9,6 +11,7 @@ const MAX_MESSAGE=2048,MAX_AUTH_MESSAGE=6144;
 export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=24,adminToken='',invite='',reportDir='server/data',accounts={enabled:false}}={}){
  const clients=new Map(),bans=new Set();let reportQueue=Promise.resolve();
  // Seats, doors and basketballs are authoritative here; clients send requests, never outcomes.
+ const fleet=createFleet(),classes=createClasses();
  const world=createWorld();let worldRevision=world.revision;
  const joined=()=>[...clients.values()].filter(c=>c.joined);
  const worldState=()=>{const w=world.snapshot();return {type:'world',doors:w.doors,seats:w.seats};};
@@ -72,17 +75,23 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     const token=typeof m.token==='string'&&/^[a-f0-9]{48}$/.test(m.token)?m.token:randomBytes(24).toString('hex');
     if(bans.has(token)){ws.close(4003,'Removed by room moderator');return;}
     if([...clients.values()].some(v=>v!==c&&v.token===token&&v.joined)){ws.close(4004,'Session already connected');return;}
-    c.token=token;c.name=clean(m.name,24)||'Explorer';c.avatar=sanitizeAvatar(m.avatar??{});c.joined=true;send(ws,{type:'welcome',id,token,position:SPAWN,world:world.snapshot(),accounts:!!accounts.enabled});
+    c.token=token;c.name=clean(m.name,24)||'Explorer';c.avatar=sanitizeAvatar(m.avatar??{});c.joined=true;send(ws,{type:'welcome',id,token,position:SPAWN,world:world.snapshot(),vehicles:fleet.snapshot(),classes:classes.snapshot(),accounts:!!accounts.enabled});
     // A signed-in player joins as a guest and is upgraded once the room has verified the token.
     if(typeof m.access==='string'&&rate('auth',4,60000))authenticate(c,m.access);return;
    }if(!c.joined)return;
-   if(m.type==='input'&&rate('input',35)){
+   if(m.type==='classAction'&&rate('classAction',5)){const r=classes.action(c,m);if(!r.ok)send(ws,{type:'notice',text:r.reason});broadcast({type:'classes',sessions:classes.snapshot()});
+   }else if(m.type==='vehicleInput'&&rate('vehicleInput',35)){fleet.control(c,m);
+   }else if(['vehicleEnter','vehicleExit','vehicleRecover'].includes(m.type)&&rate('vehicleAction',5)){
+    const r=m.type==='vehicleEnter'?fleet.enter(c,String(m.id),m.seat??0):m.type==='vehicleExit'?fleet.exit(c,joined()):fleet.recover(c,joined());
+    send(ws,{type:'vehicleResult',...r,vehicle:c.vehicle,vehicleSeat:c.vehicleSeat,x:c.x,z:c.z});broadcast({type:'vehicles',vehicles:fleet.snapshot()});
+   }else if(m.type==='input'&&rate('input',35)){
+    if(c.vehicle)return;
     if(![m.dx,m.dz,m.yaw].every(Number.isFinite))return;
     const length=Math.max(1,Math.hypot(m.dx,m.dz));c.input={dx:m.dx/length,dz:m.dz/length,sprint:m.sprint===true,jump:c.input.jump||m.jump===true};c.yaw=m.yaw%(Math.PI*2);c.lastInput=Date.now();
    }else if(m.type==='settle'&&rate('settle',3,1000)){
     // A standing player's client may nudge its server position to where it sees itself (small, walkable
     // corrections only), so range checks for seats, doors and balls agree with what the player sees.
-    const x=Number(m.x),z=Number(m.z);if(!Number.isFinite(x)||!Number.isFinite(z)||c.seat||Math.hypot(c.vx,c.vz)>.25||Date.now()-c.lastInput<350&&Math.hypot(c.input.dx,c.input.dz)>.01)return;
+    const x=Number(m.x),z=Number(m.z);if(!Number.isFinite(x)||!Number.isFinite(z)||c.seat||c.vehicle||Math.hypot(c.vx,c.vz)>.25||Date.now()-c.lastInput<350&&Math.hypot(c.input.dx,c.input.dz)>.01)return;
     if(Math.hypot(x-c.x,z-c.z)<=.9&&!blocked(x,z))Object.assign(c,{x,z});
    }else if(m.type==='auth'&&rate('auth',4,60000)){
     if(typeof m.token==='string')authenticate(c,m.token);
@@ -95,6 +104,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(m.type==='interact'&&rate('interact',4,1000)){const loc=LOCATIONS.find(l=>l.id===m.id);if(loc&&Math.hypot(c.x-loc.x,c.z-loc.z)<6){send(ws,{type:'interaction',id:loc.id});if(c.account&&!c.visited.has(loc.id)){c.visited.add(loc.id);record(c,'landmark',loc.id);}}
    }else if(m.type==='collect'&&rate('collect',6,1000)){const token=TOKENS.find(t=>t.id===m.id);if(token&&!c.collected.has(token.id)&&Math.hypot(c.x-token.x,c.z-token.z)<2.2){c.collected.add(token.id);send(ws,{type:'collected',id:token.id});record(c,'keepsake',token.id);}
    }else if(['sit','stand','door','pickup','drop','shoot','ballReset'].includes(m.type)&&rate('world',8,1000)){
+    if(c.vehicle)return;
     // Physical interactions: validated against server-side position, possession and occupancy.
     const r=m.type==='sit'?world.sit(c,String(m.seat)):m.type==='stand'?world.stand(c):m.type==='door'?world.door(c,String(m.id),m.open===true,joined().filter(p=>p!==c)):m.type==='pickup'?world.pickup(c,String(m.ball)):m.type==='drop'?world.drop(c):m.type==='shoot'?world.shoot(c,Number(m.yaw),Number(m.charge)):world.resetBall(c,String(m.ball));
     send(ws,{type:'result',action:m.type,ref:m.ref,...r,seat:c.seat,ball:c.ball,x:c.x,z:c.z});
@@ -104,26 +114,27 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     reportQueue=reportQueue.then(async()=>{await mkdir(reportDir,{recursive:true});await appendFile(reportDir+'/reports.jsonl',JSON.stringify(record)+'\n');send(ws,{type:'notice',text:'Report saved for the room operator. You can also mute this player.'});}).catch(()=>send(ws,{type:'notice',text:'Report could not be saved. Please contact the room operator.'}));
    }
   });
-  ws.on('close',()=>{world.release(c);clients.delete(id);broadcast({type:'left',id});});ws.on('error',()=>ws.close());
+  ws.on('close',()=>{fleet.release(c);classes.release(c);world.release(c);clients.delete(id);broadcast({type:'left',id});});ws.on('error',()=>ws.close());
  });
  let last=performance.now(),tick=0;
  const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,.25),steps=Math.ceil(dt/.05),h=dt/steps;last=now;
   for(const c of clients.values()){if(!c.joined){if(Date.now()-c.joinedAt>10000)c.ws.close();continue;}
-   if(c.seat){c.vx=c.vz=0;c.moving=false;c.input.jump=false;continue;}
+   if(c.seat||c.vehicle){c.vx=c.vz=0;c.moving=false;c.input.jump=false;continue;}
    const active=Date.now()-c.lastInput<350,i=c.input;const speed=i.sprint?8:4.5,blend=1-Math.exp(-12*h);
    if(i.jump&&c.y===0)c.vy=7;i.jump=false;
    for(let k=0;k<steps;k++){c.vx+=((active?i.dx*speed:0)-c.vx)*blend;c.vz+=((active?i.dz*speed:0)-c.vz)*blend;
-    Object.assign(c,moveWithCollisions(c.x,c.z,c.vx*h,c.vz*h));c.vy-=19*h;c.y=Math.max(0,c.y+c.vy*h);if(c.y===0)c.vy=0;}
+    const q=moveWithCollisions(c.x,c.z,c.vx*h,c.vz*h);if(!fleet.vehicles.some(v=>vehicleContains(v,q.x,q.z)))Object.assign(c,q);c.vy-=19*h;c.y=Math.max(0,c.y+c.vy*h);if(c.y===0)c.vy=0;}
    c.moving=Math.hypot(c.vx,c.vz)>.2;c.sprinting=i.sprint;if(Date.now()-c.emoteAt>3000)c.emote='';
   }
+  fleet.step(dt,joined());classes.step(joined());
   const events=world.step(dt,joined());
   if(events.length)broadcast({type:'events',list:events});
   for(const e of events)if(e.type==='score'){const shot=clients.get(e.by)?.hoops.find(s=>s.id===e.shot);if(shot){shot.points=e.points;shot.done=true;}}
   if(tick%15===0){const t=Date.now();for(const c of clients.values())settleHoops(c,t);}
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
-  if(++tick%2===0)broadcast({type:'state',players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,account})=>({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,handle:account?.handle??null})),balls:world.balls.map(packBall)});
+  if(++tick%2===0)broadcast({type:'state',players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account})=>({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account?.handle??null})),balls:world.balls.map(packBall),vehicles:fleet.snapshot(),classes:classes.snapshot()});
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
- return {http,wss,clients,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};
+ return {http,wss,clients,fleet,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};
 }
 function clean(value,max){return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,max):'';}

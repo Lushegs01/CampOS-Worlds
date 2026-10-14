@@ -1,3 +1,4 @@
+import { vehicleInteract, useVehicle } from '../vehicles/client';
 import { SEATS, SEAT_BY_ID, DOORS, POINTS as POINT_DATA, BALLS, seatApproach, SEAT_RANGE, BALL_PICKUP_RANGE } from '../../shared/interactions.mjs';
 import { LOCATIONS } from '../../shared/campus.mjs';
 import { newBall, planShot, stepBall, targetHoop } from '../../shared/ball.mjs';
@@ -221,6 +222,7 @@ function candidates(): Candidate[] {
 }
 
 export function activate() {
+  if(vehicleInteract())return;
   if (!current) { if (activity() === 'seated') standUp(); return; }
   current.run();
 }
@@ -244,7 +246,7 @@ export function tickInteractions(dt: number) {
   if (player.sit?.phase === 'seated' && afterSit) { const panel = afterSit; afterSit = null; useGame.getState().set({ panel }); document.exitPointerLock?.(); }
   resolveMisses();
   sense -= dt; if (sense > 0) return; sense = .1;
-  const list = candidates(); list.sort((a, b) => b.score - a.score);
+  const list = useVehicle.getState().id||useVehicle.getState().near ? [] : candidates(); list.sort((a, b) => b.score - a.score);
   current = list[0] ?? null;
   const ui = useInteraction.getState(), f = current ? { id: current.id, label: current.label, key: current.key, hint: current.hint ?? '', disabled: !!current.disabled } : null;
   if (JSON.stringify(f) !== JSON.stringify(ui.focus)) ui.set({ focus: f });

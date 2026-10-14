@@ -1,3 +1,5 @@
+import { receiveClasses } from '../ui/Classes';
+import { receiveVehicles, vehicleResult, setOccupancy, disconnectVehicles } from '../vehicles/client';
 import { useEffect } from 'react';
 import { livePeers, player, useGame, type Peer } from '../state';
 import { bindNetwork, unbindNetwork, receive, loadSnapshot } from '../interaction/world';
@@ -35,8 +37,11 @@ export function connect(){
  // verifies it with the account service and upgrades the guest identity.
  ws.onopen=async()=>{if(socket!==ws)return;const access=await bridge?.access().catch(()=>null)??null;if(socket!==ws)return;const g=useGame.getState();send({type:'join',name:g.name,avatar:g.avatar,invite:g.invite,token:sessionStorage.getItem('campus-session'),...(access?{access}:{})});};
  ws.onmessage=event=>{if(socket!==ws)return;let m;try{m=JSON.parse(event.data);}catch{return;}const s=useGame.getState();
-  if(m.type==='welcome'){ownId=m.id;retry=0;sessionStorage.setItem('campus-session',m.token);Object.assign(player,m.position,{vy:0});bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);s.set({status:'connected'});}
-  if(m.type==='state'){const self=m.players.find((p:{id:string})=>p.id===ownId);if(self){roomSelf.x=self.x;roomSelf.z=self.z;}const drift=self?Math.hypot(self.x-player.x,self.z-player.z):0;if(self&&drift>2)Object.assign(player,{x:self.x,z:self.z,y:self.y});else player.reconcile=self&&!self.moving&&drift>.9&&player.speed<.05&&!player.sit?{x:self.x,z:self.z}:null;/* glide only once the room has stopped us too (never toward a mid-stride snapshot); under 0.9 m a settle request corrects the room instead */if(m.balls)receive({type:'balls',balls:m.balls});syncPeers(m.players.filter((p:Peer)=>p.id!==ownId),m.players.length);}
+  if(m.classes)receiveClasses(m.classes);if(m.type==='classes')receiveClasses(m.sessions);
+  if(m.type==='welcome'){ownId=m.id;retry=0;sessionStorage.setItem('campus-session',m.token);Object.assign(player,m.position,{vy:0});bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);if(m.vehicles)receiveVehicles(m.vehicles);setOccupancy(null,null);s.set({status:'connected'});}
+  if(m.type==='vehicles')receiveVehicles(m.vehicles);
+  if(m.type==='vehicleResult')vehicleResult(m);
+  if(m.type==='state'){if(m.vehicles)receiveVehicles(m.vehicles);const self=m.players.find((p:{id:string})=>p.id===ownId);if(self){setOccupancy(self.vehicle??null,self.vehicleSeat??null);roomSelf.x=self.x;roomSelf.z=self.z;}const drift=self?Math.hypot(self.x-player.x,self.z-player.z):0;if(self&&!self.vehicle&&drift>2)Object.assign(player,{x:self.x,z:self.z,y:self.y});else player.reconcile=self&&!self.vehicle&&!self.moving&&drift>.9&&player.speed<.05&&!player.sit?{x:self.x,z:self.z}:null;/* glide only once the room has stopped us too (never toward a mid-stride snapshot); under 0.9 m a settle request corrects the room instead */if(m.balls)receive({type:'balls',balls:m.balls});syncPeers(m.players.filter((p:Peer)=>p.id!==ownId),m.players.length);}
   if(m.type==='left'){livePeers.delete(m.id);s.set({peers:s.peers.filter(p=>p.id!==m.id),count:Math.max(1,s.count-1)});}
   if(m.type==='chat')s.set({messages:[...s.messages,{id:m.id,name:m.name,text:m.text,at:m.at}].slice(-60)});
   if(m.type==='interaction')openLocation(m.id);
@@ -46,7 +51,7 @@ export function connect(){
   if(m.type==='auth')bridge?.onAuth(m);
   if(m.type==='progress')bridge?.onProgress(m);
  };
- ws.onclose=e=>{if(socket!==ws)return;socket=null;livePeers.clear();unbindNetwork();useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
+ ws.onclose=e=>{if(socket!==ws)return;socket=null;livePeers.clear();disconnectVehicles();unbindNetwork();useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
  ws.onerror=()=>{};
 }
 export function useNetwork(){const phase=useGame(s=>s.phase);useEffect(()=>{if(phase!=='playing')return;connect();return()=>{stopped=true;clearTimeout(reconnect);socket?.close();};},[phase]);}

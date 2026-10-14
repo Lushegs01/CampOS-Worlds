@@ -1,3 +1,4 @@
+import { EXPANSION_SEATS, EXPANSION_TABLES } from './expansion.mjs';
 // Interactive fixtures shared by the renderer, client prediction and the authoritative room server.
 // Everything a player can sit on, open, pick up or use is defined here once, with stable ids.
 
@@ -33,7 +34,7 @@ LIBRARY_COMPUTERS.forEach(c=>seats.push({id:`${c.id}-chair`,x:c.x+1.02,z:c.z,y:.
 CAFE_TERRACE_TABLES.forEach(([x,z],t)=>{for(let a=0;a<4;a++){const ang=a*Math.PI/2+.4;seats.push({id:`terrace-${t}-${a}`,x:x+Math.sin(ang)*1.02,z:z+Math.cos(ang)*1.02,y:.44,yaw:ang+Math.PI,kind:'chair',model:'monobloc',table:true,pull:PULL});}});
 CAFE_INTERIOR_TABLES.forEach(([x,z],t)=>{for(let a=0;a<3;a++){const ang=a*2.094+Math.PI;seats.push({id:`cafe-${t}-${a}`,x:x+Math.sin(ang)*1.02,z:z+Math.cos(ang)*1.02,y:.44,yaw:ang+Math.PI,kind:'chair',model:'monobloc',table:true,pull:PULL});}});
 CLASSROOM.desks.forEach(([x,z],d)=>{for(const dx of [-.42,.42])seats.push({id:`class-${d}-${dx<0?'l':'r'}`,x:x+dx,z:z+.92,y:.5,yaw:Math.PI,kind:'chair',model:'schoolChair',table:true,pull:PULL});});
-export const SEATS = seats;
+export const SEATS = [...seats,...EXPANSION_SEATS];
 export const SEAT_BY_ID = new Map(SEATS.map(s=>[s.id,s]));
 
 // Measured from the Rocketbox sit-down / stand-up root motion (both rigs): the sitter starts 0.45 m
@@ -42,7 +43,7 @@ export const SIT_APPROACH = .45, STAND_EXIT = .42, SEAT_RANGE = 1.4;
 /** Where to stand before sitting (d = SIT_APPROACH) or after standing (d = STAND_EXIT), allowing for a pulled-out chair. */
 export function seatApproach(seat,d=SIT_APPROACH){const k=d-(seat.pull??0);return {x:seat.x+Math.sin(seat.yaw)*k,z:seat.z+Math.cos(seat.yaw)*k};}
 /** Tabletops collide only within their own footprint, so stand points beside them stay reachable. */
-export const TABLES = [...LIBRARY_TABLES.map(([x,z])=>({x,z,w:2.4,d:1.1})),...CAFE_TERRACE_TABLES.map(([x,z])=>({x,z,w:.9,d:.9})),...CAFE_INTERIOR_TABLES.map(([x,z])=>({x,z,w:.9,d:.9})),...CLASSROOM.desks.map(([x,z])=>({x,z,w:1.6,d:.6})),...LIBRARY_COMPUTERS.map(c=>({x:c.x,z:c.z,w:.7,d:1.4}))];
+export const TABLES = [...EXPANSION_TABLES,...LIBRARY_TABLES.map(([x,z])=>({x,z,w:2.4,d:1.1})),...CAFE_TERRACE_TABLES.map(([x,z])=>({x,z,w:.9,d:.9})),...CAFE_INTERIOR_TABLES.map(([x,z])=>({x,z,w:.9,d:.9})),...CLASSROOM.desks.map(([x,z])=>({x,z,w:1.6,d:.6})),...LIBRARY_COMPUTERS.map(c=>({x:c.x,z:c.z,w:.7,d:1.4}))];
 
 // ---------------------------------------------------------------- doors
 // Hinged leaves: hinge (x, z), leaf length along +x (dir 1) or -x (dir -1), default swing towards +z (1) or -z (-1).

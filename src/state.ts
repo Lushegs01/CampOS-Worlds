@@ -4,13 +4,13 @@ import { SPAWN, TOUR, LOCATIONS, sanitizeAvatar } from '../shared/campus.mjs';
 import { suggestedQuality } from './world/quality';
 export type AvatarConfig = ReturnType<typeof sanitizeAvatar>;
 export type Panel = null|'map'|'profile'|'settings'|'chat'|'players'|'avatar'|string;
-export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null};
+export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null;vehicle?:string|null;vehicleSeat?:number|null};
 /** Seating sequence: walk to the stand point, sit (motion-captured), remain seated, stand. */
 export type SitState = {seat:string;phase:'approach'|'request'|'down'|'seated'|'up'|'done';t:number;exit?:{x:number;z:number};path?:{x:number;z:number}[]};
 export type Gesture = {kind:'door-push'|'door-pull'|'pickup';start:number};
 // speed (m/s) and turn (rad/s) drive the animation blend; y and vy drive the jump layer.
 export const player = {...SPAWN,yaw:Math.PI,moving:false,sprinting:false,vy:0,speed:0,turn:0,emote:'',emoteUntil:0,
- sit:null as SitState|null, gesture:null as Gesture|null, charge:null as number|null, release:0, holding:false,
+ vehicleSeatHeight:null as number|null, sit:null as SitState|null, gesture:null as Gesture|null, charge:null as number|null, release:0, holding:false,
  /** Where the room has us when we drifted too far to settle (glided to while standing still). */
  reconcile:null as {x:number;z:number}|null};
 export const input = {x:0,z:0,jump:false,yaw:0,pitch:.04,dragging:false};
