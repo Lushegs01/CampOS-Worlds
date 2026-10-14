@@ -1,7 +1,11 @@
 {
-  "when": "2026-10-14T14:30:10.120Z",
+  "when": "2026-10-14T14:36:57.562Z",
   "results": [
-    "On the court, the game modes show free shooting and Court Duel with the players present"
+    "On the court, the game modes show free shooting and Court Duel with the players present",
+    "Challenge and accept in the interface; the countdown starts play and each player is handed their own ball",
+    "The live scoreboard updates for both players",
+    "Conceding ends the duel; the rated result is recorded and both see their new rating",
+    "The database holds exactly the result the room computed"
   ],
   "errors": []
 }

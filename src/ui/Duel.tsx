@@ -5,7 +5,7 @@ import { livePeers, player, useGame } from '../state';
 import { selfConnection } from '../network/client';
 import { useAccount } from '../account/store';
 import { communityConfigured } from '../services/community';
-import { answerChallenge, challenge, concede, loadDuelHistory, loadLeaderboard, useDuel, type DuelView } from '../duel/store';
+import { answerChallenge, challenge, concede, dismissResult, loadDuelHistory, loadLeaderboard, useDuel, type DuelView } from '../duel/store';
 import { Failure, Loading, useLoad } from './async';
 import { Portrait } from './Account';
 
@@ -32,9 +32,11 @@ export function DuelModes() {
 
 /** The live match: names, scores, clock; then the result with rematch. Players and nearby spectators see it. */
 export function DuelHud() {
-  const duel = useDuel(s => s.duel), record = useDuel(s => s.record), signedIn = useAccount(s => s.status === 'signed-in' && !!s.profile);
+  const live = useDuel(s => s.duel), kept = useDuel(s => s.kept), record = useDuel(s => s.record), signedIn = useAccount(s => s.status === 'signed-in' && !!s.profile);
   const [confirm, setConfirm] = useState(false);
+  const duel = live ?? kept;
   useTick(250, !!duel);
+  useEffect(() => { if (!kept) return; const t = setTimeout(dismissResult, 60000); return () => clearTimeout(t); }, [kept]);
   if (!duel) return null;
   const me = selfConnection(), mine = duel.players.findIndex(p => p.id === me);
   if (mine < 0 && !near(player.x, player.z, 12)) return null;
@@ -57,7 +59,7 @@ export function DuelHud() {
       {r?.reason && <small>{r.reason}</small>}
       {saved && <small className="duel-saved">{saved}{record?.id === duel.id && record.rated ? ` · rating ${record.rating} (${record.change >= 0 ? '+' : ''}${record.change})` : ''}</small>}
       {mine >= 0 && !signedIn && duel.state === 'finished' && <small>Sign in to keep results and appear in the rankings.</small>}
-      <div className="duel-actions">{opponent && duel.state === 'finished' && <button className="secondary small" onClick={() => void challenge(opponent.id)}>Rematch</button>}<button className="text-button" onClick={() => useGame.getState().set({ panel: 'leaderboard' })}><Trophy size={12} />Rankings</button></div>
+      <div className="duel-actions">{opponent && duel.state === 'finished' && <button className="secondary small" onClick={() => void challenge(opponent.id)}>Rematch</button>}<button className="text-button" onClick={() => useGame.getState().set({ panel: 'leaderboard' })}><Trophy size={12} />Rankings</button>{!live && <button className="text-button" onClick={dismissResult}><X size={12} />Close</button>}</div>
     </>}
   </aside>;
 }

@@ -107,5 +107,7 @@ export const ACCENTS=['#353c4c','#537d70','#b05f49','#506b96','#e8b95e','#eee9df
 export const ACCESSORIES=['none','backpack','headphones','glasses'];
 /** Accent colours earned with an achievement (shared/achievements.mjs): usable only once unlocked. */
 export const EARNED_ACCENTS=Object.keys(LOCKED_ACCENTS);
+/** For showing an avatar the server has already validated (profile cards, other players): any known colour. */
+export function displayAvatar(a={}){return sanitizeAvatar(a,Object.values(LOCKED_ACCENTS));}
 /** Keep only known appearance choices; an earned accent needs its achievement id in `unlocked`. */
 export function sanitizeAvatar(a={},unlocked=[]){const earned=LOCKED_ACCENTS[a.accent];return {model:MODELS.includes(a.model)?a.model:MODELS[0],skin:SKINS.includes(a.skin)?a.skin:SKINS[0],accent:ACCENTS.includes(a.accent)||(earned&&unlocked.includes(earned))?a.accent:ACCENTS[0],accessory:ACCESSORIES.includes(a.accessory)?a.accessory:'backpack'};}

@@ -14,6 +14,13 @@ export function placeName(x: number, z: number): string {
   return Math.abs(x) < 70 && Math.abs(z) < 65 ? 'The Courtyard' : 'On the road';
 }
 
+/** A free-standing destination ("pt:x:z:name"), used for challenge checkpoints. */
+export function parsePoint(destination: string | null) {
+  if (!destination?.startsWith('pt:')) return null;
+  const [, x, z, ...name] = destination.split(':');
+  return Number.isFinite(+x) && Number.isFinite(+z) ? { x: +x, z: +z, name: name.join(':') } : null;
+}
+
 /** Compass direction and distance from (fx, fz) to (tx, tz), for "120 m north-east". */
 export function bearing(fx: number, fz: number, tx: number, tz: number) {
   const dx = tx - fx, dz = tz - fz, d = Math.hypot(dx, dz);

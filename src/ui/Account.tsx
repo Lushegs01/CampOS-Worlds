@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Award, CalendarCheck, Car, Check, Footprints, Gem, HeartHandshake, LogOut, Mail, PencilLine, ShieldCheck, Swords, Trophy, UserRound, type LucideIcon } from 'lucide-react';
-import { sanitizeAvatar } from '../../shared/campus.mjs';
+import { displayAvatar, sanitizeAvatar } from '../../shared/campus.mjs';
 import { useGame, type AvatarConfig } from '../state';
 import { useAccount, signIn, signUp, signOut, saveProfile, checkHandle, reloadProfile } from '../account/store';
 import { getCommunityService, NOT_CONFIGURED } from '../services/community';
 import { ACHIEVEMENTS, type ProfileBrief, type ProfileCard } from '../services/types';
+import { INTERESTS, MAX_INTERESTS } from '../../shared/profile.mjs';
+import { CHALLENGE_BY_ID } from '../../shared/challenges.mjs';
 import { assetUrl } from '../world/assets';
 import AvatarEditor from './AvatarEditor';
 import { RelationshipActions } from './Social';
@@ -18,7 +20,7 @@ const joined = (iso: string) => new Intl.DateTimeFormat(undefined, { month: 'lon
 
 /** Character portrait framed in the player's accent colour (reuses the avatar editor's art). */
 export function Portrait({ person, size = 56 }: { person: Pick<ProfileBrief, 'display_name' | 'avatar'>; size?: number }) {
-  const avatar = sanitizeAvatar(person.avatar);
+  const avatar = displayAvatar(person.avatar);
   return <span className="portrait" style={{ width: size, height: size, borderColor: avatar.accent }}><img src={assetUrl(`characters/${avatar.model}.webp`)} alt="" /><span className="sr-only">{person.display_name}</span></span>;
 }
 
@@ -32,10 +34,15 @@ function Badges({ list }: { list: ProfileCard['achievements'] }) {
 /** A player's public profile: what anyone may see. */
 export function ProfileView({ profile, own = false }: { profile: ProfileCard; own?: boolean }) {
   return <div className="profile-card">
-    <div className="profile-heading"><Portrait person={profile} size={64} /><div><span className="eyebrow">{own ? 'YOUR PROFILE' : 'CAMPUS PROFILE'}</span><h3>{profile.display_name}</h3><p>@{profile.handle} · Joined {joined(profile.created_at)}</p></div></div>
-    {profile.bio ? <p className="profile-bio">{profile.bio}</p> : own && <p className="muted small-text">Add a short bio so people know what you’re into.</p>}
+    <div className="profile-heading"><Portrait person={profile} size={64} /><div><span className="eyebrow">{own ? 'YOUR PROFILE' : 'CAMPUS PROFILE'}</span><h3>{profile.display_name}</h3>{profile.title && ACHIEVEMENTS[profile.title] && <span className="profile-title"><Trophy size={12} />{ACHIEVEMENTS[profile.title].title}</span>}<p>@{profile.handle} · Joined {joined(profile.created_at)}</p></div></div>
+    {profile.limited ? <p className="muted small-text">{profile.display_name} shares their bio and interests with friends only.</p>
+      : profile.bio ? <p className="profile-bio">{profile.bio}</p> : own && <p className="muted small-text">Add a short bio so people know what you’re into.</p>}
+    {!!profile.interests?.length && <div className="chip-row interests">{profile.interests.map(i => <span key={i} className="chip">{i}</span>)}</div>}
     <div className="detail-grid"><div><strong>{profile.achievements.length}<small> / {Object.keys(ACHIEVEMENTS).length}</small></strong><span>Verified badges</span></div><div><strong>{profile.stats.best_hoops_round}</strong><span>Best round of five</span></div><div><strong>{profile.duel?.matches ? `${profile.duel.wins}–${profile.duel.losses}–${profile.duel.draws}` : '—'}</strong><span>{profile.duel?.rated_matches && profile.duel.rated_matches >= 3 ? `Court Duel · ${profile.duel.rating}` : 'Court Duels won–lost–drawn'}</span></div><div><strong>{profile.clubs?.length ?? 0}</strong><span>Clubs</span></div></div>
     <h3>Badges</h3><Badges list={profile.achievements} />
+    {(!!profile.challenges?.length || !!profile.events_attended) && <><h3>Around campus</h3><div className="chip-row">
+      {profile.challenges?.map(c => <span key={c.id} className="chip"><Car size={12} />{CHALLENGE_BY_ID.get(c.id)?.name ?? c.id} · best {(c.best_ms / 1000).toFixed(1)} s</span>)}
+      {!!profile.events_attended && <span className="chip"><CalendarCheck size={12} />{profile.events_attended} event{profile.events_attended === 1 ? '' : 's'} attended in the game</span>}</div></>}
     {!!profile.clubs?.length && <><h3>Clubs</h3><div className="chip-row">{profile.clubs.map(c => <span key={c.id} className="chip" style={{ borderColor: c.color }}><i style={{ background: c.color }} />{c.name}{c.role !== 'member' && <small>{c.role}</small>}</span>)}</div></>}
   </div>;
 }
@@ -78,7 +85,9 @@ const suggestHandle = (name: string) => name.toLowerCase().normalize('NFKD').rep
 export function ProfileEditor({ onDone }: { onDone?: () => void }) {
   const existing = useAccount(s => s.profile), game = useGame.getState();
   const [handle, setHandle] = useState(existing?.handle ?? suggestHandle(game.name)), [name, setName] = useState(existing?.display_name ?? game.name.slice(0, 32));
-  const [bio, setBio] = useState(existing?.bio ?? ''), [avatar, setAvatar] = useState<AvatarConfig>(sanitizeAvatar(existing?.avatar ?? game.avatar));
+  const earned = (existing?.achievements ?? []).map(a => a.id);
+  const [bio, setBio] = useState(existing?.bio ?? ''), [avatar, setAvatar] = useState<AvatarConfig>(sanitizeAvatar(existing?.avatar ?? game.avatar, earned));
+  const [title, setTitle] = useState<string | null>(existing?.title ?? null), [interests, setInterests] = useState<string[]>(existing?.interests ?? []);
   const [availability, setAvailability] = useState<{ checking: boolean; available?: boolean; reason?: string }>({ checking: false });
   const { pending, error, act } = useAction(), [touched, setTouched] = useState(false);
   const handleError = !HANDLE.test(handle) ? 'Use 3–20 lower-case letters, numbers or underscores.' : availability.available === false ? availability.reason ?? 'That handle is taken.' : '';
@@ -92,7 +101,7 @@ export function ProfileEditor({ onDone }: { onDone?: () => void }) {
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setTouched(true);
     if (handleError || nameError) return;
-    const saved = await act(() => saveProfile({ handle, display_name: name.trim(), bio: bio.trim(), avatar }));
+    const saved = await act(() => saveProfile({ handle, display_name: name.trim(), bio: bio.trim(), avatar, title, interests }));
     if (saved) { useGame.getState().notify(existing ? 'Profile saved.' : `Welcome to campus, ${saved.display_name}.`); onDone?.(); }
   };
   return <form className="profile-editor" onSubmit={submit} noValidate>
@@ -103,7 +112,9 @@ export function ProfileEditor({ onDone }: { onDone?: () => void }) {
       <label className="field">Display name<input value={name} maxLength={32} onChange={e => setName(e.target.value)} aria-invalid={touched && !!nameError} />{touched && nameError && <small className="field-error">{nameError}</small>}</label>
     </div>
     <label className="field">Bio <small className="muted">{bio.length} / 280</small><textarea value={bio} maxLength={280} rows={3} onChange={e => setBio(e.target.value)} placeholder="Studying architecture. Always up for a game of hoops." /></label>
-    <AvatarEditor value={avatar} onChange={setAvatar} />
+    <fieldset className="interest-picker"><legend>Interests <small className="muted">{interests.length} / {MAX_INTERESTS}</small></legend><div className="chip-row">{INTERESTS.map(i => { const on = interests.includes(i); return <button type="button" key={i} aria-pressed={on} className={`chip${on ? ' selected' : ''}`} disabled={!on && interests.length >= MAX_INTERESTS} onClick={() => setInterests(on ? interests.filter(x => x !== i) : [...interests, i])}>{i}</button>; })}</div></fieldset>
+    <label className="field">Title under your name<select value={title ?? ''} onChange={e => setTitle(e.target.value || null)}><option value="">No title</option>{earned.filter(id => ACHIEVEMENTS[id]).map(id => <option key={id} value={id}>{ACHIEVEMENTS[id].title}</option>)}</select><small className="muted">{earned.length ? 'Titles come from badges you’ve earned.' : 'Earn a badge to unlock a title.'}</small></label>
+    <AvatarEditor value={avatar} onChange={setAvatar} earned={earned} />
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="form-actions">{existing && <button type="button" className="secondary" onClick={onDone}>Cancel</button>}<button className="primary" disabled={pending}>{pending ? 'Saving…' : existing ? 'Save profile' : 'Create profile'}<ArrowRight size={16} /></button></div>
   </form>;

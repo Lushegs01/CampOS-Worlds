@@ -14,6 +14,8 @@ import { Doors, Chairs, Balls, Computers } from './Interactive';
 import { useKeepsakes } from '../account/store';
 import { Label } from './Primitives';
 import { useSocial, bond } from '../social/store';
+import { parsePoint } from '../social/places';
+import { ACHIEVEMENT_BY_ID } from '../../shared/achievements.mjs';
 import { LOCATIONS, TOKENS } from '../../shared/campus.mjs';
 import { cached, initLoaders, suspend } from './assets';
 import { QUALITY, type QualityProfile } from './quality';
@@ -61,7 +63,7 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     const tagDistance = g.position.distanceToSquared(camera.position);
     tag.current.visible = tagDistance > 9 && tagDistance < 900;
   });
-  return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]}><Label text={initial.name + (initial.verified ? ' ✓' : '')} p={[0, 0, 0]} width={2.4} height={.36} background={TAG[kind]} /></group></group>;
+  return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]}><Label text={initial.name + (initial.verified ? ' ✓' : '')} p={[0, 0, 0]} width={2.4} height={.36} background={TAG[kind]} />{initial.title && ACHIEVEMENT_BY_ID.get(initial.title) && <Label text={ACHIEVEMENT_BY_ID.get(initial.title)!.title} p={[0, -.3, 0]} width={1.8} height={.22} color="#f2d69a" background="#1b2f28" />}</group></group>;
 }
 
 function Peers() {
@@ -84,7 +86,7 @@ function Waypoint() {
   const id = useGame(s => s.destination), beam = useRef<THREE.Mesh>(null!), marker = useRef<THREE.Group>(null!);
   // "peer:<id>" follows a player (a friend or party member) until you reach them or they leave.
   const follow = id?.startsWith('peer:') ? id.slice(5) : null, start = follow ? livePeers.get(follow) : null;
-  const loc = follow ? (start ? { x: start.x, z: start.z } : null) : LOCATIONS.find(l => l.id === id);
+  const loc = follow ? (start ? { x: start.x, z: start.z } : null) : parsePoint(id) ?? LOCATIONS.find(l => l.id === id);
   useFrame(({ clock }) => {
     if (beam.current) (beam.current.material as THREE.MeshBasicMaterial).opacity = .16 + Math.sin(clock.elapsedTime * 2) * .04;
     if (!follow) return;

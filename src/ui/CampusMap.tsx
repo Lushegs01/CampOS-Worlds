@@ -4,12 +4,13 @@ import { LOCATIONS } from '../../shared/campus.mjs';
 import { BUILDINGS, DISTRICTS, ROADS, PARKING, STOPS, roadRoute, EXPANSION_PATHS, COURTYARD_PARKING } from '../../shared/expansion.mjs';
 import { livePeers, player, useGame } from '../state';
 import { bond, useSocial } from '../social/store';
+import { parsePoint } from '../social/places';
 import { useVehicle, vehicleVisuals } from '../vehicles/client';
 export function MapGraphic({mini=false,overview=false}:{mini?:boolean;overview?:boolean}){
  const [,refresh]=useState(0);useEffect(()=>{const t=setInterval(()=>refresh(n=>n+1),300);return()=>clearInterval(t);},[]);
  const destination=useGame(s=>s.destination),vehicle=useVehicle(s=>s.id),party=useSocial(s=>s.party),friends=useSocial(s=>s.overview),wide=overview;
  // A followed player (a friend or party member) is a moving destination.
- const follow=destination?.startsWith('peer:')?livePeers.get(destination.slice(5)):null,loc=follow?{x:follow.x,z:follow.z}:LOCATIONS.find(l=>l.id===destination);
+ const follow=destination?.startsWith('peer:')?livePeers.get(destination.slice(5)):null,loc=follow?{x:follow.x,z:follow.z}:parsePoint(destination)??LOCATIONS.find(l=>l.id===destination);
  const span=mini?(vehicle?300:120):wide?2900:220,cx=wide?0:player.x,cz=wide?0:player.z,scale=span/144;
  const route=loc&&(Math.abs(player.x)>75||Math.abs(player.z)>65||Math.abs(loc.x)>75||Math.abs(loc.z)>65)?roadRoute(player,loc):null;
  return <svg viewBox={`${cx-span/2} ${cz-span/2} ${span} ${span}`} role="img" aria-label="Campus map with your position" className="map-graphic">

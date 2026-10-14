@@ -61,6 +61,7 @@ export interface CommunityService {
   // Court Duel rankings and history (read-only; results are written by the room server).
   duelLeaderboard(): Promise<unknown>;
   duelHistory(user: string): Promise<unknown[]>;
+  challengeBoard(challenge: string): Promise<{ best: (ProfileCard & { best_ms: number; completions: number; rank: number })[]; me: { best_ms: number; completions: number } | null }>;
 }
 
 // ---------------------------------------------------------------- error normalisation
@@ -107,7 +108,7 @@ const unconfigured: CommunityService = {
   searchPlayers: unavailable, socialOverview: unavailable, sendFriendRequest: unavailable, respondFriendRequest: unavailable, cancelFriendRequest: unavailable,
   removeFriend: unavailable, blockPlayer: unavailable, unblockPlayer: unavailable, saveSocialSettings: unavailable, unreadSummary: unavailable,
   listConversations: unavailable, openConversation: unavailable, listMessages: unavailable, sendMessage: unavailable, markRead: unavailable, reportPlayer: unavailable,
-  duelLeaderboard: unavailable, duelHistory: unavailable,
+  duelLeaderboard: unavailable, duelHistory: unavailable, challengeBoard: unavailable,
 };
 
 // Responses come from the SQL functions in supabase/migrations; check their top-level shape before
@@ -140,7 +141,7 @@ function supabaseService(client: SupabaseClient): CommunityService {
     throw new ServiceError('auth', 'Your session has expired. Please sign in again.');
   }
   const clubArgs = (input: ClubInput) => ({ p_name: input.name, p_description: input.description, p_category: input.category, p_emblem: input.emblem, p_color: input.color });
-  const eventArgs = (input: EventInput) => ({ p_title: input.title, p_description: input.description, p_category: input.category, p_location: input.location, p_starts_at: input.starts_at, p_ends_at: input.ends_at, p_capacity: input.capacity });
+  const eventArgs = (input: EventInput) => ({ p_title: input.title, p_description: input.description, p_category: input.category, p_location: input.location, p_starts_at: input.starts_at, p_ends_at: input.ends_at, p_capacity: input.capacity, p_template: input.template ?? null });
   let explicit = false;
   return {
     configured: true,
@@ -177,7 +178,7 @@ function supabaseService(client: SupabaseClient): CommunityService {
     },
     myProfile: () => call<MyProfile | null>('my_profile', {}, 'nullable'),
     checkHandle: handle => call<{ available: boolean; reason?: string }>('check_handle', { p_handle: handle }, 'object'),
-    saveProfile: input => call<MyProfile>('save_profile', { p_handle: input.handle, p_display_name: input.display_name, p_bio: input.bio, p_avatar: input.avatar }, 'object'),
+    saveProfile: input => call<MyProfile>('save_profile', { p_handle: input.handle, p_display_name: input.display_name, p_bio: input.bio, p_avatar: input.avatar, p_title: input.title, p_interests: input.interests }, 'object'),
     profile: handle => call<ProfileCard | null>('get_profile', { p_handle: handle }, 'nullable'),
     listClubs: (f = {}) => call<Club[]>('list_clubs', { p_search: f.search?.trim() || null, p_category: f.category ?? null, p_mine: !!f.mine, p_limit: f.limit ?? 24, p_offset: f.offset ?? 0 }, 'array'),
     club: id => call<ClubDetail | null>('get_club', { p_id: id }, 'nullable'),
@@ -204,7 +205,7 @@ function supabaseService(client: SupabaseClient): CommunityService {
     removeFriend: user => call<FriendState>('remove_friend', { p_user: user }, 'object'),
     blockPlayer: user => call<FriendState>('block_player', { p_user: user }, 'object'),
     unblockPlayer: user => call<FriendState>('unblock_player', { p_user: user }, 'object'),
-    saveSocialSettings: v => call<SocialSettings>('save_social_settings', { p_friend_requests: v.friend_requests, p_direct_messages: v.direct_messages, p_party_invites: v.party_invites, p_appear_offline: v.appear_offline }, 'object'),
+    saveSocialSettings: v => call<SocialSettings>('save_social_settings', { p_friend_requests: v.friend_requests, p_direct_messages: v.direct_messages, p_party_invites: v.party_invites, p_appear_offline: v.appear_offline, p_profile_visibility: v.profile_visibility }, 'object'),
     unreadSummary: () => call<UnreadSummary>('unread_summary', {}, 'object'),
     listConversations: () => call<Conversation[]>('list_conversations', { p_limit: 30 }, 'array'),
     openConversation: user => call<Conversation>('open_conversation', { p_user: user }, 'object'),
@@ -214,6 +215,7 @@ function supabaseService(client: SupabaseClient): CommunityService {
     reportPlayer: async (user, reason, context, details = '', message = null) => { await call('report_player', { p_user: user, p_reason: reason, p_context: context, p_details: details, p_message: message }, 'object'); },
     duelLeaderboard: () => call('duel_leaderboard', { p_limit: 50 }, 'object'),
     duelHistory: user => call<unknown[]>('duel_history', { p_user: user, p_limit: 10 }, 'array'),
+    challengeBoard: challenge => call('challenge_board', { p_challenge: challenge, p_limit: 5 }, 'object'),
   };
 }
 

@@ -340,3 +340,46 @@
  .app.has-duel .toast{top:170px}
  .duel-challenges{top:180px}
 }
+
+/* ---------------------------------------------------------------- identity, check-in, challenges */
+.earned-swatch{position:relative;display:inline-grid;place-items:center;color:#fff8e6}
+.earned-swatch:disabled{opacity:.45;filter:saturate(.5)}
+.earned-swatch svg{filter:drop-shadow(0 1px 1px #0006)}
+.profile-title{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:650;color:#a07a3c;margin:2px 0 4px}
+.chip-row.interests{margin:8px 0 4px}
+.chip-row .chip{text-transform:capitalize}
+.interest-picker{border:0;padding:0;margin:0 0 16px}
+.interest-picker legend{font-size:11px;font-weight:600;margin-bottom:8px}
+.interest-picker .chip{cursor:pointer;color:#4b5d4b}
+.interest-picker .chip.selected{background:#2f5546;color:#f5f0e1;border-color:#2f5546}
+.interest-picker .chip:disabled{opacity:.4}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px}
+.chip svg{color:#a07a3c}
+.activity-hint{display:flex;flex-direction:column;gap:4px;margin:12px 0}
+.checkin{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.banner.going{display:flex;align-items:center;gap:8px;background:#dcebd8;color:#2f6b3c;border-radius:8px;padding:10px 12px;font-size:12px}
+.challenges{display:flex;flex-direction:column;gap:14px}
+.challenge-card{border:1px solid #35573822;border-radius:10px;padding:12px 14px;background:#fbf9f2;display:flex;flex-direction:column;gap:8px}
+.challenge-card.active{border-color:#c9a24a;box-shadow:0 0 0 2px #c9a24a33}
+.challenge-card header{display:flex;align-items:center;gap:8px;color:#2f4535}
+.challenge-card header b{font-size:13px}
+.challenge-card header small{margin-left:auto;display:inline-flex;align-items:center;gap:3px;color:#7f866f}
+.challenge-card p{font-size:12px;color:#4f5f4b;line-height:1.5}
+.checkpoints{margin:0;padding-left:18px;font-size:11px;color:#6b7a63;display:flex;flex-wrap:wrap;gap:2px 16px}
+.checkpoints li.done{color:#2f6b3c;text-decoration:line-through}
+.checkpoints li.next{color:#a07a3c;font-weight:700}
+.challenge-board{font-size:11px;color:#4f5f4b}
+.challenge-board small{display:inline-flex;align-items:center;gap:4px}
+.challenge-board ol{list-style:none;margin:6px 0 0;padding:0}
+.challenge-board li{display:flex;gap:8px;padding:3px 0}
+.challenge-board li span{width:16px;color:#8a8e7b}.challenge-board li small{margin-left:auto}
+.challenge-card .primary,.challenge-card .secondary{align-self:flex-start;margin-left:0}
+.challenge-hud{position:absolute;right:34px;top:290px;z-index:4;width:236px;border:1px solid #f1d69a66;background:#1d382fe8;backdrop-filter:blur(16px);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;color:#f4eedc;font-size:11px;animation:arrive .2s ease-out}
+.challenge-hud .eyebrow{margin:0;color:#e7c382;display:inline-flex;align-items:center;gap:5px}
+.challenge-hud b{font-size:13px;font-weight:600}
+.challenge-hud small{color:#cfd5bf}
+.challenge-hud strong{font-family:Georgia,serif;font-size:24px;font-weight:400;font-variant-numeric:tabular-nums}
+.challenge-hud strong.low{color:#f19a7c}
+.challenge-hud .text-button{color:#e7c382;margin:0;width:auto;align-self:flex-start}
+@media(max-width:760px){.challenge-hud{right:12px;top:auto;bottom:300px;width:170px;padding:8px 10px}.challenge-hud strong{font-size:18px}}
+@media(pointer:coarse) and (max-height:500px){.challenge-hud{bottom:auto;top:64px;right:12px}}

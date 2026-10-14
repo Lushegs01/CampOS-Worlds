@@ -8,7 +8,7 @@ export type AchievementId = typeof CATALOG[number]['id'];
 export interface AchievementInfo { id: string; name: string; text: string; category: string; title: string; accent?: string }
 export const ACHIEVEMENTS: Record<string, AchievementInfo> = Object.fromEntries(CATALOG.map(a => [a.id, { id: a.id, name: a.name, text: a.rule, category: a.category, title: a.title, accent: (a as { accent?: string }).accent }]));
 
-export interface ProfileBrief { id: string; handle: string; display_name: string; avatar: Partial<AvatarConfig> }
+export interface ProfileBrief { id: string; handle: string; display_name: string; avatar: Partial<AvatarConfig>; title?: string | null }
 /** How the signed-in viewer relates to another player (null when not signed in). */
 export type Relationship = 'self' | 'friends' | 'outgoing' | 'incoming' | 'blocked' | 'none';
 export type ClubRole = 'owner' | 'organizer' | 'member';
@@ -20,9 +20,14 @@ export interface ProfileCard extends ProfileBrief {
   duel?: { rating: number; rated_matches: number; matches: number; wins: number; losses: number; draws: number; best_score: number } | null;
   clubs?: { id: string; name: string; color: string; emblem: ClubEmblem; role: ClubRole }[];
   relationship?: Relationship | null;
+  interests?: string[];
+  /** True when the owner shows their bio and interests to friends only and the viewer is not one. */
+  limited?: boolean;
+  challenges?: { id: string; best_ms: number; completions: number }[];
+  events_attended?: number;
 }
 export interface MyProfile extends ProfileCard { progress: { keepsakes: string[]; landmarks: string[] } }
-export interface ProfileInput { handle: string; display_name: string; bio: string; avatar: AvatarConfig }
+export interface ProfileInput { handle: string; display_name: string; bio: string; avatar: AvatarConfig; title: string | null; interests: string[] }
 
 export const CLUB_CATEGORIES = ['academic', 'arts', 'culture', 'community', 'sports', 'technology', 'wellbeing'] as const;
 export type ClubCategory = typeof CLUB_CATEGORIES[number];
@@ -49,16 +54,20 @@ export interface CampusEvent {
   club: { id: string; name: string; color: string; emblem: ClubEmblem };
   organizer: ProfileBrief | null;
   attendee_count: number; going: boolean; can_manage: boolean;
+  template?: EventTemplateId | null;
+  /** In-game attendance (checked in at the place while it was on). Never academic attendance. */
+  checked_in_count?: number; checked_in?: boolean;
 }
-export interface EventDetail extends CampusEvent { attendees: ProfileBrief[] }
-export interface EventInput { title: string; description: string; category: EventCategory; location: string; starts_at: string; ends_at: string; capacity: number | null }
+export interface EventDetail extends CampusEvent { attendees: ProfileBrief[]; checked_in_players?: ProfileBrief[] }
+export type EventTemplateId = 'basketball-tournament' | 'scavenger-hunt' | 'club-meetup' | 'discovery-challenge' | 'campus-festival' | 'study-group';
+export interface EventInput { title: string; description: string; category: EventCategory; location: string; starts_at: string; ends_at: string; capacity: number | null; template?: EventTemplateId | null }
 export type EventWhen = 'upcoming' | 'past' | 'all';
 export interface EventFilter { when?: EventWhen; category?: EventCategory | null; from?: string | null; to?: string | null; club?: string | null; location?: string | null; going?: boolean; limit?: number; offset?: number }
 
 export interface AuthSession { userId: string; email: string }
 
 // ---------------------------------------------------------------- social (supabase/migrations/20261014090000_social.sql)
-export interface SocialSettings { friend_requests: 'everyone' | 'nobody'; direct_messages: 'friends' | 'nobody'; party_invites: 'everyone' | 'friends' | 'nobody'; appear_offline: boolean }
+export interface SocialSettings { friend_requests: 'everyone' | 'nobody'; direct_messages: 'friends' | 'nobody'; party_invites: 'everyone' | 'friends' | 'nobody'; appear_offline: boolean; profile_visibility: 'public' | 'friends' }
 export interface PlayerResult extends ProfileBrief { relationship: Relationship }
 export interface FriendRequest { id: string; player: ProfileBrief; created_at: string }
 export interface SocialOverview {
