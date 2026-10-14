@@ -10,9 +10,13 @@ const BASE = `${import.meta.env.BASE_URL}assets/`;
 let ktx2: KTX2Loader | null = null, gltf: GLTFLoader | null = null, anisotropy = 4;
 const textures = new Map<string, Promise<THREE.Texture>>(), models = new Map<string, Promise<GLTF>>();
 
-/** A failed download (a dropped mobile connection) is not cached, so the next attempt fetches it again. */
-export function forgetOnFailure<K, T>(cache: Map<K, Promise<T>>, key: K, p: Promise<T>) {
-  p.catch(() => { if (cache.get(key) === p) cache.delete(key); });
+/**
+ * A failed download (a dropped mobile connection) is forgotten after a few seconds, so a later attempt
+ * fetches it again. Not at once: React renders again as soon as the promise settles, and an immediate
+ * retry would suspend again instead of reaching the error boundary, in a loop of failing requests.
+ */
+export function forgetOnFailure<K, T>(cache: Map<K, Promise<T>>, key: K, p: Promise<T>, afterMs = 5000) {
+  p.catch(() => setTimeout(() => { if (cache.get(key) === p) cache.delete(key); }, afterMs));
   return p;
 }
 

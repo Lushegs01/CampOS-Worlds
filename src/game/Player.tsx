@@ -67,7 +67,7 @@ const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3)
 
 export default function Player() {
   const avatar = useGame(s => s.avatar), root = useRef<THREE.Group>(null!), { gl } = useThree();
-  const velocity = useRef({ x: 0, z: 0 }), idle = useRef({ t: 0, sent: 0 }), lastSend = useRef(0), lastSense = useRef(0), collectSent = useRef<Record<string, number>>({});
+  const velocity = useRef({ x: 0, z: 0 }), idle = useRef({ t: 0, sent: 0 }), lastSend = useRef(0), sentStill = useRef(false), lastSense = useRef(0), collectSent = useRef<Record<string, number>>({});
   const cam = useRef({ yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0 });
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
@@ -217,7 +217,10 @@ export default function Player() {
       camera.position.lerpVectors(posFrom, desired, k); camera.lookAt(rayTo.copy(lookFrom).lerp(look, k));
     } else { camera.position.copy(desired); camera.lookAt(look); }
 
-    if (clock.elapsedTime - lastSend.current > .05 || jump) { send({ type: 'input', dx: dx * scale, dz: dz * scale, yaw: player.yaw, sprint, jump }); lastSend.current = clock.elapsedTime; }
+    // 20 inputs a second while moving; standing still, the room only needs reminding 4 times a second
+    // (the first "stopped" still goes out at once, so the room stops us just as promptly).
+    const stillInput = Math.hypot(dx, dz) < .01 && !sprint;
+    if (jump || clock.elapsedTime - lastSend.current > (stillInput && sentStill.current ? .25 : .05)) { send({ type: 'input', dx: dx * scale, dz: dz * scale, yaw: player.yaw, sprint, jump }); lastSend.current = clock.elapsedTime; sentStill.current = stillInput; }
     // Standing still: keep the room's copy of our position in step with what we see.
     const resting = !player.sit && Math.hypot(dx, dz) < .01 && player.speed < .05 && player.y === 0;
     idle.current.t = resting ? idle.current.t + dt : 0;

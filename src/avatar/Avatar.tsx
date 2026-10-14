@@ -19,7 +19,7 @@ import { registerMovingCaster } from '../world/shadows';
 export interface CharacterInfo { id: string; name: string; body: 'm' | 'f'; style: string; skinRef: [number, number, number]; height: number; hip: number; source: string }
 interface Manifest { characters: CharacterInfo[]; animations: Record<'m' | 'f', { speeds: Record<string, number>; rootHeight: number }> }
 let manifest: Promise<Manifest> | null = null;
-export const loadCharacterManifest = (): Promise<Manifest> => manifest ??= fetch(assetUrl('characters/manifest.json')).then(r => { if (!r.ok) throw Error(`manifest ${r.status}`); return r.json(); }).catch(e => { manifest = null; throw e; });
+export const loadCharacterManifest = (): Promise<Manifest> => manifest ??= fetch(assetUrl('characters/manifest.json')).then(r => { if (!r.ok) throw Error(`manifest ${r.status}`); return r.json(); }).catch(e => { setTimeout(() => { manifest = null; }, 5000); throw e; });
 
 export interface AvatarMotion {
   speed: number; y: number; vy: number; emote?: string; emoteUntil?: number; turn?: number;
