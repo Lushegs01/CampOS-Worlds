@@ -32,7 +32,8 @@ async function open(label, { viewport = { width: 1280, height: 800 }, mobile = f
   page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION|Failed to load resource/.test(m.text())) errors.push(`${label}: ${m.text()}`); });
   await page.goto(stack.url + QUERY, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 120000 });
-  await page.getByRole('button', { name: 'Enter campus', exact: true }).click();
+  // With software WebGL a third page can take most of a minute to respond once the world is ready.
+  await page.getByRole('button', { name: 'Enter campus', exact: true }).click({ timeout: 120000 });
   await page.getByRole('button', { name: /online/ }).waitFor({ timeout: 30000 });
   return page;
 }
@@ -117,7 +118,11 @@ try {
   assert.equal(await C.evaluate(() => window.__campusInspect().panel), null, 'Esc closed the board, not the pause menu');
   await C.keyboard.press('KeyV'); await drawer(C).waitFor();
   const p0 = await C.evaluate(() => window.__campusInspect().position);
-  await C.keyboard.down('KeyW'); await C.waitForTimeout(900); await C.keyboard.up('KeyW');
+  // Hold W until the distance is covered rather than for a fixed time: the frame rate (and so the
+  // distance per second) varies with machine load. Blocked walking still fails the check below.
+  await C.keyboard.down('KeyW');
+  await C.waitForFunction(s => { const p = window.__campusInspect().position; return Math.hypot(p.x - s.x, p.z - s.z) > 2; }, p0, { timeout: 20000 }).catch(() => {});
+  await C.keyboard.up('KeyW');
   const p1 = await C.evaluate(() => window.__campusInspect().position);
   assert.ok(Math.hypot(p1.x - p0.x, p1.z - p0.z) > 1.5, `the player walks while the board is open (moved ${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(2)} m)`);
   assert.ok(await drawer(C).isVisible(), 'walking leaves the board open');
@@ -127,7 +132,7 @@ try {
   // The organizer sees the attendee and opens their profile card.
   await A.reload({ waitUntil: 'domcontentloaded' });
   await A.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 120000 });
-  await A.getByRole('button', { name: 'Enter campus', exact: true }).click();
+  await A.getByRole('button', { name: 'Enter campus', exact: true }).click({ timeout: 120000 });
   await A.getByRole('button', { name: `Your profile, @${adaHandle}` }).waitFor();
   await openBoard(A);
   await drawer(A).getByRole('button', { name: /Free-throw night/ }).click();
