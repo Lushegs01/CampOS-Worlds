@@ -139,6 +139,11 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
             vec3 forest = mix(vec3(.035, .06, .025), vec3(.085, .12, .045), detail);
           #endif
           vec3 meadow = mix(g2, g1, .5) * vec3(.62, .86, .48) * (.75 + .4 * macro);
+          // The open-world grounds are walkable campus land: mown meadow with the odd worn laterite
+          // patch. Painted forest only begins on the ridges past the world boundary.
+          float edge = max(abs(vWorldPos.x), abs(vWorldPos.z));
+          canopy *= smoothstep(1330., 1440., edge);
+          meadow = mix(meadow, soil * vec3(.95, .9, .86), smoothstep(.74, .9, detail * (.6 + .5 * macro)) * .55 * (1. - canopy));
           albedo = mix(albedo, mix(meadow, forest, canopy), outside);
           diffuseColor.rgb *= albedo;
         `)

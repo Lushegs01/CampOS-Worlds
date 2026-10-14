@@ -51,7 +51,9 @@ export function connect(){
   if(m.type==='auth')bridge?.onAuth(m);
   if(m.type==='progress')bridge?.onProgress(m);
  };
- ws.onclose=e=>{if(socket!==ws)return;socket=null;livePeers.clear();disconnectVehicles();unbindNetwork();useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
+ // Only a session that actually joined has room state to tear down: failed reconnect attempts while
+ // exploring offline must not eject the player from the local vehicle or reset local interactions.
+ ws.onclose=e=>{if(socket!==ws)return;socket=null;const joined=useGame.getState().status==='connected';livePeers.clear();if(joined){disconnectVehicles();unbindNetwork();}useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
  ws.onerror=()=>{};
 }
 export function useNetwork(){const phase=useGame(s=>s.phase);useEffect(()=>{if(phase!=='playing')return;connect();return()=>{stopped=true;clearTimeout(reconnect);socket?.close();};},[phase]);}

@@ -6,7 +6,7 @@ import { TouchInteract } from './Interaction';
 import { useInteraction } from '../interaction/world';
 
 export default function TouchControls() {
-  const vehicle=useVehicle(s=>s.id),nearVehicle=useVehicle(s=>s.near);
+  const vehicle=useVehicle(s=>s.id);
   const held=useRef(new Set<string>());
   const drive=(key:string,on:boolean)=>{if(on)held.current.add(key);else held.current.delete(key);input.x=Number(held.current.has('right'))-Number(held.current.has('left'));input.z=Number(held.current.has('reverse'))-Number(held.current.has('accelerate'));};
   const phase = useGame(s => s.phase), panel = useGame(s => s.panel);
@@ -35,6 +35,6 @@ export default function TouchControls() {
         // Pointer events bypass React reconciliation while steering.
         if (knob.current) knob.current.style.transform = `translate(${x / d}px, ${y / d}px)`;
       }} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}><span ref={knob} /></div>}
-    <div className="touch-actions">{vehicle||nearVehicle?<button onClick={vehicleInteract} aria-label={vehicle?'Exit vehicle':'Enter vehicle'}>{vehicle?'Exit':'Enter'}</button>:<TouchInteract />}{vehicle&&<button onClick={()=>vehicleAction('vehicleRecover')}>Recover</button>}{!vehicle && !ball && !seated && <button aria-label="Jump" onPointerDown={() => { input.jump = true; }}><ArrowUp size={20} /><span>Jump</span></button>}</div>
+    <div className="touch-actions">{vehicle?<button onClick={vehicleInteract} aria-label="Exit vehicle">Exit</button>:<TouchInteract />}{vehicle&&<button onClick={()=>vehicleAction('vehicleRecover')}>Recover</button>}{!vehicle && !ball && !seated && <button aria-label="Jump" onPointerDown={() => { input.jump = true; }}><ArrowUp size={20} /><span>Jump</span></button>}</div>
   </div>;
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { TREES } from '../../shared/campus.mjs';
+import { ROADSIDE_TREES, BELT_TREES } from '../../shared/expansion.mjs';
 import { growTree, growPalm, type Species, type TreeGeometry } from './vegetation/trees';
 import { rng } from './architecture/kit';
 import { cached, loadTexture, suspend } from './assets';
@@ -46,7 +47,9 @@ function foliageMaterial(map: THREE.Texture, kind: 'card' | 'frond' | 'hedge') {
   return m;
 }
 
-interface Group { species: Species; variant: number; geometry: TreeGeometry | null; matrices: THREE.Matrix4[]; colors: THREE.Color[]; palm: boolean; royal: boolean; castShadow: boolean }
+interface Group { species: Species; variant: number; geometry: TreeGeometry | null; matrices: THREE.Matrix4[]; colors: THREE.Color[]; palm: boolean; royal: boolean; castShadow: boolean; lite: boolean; chunk?: [number, number] }
+/** Open-world trees are grouped into 400 m cells so each cell is frustum- and distance-culled on its own. */
+const CHUNK = 400;
 const yieldToBrowser = () => new Promise<void>(r => setTimeout(r, 0));
 
 function speciesGeometry(species: Species, variant: number, density: number, lite: boolean) {
@@ -56,26 +59,26 @@ function speciesGeometry(species: Species, variant: number, density: number, lit
 /** Place every tree, then grow each unique variant in its own task so the page stays responsive. */
 async function plantTrees(density: number) {
   const groups = new Map<string, Group>(), r = rng(99);
-  const add = (species: Species, x: number, z: number, scale: number, rot: number, shadow: boolean, variant: number) => {
-    const key = `${species}:${variant}:${shadow}`;
+  const add = (species: Species, x: number, z: number, scale: number, rot: number, shadow: boolean, variant: number, chunked = false) => {
+    const chunk: [number, number] | undefined = chunked ? [Math.floor(x / CHUNK), Math.floor(z / CHUNK)] : undefined;
+    const key = `${species}:${variant}:${shadow}:${chunk ?? ''}`;
     let g = groups.get(key);
-    if (!g) groups.set(key, g = { species, variant, geometry: null, matrices: [], colors: [], palm: species === 'royal' || species === 'coconut', royal: species === 'royal', castShadow: shadow });
+    if (!g) groups.set(key, g = { species, variant, geometry: null, matrices: [], colors: [], palm: species === 'royal' || species === 'coconut', royal: species === 'royal', castShadow: shadow, lite: !shadow || chunked, chunk });
     g.matrices.push(new THREE.Matrix4().compose(new THREE.Vector3(x, terrainHeight(x, z), z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rot), new THREE.Vector3(scale, scale * (.92 + r() * .16), scale)));
     g.colors.push(new THREE.Color(.86 + r() * .2, .9 + r() * .2, .8 + r() * .2));
   };
   (TREES as { x: number; z: number; species: Species; s: number }[]).forEach((t, i) => add(t.species, t.x, t.z, t.s, r() * Math.PI * 2, true, i % 3));
-  // Forest belt and ridge beyond the boundary walls: lighter variants without shadows.
-  // Rounded crowns read best as a distant tree line; palms punctuate it.
-  const belt = ['mango', 'neem', 'mango', 'flamboyant', 'mango', 'coconut', 'neem'] as Species[];
-  // A dense band hugging the walls closes the horizon; sparser trees climb the ridges behind.
-  const beltCount = Math.round(460 * Math.pow(density, 1.5));
-  for (let i = 0; i < beltCount; i++) {
-    const inner = i % 5 < 3, a = r() * Math.PI * 2, d = inner ? 82 + r() * 34 : 110 + Math.pow(r(), .7) * 160, x = Math.cos(a) * d * 1.05, z = Math.sin(a) * d - 4;
-    if (Math.abs(x) < 78 && z > -72 && z < 68) continue;
-    if (z > 51 && z < 66 && Math.abs(x) < 150) continue;
-    add(belt[i % belt.length], x, z, .9 + r() * .5, r() * Math.PI * 2, false, i % 2);
+  // Woodland between the courtyard and the districts: shared (collidable) placements, culled per cell.
+  (BELT_TREES as { x: number; z: number; species: Species; s: number }[]).forEach(t => add(t.species, t.x, t.z, t.s, r() * Math.PI * 2, true, 0, true));
+  // Roadside and district trees along the open-world roads (shadow-casting, lighter variants).
+  (ROADSIDE_TREES as { x: number; z: number; species: Species; s: number }[]).forEach(t => add(t.species, t.x, t.z, t.s, r() * Math.PI * 2, true, 0, true));
+  // One geometry per species variant, shared by every cell that uses it.
+  const grown = new Map<string, TreeGeometry>();
+  for (const g of groups.values()) {
+    const key = `${g.species}:${g.variant}:${g.lite}:${g.castShadow}`;
+    if (!grown.has(key)) { grown.set(key, speciesGeometry(g.species, g.variant, density * (g.lite ? .7 : 1), g.lite)); await yieldToBrowser(); }
+    g.geometry = grown.get(key)!;
   }
-  for (const g of groups.values()) { g.geometry = speciesGeometry(g.species, g.variant, density * (g.castShadow ? 1 : .7), !g.castShadow); await yieldToBrowser(); }
   return [...groups.values()] as (Group & { geometry: TreeGeometry })[];
 }
 
@@ -142,7 +145,9 @@ export function Vegetation({ lib, quality, reduced }: { lib: Materials; quality:
       g.matrices.forEach((m, i) => { wood.setMatrixAt(i, m); leaves.setMatrixAt(i, m); leaves.setColorAt(i, g.colors[i]); });
       for (const m of [wood, leaves]) { m.castShadow = g.castShadow; m.receiveShadow = true; m.computeBoundingSphere(); }
       leaves.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: leafMat.map, alphaTest: .42 });
-      wood.name = 'trees:wood'; leaves.name = 'trees:leaves'; out.push(wood, leaves);
+      wood.name = 'trees:wood'; leaves.name = 'trees:leaves';
+      if (g.chunk) for (const m of [wood, leaves]) { m.name = 'trees:road'; m.userData.cell = new THREE.Vector2((g.chunk[0] + .5) * CHUNK, (g.chunk[1] + .5) * CHUNK); }
+      out.push(wood, leaves);
     }
     const garden = new THREE.Mesh(gardens, materials.hedge);
     garden.castShadow = true; garden.receiveShadow = true; garden.name = 'gardens';
@@ -152,7 +157,12 @@ export function Vegetation({ lib, quality, reduced }: { lib: Materials; quality:
   }, [materials, lib, trees, gardens]);
   // Geometry belongs to the session cache; quality switches must not dispose shared buffers.
   useEffect(() => () => meshes.forEach(m => { const mesh = m as THREE.InstancedMesh; if (mesh.isInstancedMesh) mesh.dispose(); mesh.customDepthMaterial?.dispose(); }), [meshes]);
-  useFrame((_, dt) => { if (!reduced) wind.uTime.value += dt; });
+  const cellRange = quality.foliage < .5 ? 560 : quality.foliage < 1 ? 760 : 900;
+  useFrame(({ camera }, dt) => {
+    if (!reduced) wind.uTime.value += dt;
+    // Cells beyond the fog are skipped entirely (the fog is opaque by ~950 m); Low draws a tighter ring.
+    for (const m of meshes) { const c = m.userData.cell as THREE.Vector2 | undefined; if (c) m.visible = Math.hypot(camera.position.x - c.x, camera.position.z - c.y) < cellRange; }
+  });
   return <>{meshes.map((m, i) => <primitive key={i} object={m} />)}{quality.grassBlades > 0 && <Grass count={quality.grassBlades} radius={quality.grassRadius} />}</>;
 }
 

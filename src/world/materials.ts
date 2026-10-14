@@ -80,6 +80,8 @@ export function createMaterials(s: SurfaceSets, detail = true) {
     stuccoCream: pbr('stuccoCream', 'stucco', 3.2, { color: '#ecdcb9', normalScale: new THREE.Vector2(.7, .7) }),
     stuccoOchre: pbr('stuccoOchre', 'stucco', 3.2, { color: '#d9a35f', normalScale: new THREE.Vector2(.7, .7) }),
     stuccoGreen: pbr('stuccoGreen', 'stucco', 3.2, { color: '#7d9a86', normalScale: new THREE.Vector2(.7, .7) }),
+    // Per-building tint comes from vertex colours (district palettes in the open world).
+    stuccoTint: pbr('stuccoTint', 'stucco', 3.2, { color: '#ffffff', vertexColors: true, normalScale: new THREE.Vector2(.7, .7) }),
     plaster: pbr('plaster', 'plaster', 3, { color: '#e2dccf' }),
     concrete: pbr('concrete', 'concrete', 3, { color: '#d8d2c6' }, { grime: .5, streaks: .6 }),
     ribbed: pbr('ribbed', 'ribbed', 1.6, { color: '#d9d3c5' }, { grime: .4, streaks: .5 }),

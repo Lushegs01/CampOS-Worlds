@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { assetUrl, cached, loadHDR, loadImage, suspend } from './assets';
 import type { QualityProfile } from './quality';
+import { player } from '../state';
 
 export interface SkyInfo { sunDirection: [number, number, number]; sunColor: [number, number, number]; sunIrradiance: number; skyScale: number; skyCoverage: number; horizon: [number, number, number] }
 let skyInfo: Promise<SkyInfo> | null = null;
@@ -55,17 +56,27 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
 
   const dir = useMemo(() => new THREE.Vector3(...info.sunDirection).normalize(), [info]);
   const color = useMemo(() => new THREE.Color().setRGB(...info.sunColor, THREE.LinearSRGBColorSpace).multiply(LIGHTING.sunTint), [info]);
-  // One stable shadow frustum covers the whole campus: no swimming as the player moves, and the
-  // static map can be rendered once on Low.
-  useEffect(() => {
-    const light = sun.current, s = light.shadow, cam = s.camera;
-    const centre = new THREE.Vector3(0, 0, -6);
+  // In the courtyard one stable shadow frustum covers the whole campus: no swimming as the player
+  // moves, and the static map can be rendered once on Low. Out in the open world the frustum
+  // follows the player in coarse steps (re-rendered on each step) so vehicles, people and
+  // district buildings cast shadows there too.
+  const region = useRef('');
+  // The light itself never moves (its direction is the sun's): only the orthographic shadow
+  // frustum is refitted, in light space, around the region to cover.
+  const fit = useMemo(() => (corners: [number, number, number, number]) => {
+    const light = sun.current, s = light.shadow, cam = s.camera, centre = new THREE.Vector3(0, 0, -6);
     light.position.copy(centre).addScaledVector(dir, 160); light.target.position.copy(centre); light.target.updateMatrixWorld();
     const view = new THREE.Matrix4().lookAt(light.position, centre, new THREE.Vector3(0, 1, 0));
     const inv = view.clone().invert(), box = new THREE.Box3();
-    for (const x of [-78, 78]) for (const z of [-72, 66]) for (const y of [0, 22]) box.expandByPoint(new THREE.Vector3(x, y, z).sub(light.position).applyMatrix4(inv));
-    cam.left = box.min.x; cam.right = box.max.x; cam.top = box.max.y; cam.bottom = box.min.y; cam.near = 1; cam.far = 340;
-    cam.updateProjectionMatrix();
+    for (const x of [corners[0], corners[1]]) for (const z of [corners[2], corners[3]]) for (const y of [0, 22]) box.expandByPoint(new THREE.Vector3(x, y, z).sub(light.position).applyMatrix4(inv));
+    cam.left = box.min.x; cam.right = box.max.x; cam.top = box.max.y; cam.bottom = box.min.y;
+    // Light space looks down -z: depth runs from -max.z to -min.z (plus room for tall trees).
+    cam.near = Math.max(.5, -box.max.z - 30); cam.far = -box.min.z + 30;
+    cam.updateProjectionMatrix(); s.needsUpdate = true;
+  }, [dir]);
+  useEffect(() => {
+    const s = sun.current.shadow;
+    region.current = '';
     s.mapSize.set(quality.shadowSize, quality.shadowSize); s.radius = quality.shadowRadius; s.bias = -.00025; s.normalBias = .035;
     s.map?.dispose(); s.map = null;
     s.autoUpdate = quality.shadowMode !== 'static'; s.needsUpdate = true;
@@ -73,7 +84,14 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
     if (quality.shadowMode === 'static') { const t = [800, 2500, 6000].map(ms => setTimeout(() => { s.needsUpdate = true; }, ms)); return () => t.forEach(clearTimeout); }
   }, [dir, quality]);
   useFrame(() => {
-    if (quality.shadowMode === 'every-2nd-frame') { const s = sun.current.shadow; s.autoUpdate = false; s.needsUpdate = (frame.current++ & 1) === 0; }
+    const inside = Math.abs(player.x) < 85 && player.z > -78 && player.z < 70, step = 24;
+    const key = inside ? 'campus' : `${Math.round(player.x / step)},${Math.round(player.z / step)}`;
+    if (key !== region.current) {
+      region.current = key;
+      if (inside) fit([-78, 78, -72, 66]);
+      else { const cx = Math.round(player.x / step) * step, cz = Math.round(player.z / step) * step; fit([cx - 70, cx + 70, cz - 70, cz + 70]); }
+    }
+    if (quality.shadowMode === 'every-2nd-frame') { const s = sun.current.shadow; s.autoUpdate = false; s.needsUpdate = s.needsUpdate || (frame.current++ & 1) === 0; }
   });
   return <directionalLight ref={sun} color={color} intensity={info.sunIrradiance * LIGHTING.sunScale} castShadow />;
 }

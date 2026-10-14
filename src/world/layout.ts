@@ -1,9 +1,10 @@
 import { COLLIDERS, TREES } from '../../shared/campus.mjs';
+import { roadsideHeight } from './roads';
 
 // Campus ground plan (metres, +x east, +z south). Paths are axis-aligned slabs so overlaps
 // resolve by surface height and kerbs can be clipped against neighbouring paths.
 export type PathMaterial = 'pavers' | 'paversGrey' | 'granite' | 'asphalt';
-export interface PathRect { mat: PathMaterial; x0: number; x1: number; z0: number; z1: number; kerb?: 'low' | 'road' | 'none' }
+export interface PathRect { mat: PathMaterial; x0: number; x1: number; z0: number; z1: number; kerb?: 'low' | 'road' | 'none'; gaps?: { edge: 'x0' | 'x1' | 'z0' | 'z1'; from: number; to: number }[] }
 
 export const PATHS: PathRect[] = [
   { mat: 'pavers', x0: -4, x1: 4, z0: 11, z1: 43.5 },
@@ -26,7 +27,9 @@ export const PATHS: PathRect[] = [
   { mat: 'asphalt', x0: -60, x1: -4, z0: 43.5, z1: 48, kerb: 'road' },
   { mat: 'asphalt', x0: -6.4, x1: 6.4, z0: 43.5, z1: 51.6, kerb: 'road' },
   { mat: 'asphalt', x0: -60, x1: -36, z0: 38, z1: 43.5, kerb: 'road' },
-  { mat: 'asphalt', x0: -90, x1: 90, z0: 51.6, z1: 59.5, kerb: 'road' },
+  // The campus road outside the gate: it carries on east and west into the open-world network, with
+  // the south avenue junction (and its curb returns) and the courtyard car park opening off it.
+  { mat: 'asphalt', x0: -90, x1: 90, z0: 51.6, z1: 59.5, kerb: 'road', gaps: [{ edge: 'x0', from: 51.6, to: 59.5 }, { edge: 'x1', from: 51.6, to: 59.5 }, { edge: 'z1', from: -9, to: 30 }] },
 ];
 export const SURFACE_Y: Record<PathMaterial | 'plaza', number> = { asphalt: .025, pavers: .03, paversGrey: .036, granite: .042, plaza: .048 };
 export const PLAZA = { x: 0, z: 0, r: 11.4 };
@@ -77,6 +80,8 @@ export const BEDS: Bed[] = [
 /** Finished-surface height under a point, so feet rest on paving rather than sinking into it. */
 const GALLERIES = [{ x0: 31, x1: 53, z0: -36.55, z1: -34 }, { x0: 31.3, x1: 37.5, z0: -43, z1: -36.4 }, { x0: -62, x1: -42, z0: -38.9, z1: -36.5 }];
 export function surfaceHeight(x: number, z: number) {
+  // Beyond the courtyard walls only the open-world sidewalks and kerbs are raised.
+  if (Math.abs(x) > 91 || z > 59.7 || z < -66) return roadsideHeight(x, z);
   let y = Math.hypot(x - PLAZA.x, z - PLAZA.z) < PLAZA.r ? SURFACE_Y.plaza : 0;
   for (const p of PATHS) if (inRect(x, z, p)) y = Math.max(y, SURFACE_Y[p.mat]);
   if (inRect(x, z, { x0: -41.5, x1: -18.5, z0: -25.5, z1: -4.6 })) y = Math.max(y, .024);
