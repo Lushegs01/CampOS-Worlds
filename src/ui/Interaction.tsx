@@ -4,6 +4,9 @@ import { POINTS } from '../../shared/interactions.mjs';
 import { player, useGame } from '../state';
 import { activate, drop, releaseShot, startCharge } from '../interaction/controller';
 import { request, useInteraction, world } from '../interaction/world';
+import { DuelModes } from './Duel';
+import { useDuel } from '../duel/store';
+import { selfConnection } from '../network/client';
 
 /** The single contextual action prompt ("E — Sit", "E — Open door", …). Click or tap works too. */
 export function InteractionPrompt() {
@@ -19,11 +22,13 @@ const COURT = { x0: 32.6, x1: 55.4, z0: 8.6, z1: 39.4 };
 export function BasketballHUD() {
   const ball = useInteraction(s => s.ball), hoops = useInteraction(s => s.hoops), charging = useInteraction(s => s.charging), zone = useInteraction(s => s.zone), target = useInteraction(s => s.target);
   const [onCourt, setOnCourt] = useState(false), needle = useRef<HTMLSpanElement>(null);
+  // In a Court Duel the duel scoreboard replaces the round-of-five card.
+  const dueling = useDuel(s => !!s.duel && (s.duel.state === 'ready' || s.duel.state === 'playing') && s.duel.players.some(p => p.id === selfConnection()));
   useEffect(() => { const t = setInterval(() => setOnCourt(player.x > COURT.x0 && player.x < COURT.x1 && player.z > COURT.z0 && player.z < COURT.z1), 400); return () => clearInterval(t); }, []);
   useEffect(() => { if (!charging) return; let f = 0; const tick = () => { if (needle.current) needle.current.style.left = `${(player.charge ?? 0) * 100}%`; f = requestAnimationFrame(tick); }; f = requestAnimationFrame(tick); return () => cancelAnimationFrame(f); }, [charging]);
   const recent = Date.now() - hoops.lastAt < 3500;
   const [, refresh] = useState(0); useEffect(() => { if (!recent) return; const t = setTimeout(() => refresh(n => n + 1), 3600); return () => clearTimeout(t); }, [hoops.lastAt, recent]);
-  if (!ball && !onCourt && !recent) return null;
+  if ((!ball && !onCourt && !recent) || dueling) return dueling && charging ? <aside className="hoops-hud duel-meter">{charging && <div className="hoops-meter" role="meter" aria-label="Shot power" aria-valuemin={0} aria-valuemax={100}>{zone && <span className="zone" style={{ left: `${zone[0] * 100}%`, width: `${(zone[1] - zone[0]) * 100}%` }} />}<span ref={needle} className="needle" /><small>{target ? `Aiming at the ${target} hoop · release in the gold` : 'Turn towards a hoop to aim'}</small></div>}</aside> : null;
   const round = hoops.round.length >= 5 && !recent ? [] : hoops.round, total = round.reduce((a, b) => a + b, 0);
   const lost = world.balls.filter(b => b.state !== 'held' && (b.x < COURT.x0 - 1 || b.x > COURT.x1 + 1 || b.z < COURT.z0 - 1 || b.z > COURT.z1 + 1));
   return <aside className="hoops-hud" aria-live="polite">
@@ -35,7 +40,8 @@ export function BasketballHUD() {
       {zone && <span className="zone" style={{ left: `${zone[0] * 100}%`, width: `${(zone[1] - zone[0]) * 100}%` }} />}<span ref={needle} className="needle" />
       <small>{target ? `Aiming at the ${target} hoop · release in the gold` : 'Turn towards a hoop to aim'}</small></div>}
     {ball ? <div className="hoops-keys"><span><kbd>Space</kbd> Hold to shoot</span><span><kbd>Q</kbd> Drop</span><button onClick={() => { drop(); }}><LogOut size={14} />Leave court</button></div>
-      : <div className="hoops-keys"><span>Walk up to a ball and press <kbd>E</kbd></span>{lost.length > 0 && <button onClick={() => lost.forEach(b => void request('ballReset', { ball: b.id }))}><RotateCcw size={14} />Retrieve ball{lost.length > 1 ? 's' : ''}</button>}</div>}
+      : <div className="hoops-keys"><span>Free shooting: walk up to a ball and press <kbd>E</kbd></span>{lost.length > 0 && <button onClick={() => lost.forEach(b => void request('ballReset', { ball: b.id }))}><RotateCcw size={14} />Retrieve ball{lost.length > 1 ? 's' : ''}</button>}</div>}
+    {onCourt && !ball && <DuelModes />}
   </aside>;
 }
 

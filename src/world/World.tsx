@@ -13,6 +13,7 @@ import { peerRelease } from '../interaction/controller';
 import { Doors, Chairs, Balls, Computers } from './Interactive';
 import { useKeepsakes } from '../account/store';
 import { Label } from './Primitives';
+import { useSocial, bond } from '../social/store';
 import { LOCATIONS, TOKENS } from '../../shared/campus.mjs';
 import { cached, initLoaders, suspend } from './assets';
 import { QUALITY, type QualityProfile } from './quality';
@@ -27,8 +28,12 @@ const PostFX = lazy(() => import('./PostFX'));
 
 const LIBRARY_CENTRE: [number, number, number] = [-30, 2, -15];
 
+// Name tags: party members gold, friends blue, everyone else green. Signed-in players carry a ✓,
+// which guests cannot type (the room strips it from guest names).
+const TAG = { party: '#8a6424', friend: '#2e5a6e', none: '#203c33' };
 function PeerAvatar({ peer: initial }: { peer: Peer }) {
   const peer = livePeers.get(initial.id) ?? initial;
+  const kind = useSocial(s => bond(s, initial.id, initial.handle)) ?? 'none';
   const group = useRef<THREE.Group>(null!), tag = useRef<THREE.Group>(null!);
   // Someone already seated when we arrive is shown seated, not sitting down again.
   const motion = useRef<AvatarMotion & { last: THREE.Vector3; yaw: number }>({ speed: 0, y: 0, vy: 0, turn: 0, last: new THREE.Vector3(peer.x, 0, peer.z), yaw: peer.yaw, sit: peer.seat ? { seat: peer.seat, phase: 'seated', t: 0 } : null });
@@ -56,7 +61,7 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     const tagDistance = g.position.distanceToSquared(camera.position);
     tag.current.visible = tagDistance > 9 && tagDistance < 900;
   });
-  return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]}><Label text={peer.name} p={[0, 0, 0]} width={2.4} height={.36} background="#203c33" /></group></group>;
+  return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]}><Label text={initial.name + (initial.verified ? ' ✓' : '')} p={[0, 0, 0]} width={2.4} height={.36} background={TAG[kind]} /></group></group>;
 }
 
 function Peers() {
@@ -76,9 +81,19 @@ function Collectibles() {
 }
 
 function Waypoint() {
-  const id = useGame(s => s.destination), loc = LOCATIONS.find(l => l.id === id), beam = useRef<THREE.Mesh>(null!);
-  useFrame(({ clock }) => { if (beam.current) (beam.current.material as THREE.MeshBasicMaterial).opacity = .16 + Math.sin(clock.elapsedTime * 2) * .04; });
-  return loc ? <group position={[loc.x, surfaceHeight(loc.x, loc.z) + .02, loc.z]}>
+  const id = useGame(s => s.destination), beam = useRef<THREE.Mesh>(null!), marker = useRef<THREE.Group>(null!);
+  // "peer:<id>" follows a player (a friend or party member) until you reach them or they leave.
+  const follow = id?.startsWith('peer:') ? id.slice(5) : null, start = follow ? livePeers.get(follow) : null;
+  const loc = follow ? (start ? { x: start.x, z: start.z } : null) : LOCATIONS.find(l => l.id === id);
+  useFrame(({ clock }) => {
+    if (beam.current) (beam.current.material as THREE.MeshBasicMaterial).opacity = .16 + Math.sin(clock.elapsedTime * 2) * .04;
+    if (!follow) return;
+    const p = livePeers.get(follow), g = useGame.getState();
+    if (!p) { if (g.destination === id) { g.set({ destination: null }); g.notify('They left the room, so the marker is gone.'); } return; }
+    if (marker.current) marker.current.position.set(p.x, surfaceHeight(p.x, p.z) + .02, p.z);
+    if (Math.hypot(p.x - player.x, p.z - player.z) < 3.5 && g.destination === id) { g.set({ destination: null }); g.notify(`You found ${p.name}.`); }
+  });
+  return loc ? <group ref={marker} position={[loc.x, surfaceHeight(loc.x, loc.z) + .02, loc.z]}>
     <mesh rotation-x={-Math.PI / 2}><ringGeometry args={[1, 1.15, 48]} /><meshBasicMaterial color="#f6c872" transparent opacity={.85} depthWrite={false} /></mesh>
     <mesh ref={beam} position-y={6}><cylinderGeometry args={[.5, .9, 12, 24, 1, true]} /><meshBasicMaterial color="#ffd27a" transparent opacity={.18} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} /></mesh>
     <mesh position={[0, 3.6, 0]} rotation-z={Math.PI}><coneGeometry args={[.24, .5, 4]} /><meshStandardMaterial color="#f6c872" emissive="#c98a2a" emissiveIntensity={.6} /></mesh>
@@ -176,9 +191,12 @@ function Campus({ quality }: { quality: QualityProfile }) {
   </>;
 }
 
+// QA builds only: `?qa-scale=0.25` renders the 3D view at a fixed low resolution, so browser tests
+// on machines without a GPU (software WebGL) stay responsive. Interface and gameplay are unchanged.
+const QA_SCALE = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale')) || 0)) : 0;
 export default function World() {
-  const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey];
-  return <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={[1, Math.min(quality.dpr, window.devicePixelRatio || 1)]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
+  const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey], ceiling = QA_SCALE || Math.min(quality.dpr, window.devicePixelRatio || 1);
+  return <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
     gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.AgXToneMapping, toneMappingExposure: LIGHTING.exposure, stencil: false }}
     onCreated={({ gl }) => { gl.setClearColor('#b9c8d4'); }}>
     <Suspense fallback={null}>
@@ -187,7 +205,7 @@ export default function World() {
       <Campus quality={quality} />
       {quality.post && <Suspense fallback={null}><PostFX quality={quality} /></Suspense>}
     </Suspense>
-    <AdaptiveResolution max={Math.min(quality.dpr, window.devicePixelRatio || 1)} min={qualityKey === 'high' ? .75 : .6} />
+    <AdaptiveResolution max={ceiling} min={QA_SCALE || (qualityKey === 'high' ? .75 : .6)} />
     <Telemetry />
   </Canvas>;
 }

@@ -4,7 +4,12 @@ import { SPAWN, TOUR, LOCATIONS, sanitizeAvatar } from '../shared/campus.mjs';
 import { suggestedQuality } from './world/quality';
 export type AvatarConfig = ReturnType<typeof sanitizeAvatar>;
 export type Panel = null|'map'|'profile'|'settings'|'chat'|'players'|'avatar'|string;
-export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null;vehicle?:string|null;vehicleSeat?:number|null};
+export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null;verified?:boolean;vehicle?:string|null;vehicleSeat?:number|null};
+/** Public room chat or party chat. Private messages are separate (src/social) and never mixed in here. */
+export type ChatMessage = {id:string;name:string;text:string;at:number;channel:'room'|'party';handle:string|null;verified:boolean};
+/** Mutes are local to this device: by handle for signed-in players (it survives their reconnects), by session otherwise. */
+export const muteKey = (p:{id:string;handle?:string|null}) => p.handle ? 'h:'+p.handle : p.id;
+export const isMuted = (muted:string[], p:{id:string;handle?:string|null}) => muted.includes(p.id) || (!!p.handle && muted.includes('h:'+p.handle));
 /** Seating sequence: walk to the stand point, sit (motion-captured), remain seated, stand. */
 export type SitState = {seat:string;phase:'approach'|'request'|'down'|'seated'|'up'|'done';t:number;exit?:{x:number;z:number};path?:{x:number;z:number}[]};
 export type Gesture = {kind:'door-push'|'door-pull'|'pickup';start:number};
@@ -29,6 +34,6 @@ export const useGame = create<Game>()(persist((set,get)=>({
 interface Game {
  phase:'welcome'|'playing'; panel:Panel;ready:boolean;name:string;avatar:AvatarConfig;quality:'low'|'medium'|'high';reducedMotion:boolean;volume:number;
  discovered:string[];tokens:string[];tour:boolean;tourStep:number;bestScore:number;nearby:string|null;toast:string;destination:string|null;
- status:string;count:number;peers:Peer[];messages:{id:string;name:string;text:string;at:number}[];muted:string[];invite:string;fps:number;
+ status:string;count:number;peers:Peer[];messages:ChatMessage[];muted:string[];invite:string;fps:number;
  set:(value:Partial<Game>)=>void; notify:(toast:string)=>void;discover:(id:string)=>void;collect:(id:string)=>void;
 }

@@ -1,0 +1,18 @@
+{
+  "when": "2026-10-14T14:18:52.658Z",
+  "results": [
+    "Two signed-in players in independent browser contexts see each other’s verified presence",
+    "Search by handle and send a friend request",
+    "The recipient is notified at once (room nudge) with a badge on the dock",
+    "Accepting makes the friendship consistent for both players, with live presence and place",
+    "A private message sends and shows its delivery state",
+    "The friend receives it in real time, replies, and the reply arrives",
+    "A third account cannot read the conversation even with its id",
+    "Party invitation accepted; both players see the party HUD",
+    "Party chat is a separate, labelled channel",
+    "Meet up travels to a party member",
+    "Blocking ends the friendship and stops room chat",
+    "Phone viewport: the drawer opens as a bottom sheet with no overflow; guests can use parties"
+  ],
+  "errors": []
+}

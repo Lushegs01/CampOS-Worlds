@@ -52,8 +52,11 @@ async function loadProfile() {
   const service = await getCommunityService();
   useAccount.getState().set({ profileState: 'loading' });
   try {
+    const before = useAccount.getState().profile;
     const profile = await service.myProfile();
     useAccount.getState().set({ profile, profileState: 'ready', error: '' });
+    // Badges awarded by the database itself (a first friendship, event check-ins) show up on reload.
+    if (before && profile && before.id === profile.id) for (const a of profile.achievements) if (!before.achievements.some(b => b.id === a.id) && ACHIEVEMENTS[a.id]) useGame.getState().notify(`Badge earned: ${ACHIEVEMENTS[a.id].name}. Saved to your profile.`);
     if (profile) applyProfile(profile);
     syncRoom();
   } catch (e) {
@@ -87,6 +90,7 @@ export async function initAccount() {
     onProgress: m => {
       const s = useAccount.getState(); if (!s.profile) return;
       const progress = { ...s.profile.progress }, awarded = (m.awarded ?? []).filter((a): a is AchievementId => a in ACHIEVEMENTS);
+      if (m.kind === 'duel') void loadProfile().catch(() => {});
       if (m.kind === 'keepsake' && !progress.keepsakes.includes(m.item)) { progress.keepsakes = [...progress.keepsakes, m.item]; if (!awarded.length) useGame.getState().notify(`Campus keepsake found · ${progress.keepsakes.length} / 6 · saved to your profile`); }
       if (m.kind === 'landmark' && !progress.landmarks.includes(m.item)) progress.landmarks = [...progress.landmarks, m.item];
       const stats = m.kind === 'hoops' ? { ...s.profile.stats, best_hoops_round: Math.max(s.profile.stats.best_hoops_round, m.best ?? 0), hoops_rounds: s.profile.stats.hoops_rounds + 1 } : s.profile.stats;

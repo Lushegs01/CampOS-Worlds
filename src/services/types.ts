@@ -1,22 +1,25 @@
 import type { AvatarConfig } from '../state';
+import { ACHIEVEMENTS as CATALOG } from '../../shared/achievements.mjs';
 
 // Shapes returned by the database functions in supabase/migrations (snake_case kept as stored).
 
-export type AchievementId = 'campus-compass' | 'curious-mind' | 'courtside';
-export const ACHIEVEMENTS: Record<AchievementId, { name: string; text: string }> = {
-  'campus-compass': { name: 'Campus compass', text: 'Visited all five tour stops' },
-  'curious-mind': { name: 'Curious mind', text: 'Found all six campus keepsakes' },
-  courtside: { name: 'Courtside', text: 'Scored 6 points in one round of five' },
-};
+// The achievement catalogue is shared with the room server and mirrored in the database.
+export type AchievementId = typeof CATALOG[number]['id'];
+export interface AchievementInfo { id: string; name: string; text: string; category: string; title: string; accent?: string }
+export const ACHIEVEMENTS: Record<string, AchievementInfo> = Object.fromEntries(CATALOG.map(a => [a.id, { id: a.id, name: a.name, text: a.rule, category: a.category, title: a.title, accent: (a as { accent?: string }).accent }]));
 
 export interface ProfileBrief { id: string; handle: string; display_name: string; avatar: Partial<AvatarConfig> }
+/** How the signed-in viewer relates to another player (null when not signed in). */
+export type Relationship = 'self' | 'friends' | 'outgoing' | 'incoming' | 'blocked' | 'none';
 export type ClubRole = 'owner' | 'organizer' | 'member';
 export interface ProfileCard extends ProfileBrief {
   bio: string;
   created_at: string;
   achievements: { id: AchievementId; awarded_at: string }[];
   stats: { best_hoops_round: number; hoops_rounds: number; baskets: number };
+  duel?: { rating: number; rated_matches: number; matches: number; wins: number; losses: number; draws: number; best_score: number } | null;
   clubs?: { id: string; name: string; color: string; emblem: ClubEmblem; role: ClubRole }[];
+  relationship?: Relationship | null;
 }
 export interface MyProfile extends ProfileCard { progress: { keepsakes: string[]; landmarks: string[] } }
 export interface ProfileInput { handle: string; display_name: string; bio: string; avatar: AvatarConfig }
@@ -53,3 +56,27 @@ export type EventWhen = 'upcoming' | 'past' | 'all';
 export interface EventFilter { when?: EventWhen; category?: EventCategory | null; from?: string | null; to?: string | null; club?: string | null; location?: string | null; going?: boolean; limit?: number; offset?: number }
 
 export interface AuthSession { userId: string; email: string }
+
+// ---------------------------------------------------------------- social (supabase/migrations/20261014090000_social.sql)
+export interface SocialSettings { friend_requests: 'everyone' | 'nobody'; direct_messages: 'friends' | 'nobody'; party_invites: 'everyone' | 'friends' | 'nobody'; appear_offline: boolean }
+export interface PlayerResult extends ProfileBrief { relationship: Relationship }
+export interface FriendRequest { id: string; player: ProfileBrief; created_at: string }
+export interface SocialOverview {
+  friends: (ProfileBrief & { since: string })[];
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+  blocked: (ProfileBrief & { since: string })[];
+  settings: SocialSettings;
+}
+export interface FriendState extends Partial<ProfileBrief> { id: string; relationship: Relationship; accepted?: boolean }
+export interface DirectMessage { id: number; conversation_id: string; body: string; mine: boolean; sender: string; client_id: string; created_at: string; duplicate?: boolean }
+export interface Conversation {
+  id: string; other: ProfileBrief; last_message_at: string | null;
+  last_message: { id: number; preview: string; mine: boolean; created_at: string } | null;
+  unread: number; block_reason: string | null;
+}
+export interface MessagePage { conversation: Conversation; messages: DirectMessage[]; has_more: boolean }
+export interface UnreadSummary { requests: number; messages: number; conversations: number }
+export const REPORT_REASONS = { harassment: 'Harassment or bullying', spam: 'Spam', impersonation: 'Pretending to be someone else', inappropriate: 'Inappropriate content', other: 'Something else' } as const;
+export type ReportReason = keyof typeof REPORT_REASONS;
+export type ReportContext = 'profile' | 'direct-message' | 'room-chat' | 'party' | 'club' | 'event';

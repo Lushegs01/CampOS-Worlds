@@ -50,5 +50,7 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     socialSnapshot: id => service('social_snapshot', { p_user: id }),
     recordProgress: (id, kind, item) => service('record_progress', { p_user: id, p_kind: kind, p_item: item }),
     recordHoopsRound: (id, points, made) => service('record_hoops_round', { p_user: id, p_points: points, p_made: made }),
+    /** A finished Court Duel between two signed-in players. Idempotent on the match id, so retries are safe. */
+    recordDuel: m => service('record_duel', { p_match: m.id, p_player_a: m.a, p_player_b: m.b, p_score_a: m.scoreA, p_score_b: m.scoreB, p_outcome: m.outcome, p_forfeit_by: m.forfeitBy, p_started_at: new Date(m.startedAt).toISOString(), p_ended_at: new Date(m.endedAt).toISOString() }),
   };
 }

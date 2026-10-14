@@ -1,16 +1,19 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, Award, Check, Footprints, Gem, LogOut, Mail, PencilLine, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowRight, Award, CalendarCheck, Car, Check, Footprints, Gem, HeartHandshake, LogOut, Mail, PencilLine, ShieldCheck, Swords, Trophy, UserRound, type LucideIcon } from 'lucide-react';
 import { sanitizeAvatar } from '../../shared/campus.mjs';
 import { useGame, type AvatarConfig } from '../state';
 import { useAccount, signIn, signUp, signOut, saveProfile, checkHandle, reloadProfile } from '../account/store';
 import { getCommunityService, NOT_CONFIGURED } from '../services/community';
-import { ACHIEVEMENTS, type AchievementId, type ProfileBrief, type ProfileCard } from '../services/types';
+import { ACHIEVEMENTS, type ProfileBrief, type ProfileCard } from '../services/types';
 import { assetUrl } from '../world/assets';
 import AvatarEditor from './AvatarEditor';
+import { RelationshipActions } from './Social';
 import { Failure, Loading, useAction, useLoad } from './async';
 
 const HANDLE = /^[a-z0-9_]{3,20}$/, EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const BADGE_ICONS: Record<AchievementId, typeof Award> = { 'campus-compass': Footprints, 'curious-mind': Gem, courtside: Award };
+const BADGE_ICONS: Record<string, LucideIcon> = { 'campus-compass': Footprints, 'curious-mind': Gem, courtside: Award, 'court-champion': Trophy, 'good-game': Swords };
+const CATEGORY_ICONS: Record<string, LucideIcon> = { exploration: Footprints, basketball: Award, social: HeartHandshake, community: CalendarCheck, travel: Car };
+const badgeIcon = (id: string) => BADGE_ICONS[id] ?? CATEGORY_ICONS[ACHIEVEMENTS[id]?.category] ?? Award;
 const joined = (iso: string) => new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(iso));
 
 /** Character portrait framed in the player's accent colour (reuses the avatar editor's art). */
@@ -20,9 +23,9 @@ export function Portrait({ person, size = 56 }: { person: Pick<ProfileBrief, 'di
 }
 
 function Badges({ list }: { list: ProfileCard['achievements'] }) {
-  return <div className="badges">{(Object.keys(ACHIEVEMENTS) as AchievementId[]).map(id => {
-    const earned = list.find(a => a.id === id), Icon = BADGE_ICONS[id];
-    return <div key={id} className={earned ? 'badge earned' : 'badge'}><Icon size={28} /><b>{ACHIEVEMENTS[id].name}</b><span>{earned ? <><ShieldCheck size={12} /> Verified {new Date(earned.awarded_at).toLocaleDateString()}</> : ACHIEVEMENTS[id].text}</span></div>;
+  return <div className="badges">{Object.keys(ACHIEVEMENTS).map(id => {
+    const earned = list.find(a => a.id === id), Icon = badgeIcon(id);
+    return <div key={id} className={earned ? 'badge earned' : 'badge'} title={ACHIEVEMENTS[id].text}><Icon size={28} /><b>{ACHIEVEMENTS[id].name}</b><span>{earned ? <><ShieldCheck size={12} /> Verified {new Date(earned.awarded_at).toLocaleDateString()}</> : ACHIEVEMENTS[id].text}</span></div>;
   })}</div>;
 }
 
@@ -31,7 +34,7 @@ export function ProfileView({ profile, own = false }: { profile: ProfileCard; ow
   return <div className="profile-card">
     <div className="profile-heading"><Portrait person={profile} size={64} /><div><span className="eyebrow">{own ? 'YOUR PROFILE' : 'CAMPUS PROFILE'}</span><h3>{profile.display_name}</h3><p>@{profile.handle} · Joined {joined(profile.created_at)}</p></div></div>
     {profile.bio ? <p className="profile-bio">{profile.bio}</p> : own && <p className="muted small-text">Add a short bio so people know what you’re into.</p>}
-    <div className="detail-grid"><div><strong>{profile.achievements.length}<small> / 3</small></strong><span>Verified badges</span></div><div><strong>{profile.stats.best_hoops_round}</strong><span>Best basketball round</span></div><div><strong>{profile.clubs?.length ?? 0}</strong><span>Clubs</span></div></div>
+    <div className="detail-grid"><div><strong>{profile.achievements.length}<small> / {Object.keys(ACHIEVEMENTS).length}</small></strong><span>Verified badges</span></div><div><strong>{profile.stats.best_hoops_round}</strong><span>Best round of five</span></div><div><strong>{profile.duel?.matches ? `${profile.duel.wins}–${profile.duel.losses}–${profile.duel.draws}` : '—'}</strong><span>{profile.duel?.rated_matches && profile.duel.rated_matches >= 3 ? `Court Duel · ${profile.duel.rating}` : 'Court Duels won–lost–drawn'}</span></div><div><strong>{profile.clubs?.length ?? 0}</strong><span>Clubs</span></div></div>
     <h3>Badges</h3><Badges list={profile.achievements} />
     {!!profile.clubs?.length && <><h3>Clubs</h3><div className="chip-row">{profile.clubs.map(c => <span key={c.id} className="chip" style={{ borderColor: c.color }}><i style={{ background: c.color }} />{c.name}{c.role !== 'member' && <small>{c.role}</small>}</span>)}</div></>}
   </div>;
@@ -43,7 +46,7 @@ export function PlayerCard({ handle }: { handle: string }) {
   if (loading && !data) return <Loading label="Loading profile…" />;
   if (error) return <Failure message={error} retry={reload} />;
   if (!data) return <div className="empty-state"><UserRound size={28} /><p>No campus profile with the handle @{handle}.</p></div>;
-  return <ProfileView profile={data} />;
+  return <><ProfileView profile={data} /><RelationshipActions profile={data} /></>;
 }
 
 function AuthForm() {
