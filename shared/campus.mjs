@@ -1,4 +1,4 @@
-import { WORLD_LIMIT, EXPANSION_LOCATIONS, EXPANSION_WALLS } from './expansion.mjs';
+import { WORLD_LIMIT, EXPANSION_LOCATIONS, EXPANSION_WALLS, ROADSIDE_TREES, BELT_TREES } from './expansion.mjs';
 import { DOORS, TABLES } from './interactions.mjs';
 export const BRAND = { name: 'CampOS', product: 'Worlds', campus: 'Òrìṣun Campus', subtitle: 'A new world. Your people.', room: 'The Courtyard' };
 // Spawn on the main avenue, facing north towards The Confluence and Horizon Auditorium.
@@ -73,7 +73,7 @@ export const COLLIDERS = [
  {x:32.6,z:12,w:.2,d:6.8,h:3.5},{x:32.6,z:35.45,w:.2,d:7.9,h:3.5},
 // Tabletops block only their own footprint (shrunk by the player radius used below).
  ...TABLES.map(t=>({x:t.x,z:t.z,w:Math.max(.1,t.w-.6),d:Math.max(.1,t.d-.6),h:.8})),
- ...TREES.map(t=>({x:t.x,z:t.z,w:t.species==='royal'||t.species==='coconut'?.5:.7,d:t.species==='royal'||t.species==='coconut'?.5:.7,h:6})),
+ ...[...TREES,...ROADSIDE_TREES,...BELT_TREES].map(t=>({x:t.x,z:t.z,w:t.species==='royal'||t.species==='coconut'?.5:.7,d:t.species==='royal'||t.species==='coconut'?.5:.7,h:6})),
 ];
 // Door state is held per process (room server or client) and updated from the authoritative world:
 // 0 = closed, +1 / -1 = open, swung towards +z / -z. A closed (or locked) door blocks its doorway.

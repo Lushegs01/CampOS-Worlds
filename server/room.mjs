@@ -123,7 +123,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    const active=Date.now()-c.lastInput<350,i=c.input;const speed=i.sprint?8:4.5,blend=1-Math.exp(-12*h);
    if(i.jump&&c.y===0)c.vy=7;i.jump=false;
    for(let k=0;k<steps;k++){c.vx+=((active?i.dx*speed:0)-c.vx)*blend;c.vz+=((active?i.dz*speed:0)-c.vz)*blend;
-    const q=moveWithCollisions(c.x,c.z,c.vx*h,c.vz*h);if(!fleet.vehicles.some(v=>vehicleContains(v,q.x,q.z)))Object.assign(c,q);c.vy-=19*h;c.y=Math.max(0,c.y+c.vy*h);if(c.y===0)c.vy=0;}
+    const q=moveWithCollisions(c.x,c.z,c.vx*h,c.vz*h),inside=v=>vehicleContains(v,q.x,q.z)&&!vehicleContains(v,c.x,c.z);if(!fleet.vehicles.some(inside))Object.assign(c,q);c.vy-=19*h;c.y=Math.max(0,c.y+c.vy*h);if(c.y===0)c.vy=0;}
    c.moving=Math.hypot(c.vx,c.vz)>.2;c.sprinting=i.sprint;if(Date.now()-c.emoteAt>3000)c.emote='';
   }
   fleet.step(dt,joined());classes.step(joined());

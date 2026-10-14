@@ -23,6 +23,7 @@ function kerbs(c: BuildContext, p: PathRect) {
       const coversLine = horizontal ? fixed + outward * w / 2 > o.z0 && fixed + outward * w / 2 < o.z1 : fixed + outward * w / 2 > o.x0 && fixed + outward * w / 2 < o.x1;
       if (coversLine) cuts.push(horizontal ? [o.x0, o.x1] : [o.z0, o.z1]);
     }
+    for (const g of p.gaps ?? []) if (p[g.edge] === fixed && (g.edge[0] === 'z') === horizontal) cuts.push([g.from, g.to]);
     const d = horizontal ? Math.abs(fixed - PLAZA.z) : Math.abs(fixed - PLAZA.x);
     if (d < PLAZA.r + .3) { const h = Math.sqrt((PLAZA.r + .3) ** 2 - d * d), center = horizontal ? PLAZA.x : PLAZA.z; cuts.push([center - h, center + h]); }
     for (const [s0, s1] of subtract(from, to, cuts)) {
@@ -66,8 +67,10 @@ export function buildHardscape(c: BuildContext) {
   c.signs.push(kit.place(sign({ text: 'THE CONFLUENCE', kind: 'letters', width: 4.2, height: .4, color: '#c19256' }), [0, .5, 3.0]));
 
   // Roads: lane markings, a zebra crossing at the gate and a speed bump on the apron.
-  for (let x = -88; x < 88; x += 6) if (Math.abs(x) > 6) kit.box('lineWhite', [x + 1.5, SURFACE_Y.asphalt + .003, 55.55], [3, .006, .14], { shadow: false });
-  for (const z of [52.1, 59.0]) kit.box('lineWhite', [0, SURFACE_Y.asphalt + .003, z], [176, .006, .12], { shadow: false });
+  for (let x = -90; x < 87; x += 9) if (Math.abs(x + 1.5) > 9) kit.box('lineWhite', [x + 1.5, SURFACE_Y.asphalt + .003, 55.55], [3, .006, .14], { shadow: false });
+  kit.box('lineWhite', [0, SURFACE_Y.asphalt + .003, 52.1], [180, .006, .12], { shadow: false });
+  // The south edge line breaks for the avenue junction and the car park.
+  for (const [a, b] of [[-90, -10], [31, 90]]) kit.box('lineWhite', [(a + b) / 2, SURFACE_Y.asphalt + .003, 59.0], [b - a, .006, .12], { shadow: false });
   for (let z = 52.4; z < 58.9; z += 1) kit.box('lineWhite', [0, SURFACE_Y.asphalt + .004, z], [3.4, .006, .5], { shadow: false });
   for (let x = -59; x < -7; x += 5) kit.box('paintYellow', [x + 1.2, SURFACE_Y.asphalt + .003, 45.75], [2.4, .006, .12], { shadow: false });
   for (let i = 0; i < 12; i++) kit.box(i % 2 ? 'paintYellow' : 'paintDark', [-5.85 + i * 1.065, SURFACE_Y.asphalt, 46.4], [1.065, .14, .5], { shadow: false });

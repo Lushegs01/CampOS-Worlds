@@ -1,4 +1,5 @@
 import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked } from '../vehicles/client';
+import { VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { QA_HOOKS } from '../qa';
 import { Suspense, useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -118,9 +119,11 @@ export default function Player() {
       driving.steer=enabled?(Number(keys.has('KeyA')||keys.has('ArrowLeft'))-Number(keys.has('KeyD')||keys.has('ArrowRight'))-input.x):0;
       driving.brake=!enabled||keys.has('Space');
       const a=occupiedAnchor(vehicle.id,occupancy.seat??0)!;player.x=a.x;player.z=a.z;player.yaw=a.yaw;root.current.position.set(a.x,.025,a.z);root.current.rotation.y=a.yaw;
-      if(!input.dragging)c.yaw+=Math.atan2(Math.sin(a.yaw+Math.PI-c.yaw),Math.cos(a.yaw+Math.PI-c.yaw))*(1-Math.exp(-dt*3));else c.yaw=input.yaw;
-      target.set(vehicle.x,1.5,vehicle.z);desired.set(vehicle.x+Math.sin(c.yaw)*9,4.7+input.pitch*3,vehicle.z+Math.cos(c.yaw)*9);
-      const f=armFraction(target,desired);desired.lerp(target,1-f);camera.position.lerp(desired,1-Math.exp(-dt*7));camera.lookAt(target);return;
+      // Chase camera settles behind the vehicle in real time (frame-rate independent); dragging looks around.
+      const real=Math.min(raw,.25);if(!input.dragging){c.yaw+=Math.atan2(Math.sin(a.yaw+Math.PI-c.yaw),Math.cos(a.yaw+Math.PI-c.yaw))*(1-Math.exp(-real*3));input.yaw=c.yaw;}else c.yaw=input.yaw;
+      // Framing scales with the vehicle: further back and higher for the shuttle than the cart.
+      const size=VEHICLE_TYPES[vehicle.type],back=4+size.length*1.2;target.set(vehicle.x,size.height*.85,vehicle.z);desired.set(vehicle.x+Math.sin(c.yaw)*back,2.6+size.height*1.3+input.pitch*3,vehicle.z+Math.cos(c.yaw)*back);
+      const f=armFraction(target,desired);desired.lerp(target,1-f);camera.position.lerp(desired,1-Math.exp(-real*7));camera.lookAt(target);return;
     }
     driving.throttle=driving.steer=0;
     // Finished standing: step onto the spot the stand-up motion ended on.
@@ -172,7 +175,8 @@ export default function Player() {
     for (let i = 0; i < steps; i++) {
       const k = steps === 1 ? blend : 1 - Math.exp(-h * 12);
       velocity.current.x += (dx * speed - velocity.current.x) * k; velocity.current.z += (dz * speed - velocity.current.z) * k;
-      const q=moveWithCollisions(player.x,player.z,velocity.current.x*h,velocity.current.z*h);if(!vehicleFootBlocked(q.x,q.z))Object.assign(player,q);
+      // Vehicles block walking into them, never walking out (someone left inside a footprint can step clear).
+      const q=moveWithCollisions(player.x,player.z,velocity.current.x*h,velocity.current.z*h);if(!vehicleFootBlocked(q.x,q.z)||vehicleFootBlocked(player.x,player.z))Object.assign(player,q);
       player.vy -= 19 * h; player.y = Math.max(0, player.y + player.vy * h); if (player.y === 0) player.vy = 0;
     }
     // Animation reads the speed actually achieved (so walking into a wall doesn't run on the spot).

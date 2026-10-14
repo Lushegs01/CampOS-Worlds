@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Navigation } from 'lucide-react';
 import { LOCATIONS } from '../../shared/campus.mjs';
-import { BUILDINGS, DISTRICTS, ROADS, PARKING, STOPS, roadRoute, EXPANSION_PATHS } from '../../shared/expansion.mjs';
+import { BUILDINGS, DISTRICTS, ROADS, PARKING, STOPS, roadRoute, EXPANSION_PATHS, COURTYARD_PARKING } from '../../shared/expansion.mjs';
 import { player, useGame } from '../state';
 import { useVehicle, vehicleVisuals } from '../vehicles/client';
 export function MapGraphic({mini=false,overview=false}:{mini?:boolean;overview?:boolean}){
@@ -12,8 +12,8 @@ export function MapGraphic({mini=false,overview=false}:{mini?:boolean;overview?:
  return <svg viewBox={`${cx-span/2} ${cz-span/2} ${span} ${span}`} role="img" aria-label="Campus map with your position" className="map-graphic">
  <rect x={-1500} y={-1500} width={3000} height={3000} fill="#dce1c8"/>
  {DISTRICTS.map(d=><g key={d.id}><circle cx={d.x} cy={d.z-30} r={100} fill={d.color} opacity=".22"/>{wide&&<text className="map-district" x={d.x} y={d.z-120} textAnchor="middle">{d.name}</text>}</g>)}
- {ROADS.map(r=><path key={r.id} d={`M${r.a.x} ${r.a.z}L${r.b.x} ${r.b.z}`} fill="none" stroke="#9aab97" strokeWidth={12}/>)}
- {PARKING.map(p=><g key={p.id}><rect x={p.x-p.w/2} y={p.z-p.d/2} width={p.w} height={p.d} fill="#9aab97"/><text x={p.x} y={p.z+2} fontSize={wide?18:5} fill="#304f40">P</text></g>)}
+ {ROADS.map(r=><path key={r.id} d={`M${r.a.x} ${r.a.z}L${r.b.x} ${r.b.z}`} fill="none" stroke="#9aab97" strokeWidth={wide?Math.max(r.width,12):r.width} strokeLinecap="square"/>)}
+ {[...PARKING,{...COURTYARD_PARKING,id:'courtyard'}].map(p=><g key={p.id}><rect x={p.x-p.w/2} y={p.z-p.d/2} width={p.w} height={p.d} fill="#9aab97"/><text x={p.x} y={p.z+2} fontSize={wide?18:5} fill="#304f40">P</text></g>)}
  {STOPS.map(p=><circle key={p.id} cx={p.x} cy={p.z} r={wide?8:2} fill="#4b7298"/>)}
  {EXPANSION_PATHS.map((p,i)=><rect key={i} x={p.x-p.w/2} y={p.z-p.d/2} width={p.w} height={p.d} fill="#f3ecd8"/>)}
  <path d="M0 50V11M0 -11V-33M-49 10H32M-30 0H30M-30 26H0" stroke="#f3ecd8" strokeWidth="7" fill="none"/><circle r="12" fill="#eee4cb"/><circle r="5" fill="#a7c4b0"/>

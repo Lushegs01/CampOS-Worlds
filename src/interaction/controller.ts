@@ -1,4 +1,4 @@
-import { vehicleInteract, useVehicle } from '../vehicles/client';
+import { vehicleInteract, useVehicle, nearestDoor } from '../vehicles/client';
 import { SEATS, SEAT_BY_ID, DOORS, POINTS as POINT_DATA, BALLS, seatApproach, SEAT_RANGE, BALL_PICKUP_RANGE } from '../../shared/interactions.mjs';
 import { LOCATIONS } from '../../shared/campus.mjs';
 import { newBall, planShot, stepBall, targetHoop } from '../../shared/ball.mjs';
@@ -216,13 +216,20 @@ function candidates(): Candidate[] {
     const label = p.kind === 'COMPUTER' ? 'Sit at computer' : p.label;
     out.push({ id: p.id, kind: 'point', label, key: 'E', score: rank(4, p.x, p.z) + 1, run: () => usePoint(p.id) });
   }
+  // Vehicles: offered at a free door (driver's door: Drive; others: Ride), ranked like any fixture.
+  const car = holding ? null : nearestDoor(useVehicle.getState().near);
+  if (car && (car.full || (car.door && car.door.d < 2.6))) {
+    const moving = Math.abs(car.v.speed) > .5, label = car.full ? 'Vehicle full' : moving ? 'Wait for it to stop' : car.door!.seat === 0 ? 'Drive' : 'Ride as passenger';
+    const at = car.door?.p ?? car.v;
+    out.push({ id: car.v.id, kind: 'vehicle', label, key: 'E', hint: car.type.name, disabled: car.full || moving, score: rank(5, at.x, at.z), run: () => { if (!car.full && !moving) vehicleInteract(); } });
+  }
   const nearby = useGame.getState().nearby, loc = LOCATIONS.find(l => l.id === nearby);
   if (loc && !holding) out.push({ id: loc.id, kind: 'location', label: loc.id === 'sports' ? 'How to play' : `Explore ${loc.name}`, key: 'E', hint: loc.type, score: rank(3, loc.x, loc.z), run: () => interact(loc.id) });
   return out;
 }
 
 export function activate() {
-  if(vehicleInteract())return;
+  if (useVehicle.getState().id) { vehicleInteract(); return; }
   if (!current) { if (activity() === 'seated') standUp(); return; }
   current.run();
 }
@@ -246,7 +253,7 @@ export function tickInteractions(dt: number) {
   if (player.sit?.phase === 'seated' && afterSit) { const panel = afterSit; afterSit = null; useGame.getState().set({ panel }); document.exitPointerLock?.(); }
   resolveMisses();
   sense -= dt; if (sense > 0) return; sense = .1;
-  const list = useVehicle.getState().id||useVehicle.getState().near ? [] : candidates(); list.sort((a, b) => b.score - a.score);
+  const list = useVehicle.getState().id ? [] : candidates(); list.sort((a, b) => b.score - a.score);
   current = list[0] ?? null;
   const ui = useInteraction.getState(), f = current ? { id: current.id, label: current.label, key: current.key, hint: current.hint ?? '', disabled: !!current.disabled } : null;
   if (JSON.stringify(f) !== JSON.stringify(ui.focus)) ui.set({ focus: f });

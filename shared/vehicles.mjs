@@ -1,12 +1,15 @@
 import { blocked } from './campus.mjs';
-import { transportSurface, DISTRICTS } from './expansion.mjs';
+import { transportSurface, DISTRICTS, COURTYARD_PARKING } from './expansion.mjs';
 export const VEHICLE_TYPES = {
- car:{name:'Campus Compact',length:4.3,width:1.8,wheelbase:2.65,height:1.65,maxSpeed:23,reverse:6,accel:4.8,brake:10,steer:.55,seats:[[-.45,.55],[.45,.55],[-.45,-.65],[.45,-.65]],seatHeight:.62},
- shuttle:{name:'Òrìṣun Shuttle',length:6.6,width:2.25,wheelbase:4.1,height:2.65,maxSpeed:17,reverse:4,accel:2.8,brake:8,steer:.43,seats:[[-.55,2],[.55,2],[-.55,.65],[.55,.65],[-.55,-.6],[.55,-.6],[-.55,-1.85],[.55,-1.85]],seatHeight:.95},
- cart:{name:'Garden Cart',length:2.7,width:1.35,wheelbase:1.8,height:1.9,maxSpeed:11,reverse:4,accel:3.8,brake:8,steer:.65,seats:[[-.34,.15],[.34,.15]],seatHeight:.6},
+ // Dimensions in metres. Seats are [x, z] hip points in the vehicle frame (+z forward, +x left):
+ // left-hand drive, as on Nigerian roads. seatHeight is the cushion height used by the seated pose.
+ car:{name:'Campus Compact',length:4.3,width:1.78,wheelbase:2.6,height:1.5,wheelRadius:.31,maxSpeed:23,reverse:6,accel:4.8,brake:10,steer:.55,seats:[[.37,-.02],[-.37,-.02],[.37,-.86],[-.37,-.86]],seatHeight:.5},
+ shuttle:{name:'Òrìṣun Shuttle',length:6.6,width:2.2,wheelbase:3.9,height:2.65,wheelRadius:.38,maxSpeed:17,reverse:4,accel:2.8,brake:8,steer:.43,seats:[[.55,2.3],[-.55,1.2],[.55,1.2],[-.55,.1],[.55,.1],[-.55,-1],[.55,-1],[-.55,-2.1]],seatHeight:1.05},
+ cart:{name:'Garden Cart',length:2.75,width:1.3,wheelbase:1.7,height:1.9,wheelRadius:.24,maxSpeed:11,reverse:4,accel:3.8,brake:8,steer:.65,seats:[[.3,-.12],[-.3,-.12]],seatHeight:.62},
 };
+// Parked nose-out in marked bays so drivers pull straight out onto the road.
 /** @type {{id:string,type:keyof typeof VEHICLE_TYPES,x:number,z:number,yaw:number}[]} */
-export const VEHICLE_SPAWNS=[{id:'courtyard-car',type:'car',x:8,z:55,yaw:Math.PI/2},...DISTRICTS.flatMap((d,i)=>[{id:`${d.id}-shuttle`,type:'shuttle',x:d.x+24,z:d.z+22,yaw:0},{id:`${d.id}-local`,type:i%2?'cart':'car',x:d.x+35,z:d.z+22,yaw:0}])];
+export const VEHICLE_SPAWNS=[{id:'courtyard-car',type:'car',x:COURTYARD_PARKING.x-4.5,z:63,yaw:Math.PI},...DISTRICTS.flatMap((d,i)=>[{id:`${d.id}-shuttle`,type:'shuttle',x:d.x+24,z:d.z+28,yaw:Math.PI},{id:`${d.id}-local`,type:i%2?'cart':'car',x:d.x+36,z:d.z+28,yaw:Math.PI}])];
 export function localPoint(v,x,z){return {x:v.x+x*Math.cos(v.yaw)+z*Math.sin(v.yaw),z:v.z-x*Math.sin(v.yaw)+z*Math.cos(v.yaw)};}
 export function seatAnchor(v,index){const t=VEHICLE_TYPES[v.type],s=t.seats[index];return {...localPoint(v,...s),y:t.seatHeight,yaw:v.yaw};}
 export function vehicleContains(v,x,z,pad=.3){const dx=x-v.x,dz=z-v.z,t=VEHICLE_TYPES[v.type],c=Math.cos(v.yaw),s=Math.sin(v.yaw);return Math.abs(dx*c-dz*s)<t.width/2+pad&&Math.abs(dx*s+dz*c)<t.length/2+pad;}
