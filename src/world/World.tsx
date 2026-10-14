@@ -61,7 +61,8 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     let d = at.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); if (!seat) g.rotation.y += d * (1 - Math.exp(-dt * 14));
     m.holding = !!peer.ball; m.release = peerRelease.get(initial.id) ?? 0;
     // Derive gait speed from the interpolated motion so remote avatars animate like the local one.
-    const moved = Math.hypot(g.position.x - m.last.x, g.position.z - m.last.z) / Math.max(dt, 1e-4); m.last.copy(g.position);
+    // Over the real frame time: dividing by the 50 ms-capped animation step made walkers run on slow devices.
+    const moved = Math.hypot(g.position.x - m.last.x, g.position.z - m.last.z) / Math.min(Math.max(raw, 1e-4), STALL); m.last.copy(g.position);
     m.speed = seat ? 0 : THREE.MathUtils.damp(m.speed, peer.moving ? moved : 0, 8, dt); m.y = peer.y; m.vy = peer.y > .05 ? 1 : 0; m.turn = d * 4;
     m.emote = peer.emote; m.emoteUntil = peer.emoteAt + 3000;
     tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);

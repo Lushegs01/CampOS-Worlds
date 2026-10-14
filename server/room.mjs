@@ -6,7 +6,7 @@ import { appendFile, mkdir } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { SPAWN, LOCATIONS, TOKENS, moveWithCollisions, sanitizeAvatar, blocked } from '../shared/campus.mjs';
 import { createWorld, packBall } from '../shared/world.mjs';
-import { stepWalker, INPUT_HOLD_MS, WALK_SPEED, SPRINT_SPEED, JUMP_SPEED } from '../shared/movement.mjs';
+import { advanceWalker, INPUT_HOLD_MS, MAX_STEP, JUMP_SPEED } from '../shared/movement.mjs';
 import { cleanText, guestName } from '../shared/text.mjs';
 import { createParties, PARTY_LIMITS } from './parties.mjs';
 import { createDuels, DUEL_RULES } from './duels.mjs';
@@ -221,7 +221,9 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(m.type==='input'&&rate('input',35)){
     if(c.vehicle)return;
     if(![m.dx,m.dz,m.yaw].every(Number.isFinite))return;
-    const length=Math.max(1,Math.hypot(m.dx,m.dz));c.input={dx:m.dx/length,dz:m.dz/length,sprint:m.sprint===true,jump:c.input.jump||m.jump===true};c.yaw=m.yaw%(Math.PI*2);c.lastInput=Date.now();
+    // Walk on to this moment with the previous input first: a new input applies from when it arrived.
+    const t=Date.now();if(c.seat)c.simAt=t;else walk(c,t);
+    const length=Math.max(1,Math.hypot(m.dx,m.dz));c.input={dx:m.dx/length,dz:m.dz/length,sprint:m.sprint===true,jump:c.input.jump||m.jump===true};c.yaw=m.yaw%(Math.PI*2);c.lastInput=t;
    }else if(m.type==='settle'&&rate('settle',3,1000)){
     // A standing player's client may nudge its server position to where it sees itself (small, walkable
     // corrections only), so range checks for seats, doors and balls agree with what the player sees.
@@ -318,15 +320,15 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  const packVehicle=v=>({...v,x:cm(v.x),z:cm(v.z),yaw:mrad(v.yaw),speed:cm(v.speed),steering:mrad(v.steering),wheel:mrad(v.wheel)});
  const sentVehicles=new Map();
  function changedVehicles(){const out=[];for(const v of fleet.snapshot()){const p=packVehicle(v),key=JSON.stringify(p);if(sentVehicles.get(v.id)!==key){sentVehicles.set(v.id,key);out.push(p);}}return out;}
+ // The last input applies for INPUT_HOLD_MS after it arrived, then the player coasts to a stop
+ // (shared/movement.mjs); vehicles block walking into them, never walking out of one's footprint.
+ const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz)));
  let last=performance.now(),tick=0;
- const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,.25);last=now;
+ const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,MAX_STEP),wall=Date.now();last=now;
   for(const c of clients.values()){if(!c.joined){if(Date.now()-c.joinedAt>10000)c.ws.close();continue;}
-   if(c.seat||c.vehicle){c.vx=c.vz=0;c.moving=false;c.input.jump=false;continue;}
-   // The last input keeps applying for INPUT_HOLD_MS, then the player stops (shared/movement.mjs).
-   const active=Date.now()-c.lastInput<INPUT_HOLD_MS,i=c.input,speed=active?(i.sprint?SPRINT_SPEED:WALK_SPEED):0;
-   if(i.jump&&c.y===0)c.vy=JUMP_SPEED;i.jump=false;
-   // Vehicles block walking into them, never walking out of one's footprint.
-   stepWalker(c,i.dx*speed,i.dz*speed,dt,(x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz)));
+   if(c.seat||c.vehicle){c.vx=c.vz=0;c.moving=false;c.input.jump=false;c.simAt=wall;continue;}
+   const i=c.input;if(i.jump&&c.y===0)c.vy=JUMP_SPEED;i.jump=false;
+   walk(c,wall);
    c.moving=Math.hypot(c.vx,c.vz)>.2;c.sprinting=i.sprint;if(Date.now()-c.emoteAt>3000)c.emote='';
   }
   fleet.step(dt,joined());classes.step(joined());

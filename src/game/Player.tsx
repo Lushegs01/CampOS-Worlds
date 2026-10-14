@@ -8,7 +8,7 @@ import Avatar from '../avatar/Avatar';
 import { AvatarBoundary } from '../avatar/AvatarBoundary';
 import { input, player, trail, useGame } from '../state';
 import { COLLIDERS, LOCATIONS, TOKENS, collidersIn } from '../../shared/campus.mjs';
-import { stepWalker, MAX_STEP, WALK_SPEED, SPRINT_SPEED, JUMP_SPEED } from '../../shared/movement.mjs';
+import { stepFrame, MAX_STEP, WALK_SPEED, SPRINT_SPEED, JUMP_SPEED } from '../../shared/movement.mjs';
 import { SEAT_BY_ID, seatApproach } from '../../shared/interactions.mjs';
 import { roomSelf, send } from '../network/client';
 import { activate, activity, beginSit, cancelApproach, cancelCharge, chargeStartedAt, drop, releaseShot, requestSit, standUp, startCharge, tickInteractions } from '../interaction/controller';
@@ -23,8 +23,12 @@ const ray = new THREE.Vector3(), side = new THREE.Vector3(), upv = new THREE.Vec
 let qaTarget: { x: number; z: number; until: number } | null = null;
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 const body = { x: 0, z: 0, y: 0, vx: 0, vz: 0, vy: 0 };
-/** Steering to a point: no faster than covers most of the distance in one more frame like the last, so slow frames don't overshoot. */
-const arrive = (d: number, frame: number) => .8 * d / Math.max(Math.min(frame, MAX_STEP), 1 / 60);
+/**
+ * Steering to a point `d` away: no faster than covers most of what is left after the next frame. Connected,
+ * a new input only takes effect after one more frame of the one already sent (the room's order), so that
+ * frame's travel is subtracted first; otherwise one slow frame carried the player past the point.
+ */
+const arrive = (d: number, frame: number, connected: boolean) => { const f = Math.max(Math.min(frame, MAX_STEP), 1 / 60), coming = connected ? Math.hypot(sentMove.x, sentMove.z) * f : 0; return Math.max(0, .8 * (d - coming) / f); };
 /** The walking velocity of the last input sent: what the room is applying until the next one arrives. */
 const sentMove = { x: 0, z: 0 };
 // Vehicles block walking into them, never walking out (someone left inside a footprint can step clear).
@@ -156,7 +160,7 @@ export default function Player() {
       else {
         const via = sit.path?.[0], a = via ?? seatApproach(seat), ex = a.x - player.x, ez = a.z - player.z, d = Math.hypot(ex, ez); sit.t += dt; sprint = false;
         if (via && d < .14) sit.path!.shift();
-        else if (via || d > .05) { dx = ex / d; dz = ez / d; speed = via ? 1.4 : Math.min(1.5, d * 3 + .3, arrive(d, raw)); scale = speed / WALK_SPEED; }
+        else if (via || d > .05) { dx = ex / d; dz = ez / d; speed = Math.min(via ? 1.4 : Math.min(1.5, d * 3 + .3), arrive(d, raw, s.status === 'connected')); scale = speed / WALK_SPEED; }
         else {
           dx = dz = 0; player.x = a.x; player.z = a.z; player.yaw = seat.yaw;
           let err = seat.yaw - root.current.rotation.y; err = Math.atan2(Math.sin(err), Math.cos(err));
@@ -168,7 +172,7 @@ export default function Player() {
     if (QA_HOOKS && qaTarget && !sit) {
       const ex = qaTarget.x - player.x, ez = qaTarget.z - player.z, d = Math.hypot(ex, ez);
       if (d < .1 || performance.now() > qaTarget.until) qaTarget = null;
-      else { dx = ex / d; dz = ez / d; sprint = false; speed = Math.min(WALK_SPEED, d * 4 + .3, arrive(d, raw)); scale = speed / WALK_SPEED; }
+      else { dx = ex / d; dz = ez / d; sprint = false; speed = Math.min(WALK_SPEED, d * 4 + .3, arrive(d, raw, s.status === 'connected')); scale = speed / WALK_SPEED; }
     }
     if (still) { dx = dz = 0; velocity.current.x = velocity.current.z = 0; }
     // Drifted out of agreement with the room while standing: glide back (any input cancels it).
@@ -184,13 +188,13 @@ export default function Player() {
     // room has been applying (the last one sent), not the one just computed: applying a new input to time
     // that had already passed weighted each input by a different frame than the room did, so on uneven
     // slow frames the two stopped up to a frame's walk apart (then glided or snapped).
-    const real = Math.min(raw, MAX_STEP), beforeX = player.x, beforeZ = player.z, connected = s.status === 'connected';
+    const beforeX = player.x, beforeZ = player.z, connected = s.status === 'connected';
     const jump = enabled && input.jump && player.y === 0 && !still && !sit; if (jump) player.vy = JUMP_SPEED;
     input.jump = false;
     const wantX = dx * speed, wantZ = dz * speed;
     if (still || !connected) { sentMove.x = wantX; sentMove.z = wantZ; }
     body.x = player.x; body.z = player.z; body.y = player.y; body.vy = player.vy; body.vx = velocity.current.x; body.vz = velocity.current.z;
-    stepWalker(body, sentMove.x, sentMove.z, real, footAllowed);
+    const real = stepFrame(body, sentMove.x, sentMove.z, raw, footAllowed);
     player.x = body.x; player.z = body.z; player.y = body.y; player.vy = body.vy; velocity.current.x = body.vx; velocity.current.z = body.vz;
     trail.push(player.x, player.z, performance.now());
     // Animation reads the speed actually achieved (so walking into a wall doesn't run on the spot).
