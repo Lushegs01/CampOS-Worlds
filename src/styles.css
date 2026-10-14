@@ -374,7 +374,7 @@
 .challenge-board li{display:flex;gap:8px;padding:3px 0}
 .challenge-board li span{width:16px;color:#8a8e7b}.challenge-board li small{margin-left:auto}
 .challenge-card .primary,.challenge-card .secondary{align-self:flex-start;margin-left:0}
-.challenge-hud{position:absolute;right:34px;top:290px;z-index:4;width:236px;border:1px solid #f1d69a66;background:#1d382fe8;backdrop-filter:blur(16px);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;color:#f4eedc;font-size:11px;animation:arrive .2s ease-out}
+.challenge-hud{position:absolute;left:35px;top:290px;z-index:4;width:236px;border:1px solid #f1d69a66;background:#1d382fe8;backdrop-filter:blur(16px);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;color:#f4eedc;font-size:11px;animation:arrive .2s ease-out}
 .challenge-hud .eyebrow{margin:0;color:#e7c382;display:inline-flex;align-items:center;gap:5px}
 .challenge-hud b{font-size:13px;font-weight:600}
 .challenge-hud small{color:#cfd5bf}
@@ -383,3 +383,6 @@
 .challenge-hud .text-button{color:#e7c382;margin:0;width:auto;align-self:flex-start}
 @media(max-width:760px){.challenge-hud{right:12px;top:auto;bottom:300px;width:170px;padding:8px 10px}.challenge-hud strong{font-size:18px}}
 @media(pointer:coarse) and (max-height:500px){.challenge-hud{bottom:auto;top:64px;right:12px}}
+/* Secondary buttons were only themed inside dialogs; drawers, cards and HUDs use them too. */
+.secondary{background:#e7e5d7;color:#3d5742;border:1px solid #345c3520}
+.duel-hud .secondary,.duel-modes .secondary,.class-prompt .secondary{background:#f0cf8e;color:#203b34;border:0}

@@ -135,3 +135,35 @@ test('room-measured achievements are limited to the ones the room can measure', 
   assert.deepEqual((await rpc(db.pool, 'record_room_achievement', { p_user: p.sub, p_achievement: 'better-together' }, SERVICE)).awarded, ['better-together']);
   assert.deepEqual((await rpc(db.pool, 'record_room_achievement', { p_user: p.sub, p_achievement: 'better-together' }, SERVICE)).awarded, []);
 });
+
+// ---------------------------------------------------------------- clubs that review members
+test('request-to-join clubs: players ask, only managers answer, and requests stay private', async () => {
+  const owner = await player('rq_'), org = await player('rqo_'), asker = await player('rqa_'), other = await player('rqx_');
+  const club = await rpc(db.pool, 'create_club', { p_name: unique('Review '), p_description: '', p_category: 'arts', p_join_policy: 'request' }, owner);
+  assert.equal(club.join_policy, 'request');
+  // An organizer (made through the normal path: join while open, then promoted).
+  await rpc(db.pool, 'update_club', { p_id: club.id, p_name: club.name, p_description: '', p_category: 'arts', p_emblem: 'spark', p_color: '#2f4b40', p_join_policy: 'open' }, owner);
+  await rpc(db.pool, 'join_club', { p_id: club.id }, org);
+  await rpc(db.pool, 'set_member_role', { p_club: club.id, p_user: org.sub, p_role: 'organizer' }, owner);
+  await rpc(db.pool, 'update_club', { p_id: club.id, p_name: club.name, p_description: '', p_category: 'arts', p_emblem: 'spark', p_color: '#2f4b40', p_join_policy: 'request' }, owner);
+  const asked = await rpc(db.pool, 'join_club', { p_id: club.id, p_message: 'I paint on weekends.' }, asker);
+  assert.equal(asked.my_role, null); assert.equal(asked.my_request, true); assert.deepEqual(asked.requests, [], 'askers do not see the queue');
+  assert.equal((await rpc(db.pool, 'join_club', { p_id: club.id }, asker)).my_request, true, 'asking twice keeps one request');
+  const asOrg = await rpc(db.pool, 'get_club', { p_id: club.id }, org);
+  assert.equal(asOrg.pending_requests, 1); assert.equal(asOrg.requests[0].message, 'I paint on weekends.');
+  assert.equal((await rpc(db.pool, 'get_club', { p_id: club.id }, other)).pending_requests, null);
+  assert.equal((await asRole(db.pool, other, 'select * from public.club_join_requests where club_id = $1', [club.id])).rowCount, 0, 'requests are private');
+  await rejects(rpc(db.pool, 'respond_join_request', { p_club: club.id, p_user: asker.sub, p_accept: true }, other), /Only the club/);
+  await rejects(rpc(db.pool, 'respond_join_request', { p_club: club.id, p_user: asker.sub, p_accept: true }, asker), /Only the club/, 'nobody approves themselves');
+  await rejects(asRole(db.pool, asker, `insert into public.club_members (club_id, user_id) values ($1, $2)`, [club.id, asker.sub]), /permission denied/);
+  // Two managers answering at once: one wins, the other is told it was already answered.
+  const answers = await Promise.allSettled([rpc(db.pool, 'respond_join_request', { p_club: club.id, p_user: asker.sub, p_accept: true }, owner), rpc(db.pool, 'respond_join_request', { p_club: club.id, p_user: asker.sub, p_accept: false }, org)]);
+  assert.equal(answers.filter(a => a.status === 'fulfilled').length, 1);
+  const decided = (await rpc(db.pool, 'get_club', { p_id: club.id }, asker));
+  assert.equal(decided.my_request, false);
+  // Declines and withdrawals.
+  const second = await player('rqb_');
+  await rpc(db.pool, 'join_club', { p_id: club.id }, second);
+  assert.equal((await rpc(db.pool, 'cancel_join_request', { p_id: club.id }, second)).my_request, false);
+  await rejects(rpc(db.pool, 'join_club', { p_id: club.id, p_message: 'x'.repeat(201) }, second), /200 characters/);
+});

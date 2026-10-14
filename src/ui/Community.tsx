@@ -248,7 +248,7 @@ function ClubView({ id }: { id: string }) {
   const revision = useCommunity(s => s.revision), changed = useCommunity(s => s.changed), show = useCommunity(s => s.show), back = useCommunity(s => s.back), member = useMember(), setGame = useGame(s => s.set);
   const me = useAccount(s => s.profile?.id);
   const { data: club, error, loading, reload } = useLoad(async () => (await svc()).club(id), [id, revision]);
-  const { pending, error: actionError, act } = useAction(), [confirm, setConfirm] = useState(false);
+  const { pending, error: actionError, act } = useAction(), [confirm, setConfirm] = useState(false), [note, setNote] = useState('');
   if (loading && !club) return <Loading label="Loading club…" />;
   if (error && !club) return <Failure message={error} retry={reload} />;
   if (!club) return <div className="empty-state"><Users size={28} /><p>This club no longer exists.</p></div>;
@@ -259,8 +259,16 @@ function ClubView({ id }: { id: string }) {
     {club.description && <p className="event-description">{club.description}</p>}
     {actionError && <p className="form-error" role="alert">{actionError}</p>}
     {member === 'member' ? (owner ? <p className="note small-text"><Crown size={14} /> You own this club.</p>
-      : <button className={club.my_role ? 'secondary wide' : 'primary wide'} disabled={pending} onClick={() => run(async () => { const s = await svc(); return club.my_role ? s.leaveClub(club.id) : s.joinClub(club.id); })}>{pending ? 'One moment…' : club.my_role ? 'Leave club' : <>Join club<ArrowRight size={15} /></>}</button>)
+      : club.my_role ? <button className="secondary wide" disabled={pending} onClick={() => run(async () => (await svc()).leaveClub(club.id))}>{pending ? 'One moment…' : 'Leave club'}</button>
+      : club.my_request ? <div className="checkin"><p className="banner going"><Clock size={15} />Request sent. The club’s owner or organizers will answer it.</p><button className="text-button" disabled={pending} onClick={() => run(async () => (await svc()).cancelJoinRequest(club.id))}>Withdraw request</button></div>
+      : club.join_policy === 'request' ? <form className="checkin" onSubmit={e => { e.preventDefault(); run(async () => (await svc()).joinClub(club.id, note.trim())); }}><label className="field">A note for the organizers <small className="muted">optional</small><input value={note} maxLength={200} onChange={e => setNote(e.target.value)} placeholder="Why you’d like to join" /></label><button className="primary wide" disabled={pending}>{pending ? 'One moment…' : <>Ask to join<ArrowRight size={15} /></>}</button><small className="muted">This club reviews new members.</small></form>
+      : <button className="primary wide" disabled={pending} onClick={() => run(async () => (await svc()).joinClub(club.id))}>{pending ? 'One moment…' : <>Join club<ArrowRight size={15} /></>}</button>)
       : <JoinPrompt what="join" />}
+    {manager && !!club.requests?.length && <><h4>Asking to join · {club.requests.length}</h4><div className="people">{club.requests.map(r => <div key={r.id} className="person-row">
+      <button className="person" onClick={() => setGame({ panel: `player:${r.handle}` })}><Portrait person={r} size={30} /><span>{r.display_name}<small>@{r.handle}{r.message ? ` · “${r.message}”` : ''}</small></span></button>
+      <span className="member-actions"><button className="text-button inline" disabled={pending} onClick={() => run(async () => (await svc()).respondJoinRequest(club.id, r.id, true))}>Approve</button>
+        <button className="icon-button" aria-label={`Decline ${r.display_name}’s request`} disabled={pending} onClick={() => run(async () => (await svc()).respondJoinRequest(club.id, r.id, false))}><X size={14} /></button></span>
+    </div>)}</div></>}
     <h4>Upcoming events</h4>
     {club.events.length ? club.events.map(e => <EventCard key={e.id} event={e} />) : <p className="muted small-text">Nothing scheduled yet.</p>}
     {manager && <button className="text-button" onClick={() => show({ kind: 'event-form', club: club.id })}><CalendarPlus size={15} />New event for {club.name}</button>}
@@ -284,7 +292,7 @@ function ClubForm({ id }: { id?: string }) {
   const existing = useLoad(async () => (id ? (await svc()).club(id) : null), [id]);
   const [form, setForm] = useState<ClubInput | null>(null), [touched, setTouched] = useState(false);
   const { pending, error, act } = useAction();
-  useEffect(() => { if (!form && !existing.loading) { const c = existing.data; setForm(c ? { name: c.name, description: c.description, category: c.category, emblem: c.emblem, color: c.color } : { name: '', description: '', category: 'community', emblem: 'spark', color: CLUB_COLORS[0] }); } }, [existing.loading, existing.data, form]);
+  useEffect(() => { if (!form && !existing.loading) { const c = existing.data; setForm(c ? { name: c.name, description: c.description, category: c.category, emblem: c.emblem, color: c.color, join_policy: c.join_policy ?? 'open' } : { name: '', description: '', category: 'community', emblem: 'spark', color: CLUB_COLORS[0], join_policy: 'open' }); } }, [existing.loading, existing.data, form]);
   if (existing.error) return <Failure message={existing.error} retry={existing.reload} />;
   if (!form) return <Loading />;
   const nameError = form.name.trim().length < 3 ? 'Club names are 3–48 characters.' : '';
@@ -303,6 +311,7 @@ function ClubForm({ id }: { id?: string }) {
     <fieldset><legend>Emblem</legend><div className="swatches">{CLUB_EMBLEMS.map(em => { const Icon = EMBLEMS[em]; return <button type="button" key={em} aria-label={`${em} emblem`} aria-pressed={form.emblem === em} className={form.emblem === em ? 'selected icon-swatch' : 'icon-swatch'} onClick={() => patch({ emblem: em })}><Icon size={16} /></button>; })}</div></fieldset>
     <fieldset><legend>Colour</legend><div className="swatches">{CLUB_COLORS.map((c, i) => <button type="button" key={c} aria-label={`Club colour ${i + 1}`} aria-pressed={form.color === c} className={form.color === c ? 'selected' : ''} style={{ background: c }} onClick={() => patch({ color: c })} />)}</div></fieldset>
     <label className="field">Description <small className="muted">{form.description.length} / 600</small><textarea rows={4} maxLength={600} value={form.description} onChange={e => patch({ description: e.target.value })} placeholder="What do you do together, and who is it for?" /></label>
+    <fieldset><legend>Who can join</legend><div className="segments" role="radiogroup">{(['open', 'request'] as const).map(p => <button type="button" key={p} role="radio" aria-checked={form.join_policy === p} className={form.join_policy === p ? 'selected' : ''} onClick={() => patch({ join_policy: p })}>{p === 'open' ? 'Anyone, straight away' : 'People you approve'}</button>)}</div></fieldset>
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="form-actions"><button type="button" className="secondary" onClick={back}>Cancel</button><button className="primary" disabled={pending}>{pending ? 'Saving…' : id ? 'Save changes' : 'Start club'}<ArrowRight size={15} /></button></div>
   </form>;

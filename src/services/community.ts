@@ -29,7 +29,9 @@ export interface CommunityService {
   createClub(input: ClubInput): Promise<ClubDetail>;
   updateClub(id: string, input: ClubInput): Promise<ClubDetail>;
   deleteClub(id: string): Promise<void>;
-  joinClub(id: string): Promise<ClubDetail>;
+  joinClub(id: string, message?: string): Promise<ClubDetail>;
+  cancelJoinRequest(id: string): Promise<ClubDetail>;
+  respondJoinRequest(club: string, user: string, accept: boolean): Promise<ClubDetail>;
   leaveClub(id: string): Promise<ClubDetail>;
   setMemberRole(club: string, user: string, role: Exclude<ClubRole, 'owner'>): Promise<ClubDetail>;
   removeMember(club: string, user: string): Promise<ClubDetail>;
@@ -102,7 +104,7 @@ const unavailable = async (): Promise<never> => { throw new ServiceError('not-co
 const unconfigured: CommunityService = {
   configured: false, session: async () => null, onSessionChange: () => () => {}, accessToken: async () => null,
   signUp: unavailable, signIn: unavailable, signOut: unavailable, myProfile: unavailable, checkHandle: unavailable, saveProfile: unavailable, profile: unavailable,
-  listClubs: unavailable, club: unavailable, createClub: unavailable, updateClub: unavailable, deleteClub: unavailable, joinClub: unavailable, leaveClub: unavailable,
+  listClubs: unavailable, club: unavailable, createClub: unavailable, updateClub: unavailable, deleteClub: unavailable, joinClub: unavailable, leaveClub: unavailable, cancelJoinRequest: unavailable, respondJoinRequest: unavailable,
   setMemberRole: unavailable, removeMember: unavailable, listEvents: unavailable, event: unavailable, createEvent: unavailable, updateEvent: unavailable,
   setEventStatus: unavailable, deleteEvent: unavailable, rsvp: unavailable, cancelRsvp: unavailable,
   searchPlayers: unavailable, socialOverview: unavailable, sendFriendRequest: unavailable, respondFriendRequest: unavailable, cancelFriendRequest: unavailable,
@@ -140,7 +142,7 @@ function supabaseService(client: SupabaseClient): CommunityService {
     }
     throw new ServiceError('auth', 'Your session has expired. Please sign in again.');
   }
-  const clubArgs = (input: ClubInput) => ({ p_name: input.name, p_description: input.description, p_category: input.category, p_emblem: input.emblem, p_color: input.color });
+  const clubArgs = (input: ClubInput) => ({ p_name: input.name, p_description: input.description, p_category: input.category, p_emblem: input.emblem, p_color: input.color, p_join_policy: input.join_policy });
   const eventArgs = (input: EventInput) => ({ p_title: input.title, p_description: input.description, p_category: input.category, p_location: input.location, p_starts_at: input.starts_at, p_ends_at: input.ends_at, p_capacity: input.capacity, p_template: input.template ?? null });
   let explicit = false;
   return {
@@ -185,7 +187,9 @@ function supabaseService(client: SupabaseClient): CommunityService {
     createClub: input => call<ClubDetail>('create_club', clubArgs(input), 'object'),
     updateClub: (id, input) => call<ClubDetail>('update_club', { p_id: id, ...clubArgs(input) }, 'object'),
     deleteClub: async id => { await call('delete_club', { p_id: id }, 'object'); },
-    joinClub: id => call<ClubDetail>('join_club', { p_id: id }, 'object'),
+    joinClub: (id, message = '') => call<ClubDetail>('join_club', { p_id: id, p_message: message }, 'object'),
+    cancelJoinRequest: id => call<ClubDetail>('cancel_join_request', { p_id: id }, 'object'),
+    respondJoinRequest: (club, user, accept) => call<ClubDetail>('respond_join_request', { p_club: club, p_user: user, p_accept: accept }, 'object'),
     leaveClub: id => call<ClubDetail>('leave_club', { p_id: id }, 'object'),
     setMemberRole: (club, user, role) => call<ClubDetail>('set_member_role', { p_club: club, p_user: user, p_role: role }, 'object'),
     removeMember: (club, user) => call<ClubDetail>('remove_member', { p_club: club, p_user: user }, 'object'),

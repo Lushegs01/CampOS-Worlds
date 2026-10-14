@@ -38,9 +38,11 @@ export const CLUB_COLORS = ['#2f4b40', '#506b96', '#b05f49', '#7a4f9a', '#c9a24a
 export interface Club {
   id: string; name: string; description: string; category: ClubCategory; emblem: ClubEmblem; color: string; created_at: string;
   owner: ProfileBrief | null; member_count: number; upcoming_count: number; my_role: ClubRole | null;
+  /** 'open': join at once; 'request': the owner or organizers approve each new member. */
+  join_policy?: 'open' | 'request'; my_request?: boolean; pending_requests?: number | null;
 }
-export interface ClubDetail extends Club { members: (ProfileBrief & { role: ClubRole; joined_at: string })[]; events: CampusEvent[] }
-export interface ClubInput { name: string; description: string; category: ClubCategory; emblem: ClubEmblem; color: string }
+export interface ClubDetail extends Club { members: (ProfileBrief & { role: ClubRole; joined_at: string })[]; events: CampusEvent[]; requests?: (ProfileBrief & { message: string; created_at: string })[] }
+export interface ClubInput { name: string; description: string; category: ClubCategory; emblem: ClubEmblem; color: string; join_policy: 'open' | 'request' }
 export interface ClubFilter { search?: string; category?: ClubCategory | null; mine?: boolean; limit?: number; offset?: number }
 
 export const EVENT_CATEGORIES = ['social', 'academic', 'sports', 'arts', 'career', 'wellbeing', 'club'] as const;

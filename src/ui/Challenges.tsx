@@ -8,6 +8,7 @@ import { communityConfigured, getCommunityService } from '../services/community'
 import { cancelChallenge, remaining, startChallenge, useChallenge } from '../challenges/store';
 import { bearing, distanceLabel } from '../social/places';
 import { Loading, useLoad } from './async';
+import { useCommunity } from '../community/store';
 
 const seconds = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
 function useTick(ms: number, on = true) { const [, t] = useState(0); useEffect(() => { if (!on) return; const i = setInterval(() => t(n => n + 1), ms); return () => clearInterval(i); }, [ms, on]); }
@@ -37,7 +38,7 @@ export function Challenges() {
         <ol className="checkpoints">{ch.checkpoints.map((c, i) => <li key={c.id} className={mine && i < run!.next ? 'done' : mine && i === run!.next ? 'next' : ''}>{c.name}</li>)}</ol>
         <Board id={ch.id} />
         {mine ? <button className="secondary" onClick={() => void cancelChallenge()}><X size={14} />Cancel run</button>
-          : <><button className="primary" disabled={!!blocker} onClick={() => void startChallenge(ch.id)}><Flag size={14} />Start {ch.name}</button>{blocker && <small className="muted">{blocker}</small>}</>}
+          : <><button className="primary" disabled={!!blocker} onClick={() => void startChallenge(ch.id).then(ok => { if (ok) useCommunity.getState().toggle(false); })}><Flag size={14} />Start {ch.name}</button>{blocker && <small className="muted">{blocker}</small>}</>}
       </section>; })}
   </div>;
 }
