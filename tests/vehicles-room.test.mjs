@@ -1,0 +1,15 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {WebSocket} from 'ws';
+import {createRoom} from '../server/room.mjs';
+import {localPoint,seatAnchor} from '../shared/vehicles.mjs';
+const next=(ws,predicate)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{ws.off('message',read);reject(Error('Room message timeout'));},5000);function read(raw){const m=JSON.parse(raw);if(predicate(m)){clearTimeout(timer);ws.off('message',read);resolve(m);}}ws.on('message',read);});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function join(url,name){const ws=new WebSocket(url,{origin:'http://localhost:5173'});await new Promise((r,j)=>{ws.once('open',r);ws.once('error',j);});const welcome=next(ws,m=>m.type==='welcome');ws.send(JSON.stringify({type:'join',name}));return {ws,...await welcome,send:m=>ws.send(JSON.stringify(m))};}
+test('real WebSockets: competing drivers, passenger sync, forged updates, stale controls, safe exit and disconnect',async()=>{const room=createRoom({port:0}),address=await room.start();let a,b;try{
+ a=await join(`ws://127.0.0.1:${address.port}/ws`,'Driver');b=await join(`ws://127.0.0.1:${address.port}/ws`,'Passenger');const car=room.fleet.vehicles[0],pa=room.clients.get(a.id),pb=room.clients.get(b.id);const door=localPoint(car,-1.6,.55);Object.assign(pa,door);Object.assign(pb,door);
+ const ar=next(a.ws,m=>m.type==='vehicleResult'),br=next(b.ws,m=>m.type==='vehicleResult');a.send({type:'vehicleEnter',id:car.id,seat:0});b.send({type:'vehicleEnter',id:car.id,seat:0});const answers=await Promise.all([ar,br]);assert.equal(answers.filter(r=>r.ok).length,1);const driver=answers[0].ok?a:b,passenger=answers[0].ok?b:a,pp=room.clients.get(passenger.id);Object.assign(pp,localPoint(car,1.6,.55));const entered=next(passenger.ws,m=>m.type==='vehicleResult');passenger.send({type:'vehicleEnter',id:car.id,seat:1});assert.equal((await entered).ok,true);
+ passenger.send({type:'vehicleInput',throttle:1,steer:0,x:900,z:900});await sleep(150);assert.equal(car.speed,0);const before=car.x;const timer=setInterval(()=>driver.send({type:'vehicleInput',throttle:1,steer:0,x:900,z:900}),50);await sleep(900);clearInterval(timer);assert.ok(car.x>before+1);assert.ok(car.x<20);const snap=await next(passenger.ws,m=>m.type==='state');const remote=snap.players.find(p=>p.id===passenger.id),v=snap.vehicles.find(v=>v.id===car.id),anchor=seatAnchor(v,1);assert.ok(Math.hypot(remote.x-anchor.x,remote.z-anchor.z)<.001);
+ const seatedPos={x:pp.x,z:pp.z};passenger.send({type:'input',dx:1,dz:1,yaw:0,jump:true});passenger.send({type:'settle',x:900,z:900});await sleep(100);assert.equal(pp.y,0);assert.ok(pp.x<30);await sleep(1300);assert.equal(car.speed,0);
+ const exit=next(passenger.ws,m=>m.type==='vehicleResult');passenger.send({type:'vehicleExit'});assert.equal((await exit).ok,true);driver.ws.close();await next(passenger.ws,m=>m.type==='state'&&m.vehicles.find(v=>v.id===car.id).occupants[0]===null);assert.equal(car.speed,0);assert.equal(car.occupants[1],null);
+ }finally{a?.ws.close();b?.ws.close();await room.close();}});

@@ -10,7 +10,7 @@ export type Result = { ok: boolean; reason?: string; x?: number; z?: number; sho
 export type WorldEvent = { type: string; ball?: string; hoop?: string; by?: string; points?: number; distance?: number; shot?: number; kind?: string; speed?: number };
 
 /** Local actor in the shared rules' terms. */
-export const me = { id: 'local', get x() { return player.x; }, set x(v: number) { player.x = v; }, get z() { return player.z; }, set z(v: number) { player.z = v; }, get y() { return player.y; }, get yaw() { return player.yaw; }, set yaw(v: number) { player.yaw = v; }, seat: null as string | null, ball: null as string | null, vx: 0, vz: 0 };
+export const me = { id: 'local', get x() { return player.x; }, set x(v: number) { player.x = v; }, get z() { return player.z; }, set z(v: number) { player.z = v; }, get y() { return player.y; }, set y(v: number) { player.y=v; }, get yaw() { return player.yaw; }, set yaw(v: number) { player.yaw = v; }, vehicle:null as string|null, vehicleSeat:null as number|null, seat: null as string | null, ball: null as string | null, vx: 0, vz: 0 };
 
 // React-visible slice for prompts and HUDs (the 3D scene reads `world` directly every frame).
 interface InteractionUi {

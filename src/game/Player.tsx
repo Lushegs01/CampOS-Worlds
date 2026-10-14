@@ -1,3 +1,4 @@
+import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked } from '../vehicles/client';
 import { QA_HOOKS } from '../qa';
 import { Suspense, useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -66,6 +67,7 @@ export default function Player() {
       if (s.phase !== 'playing' || s.panel) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); keys.add(e.code);
       const act = activity();
+      if(useVehicle.getState().id&&['Space','KeyQ',...MOVE_KEYS].includes(e.code))return;
       // Space shoots while holding a ball; otherwise it jumps (latched so a quick tap is never lost
       // between two slow frames). E performs the one action on screen; Q drops the ball.
       if (e.code === 'Space' && !e.repeat) { if (act === 'holding') startCharge(); else if (act === 'free' || act === 'busy') input.jump = true; }
@@ -87,7 +89,7 @@ export default function Player() {
       scene: () => gl.domElement,
       teleport: (x: number, z: number, yaw = 0, pitch = .04, zoom = 5.4) => { if (player.sit) return; player.x = x; player.z = z; player.y = 0; player.vy = 0; input.yaw = yaw; input.pitch = pitch; cam.current.zoom = zoom; cam.current.arm = zoom; cam.current.yaw = yaw; cam.current.intro = 1; player.yaw = yaw + Math.PI; },
       activate, standUp, drop, startCharge, releaseShot, sit: (id: string) => beginSit(id),
-      walkTo: (x: number, z: number) => { qaTarget = { x, z, until: performance.now() + 30000 }; }, walking: () => !!qaTarget,
+      walkTo: (x: number, z: number) => { qaTarget = { x, z, until: performance.now() + 120000 }; }, walking: () => !!qaTarget,
       focus: () => useInteraction.getState().focus,
       state: () => ({ activity: activity(), x: player.x, z: player.z, room: { ...roomSelf }, y: player.y, yaw: player.yaw, sit: player.sit && { ...player.sit }, holding: player.holding, charge: player.charge, ui: { ...useInteraction.getState(), set: undefined }, world: world.snapshot() }),
       face: (yaw: number) => { player.yaw = yaw; input.yaw = yaw + Math.PI; cam.current.yaw = input.yaw; },
@@ -109,6 +111,18 @@ export default function Player() {
     root.current.visible = true;
     const enabled = !s.panel && !document.hidden;
     tickInteractions(dt);
+    const vehicle=currentVehicle(),occupancy=useVehicle.getState();
+    if(vehicle){
+      velocity.current.x=velocity.current.z=0;input.jump=false;player.y=player.vy=player.speed=0;player.moving=false;
+      driving.throttle=enabled?(Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-input.z):0;
+      driving.steer=enabled?(Number(keys.has('KeyA')||keys.has('ArrowLeft'))-Number(keys.has('KeyD')||keys.has('ArrowRight'))-input.x):0;
+      driving.brake=!enabled||keys.has('Space');
+      const a=occupiedAnchor(vehicle.id,occupancy.seat??0)!;player.x=a.x;player.z=a.z;player.yaw=a.yaw;root.current.position.set(a.x,.025,a.z);root.current.rotation.y=a.yaw;
+      if(!input.dragging)c.yaw+=Math.atan2(Math.sin(a.yaw+Math.PI-c.yaw),Math.cos(a.yaw+Math.PI-c.yaw))*(1-Math.exp(-dt*3));else c.yaw=input.yaw;
+      target.set(vehicle.x,1.5,vehicle.z);desired.set(vehicle.x+Math.sin(c.yaw)*9,4.7+input.pitch*3,vehicle.z+Math.cos(c.yaw)*9);
+      const f=armFraction(target,desired);desired.lerp(target,1-f);camera.position.lerp(desired,1-Math.exp(-dt*7));camera.lookAt(target);return;
+    }
+    driving.throttle=driving.steer=0;
     // Finished standing: step onto the spot the stand-up motion ended on.
     if (player.sit?.phase === 'done') { const exit = player.sit.exit; if (exit) { player.x = exit.x; player.z = exit.z; } player.sit = null; velocity.current.x = velocity.current.z = 0; }
     const act = activity(), sit = player.sit, seat = sit ? SEAT_BY_ID.get(sit.seat) : undefined;
@@ -158,7 +172,7 @@ export default function Player() {
     for (let i = 0; i < steps; i++) {
       const k = steps === 1 ? blend : 1 - Math.exp(-h * 12);
       velocity.current.x += (dx * speed - velocity.current.x) * k; velocity.current.z += (dz * speed - velocity.current.z) * k;
-      Object.assign(player, moveWithCollisions(player.x, player.z, velocity.current.x * h, velocity.current.z * h));
+      const q=moveWithCollisions(player.x,player.z,velocity.current.x*h,velocity.current.z*h);if(!vehicleFootBlocked(q.x,q.z))Object.assign(player,q);
       player.vy -= 19 * h; player.y = Math.max(0, player.y + player.vy * h); if (player.y === 0) player.vy = 0;
     }
     // Animation reads the speed actually achieved (so walking into a wall doesn't run on the spot).

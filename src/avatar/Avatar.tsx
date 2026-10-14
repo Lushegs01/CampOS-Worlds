@@ -22,7 +22,7 @@ export const loadCharacterManifest = (): Promise<Manifest> => manifest ??= fetch
 
 export interface AvatarMotion {
   speed: number; y: number; vy: number; emote?: string; emoteUntil?: number; turn?: number;
-  sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
+  vehicleSeatHeight?:number|null; sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
 }
 
 const LOCO = ['walk', 'jog', 'run'] as const;
@@ -239,7 +239,8 @@ export default function Avatar({ config, motion, preview = false, id }: { config
 
   useFrame(({ clock }, raw) => {
     const dt = Math.min(raw, .05), m = motion?.() ?? { speed: 0, y: 0, vy: 0 }, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;
-    const sit = preview ? null : m.sit ?? null, seat = sit ? SEAT_BY_ID.get(sit.seat) : undefined;
+    const inVehicle=m.vehicleSeatHeight!=null;
+    const sit = inVehicle ? {seat:'vehicle',phase:'seated',t:0} as SitState : preview ? null : m.sit ?? null, seat = inVehicle ? {id:'vehicle',y:m.vehicleSeatHeight!,table:true,pull:0} : sit ? SEAT_BY_ID.get(sit.seat) : undefined;
     const seated = !!(sit && seat && (sit.phase === 'down' || sit.phase === 'seated' || sit.phase === 'up'));
     const speed = preview || seated ? 0 : m.speed;
 

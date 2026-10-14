@@ -1,8 +1,10 @@
+import { WORLD_LIMIT, EXPANSION_LOCATIONS, EXPANSION_WALLS } from './expansion.mjs';
 import { DOORS, TABLES } from './interactions.mjs';
 export const BRAND = { name: 'CampOS', product: 'Worlds', campus: 'Òrìṣun Campus', subtitle: 'A new world. Your people.', room: 'The Courtyard' };
 // Spawn on the main avenue, facing north towards The Confluence and Horizon Auditorium.
 export const SPAWN = { x: 0, y: 0, z: 36 };
 export const LOCATIONS = [
+ ...EXPANSION_LOCATIONS,
  {id:'orientation',name:'Welcome Pavilion',type:'Orientation',x:-12,z:26,icon:'compass',description:'Your first steps, made a little easier.'},
  {id:'landmark',name:'The Confluence',type:'Landmark',x:0,z:8,icon:'sparkles',description:'Different paths. A shared future.'},
  {id:'library',name:'Adunni Learning Commons',type:'Library',x:-24.5,z:-1.6,icon:'book',description:'Room for your next big idea.'},
@@ -29,7 +31,7 @@ export const TREES = [
  // Around the library, student house and the north walk.
  {x:-44,z:-2,species:'neem',s:.9},{x:-14,z:-34,species:'flamboyant',s:.9},{x:22,z:-28,species:'neem',s:.95},{x:-26,z:-33,species:'terminalia',s:1},
  {x:48,z:-1,species:'flamboyant',s:1.05},{x:58,z:6,species:'mango',s:1.1},{x:61,z:-22,species:'terminalia',s:1.1},{x:-64,z:-30,species:'mango',s:1.05},
- {x:-66,z:22,species:'terminalia',s:1},{x:-62,z:44,species:'mango',s:1.1},{x:63,z:30,species:'neem',s:1},{x:64,z:56,species:'terminalia',s:.9},
+ {x:-66,z:22,species:'terminalia',s:1},{x:-62,z:44,species:'mango',s:1.1},{x:63,z:30,species:'neem',s:1},{x:64,z:72,species:'terminalia',s:.9},
  // Palms around the courts, café and gardens.
  {x:30,z:8,species:'coconut',s:1},{x:34,z:-23,species:'coconut',s:.95},{x:56,z:12,species:'coconut',s:1.05},{x:57,z:36,species:'coconut',s:.95},
  {x:-27,z:-30,species:'coconut',s:1},{x:-9,z:-30,species:'coconut',s:1.05},{x:9,z:-31,species:'coconut',s:.95},{x:-44,z:8,species:'coconut',s:1},
@@ -48,6 +50,8 @@ const LIBRARY = [
  {x:-22.5,z:-7.5,w:3.1,d:.95,h:1.1},{x:-20.95,z:-8.4,w:.95,d:1.9,h:1.1},{x:-30,z:-23.2,w:2.2,d:.7,h:1},
 ];
 export const COLLIDERS = [
+ ...EXPANSION_WALLS,
+ {x:0,z:-64.6,w:139.2,d:.4,h:2.7},{x:-69.6,z:-7.3,w:.4,d:114.6,h:2.7},{x:69.6,z:-7.3,w:.4,d:114.6,h:2.7},
  ...LIBRARY,
  // The Student House: kitchen block behind an enterable café (front glazing either side of the door).
  {x:30,z:-16.15,w:25,d:7.7,h:9},{x:17.8,z:-8.25,w:.6,d:8.1,h:9},{x:42.2,z:-8.25,w:.6,d:8.1,h:9},
@@ -78,7 +82,10 @@ export function setDoorOpen(id,open){const d=DOORS.find(x=>x.id===id);if(!d||d.l
 const hit=(b,x,z,r)=>Math.abs(x-b.x)<b.w/2+r&&Math.abs(z-b.z)<b.d/2+r;
 /** Body radius for walking: about shoulder width, so a 1 m doorway leaves a comfortable 40 cm. */
 export const PLAYER_RADIUS=.3;
-export function blocked(x,z,r=PLAYER_RADIUS){return !Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>69||Math.abs(z)>64||COLLIDERS.some(b=>hit(b,x,z,r))||DOORS.some(d=>!doorOpen[d.id]&&hit(d.collider,x,z,r));}
+const collisionGrid=new Map();
+for(const b of COLLIDERS)for(let ix=Math.floor((b.x-b.w/2)/32);ix<=Math.floor((b.x+b.w/2)/32);ix++)for(let iz=Math.floor((b.z-b.d/2)/32);iz<=Math.floor((b.z+b.d/2)/32);iz++){const key=ix+','+iz;if(!collisionGrid.has(key))collisionGrid.set(key,[]);collisionGrid.get(key).push(b);}
+function hitsStatic(x,z,r){for(let ix=Math.floor((x-r)/32);ix<=Math.floor((x+r)/32);ix++)for(let iz=Math.floor((z-r)/32);iz<=Math.floor((z+r)/32);iz++)if(collisionGrid.get(ix+','+iz)?.some(b=>hit(b,x,z,r)))return true;return false;}
+export function blocked(x,z,r=PLAYER_RADIUS){return !Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>WORLD_LIMIT||Math.abs(z)>WORLD_LIMIT||hitsStatic(x,z,r)||DOORS.some(d=>!doorOpen[d.id]&&hit(d.collider,x,z,r));}
 const SLIP=[.05,-.05,.1,-.1];
 export function moveWithCollisions(x,z,dx,dz){
  const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.18));
