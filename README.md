@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://localhost:5173/**. This starts Vite on 5173 and the real-time room on 3001. Open the same URL in two independent browser windows/contexts to see live presence and chat. Each tab has a session-scoped identity. Use a new independent tab, not a browser's cloned session, if the room reports “session in use.”
+Open **http://localhost:5173/**. This starts Vite on 5173 and the real-time room on 3001. Open the same URL in two independent browser windows/contexts to see live presence and chat. Each tab has a session-scoped identity. A duplicated tab copies that session: the newer tab takes it over and the older one stops with “session in use”, so open a new independent tab to be two players.
 
 ```sh
 npm run build       # TypeScript check and production bundle
@@ -105,11 +105,11 @@ docs/               Core integration, deployment, validation and screenshots
 
 Vite + React + TypeScript + React Three Fiber + Three.js + Zustand. No server rendering is needed for the game; the interface is separate from the WebGL scene. Static meshes merge by material, repeated vegetation uses instancing, and avatars interpolate remote updates. Characters (Microsoft Rocketbox, MIT) and textures and props (Poly Haven, CC0) are converted and served locally; see [asset provenance](docs/ASSETS.md). The full campus is compact, rather than streamed in chunks. The scene module loads asynchronously with a loading state.
 
-The server simulates movement at 30 Hz and broadcasts at 15 Hz. Clients send direction/jump inputs, never accepted absolute positions. Shared AABB collision sweeps stop tunnelling; the camera shortens its follow arm against building bounds. Important location/collectible requests require server-side proximity. Both sides integrate real elapsed time in short substeps. A standing client that drifts 0.9–2 m from the room glides back to it; beyond two metres it snaps. There is no rewind/replay reconciliation.
+The server simulates movement at 30 Hz and broadcasts at 15 Hz. Clients send direction/jump inputs, never accepted absolute positions. Shared AABB collision sweeps stop tunnelling; the camera shortens its follow arm against building bounds. Important location/collectible requests require server-side proximity, and seats and balls must also be reachable on foot (never through a wall or fence). Both sides walk the same timeline with one shared module (`shared/movement.mjs`): an input applies from when it was sent or arrived until the next one, for at most 350 ms, then the player coasts to a stop, so slow and uneven frames on a weak phone do not make the room and the player disagree. Drift is measured against the path the player walked in the last 1.5 s (the room's view lags by the network delay): beyond two metres off that path the client snaps to the room; a standing client 0.9–2 m away glides back to it; under 0.9 m a walkable settle request corrects the room. Remote players are drawn 110 ms in the past, interpolated between snapshots stamped with the room's clock. There is no rewind/replay reconciliation.
 
 ## Multiplayer and moderation
 
-This is one in-memory campus room. It contains actual connected clients, not NPCs masquerading as players. The server limits payloads, normalizes input, validates cosmetics, enforces chat/emote/report budgets, checks origin/invitation, disconnects stale peers, and supports reconnects.
+This is one in-memory campus room. It contains actual connected clients, not NPCs masquerading as players. The server limits payloads, reads every client value with type checks (a fuzz test sends malformed messages of every type), normalizes input, validates cosmetics, enforces chat/emote/report budgets, checks origin/invitation and disconnects stale peers. A session that reconnects (a reload, or a phone changing networks before the room has noticed the old connection drop) takes its place back: the newest connection replaces the old one, and the player resumes where the room last had them, standing, for 45 seconds after leaving.
 
 Room chat and party chat are separate, labelled channels; private messages are a third, persistent channel in the Friends drawer and never appear in the chat panel. Account-level blocks are enforced by the room for chat and invitations in both directions. Guests cannot take staff-like names or fake the ✓ that marks signed-in players, and hidden direction-override characters are stripped from names and messages. Parties (up to 6, invite-only, 45-second reconnect grace) and meet-up travel live in the room's memory ([details](docs/SOCIAL.md)).
 
@@ -131,7 +131,13 @@ node tests/browser-community.mjs         # clubs and events, against a local sta
 node tests/browser-social-accounts.mjs   # friends, private messages, parties, blocking (two browsers)
 node tests/browser-duel.mjs              # Court Duel, rated result and rankings (two browsers)
 node tests/browser-activities.mjs        # check-in, challenges, titles, friends-only profiles, phone
+node tests/browser-reliability.mjs       # a failed character download, a silently dropped connection, a duplicated tab
+node tests/browser-smoke.mjs             # welcome, avatar editor, walking, settings, phone layout
+PERF_LABEL=after node tests/browser-mobile-performance.mjs   # phone-viewport benchmark (PERF_BOTS=n adds players)
+SOAK_SECONDS=300 node tests/browser-soak.mjs                 # GPU memory while players come and go
 ```
+
+All browser suites use `tests/support/browser.mjs`: the installed Chrome and GPU on Windows, Chromium with SwiftShader elsewhere (with a low QA render scale, so the interface stays responsive without a GPU).
 
 The last three run on machines without a GPU (software WebGL) by rendering the 3D view at low resolution through a QA-only `?qa-scale=` option; the interface is unchanged.
 

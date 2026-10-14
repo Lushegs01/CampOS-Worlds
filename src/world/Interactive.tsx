@@ -49,7 +49,7 @@ export function Doors({ lib, distance }: { lib: Materials; distance: number }) {
   }), [lib]);
   useEffect(() => { const off = doors.map(s => registerMovingCaster(s.group)); return () => off.forEach(f => f()); }, [doors]);
   useFrame(({ camera }, raw) => {
-    const dt = Math.min(raw, .05);
+    const dt = Math.min(raw, .25); // real time on slow frames (a 50 ms cap slowed doors and balls below 20 FPS)
     for (const s of doors) {
       s.group.visible = Math.hypot(camera.position.x - s.d.x, camera.position.z - s.d.z) < distance;
       const open = doorOpen[s.d.id] ?? 0;
@@ -135,7 +135,7 @@ export function Balls() {
   const tmp = useMemo(() => ({ target: new THREE.Vector3(), axis: new THREE.Vector3(), q: new THREE.Quaternion(), up: new THREE.Vector3(0, 1, 0) }), []);
   useEffect(() => { const off = balls.map(v => registerMovingCaster(v.mesh)); return () => off.forEach(f => f()); }, [balls]);
   useFrame((_, raw) => {
-    const dt = Math.min(raw, .05);
+    const dt = Math.min(raw, .25); // real time on slow frames (a 50 ms cap slowed doors and balls below 20 FPS)
     tickWorld(dt);
     for (const v of balls) {
       const b = world.balls.find(x => x.id === v.id)!; if (!b) continue;

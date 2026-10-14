@@ -45,7 +45,7 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
   const motion = useRef<AvatarMotion & { last: THREE.Vector3; yaw: number }>({ speed: 0, y: 0, vy: 0, turn: 0, last: new THREE.Vector3(peer.x, 0, peer.z), yaw: peer.yaw, sit: peer.seat ? { seat: peer.seat, phase: 'seated', t: 0 } : null });
   useFrame(({ camera }, raw) => {
     const peer = livePeers.get(initial.id) ?? initial;
-    const dt = Math.min(raw, .05), g = group.current, m = motion.current;
+    const dt = Math.min(raw, .25), g = group.current, m = motion.current;
     // Seat state is replicated; the sit-down / stand-up motion itself plays locally.
     if (peer.seat && m.sit?.seat !== peer.seat) m.sit = { seat: peer.seat, phase: 'down', t: 0 } as SitState;
     else if (!peer.seat && m.sit && (m.sit.phase === 'down' || m.sit.phase === 'seated')) m.sit.phase = 'up';

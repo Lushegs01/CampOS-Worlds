@@ -116,7 +116,7 @@ export default function Player() {
   }, [gl]);
 
   useFrame(({ camera, clock }, raw) => {
-    const dt = Math.min(raw, .05), s = useGame.getState(), c = cam.current;
+    const dt = Math.min(raw, .25), s = useGame.getState(), c = cam.current;
     if (s.phase === 'welcome') {
       // Slow establishing shot across the courtyard towards the auditorium.
       const t = s.reducedMotion ? 0 : clock.elapsedTime * .04;

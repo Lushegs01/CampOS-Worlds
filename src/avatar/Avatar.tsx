@@ -256,7 +256,9 @@ export default function Avatar({ config, motion, preview = false, id }: { config
   useEffect(() => { if (!id) return; avatars.set(id, anchor); return () => { if (avatars.get(id) === anchor) avatars.delete(id); }; }, [id, anchor]);
 
   useFrame(({ clock, camera }, raw) => {
-    const dt = Math.min(raw, .05), m = motion?.() ?? { speed: 0, y: 0, vy: 0 }, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;
+    // Real time, up to a quarter second a frame: a 50 ms cap played every animation (and the sit-down and
+    // stand-up that gate actions) in slow motion below 20 FPS, ten times slower at 2 FPS.
+    const dt = Math.min(raw, .25), m = motion?.() ?? { speed: 0, y: 0, vy: 0 }, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;
     const inVehicle=m.vehicleSeatHeight!=null;
     const sit = inVehicle ? {seat:'vehicle',phase:'seated',t:0} as SitState : preview ? null : m.sit ?? null, seat = inVehicle ? {id:'vehicle',y:m.vehicleSeatHeight!,table:true,pull:0} : sit ? SEAT_BY_ID.get(sit.seat) : undefined;
     const seated = !!(sit && seat && (sit.phase === 'down' || sit.phase === 'seated' || sit.phase === 'up'));
