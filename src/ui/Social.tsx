@@ -211,7 +211,8 @@ function MessagesTab() {
 
 // ---------------------------------------------------------------- party
 function PartyMemberRow({ m, leading }: { m: PartyMember; leading: boolean }) {
-  const me = m.id === selfConnection(), where = useWhere(me ? null : m.id);
+  const me = m.id === selfConnection(), where = useWhere(me ? null : m.id), [removing, setRemoving] = useState(false);
+  if (removing && m.id) return <Confirm text={`Remove ${m.name} from the party? They can be invited again.`} action="Remove" onCancel={() => setRemoving(false)} onConfirm={() => { setRemoving(false); void kickFromParty(m.id!); }} />;
   return <div className="person-row party-row">
     <span className={`party-dot${m.away ? ' away' : ''}`} aria-hidden="true" />
     <span className="person-name"><b>{m.name}{m.verified && <Shield size={11} aria-label="signed-in player" />}{m.leader && <Crown size={12} aria-label="party leader" />}</b>
@@ -220,7 +221,7 @@ function PartyMemberRow({ m, leading }: { m: PartyMember; leading: boolean }) {
       <button className="icon-button" aria-label={`Show ${m.name} on the map`} title="Find" onClick={() => findPlayer(m.id!, m.name)}><LocateFixed size={16} /></button>
       <button className="icon-button" aria-label={`Travel to ${m.name}`} title="Meet up" onClick={() => meetUp(m.id!)}><Navigation size={16} /></button>
       {leading && <><button className="icon-button" aria-label={`Make ${m.name} party leader`} title="Make leader" onClick={() => void promoteInParty(m.id!)}><Crown size={15} /></button>
-        <button className="icon-button" aria-label={`Remove ${m.name} from the party`} title="Remove" onClick={() => void kickFromParty(m.id!)}><UserMinus size={15} /></button></>}
+        <button className="icon-button" aria-label={`Remove ${m.name} from the party`} title="Remove" onClick={() => setRemoving(true)}><UserMinus size={15} /></button></>}
     </span>}
   </div>;
 }

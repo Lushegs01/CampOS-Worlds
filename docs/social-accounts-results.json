@@ -1,7 +1,8 @@
 {
-  "when": "2026-10-14T14:18:52.658Z",
+  "when": "2026-10-14T15:05:33.166Z",
   "results": [
     "Two signed-in players in independent browser contexts see each other’s verified presence",
+    "Clicking a player’s name tag in the world opens their profile card",
     "Search by handle and send a friend request",
     "The recipient is notified at once (room nudge) with a badge on the dock",
     "Accepting makes the friendship consistent for both players, with live presence and place",
