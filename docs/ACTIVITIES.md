@@ -70,8 +70,8 @@ rate limits). Reminders are opt-out and only while you are already playing.
 
 Built as **your room in Palm House**: see [DORM-ROOMS.md](DORM-ROOMS.md). Every player has a private
 room behind Palm House's common room, furnished from a fixed catalogue on a floor plan. The room
-server validates every layout and keeps signed-in players' rooms in their accounts. Not built yet:
-visits by invitation, the badge shelf and wall items.
+server validates every layout and keeps signed-in players' rooms in their accounts. Friends can visit
+by invitation, or drop in if the resident allows it. Not built yet: the badge shelf and wall items.
 
 ## Tests
 

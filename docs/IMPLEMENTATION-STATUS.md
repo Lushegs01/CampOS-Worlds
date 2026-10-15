@@ -48,7 +48,7 @@ Done: a reusable challenge framework (data-defined checkpoints, foot/drive modes
 timing, idempotent results) with the Courtyard Circuit and the Campus Loop driving route, a run HUD
 and checkpoint marker; the existing districts, destinations, tour, keepsakes and vehicle fleet are
 used as they are. **Not built:** new districts or destinations, scenic/photo challenges, cooperative
-(multi-player) challenge runs. Personal rooms in Palm House were added later (`docs/DORM-ROOMS.md`). The existing
+(multi-player) challenge runs. Personal rooms in Palm House, with friends' visits, were added later (`docs/DORM-ROOMS.md`). The existing
 vehicle system (one validated fleet with driver/passenger seats, server physics, mobile controls)
 was not changed in this round.
 
@@ -99,5 +99,5 @@ benchmark.
 migrations to a hosted project, run the account-backed browser suites against it, enable opt-in
 analytics, and invite a real group to use friends, parties, Court Duel, one scheduled event and the
 challenges for two weeks. The analytics report and player feedback will show which system people
-return for, and that should decide whether tournaments, team play, voice or room visits come
+return for, and that should decide whether tournaments, team play or voice come
 next.

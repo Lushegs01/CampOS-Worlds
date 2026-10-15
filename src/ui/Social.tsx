@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, Ban, Check, ChevronDown, ChevronUp, Crown, Flag, LocateFixed, Mail, MessageCircle, MoreHorizontal, Navigation, RotateCcw, Search, Send, Shield, UserCheck, UserMinus, UserPlus, UserRound, Users, Volume2, VolumeX, X } from 'lucide-react';
+import { visitRoom } from '../dorm/client';
+import { ArrowLeft, Ban, Home, Check, ChevronDown, ChevronUp, Crown, Flag, LocateFixed, Mail, MessageCircle, MoreHorizontal, Navigation, RotateCcw, Search, Send, Shield, UserCheck, UserMinus, UserPlus, UserRound, Users, Volume2, VolumeX, X } from 'lucide-react';
 import { isMuted, livePeers, muteKey, player, useGame, type Peer } from '../state';
 import { useAccount } from '../account/store';
 import { communityConfigured, getCommunityService, NOT_CONFIGURED, toServiceError } from '../services/community';
@@ -40,7 +41,7 @@ function useWhere(id: string | null) {
   const p = id ? livePeers.get(id) : null;
   if (!p) return null;
   const b = bearing(player.x, player.z, p.x, p.z);
-  return { place: placeName(p.x, p.z), distance: distanceLabel(b.distance), direction: b.distance < 8 ? '' : b.direction, near: b.distance < 8 };
+  return { place: placeName(p.x, p.z), distance: distanceLabel(b.distance), direction: b.distance < 8 ? '' : b.direction, near: b.distance < 8, home: p.space === p.id, visiting: !!p.space && p.space !== p.id };
 }
 
 // ---------------------------------------------------------------- report dialog (inline)
@@ -88,12 +89,13 @@ function FriendRow({ friend, peer }: { friend: ProfileBrief & { since: string };
   const { pending, error, act } = useAction(), setGame = useGame(s => s.set);
   return <div className={`friend-row${peer ? ' online' : ''}`}>
     <div className="person-row"><span className="presence-wrap"><Portrait person={friend} size={36} /><i className={peer ? 'presence on' : 'presence'} aria-hidden="true" /></span>
-      <span className="person-name"><b>{friend.display_name}</b><small>{peer ? (where ? `${where.place} · ${where.near ? 'right here' : `${where.distance} ${where.direction}`}` : 'On campus') : `@${friend.handle} · not on campus`}</small></span>
+      <span className="person-name"><b>{friend.display_name}</b><small>{peer ? (where?.home ? 'In their room · Palm House' : where?.visiting ? 'Visiting a room · Palm House' : where ? `${where.place} · ${where.near ? 'right here' : `${where.distance} ${where.direction}`}` : 'On campus') : `@${friend.handle} · not on campus`}</small></span>
       <span className="row-actions">
         <button className="icon-button" aria-label={`Message ${friend.display_name}`} title="Message" disabled={pending} onClick={() => void act(() => startConversation(friend.id))}><MessageCircle size={16} /></button>
         {peer && !inParty && <button className="icon-button" aria-label={`Invite ${friend.display_name} to your party`} title="Invite to party" onClick={() => void inviteToParty(peer.id)}><UserPlus size={16} /></button>}
         {peer && <button className="icon-button" aria-label={`Show ${friend.display_name} on the map`} title="Find" onClick={() => findPlayer(peer.id, friend.display_name)}><LocateFixed size={16} /></button>}
-        {peer && inParty && <button className="icon-button" aria-label={`Travel to ${friend.display_name}`} title="Meet up" onClick={() => meetUp(peer.id)}><Navigation size={16} /></button>}
+        {peer && inParty && !where?.home && !where?.visiting && <button className="icon-button" aria-label={`Travel to ${friend.display_name}`} title="Meet up" onClick={() => meetUp(peer.id)}><Navigation size={16} /></button>}
+        {peer && where?.home && <button className="icon-button" aria-label={`Visit ${friend.display_name}’s room`} title="Visit room" onClick={() => void visitRoom(peer.id)}><Home size={16} /></button>}
         <button className="icon-button" aria-label={`More for ${friend.display_name}`} aria-expanded={!!more} onClick={() => setMore(more ? '' : 'menu')}><MoreHorizontal size={16} /></button>
       </span></div>
     {more === 'menu' && <div className="row-menu"><button className="text-button" onClick={() => setGame({ panel: 'player:' + friend.handle })}><UserRound size={14} />Profile</button><button className="text-button" onClick={() => setMore('remove')}><UserMinus size={14} />Remove friend</button><button className="text-button" onClick={() => setMore('block')}><Ban size={14} />Block</button><button className="text-button" onClick={() => setMore('report')}><Flag size={14} />Report</button></div>}
@@ -260,6 +262,7 @@ function PrivacyTab() {
       <fieldset><legend>Who can send you friend requests</legend>{radio('friend_requests', [['everyone', 'Everyone'], ['nobody', 'Nobody']])}</fieldset>
       <fieldset><legend>Private messages</legend>{radio('direct_messages', [['friends', 'Friends'], ['nobody', 'Turned off']])}<small className="muted">Only friends can ever message you. Turning messages off also stops you sending them.</small></fieldset>
       <fieldset><legend>Who can invite you to a party</legend>{radio('party_invites', [['everyone', 'Anyone in the room'], ['friends', 'Friends'], ['nobody', 'Nobody']])}</fieldset>
+      <fieldset><legend>Who can visit your room</legend>{radio('room_visits', [['invite', 'Friends you invite'], ['friends', 'Any friend, while you’re in']])}<small className="muted">Visits are for friends only, while you’re in your room in Palm House. You can show anyone out.</small></fieldset>
       <fieldset><legend>Who sees your bio and interests</legend>{radio('profile_visibility', [['public', 'Everyone'], ['friends', 'Friends only']])}<small className="muted">Your name, look, title, badges and game records stay public: they appear in rankings and on club pages.</small></fieldset>
       <label className="setting-row"><span><b>Appear offline</b><small>Friends see you as not on campus and your @handle is hidden in the room. Your name and avatar stay visible to people nearby, as in any shared space.</small></span><input type="checkbox" checked={settings.appear_offline} onChange={e => { setSaved(false); setDraft({ ...settings, appear_offline: e.target.checked }); }} /></label>
       {error && <p className="form-error" role="alert">{error}</p>}

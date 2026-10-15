@@ -436,3 +436,10 @@
 .dorm-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.dorm-actions .text-button{gap:5px;min-height:40px;padding:0 4px}
 @media(pointer:coarse){.dorm-hud{top:262px;left:12px;width:auto;max-width:calc(100vw - 24px);padding:7px 9px}.dorm-hud small{display:none}.dorm-hud button{flex:none;padding:6px 10px}}
 @media(pointer:coarse) and (max-height:500px){.dorm-hud{top:64px;left:50%;transform:translateX(-50%)}.dorm-plan{max-height:44vh}}
+/* Visits: invitations to friends' rooms sit below party invitations; the guests panel. */
+.party-invites.room-invites{top:236px}
+@media(max-width:760px){.party-invites.room-invites{top:204px}}
+.dorm-hud b{font-size:14px;font-weight:600}
+.dorm-guests{display:flex;flex-direction:column;gap:8px}.dorm-guests h4{margin:8px 0 0;font-size:13px}
+.dorm-guests .person-row{display:flex;align-items:center;gap:10px;justify-content:space-between}.dorm-guests .person-row button{min-height:36px}
+.dorm-guests fieldset{margin-top:8px}

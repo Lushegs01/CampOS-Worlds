@@ -1,7 +1,31 @@
 # Validation
 
-Four rounds are recorded here, newest first. The `*-results.json` files in this folder are rewritten
+Five rounds are recorded here, newest first. The `*-results.json` files in this folder are rewritten
 by every run, so each holds that suite's **latest** run, with its date inside.
+
+## 15 October 2026 (later): visits to friends' rooms
+
+Same machine and method as the round below (Linux container, no GPU, software WebGL at about 2–3 FPS).
+Visits are described in [DORM-ROOMS.md](DORM-ROOMS.md#visits).
+
+| Command | Result |
+|---|---|
+| `npm test` | **138 / 138**. New: `dorm-visits` (3), on PostgreSQL with real friendships and privacy settings. `social` now expects the new `room_visits` setting in a player's settings |
+| `npx tsc -b`, `npm run build` | Pass. `index` chunk 620.2 kB (205.0 kB gzip), up 6.7 kB (1.7 kB gzip) |
+| `node tests/browser-dorm-visits.mjs` (new, two signed-in friends on the full local stack) | **5 / 5**: invitation taken from across campus, both see each other in the room, no arranging for the visitor, showing out, drop-in from the friends list, the resident leaving |
+| `node tests/browser-dorm.mjs` | See below |
+
+Found while building it, and fixed:
+
+- **Visitors arrived on top of the resident.** Both used the same arrival spot. Visitors now arrive
+  beside everyone already in the room, clear of furniture.
+- **The "Who can come in" choice looked unresponsive.** It changed only once the save came back; it now
+  changes at once and reverts if the save fails.
+- **Room answers can arrive out of order.** Entering may wait for the database while an invitation
+  is answered at once, so the client now matches each answer to its request by action.
+
+New migration: `20261015120000_room_visits.sql` (the `room_visits` privacy setting). Apply it after
+`20261015090000_dorm_rooms.sql`.
 
 ## 15 October 2026: your room in Palm House
 
