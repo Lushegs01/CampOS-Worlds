@@ -23,6 +23,7 @@ Every 100 ms the controller lists what is in reach (seats, doors, balls, fixture
 Each action checks the activity first, so conflicting actions are refused before they reach the server, and the server checks again:
 
 - You can't sit while holding a ball ("Put the ball down first."), while airborne ("Land first, then sit.") or from too far away.
+- Seats and balls must be reachable on foot from where the room has you: range alone used to let a player take a Studio D1 seat from the gallery through the closed classroom wall, or pick a ball up through the court fence ("You can't reach that seat from here.")
 - You can't pick up a ball while seated, or a ball someone else holds.
 - You can't shoot without holding a ball. Jumping, emotes and walking are disabled while sitting down, seated, standing up and charging a shot.
 - Seated, any movement key (or the joystick) stands you up through the stand-up motion.
@@ -37,7 +38,7 @@ Seats: 21 timber benches (two independent seats each), library reading tables, l
 4. At a table the chair (pulled out 25 cm) scoots in with the sitter, then the seated idle plays: hands resting on the table at tables, an occasional glance around on benches.
 5. **Stand up** reverses it: the chair scoots back and the stand-up capture carries the body forward. The server picks the exit spot, preferring forward, then the sides, then behind, and never a spot inside a collider. Every seat's approach and exit point is checked walkable by `tests/world.test.mjs`.
 
-Seat occupancy is replicated. Remote players' avatars play the same sit and stand motions locally, and a seat is released when its occupant disconnects.
+Seat occupancy is replicated. Remote players' avatars play the same sit and stand motions locally. When an occupant disconnects the room stands them up at the seat's exit and frees the seat; their own client does the same, so after reconnecting they are standing where they left (before, the client stayed seated while the room had them standing, and "Stand up" failed until a reload).
 
 ## Doors
 
@@ -62,16 +63,18 @@ Decorative objects (shelves, plants, signs, lamps) offer no actions.
 
 1. **E — Pick up basketball** near a ball (two balls rest by the court entrance). The server grants possession to one player at a time.
 2. Moving with the ball, the avatar dribbles: the ball bounces between the right hand and the floor on a cycle paced to the stride. Standing, it is held at the waist.
-3. **Hold Space** (or the **Shoot** button) and release. A meter sweeps up and down; the gold band shows the release timings that would actually score from where you stand and the way you face. It is computed by running the same physics the server runs, so it is not a decoration. Shots go where the camera looks, with gentle aim assist towards a hoop within ±28° and 13 m.
+3. **Hold Space** (or the **Shoot** button) and release. The meter is read at the moment of the key or touch release (the input event's own time), not at the last drawn frame, so a slow phone does not make the band harder to hit. A cancelled touch (the system taking the gesture) cancels the shot. A meter sweeps up and down; the gold band shows the release timings that would actually score from where you stand and the way you face. It is computed by running the same physics the server runs, so it is not a decoration. Shots go where the camera looks, with gentle aim assist towards a hoop within ±28° and 13 m.
 4. On release the server launches the ball from the release point and simulates it at 240 Hz substeps. It bounces off the rim (a torus), backboard, posts and floor with restitution, and rolls to rest.
 5. A basket counts only when the ball's centre crosses the rim plane **downwards** inside the ring, and only once per shot. Beyond 6.75 m it is worth 3 points.
-6. The HUD keeps a round of five shots, with made and missed dots, total, best and today's percentage. Feedback distinguishes a swish, a shot off the glass, one in off the rim, rimmed out short or long, an air ball, and no hoop in front of you. **Q** or **Drop** puts the ball down; **Retrieve ball** returns a ball that left the court; idle balls far from the court respawn on their own, and a ball that comes to rest out of reach (wedged between the rim and the backboard, or on the hoop arm) returns to the rack after three seconds, and one that stays above reach for eight seconds (still circling the rim, say) does too. In 9,000 simulated free throws, no ball stayed up longer than 4.5 seconds before dropping.
+6. The HUD keeps a round of five shots, with made and missed dots, total, best and today's percentage. Feedback distinguishes a swish, a shot off the glass, one in off the rim, rimmed out short or long, an air ball, and no hoop in front of you. **Q** or **Drop** puts the ball down; **Retrieve ball** returns a ball that left the court; idle balls far from the court respawn on their own after 20 seconds (including one that has come to rest: a ball dropped on a lawn used to sleep there for good), and a ball that comes to rest out of reach (wedged between the rim and the backboard, or on the hoop arm) returns to the rack after three seconds, and one that stays above reach for eight seconds (still circling the rim, say) does too. In 9,000 simulated free throws, no ball stayed up longer than 4.5 seconds before dropping.
 
 Possession is validated by the server and visible to everyone. A disconnecting player's ball is dropped where they stood.
 
 ## Multiplayer consistency
 
-- Movement stays server-simulated from inputs. Both the client and the room integrate real elapsed time in short substeps, so a slow frame or a late server tick never leaves one side behind the other.
+- Movement stays server-simulated from inputs, and both sides walk the same timeline with the same code (`shared/movement.mjs`). An input applies from the moment it is sent (on the client) or arrives (in the room) until the next one, for at most 350 ms, after which the player coasts to a stop. The client walks each frame with the input it last sent, and the room walks a player on to the moment a new input arrives before switching to it. Distances use the exact displacement of the eased velocity, so frame and tick lengths do not matter. Before, the client integrated at most 250 ms per frame, applied each new input to time that had already passed, and the room switched inputs at its 30 Hz tick: on slow, uneven frames the two ended a walk 0.4–5 m apart (`tests/movement.test.mjs`; 0.8–2.3 m in the interactions suite at 2 FPS, now 2 cm).
+- Disagreement is judged against the path the player walked in the last 1.5 s. The room's view trails the player by the network and tick delay, so a snapshot somewhere along that path is lag, not drift; only a position more than 2 m off it is snapped to. Comparing with the current position used to snap players back at the start of a walk on slow frames or when sprinting on a high-latency connection.
+- Remote players are drawn 110 ms in the past, interpolated between room snapshots stamped with the room's clock, so they move at a steady speed instead of pulsing towards every 15 Hz update.
 - A standing player's client may ask the room to settle its position. The room accepts only small, walkable corrections (at most 0.9 m) while the player is stationary and not seated, so range checks for seats, doors and balls agree with what the player sees. If a standing player is further out (0.9–2 m), their client glides to the room's position instead; beyond 2 m it snaps, as before.
 - Every action result carries the player's resulting seat and ball. World changes (doors and seats) are broadcast when they change; ball state rides on the 15 Hz state broadcast, with local prediction in between.
 

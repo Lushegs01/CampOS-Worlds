@@ -5,11 +5,13 @@ import * as THREE from 'three';
 import { VEHICLE_SPAWNS } from '../../shared/vehicles.mjs';
 import { vehicleVisuals, tickVehicles } from '../vehicles/client';
 import { buildVehicleModel, type VehicleType } from './vehicleModels';
+import { registerMovingCaster } from './shadows';
 
 function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
   const model = useMemo(() => buildVehicleModel(id, type), [id, type]), group = useRef<THREE.Group>(null!);
   const motion = useRef({ speed: 0, accel: 0, yaw: 0, yawRate: 0, pitch: 0, roll: 0, brake: 0 });
   useEffect(() => () => model.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && !m.geometry.name) m.geometry.dispose(); }), [model]);
+  useEffect(() => registerMovingCaster(model.root), [model]);
   useFrame((_, raw) => {
     const v = vehicleVisuals.get(id); if (!v) return;
     const dt = Math.min(Math.max(raw, 1e-3), .1), m = motion.current;

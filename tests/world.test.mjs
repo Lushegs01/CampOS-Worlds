@@ -111,3 +111,43 @@ test('a standing player may settle their server position by a small, walkable am
     Object.assign(c, { x: 13, z: 21.2 }); ws.send(JSON.stringify({ type: 'settle', x: 13, z: 20.4 })); await wait(); assert.equal(c.z, 21.2, 'settling into a wall is refused');
   } finally { ws.close(); await room.close(); }
 });
+
+test('seats and balls are never reached through a wall, a fence or a closed door', () => {
+  const w = createWorld();
+  setDoorOpen('classroom-d1', false);
+  // Studio D1's front-row desk seat is 1.6 m from the gallery side of the classroom wall.
+  const seat = SEAT_BY_ID.get('class-0-r'), outside = player('out', seat.x, -36.05);
+  assert.equal(blocked(outside.x, outside.z), false, 'the outside spot is in the gallery');
+  const refused = w.sit(outside, seat.id); assert.equal(refused.ok, false, 'sat down through the classroom wall');
+  assert.equal(outside.seat, null);
+  const inside = player('in', 0, 0), a = seatApproach(seat); at(inside, a.x, a.z);
+  assert.equal(w.sit(inside, seat.id).ok, true, 'from the stand point inside, the seat works');
+  // A ball resting just outside the basketball cage, reached for from inside the fence.
+  const ball = w.balls[0]; Object.assign(ball, { x: 44, y: .12, z: 8.25, vx: 0, vy: 0, vz: 0, state: 'free', rest: 1 });
+  const court = player('court', 44, 9.2);
+  assert.equal(blocked(court.x, court.z), false);
+  assert.equal(w.pickup(court, ball.id).ok, false, 'picked up through the fence');
+  const beside = player('beside', 44, 7.6);
+  assert.equal(w.pickup(beside, ball.id).ok, true, 'from the same side it is fine');
+});
+
+test('a seated player who leaves is stood up at a walkable spot, freeing the seat', () => {
+  const w = createWorld(), seat = SEAT_BY_ID.get('lib-0-0--1'), a = player('a', 0, 0), near = seatApproach(seat); at(a, near.x, near.z);
+  assert.equal(w.sit(a, seat.id).ok, true);
+  w.release(a);
+  assert.equal(a.seat, null); assert.equal(w.seats.has(seat.id), false);
+  assert.equal(blocked(a.x, a.z), false);
+  const exit = seatApproach(seat, STAND_EXIT);
+  assert.ok(Math.hypot(a.x - exit.x, a.z - exit.z) < 1e-9, 'at the exit the stand-up motion ends on, not inside the chair');
+});
+
+test('the collider grid query returns every collider that overlaps the box (camera collision relies on it)', async () => {
+  const { COLLIDERS, collidersIn } = await import('../shared/campus.mjs');
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 400; i++) {
+    const x = (rnd() - .5) * 300, z = (rnd() - .5) * 300, w = rnd() * 20, d = rnd() * 20;
+    const got = new Set(collidersIn(x, z, x + w, z + d));
+    for (const b of COLLIDERS) if (b.x + b.w / 2 >= x && b.x - b.w / 2 <= x + w && b.z + b.d / 2 >= z && b.z - b.d / 2 <= z + d) assert.ok(got.has(b), `missed collider at ${b.x},${b.z}`);
+    assert.equal(got.size, collidersIn(x, z, x + w, z + d).length, 'no duplicates');
+  }
+});

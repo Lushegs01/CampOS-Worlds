@@ -83,9 +83,13 @@ export function setDoorOpen(id,open){const d=DOORS.find(x=>x.id===id);if(!d||d.l
 const hit=(b,x,z,r)=>Math.abs(x-b.x)<b.w/2+r&&Math.abs(z-b.z)<b.d/2+r;
 /** Body radius for walking: about shoulder width, so a 1 m doorway leaves a comfortable 40 cm. */
 export const PLAYER_RADIUS=.3;
-const collisionGrid=new Map();
-for(const b of COLLIDERS)for(let ix=Math.floor((b.x-b.w/2)/32);ix<=Math.floor((b.x+b.w/2)/32);ix++)for(let iz=Math.floor((b.z-b.d/2)/32);iz<=Math.floor((b.z+b.d/2)/32);iz++){const key=ix+','+iz;if(!collisionGrid.has(key))collisionGrid.set(key,[]);collisionGrid.get(key).push(b);}
-function hitsStatic(x,z,r){for(let ix=Math.floor((x-r)/32);ix<=Math.floor((x+r)/32);ix++)for(let iz=Math.floor((z-r)/32);iz<=Math.floor((z+r)/32);iz++)if(collisionGrid.get(ix+','+iz)?.some(b=>hit(b,x,z,r)))return true;return false;}
+// 32 m cells with numeric keys (movement checks run for every substep of every player: no string keys).
+const collisionGrid=new Map(),cell=(ix,iz)=>(ix+4096)*8192+iz+4096;
+for(const b of COLLIDERS)for(let ix=Math.floor((b.x-b.w/2)/32);ix<=Math.floor((b.x+b.w/2)/32);ix++)for(let iz=Math.floor((b.z-b.d/2)/32);iz<=Math.floor((b.z+b.d/2)/32);iz++){const key=cell(ix,iz);if(!collisionGrid.has(key))collisionGrid.set(key,[]);collisionGrid.get(key).push(b);}
+function hitsStatic(x,z,r){for(let ix=Math.floor((x-r)/32);ix<=Math.floor((x+r)/32);ix++)for(let iz=Math.floor((z-r)/32);iz<=Math.floor((z+r)/32);iz++){const list=collisionGrid.get(cell(ix,iz));if(list)for(const b of list)if(hit(b,x,z,r))return true;}return false;}
+const seen=new Set(),found=[];
+/** Static colliders that may overlap the box [x0, x1] × [z0, z1]. Returns a shared array, valid until the next call. */
+export function collidersIn(x0,z0,x1,z1){seen.clear();found.length=0;for(let ix=Math.floor(x0/32);ix<=Math.floor(x1/32);ix++)for(let iz=Math.floor(z0/32);iz<=Math.floor(z1/32);iz++){const list=collisionGrid.get(cell(ix,iz));if(list)for(const b of list)if(!seen.has(b)){seen.add(b);found.push(b);}}return found;}
 export function blocked(x,z,r=PLAYER_RADIUS){return !Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>WORLD_LIMIT||Math.abs(z)>WORLD_LIMIT||hitsStatic(x,z,r)||DOORS.some(d=>!doorOpen[d.id]&&hit(d.collider,x,z,r));}
 const SLIP=[.05,-.05,.1,-.1];
 export function moveWithCollisions(x,z,dx,dz){

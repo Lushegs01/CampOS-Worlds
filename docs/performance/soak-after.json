@@ -1,0 +1,176 @@
+{
+  "date": "2026-10-15T03:49:30.047Z",
+  "label": "after",
+  "url": "http://127.0.0.1:4173",
+  "seconds": 300,
+  "visitors": 42,
+  "environment": "Linux container, Chromium with SwiftShader (software WebGL), Low quality, 800x600. Not a phone.",
+  "series": [
+    {
+      "t": 2,
+      "visitorsSoFar": 6,
+      "textures": 57,
+      "geometries": 127,
+      "heapMB": 100.5,
+      "peers": 0
+    },
+    {
+      "t": 18,
+      "visitorsSoFar": 8,
+      "textures": 80,
+      "geometries": 145,
+      "heapMB": 161.2,
+      "peers": 6
+    },
+    {
+      "t": 33,
+      "visitorsSoFar": 9,
+      "textures": 86,
+      "geometries": 188,
+      "heapMB": 147.1,
+      "peers": 6
+    },
+    {
+      "t": 48,
+      "visitorsSoFar": 11,
+      "textures": 102,
+      "geometries": 198,
+      "heapMB": 154,
+      "peers": 6
+    },
+    {
+      "t": 63,
+      "visitorsSoFar": 13,
+      "textures": 133,
+      "geometries": 209,
+      "heapMB": 158.7,
+      "peers": 6
+    },
+    {
+      "t": 79,
+      "visitorsSoFar": 15,
+      "textures": 134,
+      "geometries": 218,
+      "heapMB": 160.3,
+      "peers": 6
+    },
+    {
+      "t": 94,
+      "visitorsSoFar": 17,
+      "textures": 141,
+      "geometries": 221,
+      "heapMB": 156.2,
+      "peers": 6
+    },
+    {
+      "t": 109,
+      "visitorsSoFar": 19,
+      "textures": 147,
+      "geometries": 230,
+      "heapMB": 158,
+      "peers": 6
+    },
+    {
+      "t": 125,
+      "visitorsSoFar": 21,
+      "textures": 153,
+      "geometries": 235,
+      "heapMB": 159.5,
+      "peers": 6
+    },
+    {
+      "t": 141,
+      "visitorsSoFar": 22,
+      "textures": 154,
+      "geometries": 237,
+      "heapMB": 161.7,
+      "peers": 6
+    },
+    {
+      "t": 156,
+      "visitorsSoFar": 24,
+      "textures": 154,
+      "geometries": 234,
+      "heapMB": 158.3,
+      "peers": 6
+    },
+    {
+      "t": 171,
+      "visitorsSoFar": 26,
+      "textures": 153,
+      "geometries": 242,
+      "heapMB": 160.2,
+      "peers": 6
+    },
+    {
+      "t": 186,
+      "visitorsSoFar": 28,
+      "textures": 156,
+      "geometries": 246,
+      "heapMB": 160.8,
+      "peers": 6
+    },
+    {
+      "t": 201,
+      "visitorsSoFar": 30,
+      "textures": 153,
+      "geometries": 234,
+      "heapMB": 156.9,
+      "peers": 6
+    },
+    {
+      "t": 217,
+      "visitorsSoFar": 32,
+      "textures": 154,
+      "geometries": 237,
+      "heapMB": 158.2,
+      "peers": 6
+    },
+    {
+      "t": 234,
+      "visitorsSoFar": 34,
+      "textures": 157,
+      "geometries": 242,
+      "heapMB": 160.6,
+      "peers": 6
+    },
+    {
+      "t": 250,
+      "visitorsSoFar": 36,
+      "textures": 155,
+      "geometries": 237,
+      "heapMB": 155.6,
+      "peers": 6
+    },
+    {
+      "t": 265,
+      "visitorsSoFar": 37,
+      "textures": 155,
+      "geometries": 225,
+      "heapMB": 157.6,
+      "peers": 6
+    },
+    {
+      "t": 280,
+      "visitorsSoFar": 39,
+      "textures": 159,
+      "geometries": 246,
+      "heapMB": 160.6,
+      "peers": 6
+    },
+    {
+      "t": 295,
+      "visitorsSoFar": 41,
+      "textures": 156,
+      "geometries": 236,
+      "heapMB": 157.1,
+      "peers": 6
+    }
+  ],
+  "growthAfterWarmup": {
+    "textures": 23,
+    "geometries": 27,
+    "heapMB": -1.6
+  },
+  "errors": []
+}

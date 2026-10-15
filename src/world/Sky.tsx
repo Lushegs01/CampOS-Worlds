@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { assetUrl, cached, loadHDR, loadImage, suspend } from './assets';
 import type { QualityProfile } from './quality';
 import { player } from '../state';
+import { hideMovingCasters } from './shadows';
 
 export interface SkyInfo { sunDirection: [number, number, number]; sunColor: [number, number, number]; sunIrradiance: number; skyScale: number; skyCoverage: number; horizon: [number, number, number] }
 let skyInfo: Promise<SkyInfo> | null = null;
@@ -83,6 +84,14 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
     // Static shadows wait for late-loading geometry before the single render.
     if (quality.shadowMode === 'static') { const t = [800, 2500, 6000].map(ms => setTimeout(() => { s.needsUpdate = true; }, ms)); return () => t.forEach(clearTimeout); }
   }, [dir, quality]);
+  // A static (render-once) map must not freeze anything that moves into it: see ./shadows.
+  useEffect(() => {
+    if (quality.shadowMode !== 'static') return;
+    const light = sun.current, before = scene.onBeforeRender, after = scene.onAfterRender; let restore: (() => void) | null = null;
+    scene.onBeforeRender = (...args) => { before.apply(scene, args); if (light.shadow.needsUpdate && !light.shadow.autoUpdate) restore = hideMovingCasters(); };
+    scene.onAfterRender = (...args) => { restore?.(); restore = null; after.apply(scene, args); };
+    return () => { restore?.(); scene.onBeforeRender = before; scene.onAfterRender = after; };
+  }, [scene, quality]);
   useFrame(() => {
     const inside = Math.abs(player.x) < 85 && player.z > -78 && player.z < 70, step = 24;
     const key = inside ? 'campus' : `${Math.round(player.x / step)},${Math.round(player.z / step)}`;

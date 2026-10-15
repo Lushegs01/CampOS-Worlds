@@ -1,7 +1,95 @@
 # Validation
 
-Two rounds are recorded here, newest first. The `*-results.json` files in this folder are rewritten by
-every run, so each holds that suite's **latest** run, with its date inside.
+Three rounds are recorded here, newest first. The `*-results.json` files in this folder are rewritten
+by every run, so each holds that suite's **latest** run, with its date inside.
+
+## 14–15 October 2026: reliability, multiplayer consistency and performance
+
+Measured in a Linux cloud container (4 CPU cores, **no GPU**) with Node 22.22 and Playwright 1.58.2's
+Chromium 1194, which renders WebGL with SwiftShader (on the CPU) at about 2–5 FPS with the QA render
+scale. Browser suites ran against a frozen snapshot of the working tree (Vite on 5174, room on 3101)
+so edits could not hot-reload a running test; the account-backed suites start their own stack.
+**No physical phone was available**: every phone figure is emulation. Performance comparisons are in
+[MOBILE-PERFORMANCE.md](MOBILE-PERFORMANCE.md).
+
+| Command | Before this round (this container) | After |
+|---|---|---|
+| `npm test` | 98 / 98 | **125 / 125** (adds `fuzz`, `reconnect`, `movement`, `interpolation`, `resolution` and new `world` / `ball` cases) |
+| `npm run build` | Passes | Passes; `index` chunk 600.6 kB (198.5 kB gzip), was 593.1 kB (195.6 kB). Secret scan of the bundle: clean |
+| `node tests/browser-smoke.mjs` | Fails (clicked a `bun` accessory that does not exist; asserted nothing) | **Passes** (real controls, appearance, walking, settings, phone layout) |
+| `node tests/browser-verify.mjs` | Fails at the jump step, then walks overshoot (fixed sleeps at 4–5 FPS) | **17 / 17** (dev stack, and again on the final QA production build) |
+| `node tests/browser-reliability.mjs` (new) | — | **7 / 7** |
+| `node tests/browser-mobile.mjs` | Could not start (hard-coded Windows Chrome) | **12 / 12** |
+| `node tests/browser-interactions.mjs` | Could not start; then walk drift and slow-motion sit-down | **27 / 27** at about 2 FPS (5 / 5 free throws) |
+| `node tests/browser-social.mjs` | Timed out entering under load | **4 / 4** |
+| `node tests/browser-open-world.mjs` | Could not start (`/usr/bin/chromium`); then walk drift | **11 / 11** |
+| `node tests/browser-accounts.mjs` | — | **9 / 9** |
+| `node tests/browser-community.mjs` | — | **11 / 11** |
+| `node tests/browser-social-accounts.mjs` | — | **13 / 13** |
+| `node tests/browser-duel.mjs` | — | **6 / 6** |
+| `node tests/browser-activities.mjs` | — | **7 / 7** |
+| `node tests/browser-mobile-performance.mjs` (solo, `PERF_BOTS=8`) | Measured | Measured: see [MOBILE-PERFORMANCE.md](MOBILE-PERFORMANCE.md) |
+| `node tests/browser-soak.mjs` (new, 5 min, 42 visitors) | +69 GPU textures over the last 3 minutes | **+3** |
+
+"Before" for the account-backed suites was not re-run on the original commit here; they passed in the
+previous round (below). Every failure listed above was reproduced on this machine before it was fixed.
+
+### Defects found and fixed
+
+| # | Severity | Defect (observed) | Root cause | Fix | Regression test |
+|---|---|---|---|---|---|
+| 1 | Critical | One message such as `{"type":"sit","seat":{"toString":1}}` crashed the room process for every player | The room called `String()`/`Number()` on client values; an object with a non-callable `toString` throws, and a throw inside the WebSocket handler is uncaught | Client values are read with type-checked helpers (`str`, `num`); result `ref`s are integers only | `tests/fuzz.test.mjs` (fails on the previous room) |
+| 2 | High | A phone that changed networks reconnected into "session in use" and never retried | The room refused a join whose session token was still held by its old (dead, not yet detected) socket; the client does not retry 4004 | The newest connection of a session takes over; the old one is closed with 4004, cleaned up synchronously, and its late messages ignored | `tests/reconnect.test.mjs`, `tests/browser-reliability.mjs` |
+| 3 | High | Every reconnect (reload, network drop) sent the player back to the gate | `welcome` always carried `SPAWN` | The room remembers where a departing session stood for 45 s and resumes there if the spot is clear | `tests/reconnect.test.mjs`, `tests/browser-reliability.mjs` |
+| 4 | High | On slow frames the room ran ahead of the player (3.8 m over a 22 m walk at 3–5 FPS); the walk then ended with a snap | The client integrated at most 250 ms per frame while the room applied each input for 350 ms | One shared integrator (`shared/movement.mjs`) with the same 350 ms limit on both sides | `tests/movement.test.mjs` (also proves the old limit drifts) |
+| 4b | High | At very low frame rates a walk ended 0.8–2.3 m from where the room had the player (browser trace at 2 FPS) | The client applied each new input to time that had already passed and did not coast within long frames; the room switched inputs at the start of the tick they arrived in | The client walks each frame with the input it last sent and coasts like the room (`stepFrame`); the room walks a player on to each input's arrival (`advanceWalker`); exact eased displacement | `tests/movement.test.mjs` (0.000 m vs 0.4–5 m for the original client) |
+| 5 | High | Starting to walk on a slow device, or sprinting on a slow network, snapped the player backwards | Drift compared the room's lagging snapshot with the current position | Drift is measured against the path walked in the last 1.5 s | `tests/movement.test.mjs` (trail), browser drift trace |
+| 6 | High | A single character model failing to download replaced the whole campus with "The campus couldn't open" | The only error boundary wrapped the entire 3D world; failed downloads were cached forever | Per-avatar error boundary with a stand-in figure and back-off retry; failed downloads forgotten after 5 s | `tests/browser-reliability.mjs` |
+| 7 | Medium | Disconnected while seated: the player stayed seated locally and "Stand up" failed until a reload | The room released the seat; the client kept its local sit state and seat | The client stands up and lets go of the ball when the connection drops or a new session starts; the room stands a leaving player up at the seat's exit | `tests/world.test.mjs`, `tests/browser-reliability.mjs` |
+| 8 | Medium | A settle request could move a player through a closed door, the court fence or a thin wall | Only distance (≤ 0.9 m) and the destination were checked | The correction goes only as far as the player could walk | `tests/reconnect.test.mjs` |
+| 9 | Medium | A Studio D1 seat could be taken from the gallery through the closed classroom wall; a ball picked up through the fence | Range checks only | Seats' stand points and balls must be reachable on foot | `tests/world.test.mjs` |
+| 10 | Medium | A ball dropped away from the court stayed there for good | A sleeping ball returned before its idle timer advanced | Sleeping balls far from the court still count idle time and respawn after 20 s | `tests/ball.test.mjs` |
+| 11 | Medium | The gold band was effectively impossible on slow devices; a cancelled touch fired a shot | The release used the last drawn frame's meter value (a fifth of the sweep per frame at 5 FPS); `pointercancel` called release | The meter is read at the input event's timestamp; cancel cancels | Browser suites (`verify`, `interactions`) |
+| 12 | Medium | Returning to a backgrounded tab lowered the render resolution | The first frame's delta (the whole hidden time) counted as a 0 FPS second | Pauses over 3 s start a new measurement window; steps that do not help are undone | `tests/resolution.test.mjs` |
+| 13 | Medium | Low-end phones capped at 30 FPS or limited by their CPU were blurred to 60 % resolution for no gain | The controller lowered resolution whenever FPS < 50, with no check that it helped | A step down that does not raise FPS by 8 % is reverted, with 20 s → 5 min back-off | `tests/resolution.test.mjs` |
+| 14 | Medium | On Low, a car's shadow stayed in its bay after it drove away (and doors, people) | The render-once shadow map included moving objects | Moving objects are registered and left out of the static shadow render | Manual (shadow map) |
+| 15 | Medium | GPU memory grew as players came and went (name tags, skeleton bone textures, cloned materials) | Name-tag canvas textures and rigs were never disposed | Disposed on unmount; name-tag canvases sized to the tag | `tests/browser-soak.mjs` |
+| 15b | Medium | Below 20 FPS every animation, the sit-down/stand-up that gate actions, doors and ball prediction ran in slow motion (10× at 2 FPS) | Frame time capped at 50 ms | Up to 250 ms of real time per frame | `browser-interactions` at 2 FPS (sit-down 14 s → completes) |
+| 15c | Low | Remote walkers were animated as running on slow devices | Gait speed divided by the capped 50 ms step | Real frame time | Visual |
+| 16 | Low | Remote players' speed pulsed with every 15 Hz update | Exponential easing towards the newest snapshot | Snapshot interpolation 110 ms in the past on the room's clock | `tests/interpolation.test.mjs` |
+| 17 | Perf | The whole interface and the 3D scene's React tree re-rendered every 2 s (FPS readout) and on every store change | `App` subscribed to the entire store; `World` was not memoised | Narrow selectors; `memo(World)`; a self-contained location label | Benchmark (main-thread script time) |
+| 18 | Perf | 15 Hz state messages of 2.7 KB (1 player) to 10.4 KB (24 players) per client | Full-precision numbers and every vehicle every time | Centimetre/milliradian precision, changed vehicles only, serialised once | Payload probe |
+| 19 | Perf | Off-screen and distant avatars were posed and drawn every frame | No culling for skinned meshes (`frustumCulled = false`) | Per-avatar frustum test; pose every 2nd/4th frame beyond 30/60 m; no shadow beyond 60 m | Benchmark with bots |
+| 20 | Perf | Camera collision scanned 1,214 colliders five times a frame and allocated ~18 vectors | No spatial query | Grid query once per frame; reused vectors | `tests/world.test.mjs` (grid query) |
+| 20b | Dev | The dev server reloaded the page during a first visit | three.js example modules discovered only when the lazy 3D scene was crawled | `optimizeDeps.include` | Account and interactions suites |
+| 12b | Medium | Introduced earlier in this round and caught by the benchmark before release: under 2 FPS the FPS readout and telemetry never updated and the resolution never adapted | The first version of fix 12 treated any frame over 0.5 s as a pause | Only gaps over 3 s are pauses | `tests/resolution.test.mjs` (0.8 s frames) |
+| 21 | Test | Six browser suites could not start on Linux; several waits raced slow frames; the smoke test clicked controls that do not exist and asserted nothing | Hard-coded Windows Chrome/D3D11; fixed sleeps; stale labels | Shared launcher; condition waits; real controls and assertions | The suites themselves |
+
+
+### Test changes made in this round (disclosed)
+
+No assertion was weakened. Changes are to how suites start and wait:
+
+- **Launcher.** Six suites hard-coded a Windows Chrome with Direct3D flags; all use `tests/support/browser.mjs`.
+- **Condition waits instead of sleeps.** Jumps record the peak height in the page (a jump can last two
+  frames, shorter than one key round trip); held keys and the joystick wait until the distance is
+  covered; second browsers wait until "Enter campus" is enabled; messages are awaited. Same thresholds.
+- **Walks** in `browser-verify` steer in the page (the QA hook, through the normal input path) instead
+  of polling keys from the test process, which overshot by metres; the 1.9 m tolerance is unchanged.
+- **Shots** are released in the page at a known meter value: the game now reads the meter at the
+  release's own time, and a key-up from the test process can arrive a second late. Scoring is still
+  asserted by the room's physics.
+- **Smoke** uses the editor's real controls and now asserts the saved appearance, walking, settings and the phone layout.
+- **Reliability** filters one expected page error: the renderer reports the caught "Failed to fetch" of the deliberately blocked character model.
+- Timeouts without a GPU are 45 s, as the community suite already used.
+
+### Not verified in this round
+
+- **Physical phones** (the itel S24 or any other): emulation only.
+- **Real GPU frame rates**: SwiftShader measures a CPU rasterizer; see the performance report for what this does and does not show.
+- **A hosted Supabase project**, **more than one room instance**, and **load beyond 24 simulated players** (payload measured; no load test of the room under many real browsers).
+- **Mobile networks**: latency and loss were not emulated, except the reconnect paths in `browser-reliability`.
+- **The Low static-shadow fix** is checked mechanically (moving objects are left out of the render); it was not compared visually.
 
 ## 14 October 2026: social, competition, activities and analytics
 

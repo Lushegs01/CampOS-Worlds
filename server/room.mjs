@@ -6,6 +6,7 @@ import { appendFile, mkdir } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { SPAWN, LOCATIONS, TOKENS, moveWithCollisions, sanitizeAvatar, blocked } from '../shared/campus.mjs';
 import { createWorld, packBall } from '../shared/world.mjs';
+import { advanceWalker, INPUT_HOLD_MS, MAX_STEP, JUMP_SPEED } from '../shared/movement.mjs';
 import { cleanText, guestName } from '../shared/text.mjs';
 import { createParties, PARTY_LIMITS } from './parties.mjs';
 import { createDuels, DUEL_RULES } from './duels.mjs';
@@ -15,6 +16,12 @@ import { TOUR } from '../shared/campus.mjs';
 // Messages stay within 2 KB except the account handshake, which carries a Supabase access token.
 const MAX_MESSAGE=2048,MAX_AUTH_MESSAGE=6144;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Reading client values: ids and choices must be strings and numbers numbers. Never String() or Number()
+ * a client value: JSON like {"toString":1} makes those throw, and a throw while handling a message is
+ * uncaught and ends the room for everyone.
+ */
+const str=v=>typeof v==='string'?v:'',num=v=>typeof v==='number'?v:NaN;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
 export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=24,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000}={}){
  const clients=new Map(),bans=new Set();let reportQueue=Promise.resolve();
@@ -55,8 +62,10 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  }
  const joined=()=>[...clients.values()].filter(c=>c.joined);
  const worldState=()=>{const w=world.snapshot();return {type:'world',doors:w.doors,seats:w.seats};};
- const send=(ws,data)=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<65536)ws.send(JSON.stringify(data));};
- const broadcast=data=>clients.forEach(c=>{if(c.joined)send(c.ws,data);});
+ const sendRaw=(ws,raw)=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<65536)ws.send(raw);};
+ const send=(ws,data)=>sendRaw(ws,JSON.stringify(data));
+ // Serialised once for everyone (it used to be stringified again for every recipient).
+ const broadcast=data=>{const raw=JSON.stringify(data);clients.forEach(c=>{if(c.joined)sendRaw(c.ws,raw);});};
  const http=createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');
   if(req.url==='/health'){res.end(JSON.stringify({ok:true,players:[...clients.values()].filter(c=>c.joined).length,capacity}));return;}
@@ -159,6 +168,18 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   }
   return null;
  }
+ // Where recently departed sessions stood (session token -> position), so a reconnect resumes there.
+ const recent=new Map();
+ /** A connection leaves the room (closed, replaced by a newer one of the same session, or removed). Runs once. */
+ function depart(c,code){
+  if(c.departed)return;c.departed=true;const was=c.joined;c.joined=false;
+  clearTimeout(c.socialTimer);challenges.release(c);
+  if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});
+  const driving=!!c.vehicle;
+  duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);
+  if(was&&c.token&&!driving)recent.set(c.token,{x:c.x,z:c.z,yaw:c.yaw,at:Date.now()});
+  clients.delete(c.id);if(was)broadcast({type:'left',id:c.id});
+ }
  http.on('upgrade',(req,socket,head)=>{
   if(req.url!=='/ws'||!origins.includes(req.headers.origin)||clients.size>=capacity){socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');return;}
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));
@@ -168,6 +189,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   ws.on('pong',()=>{c.alive=true;});
   const rate=(key,max,window=1000)=>{const t=Date.now();const r=c.limits[key]??{at:t,n:0};if(t-r.at>=window){r.at=t;r.n=0;}c.limits[key]=r;return ++r.n<=max;};
   ws.on('message',data=>{
+   if(c.departed)return;
    if(!rate('all',75)){ws.close(4008,'Too many requests');return;}
    const raw=data.toString();let m;try{m=JSON.parse(raw);}catch{return;}if(!m||typeof m!=='object')return;
    if(raw.length>MAX_MESSAGE&&m.type!=='auth'&&m.type!=='join')return;
@@ -175,8 +197,16 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     if(invite&&m.invite!==invite){ws.close(4001,'Invitation required');return;}
     const token=typeof m.token==='string'&&/^[a-f0-9]{48}$/.test(m.token)?m.token:randomBytes(24).toString('hex');
     if(bans.has(token)){ws.close(4003,'Removed by room moderator');return;}
-    if([...clients.values()].some(v=>v!==c&&v.token===token&&v.joined)){ws.close(4004,'Session already connected');return;}
-    c.token=token;c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});c.joined=true;send(ws,{type:'welcome',id,token,position:SPAWN,world:world.snapshot(),vehicles:fleet.snapshot(),classes:classes.snapshot(),accounts:!!accounts.enabled,room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
+    // The same session joining again while the room still holds its old connection: a phone that changed
+    // networks reconnects before the room notices the old socket is dead (up to 20 s), or a duplicated tab.
+    // The newest connection takes over; the older one is told why and does not reconnect.
+    const prior=[...clients.values()].find(v=>v!==c&&v.token===token&&v.joined);
+    if(prior){depart(prior,4004);prior.ws.close(4004,'Session opened in another window');}
+    c.token=token;c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});c.joined=true;
+    // A reconnecting session carries on where the room last had it (if that spot is still clear), not at the gate.
+    const back=recent.get(token);recent.delete(token);
+    if(back&&Date.now()-back.at<partyLimits.graceMs&&!blocked(back.x,back.z)&&!fleet.vehicles.some(v=>vehicleContains(v,back.x,back.z)))Object.assign(c,{x:back.x,z:back.z,y:0,yaw:back.yaw});
+    send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),classes:classes.snapshot(),accounts:!!accounts.enabled,room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
     // A reload or dropped connection with the same session token takes its party place back.
     parties.reconnect(c);
     c.analytics=m.analytics&&typeof m.analytics==='object'?{consent:m.analytics.consent===true,install:typeof m.analytics.install==='string'?m.analytics.install.slice(0,64):''}:null;
@@ -186,17 +216,21 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    if(m.type==='classAction'&&rate('classAction',5)){const r=classes.action(c,m);if(!r.ok)send(ws,{type:'notice',text:r.reason});broadcast({type:'classes',sessions:classes.snapshot()});
    }else if(m.type==='vehicleInput'&&rate('vehicleInput',35)){fleet.control(c,m);
    }else if(['vehicleEnter','vehicleExit','vehicleRecover'].includes(m.type)&&rate('vehicleAction',5)){
-    const r=m.type==='vehicleEnter'?fleet.enter(c,String(m.id),m.seat??0):m.type==='vehicleExit'?fleet.exit(c,joined()):fleet.recover(c,joined());
+    const r=m.type==='vehicleEnter'?fleet.enter(c,str(m.id),m.seat??0):m.type==='vehicleExit'?fleet.exit(c,joined()):fleet.recover(c,joined());
     send(ws,{type:'vehicleResult',...r,vehicle:c.vehicle,vehicleSeat:c.vehicleSeat,x:c.x,z:c.z});broadcast({type:'vehicles',vehicles:fleet.snapshot()});
    }else if(m.type==='input'&&rate('input',35)){
     if(c.vehicle)return;
     if(![m.dx,m.dz,m.yaw].every(Number.isFinite))return;
-    const length=Math.max(1,Math.hypot(m.dx,m.dz));c.input={dx:m.dx/length,dz:m.dz/length,sprint:m.sprint===true,jump:c.input.jump||m.jump===true};c.yaw=m.yaw%(Math.PI*2);c.lastInput=Date.now();
+    // Walk on to this moment with the previous input first: a new input applies from when it arrived.
+    const t=Date.now();if(c.seat)c.simAt=t;else walk(c,t);
+    const length=Math.max(1,Math.hypot(m.dx,m.dz));c.input={dx:m.dx/length,dz:m.dz/length,sprint:m.sprint===true,jump:c.input.jump||m.jump===true};c.yaw=m.yaw%(Math.PI*2);c.lastInput=t;
    }else if(m.type==='settle'&&rate('settle',3,1000)){
     // A standing player's client may nudge its server position to where it sees itself (small, walkable
     // corrections only), so range checks for seats, doors and balls agree with what the player sees.
-    const x=Number(m.x),z=Number(m.z);if(!Number.isFinite(x)||!Number.isFinite(z)||c.seat||c.vehicle||Math.hypot(c.vx,c.vz)>.25||Date.now()-c.lastInput<350&&Math.hypot(c.input.dx,c.input.dz)>.01)return;
-    if(Math.hypot(x-c.x,z-c.z)<=.9&&!blocked(x,z))Object.assign(c,{x,z});
+    const x=num(m.x),z=num(m.z);if(!Number.isFinite(x)||!Number.isFinite(z)||c.seat||c.vehicle||Math.hypot(c.vx,c.vz)>.25||Date.now()-c.lastInput<INPUT_HOLD_MS&&Math.hypot(c.input.dx,c.input.dz)>.01)return;
+    if(Math.hypot(x-c.x,z-c.z)>.9||blocked(x,z))return;
+    // Only as far as the player could walk there: never through a wall, a fence or a closed door.
+    const q=moveWithCollisions(c.x,c.z,x-c.x,z-c.z);Object.assign(c,Math.hypot(q.x-x,q.z-z)<.05?{x,z}:q);
    }else if(m.type==='auth'&&rate('auth',4,60000)){
     if(typeof m.token==='string')authenticate(c,m.token);
     else{c.authSeq++;if(c.account){c.account=null;c.social=null;c.hoops=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
@@ -217,17 +251,17 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(m.type==='party'&&rate('party',8,5000)){
     const target=typeof m.id==='string'?clients.get(m.id):null;
     const wasIn=!!parties.partyOf(c);
-    const r=m.action==='create'?parties.create(c):m.action==='invite'?(rate('partyInvite',6,30000)?inviteToParty(c,target):{ok:false,reason:'You’re sending invitations quickly. Wait a moment.'}):m.action==='respond'?joinParty(c,String(m.party),m.accept===true):m.action==='leave'?parties.leave(c):m.action==='kick'?parties.kick(c,String(m.id)):m.action==='promote'?parties.promote(c,String(m.id)):m.action==='uninvite'?parties.uninvite(c,String(m.id)):{ok:false,reason:'Unknown party action.'};
-    send(ws,{type:'partyResult',action:String(m.action).slice(0,16),ref:Number.isInteger(m.ref)?m.ref:null,...r});
+    const r=m.action==='create'?parties.create(c):m.action==='invite'?(rate('partyInvite',6,30000)?inviteToParty(c,target):{ok:false,reason:'You’re sending invitations quickly. Wait a moment.'}):m.action==='respond'?joinParty(c,str(m.party),m.accept===true):m.action==='leave'?parties.leave(c):m.action==='kick'?parties.kick(c,str(m.id)):m.action==='promote'?parties.promote(c,str(m.id)):m.action==='uninvite'?parties.uninvite(c,str(m.id)):{ok:false,reason:'Unknown party action.'};
+    send(ws,{type:'partyResult',action:str(m.action).slice(0,16),ref:Number.isInteger(m.ref)?m.ref:null,...r});
     if(r.ok&&!wasIn&&parties.partyOf(c)&&(m.action==='create'||m.action==='invite'))analytics.track(c,'party_created');
     if(r.ok&&r.joined)analytics.track(c,'party_joined',{size:parties.partyOf(c)?.members.size??0});
    }else if(m.type==='duel'&&rate('duel',6,5000)){
     const target=typeof m.id==='string'?clients.get(m.id):null;
-    const r=m.action==='challenge'?(target&&blockedBetween(c,target)?{ok:false,reason:'You can’t challenge this player.'}:duels.challenge(c,target)):m.action==='respond'?duels.respond(c,String(m.challenge),m.accept===true):m.action==='concede'?duels.concede(c):{ok:false,reason:'Unknown duel action.'};
-    send(ws,{type:'duelResult',action:String(m.action).slice(0,16),ref:Number.isInteger(m.ref)?m.ref:null,...r});
+    const r=m.action==='challenge'?(target&&blockedBetween(c,target)?{ok:false,reason:'You can’t challenge this player.'}:duels.challenge(c,target)):m.action==='respond'?duels.respond(c,str(m.challenge),m.accept===true):m.action==='concede'?duels.concede(c):{ok:false,reason:'Unknown duel action.'};
+    send(ws,{type:'duelResult',action:str(m.action).slice(0,16),ref:Number.isInteger(m.ref)?m.ref:null,...r});
    }else if(m.type==='challenge'){
-    const r=!rate('challenge',8,10000)?{ok:false,reason:'Wait a moment and try again.'}:m.action==='start'?challenges.start(c,String(m.id)):m.action==='cancel'?challenges.cancel(c):{ok:false,reason:'Unknown challenge action.'};
-    send(ws,{type:'challengeResult',action:String(m.action).slice(0,16),...r});
+    const r=!rate('challenge',8,10000)?{ok:false,reason:'Wait a moment and try again.'}:m.action==='start'?challenges.start(c,str(m.id)):m.action==='cancel'?challenges.cancel(c):{ok:false,reason:'Unknown challenge action.'};
+    send(ws,{type:'challengeResult',action:str(m.action).slice(0,16),...r});
    }else if(m.type==='checkin'){
     // In-game event attendance: the room checks the player is at the event's place; the database
     // checks the event, its place and its time window. Gameplay attendance only, never academic.
@@ -246,7 +280,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
      if(r?.organizer)for(const o of clients.values())if(o.account?.id===r.organizer){send(o.ws,{type:'progress',kind:'checkin',item:m.event,awarded:['community-builder']});analytics.track(o,'achievement_earned',{achievement:'community-builder'});}
     }).catch(e=>reply({ok:false,reason:e?.reason??'Check-in is unavailable right now. Try again in a moment.'}));
    }else if(m.type==='meetUp'){
-    const r=rate('meetUp',5,5000)?meetUp(c,clients.get(String(m.id))):{ok:false,reason:'Wait a moment before travelling again.'};send(ws,{type:'meetUpResult',...r});
+    const r=rate('meetUp',5,5000)?meetUp(c,clients.get(str(m.id))):{ok:false,reason:'Wait a moment before travelling again.'};send(ws,{type:'meetUpResult',...r});
    }else if(m.type==='prefs'&&rate('prefs',4,5000)){
     // Guests choose who may invite them for this session; accounts keep the setting in their profile.
     if(['everyone','nobody'].includes(m.partyInvites))c.guestInvites=m.partyInvites;
@@ -269,8 +303,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(['sit','stand','door','pickup','drop','shoot','ballReset'].includes(m.type)&&rate('world',8,1000)){
     if(c.vehicle)return;
     // Physical interactions: validated against server-side position, possession and occupancy.
-    const held=c.ball,r=m.type==='sit'?world.sit(c,String(m.seat)):m.type==='stand'?world.stand(c):m.type==='door'?world.door(c,String(m.id),m.open===true,joined().filter(p=>p!==c)):m.type==='pickup'?world.pickup(c,String(m.ball)):m.type==='drop'?world.drop(c):m.type==='shoot'?world.shoot(c,Number(m.yaw),Number(m.charge)):world.resetBall(c,String(m.ball));
-    send(ws,{type:'result',action:m.type,ref:m.ref,...r,seat:c.seat,ball:c.ball,x:c.x,z:c.z});
+    const held=c.ball,r=m.type==='sit'?world.sit(c,str(m.seat)):m.type==='stand'?world.stand(c):m.type==='door'?world.door(c,str(m.id),m.open===true,joined().filter(p=>p!==c)):m.type==='pickup'?world.pickup(c,str(m.ball)):m.type==='drop'?world.drop(c):m.type==='shoot'?world.shoot(c,num(m.yaw),num(m.charge)):world.resetBall(c,str(m.ball));
+    send(ws,{type:'result',action:m.type,ref:Number.isInteger(m.ref)?m.ref:null,...r,seat:c.seat,ball:c.ball,x:c.x,z:c.z});
     if(r.ok&&m.type==='shoot'){broadcast({type:'events',list:[{type:'shot',by:id,shot:r.shot,hoop:r.hoop}]});duels.onShot(c,r.shot,held);if(c.account&&!c.duel)c.hoops.push({id:r.shot,at:Date.now(),points:0,done:false});}
    }else if(m.type==='report'&&rate('report',3,60000)&&clients.has(m.id)&&m.id!==id){
     // The reported player's last few public chat lines (already seen by everyone present) go with
@@ -280,16 +314,21 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     reportQueue=reportQueue.then(async()=>{await mkdir(reportDir,{recursive:true});await appendFile(reportDir+'/reports.jsonl',JSON.stringify(record)+'\n');send(ws,{type:'notice',text:'Report saved for the room operator. You can also mute this player.'});}).catch(()=>send(ws,{type:'notice',text:'Report could not be saved. Please contact the room operator.'}));
    }
   });
-  ws.on('close',(code)=>{clearTimeout(c.socialTimer);challenges.release(c);if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);clients.delete(id);broadcast({type:'left',id});});ws.on('error',()=>ws.close());
+  ws.on('close',code=>depart(c,code));ws.on('error',()=>ws.close());
  });
+ const cm=v=>Math.round(v*100)/100,mrad=v=>Math.round(v*1000)/1000;
+ const packVehicle=v=>({...v,x:cm(v.x),z:cm(v.z),yaw:mrad(v.yaw),speed:cm(v.speed),steering:mrad(v.steering),wheel:mrad(v.wheel)});
+ const sentVehicles=new Map();
+ function changedVehicles(){const out=[];for(const v of fleet.snapshot()){const p=packVehicle(v),key=JSON.stringify(p);if(sentVehicles.get(v.id)!==key){sentVehicles.set(v.id,key);out.push(p);}}return out;}
+ // The last input applies for INPUT_HOLD_MS after it arrived, then the player coasts to a stop
+ // (shared/movement.mjs); vehicles block walking into them, never walking out of one's footprint.
+ const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz)));
  let last=performance.now(),tick=0;
- const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,.25),steps=Math.ceil(dt/.05),h=dt/steps;last=now;
+ const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,MAX_STEP),wall=Date.now();last=now;
   for(const c of clients.values()){if(!c.joined){if(Date.now()-c.joinedAt>10000)c.ws.close();continue;}
-   if(c.seat||c.vehicle){c.vx=c.vz=0;c.moving=false;c.input.jump=false;continue;}
-   const active=Date.now()-c.lastInput<350,i=c.input;const speed=i.sprint?8:4.5,blend=1-Math.exp(-12*h);
-   if(i.jump&&c.y===0)c.vy=7;i.jump=false;
-   for(let k=0;k<steps;k++){c.vx+=((active?i.dx*speed:0)-c.vx)*blend;c.vz+=((active?i.dz*speed:0)-c.vz)*blend;
-    const q=moveWithCollisions(c.x,c.z,c.vx*h,c.vz*h),inside=v=>vehicleContains(v,q.x,q.z)&&!vehicleContains(v,c.x,c.z);if(!fleet.vehicles.some(inside))Object.assign(c,q);c.vy-=19*h;c.y=Math.max(0,c.y+c.vy*h);if(c.y===0)c.vy=0;}
+   if(c.seat||c.vehicle){c.vx=c.vz=0;c.moving=false;c.input.jump=false;c.simAt=wall;continue;}
+   const i=c.input;if(i.jump&&c.y===0)c.vy=JUMP_SPEED;i.jump=false;
+   walk(c,wall);
    c.moving=Math.hypot(c.vx,c.vz)>.2;c.sprinting=i.sprint;if(Date.now()-c.emoteAt>3000)c.emote='';
   }
   fleet.step(dt,joined());classes.step(joined());
@@ -298,9 +337,11 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   duels.step(events);
   for(const e of events)if(e.type==='score'){const shot=clients.get(e.by)?.hoops.find(s=>s.id===e.shot);if(shot){shot.points=e.points;shot.done=true;}}
   if(tick%3===0)challenges.step(joined());
-  if(tick%15===0){const t=Date.now();for(const c of clients.values())settleHoops(c,t);parties.step();partyTime(t);}
+  if(tick%15===0){const t=Date.now();for(const c of clients.values())settleHoops(c,t);parties.step();partyTime(t);for(const [k,r] of recent)if(t-r.at>partyLimits.graceMs)recent.delete(k);}
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
-  if(++tick%2===0)broadcast({type:'state',players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account})=>({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:fleet.snapshot(),classes:classes.snapshot()});
+  // 15 Hz state: positions to the centimetre and angles to the milliradian (the client interpolates), and
+  // only the vehicles that changed since the last broadcast (joining clients get the whole fleet in welcome).
+  if(++tick%2===0)broadcast({type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account})=>({id,name,avatar,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()});
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
  return {http,wss,clients,fleet,parties,duels,challenges,world,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};

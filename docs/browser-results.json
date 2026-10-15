@@ -1,4 +1,5 @@
 {
+  "date": "2026-10-15T03:59:48.717Z",
   "results": [
     "desktop real WebGL campus renders",
     "customization and welcome Escape",
@@ -8,8 +9,37 @@
     "open the library door",
     "walk-in library and interior collectible",
     "complete five-stop exploration tour",
-    "five-shot basketball round under real physics"
+    "five-shot basketball round under real physics",
+    "all six keepsakes collected",
+    "pause, low quality, reduced motion",
+    "two browser sessions exchange real chat and presence",
+    "remote avatar movement",
+    "disconnect removes remote avatar",
+    "progress persists after reload",
+    "390px touch layout without horizontal overflow",
+    "mobile avatar editor"
   ],
   "errors": [],
-  "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n5 !== 6\n"
+  "metrics": {
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 36
+    },
+    "fps": 1,
+    "drawCalls": 144,
+    "triangles": 308308,
+    "textures": 52,
+    "geometries": 103,
+    "quality": "low",
+    "peers": [],
+    "tokens": [
+      "t1",
+      "t2",
+      "t4",
+      "t3",
+      "t5",
+      "t6"
+    ]
+  }
 }

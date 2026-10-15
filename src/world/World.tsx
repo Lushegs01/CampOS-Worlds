@@ -2,12 +2,14 @@ import { occupiedAnchor } from '../vehicles/client';
 import Expansion from './Expansion';
 import Vehicles from './Vehicles';
 import { QA_HOOKS } from '../qa';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Player from '../game/Player';
 import Avatar, { type AvatarMotion } from '../avatar/Avatar';
-import { input, livePeers, player, useGame, type Peer, type SitState } from '../state';
+import { AvatarBoundary } from '../avatar/AvatarBoundary';
+import { input, livePeers, peerTracks, player, useGame, type Peer, type SitState } from '../state';
+import { INTERP_DELAY } from '../network/interpolation.mjs';
 import { SEAT_BY_ID } from '../../shared/interactions.mjs';
 import { peerRelease } from '../interaction/controller';
 import { Doors, Chairs, Balls, Computers } from './Interactive';
@@ -19,6 +21,7 @@ import { ACHIEVEMENT_BY_ID } from '../../shared/achievements.mjs';
 import { LOCATIONS, TOKENS } from '../../shared/campus.mjs';
 import { cached, initLoaders, suspend } from './assets';
 import { QUALITY, type QualityProfile } from './quality';
+import { createResolution, STALL } from './resolution.mjs';
 import { loadSurfaces, createMaterials, type Materials } from './materials';
 import { SkyDome, Lighting, LIGHTING, loadSkyInfo } from './Sky';
 import { Ground } from './Ground';
@@ -26,6 +29,7 @@ import { buildCampus, Props, Flags, Water, DistanceCull } from './Campus';
 import { Vegetation, setSunDirection } from './Vegetation';
 import { signFontsReady } from './architecture/signage';
 import { surfaceHeight } from './layout';
+import { registerMovingCaster } from './shadows';
 const PostFX = lazy(() => import('./PostFX'));
 
 const LIBRARY_CENTRE: [number, number, number] = [-30, 2, -15];
@@ -36,12 +40,12 @@ const TAG = { party: '#8a6424', friend: '#2e5a6e', none: '#203c33' };
 function PeerAvatar({ peer: initial }: { peer: Peer }) {
   const peer = livePeers.get(initial.id) ?? initial;
   const kind = useSocial(s => bond(s, initial.id, initial.handle)) ?? 'none';
-  const group = useRef<THREE.Group>(null!), tag = useRef<THREE.Group>(null!);
+  const group = useRef<THREE.Group>(null!), tag = useRef<THREE.Group>(null!), shown = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
   // Someone already seated when we arrive is shown seated, not sitting down again.
   const motion = useRef<AvatarMotion & { last: THREE.Vector3; yaw: number }>({ speed: 0, y: 0, vy: 0, turn: 0, last: new THREE.Vector3(peer.x, 0, peer.z), yaw: peer.yaw, sit: peer.seat ? { seat: peer.seat, phase: 'seated', t: 0 } : null });
   useFrame(({ camera }, raw) => {
     const peer = livePeers.get(initial.id) ?? initial;
-    const dt = Math.min(raw, .05), g = group.current, m = motion.current;
+    const dt = Math.min(raw, .25), g = group.current, m = motion.current;
     // Seat state is replicated; the sit-down / stand-up motion itself plays locally.
     if (peer.seat && m.sit?.seat !== peer.seat) m.sit = { seat: peer.seat, phase: 'down', t: 0 } as SitState;
     else if (!peer.seat && m.sit && (m.sit.phase === 'down' || m.sit.phase === 'seated')) m.sit.phase = 'up';
@@ -50,12 +54,15 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     m.vehicleSeatHeight=anchor?.y??null;
     if(anchor){g.position.set(anchor.x,.025,anchor.z);g.rotation.y=anchor.yaw;m.speed=0;m.y=0;m.vy=0;m.turn=0;m.last.copy(g.position);tag.current.position.y=anchor.y+1.4;tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);return;}
     const seat = m.sit ? SEAT_BY_ID.get(m.sit.seat) : undefined;
+    // Drawn slightly in the past, between the two snapshots around that moment: steady speed (./network/interpolation.mjs).
+    const at = peerTracks.get(initial.id)?.sample(performance.now() - INTERP_DELAY, shown) ? shown : peer;
     if (seat) { g.position.set(seat.x, surfaceHeight(seat.x, seat.z), seat.z); g.rotation.y = seat.yaw; }
-    else { const k = 1 - Math.exp(-12 * dt); g.position.x += (peer.x - g.position.x) * k; g.position.y += (peer.y + surfaceHeight(peer.x, peer.z) - g.position.y) * k; g.position.z += (peer.z - g.position.z) * k; }
-    let d = peer.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); if (!seat) g.rotation.y += d * (1 - Math.exp(-dt * 10));
+    else g.position.set(at.x, at.y + surfaceHeight(at.x, at.z), at.z);
+    let d = at.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); if (!seat) g.rotation.y += d * (1 - Math.exp(-dt * 14));
     m.holding = !!peer.ball; m.release = peerRelease.get(initial.id) ?? 0;
     // Derive gait speed from the interpolated motion so remote avatars animate like the local one.
-    const moved = Math.hypot(g.position.x - m.last.x, g.position.z - m.last.z) / Math.max(dt, 1e-4); m.last.copy(g.position);
+    // Over the real frame time: dividing by the 50 ms-capped animation step made walkers run on slow devices.
+    const moved = Math.hypot(g.position.x - m.last.x, g.position.z - m.last.z) / Math.min(Math.max(raw, 1e-4), STALL); m.last.copy(g.position);
     m.speed = seat ? 0 : THREE.MathUtils.damp(m.speed, peer.moving ? moved : 0, 8, dt); m.y = peer.y; m.vy = peer.y > .05 ? 1 : 0; m.turn = d * 4;
     m.emote = peer.emote; m.emoteUntil = peer.emoteAt + 3000;
     tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);
@@ -63,7 +70,7 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     const tagDistance = g.position.distanceToSquared(camera.position);
     tag.current.visible = tagDistance > 9 && tagDistance < 900;
   });
-  return <group ref={group} position={[peer.x, peer.y, peer.z]}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense><group ref={tag} position={[0, 2.25, 0]} name={`tag:${initial.id}`}
+  return <group ref={group} position={[peer.x, peer.y, peer.z]}><AvatarBoundary accent={peer.avatar.accent}><Suspense fallback={null}><Avatar id={initial.id} config={peer.avatar} motion={() => motion.current} /></Suspense></AvatarBoundary><group ref={tag} position={[0, 2.25, 0]} name={`tag:${initial.id}`}
     // Click a name tag to see who it is: their profile card, or the People list for guests. A drag
     // that started on the tag (looking around) does not count.
     onClick={e => { if (e.delta > 6) return; e.stopPropagation(); const p = livePeers.get(initial.id) ?? initial; useGame.getState().set({ panel: p.handle ? `player:${p.handle}` : 'players' }); document.exitPointerLock?.(); }}
@@ -79,6 +86,7 @@ function Collectibles() {
   const tokens = useKeepsakes(), reduced = useGame(s => s.reducedMotion), group = useRef<THREE.Group>(null!);
   const gold = useMemo(() => new THREE.MeshStandardMaterial({ color: '#e7b85c', metalness: 1, roughness: .22, emissive: '#7a4a12', emissiveIntensity: .35 }), []);
   const glow = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffd37a', transparent: true, opacity: .35, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  useEffect(() => registerMovingCaster(group.current), []);
   useFrame(({ clock }) => { group.current.children.forEach((child, i) => { const gem = child.children[0]; gem.rotation.y = reduced ? 0 : clock.elapsedTime * .8; gem.position.y = 1.15 + (reduced ? 0 : Math.sin(clock.elapsedTime * 2 + i) * .12); }); });
   return <group ref={group}>{TOKENS.filter(t => !tokens.includes(t.id)).map(t => <group key={t.id} position={[t.x, surfaceHeight(t.x, t.z), t.z]}>
     <group><mesh castShadow material={gold}><octahedronGeometry args={[.3, 0]} /></mesh><mesh material={gold} rotation-x={Math.PI / 2}><torusGeometry args={[.46, .014, 8, 48]} /></mesh></group>
@@ -106,18 +114,11 @@ function Waypoint() {
   </group> : null;
 }
 
-/** Lowers the render scale when frames run long and restores it when there is headroom. */
+/** Lowers the render scale when frames run long and restores it when there is headroom (policy: ./resolution.mjs). */
 function AdaptiveResolution({ max, min }: { max: number; min: number }) {
-  const setDpr = useThree(s => s.setDpr), state = useRef({ scale: max, frames: 0, time: 0 });
-  useEffect(() => { state.current.scale = max; setDpr(max); }, [max, setDpr]);
-  useFrame((_, dt) => {
-    const s = state.current; s.frames++; s.time += dt;
-    if (s.time < 1.5) return;
-    const fps = s.frames / s.time; s.frames = 0; s.time = 0;
-    // Aim for a responsive 60 Hz frame budget, with a dead band to avoid resolution oscillation.
-    const next = fps < 50 ? Math.max(min, s.scale * .85) : fps > 59 ? Math.min(max, s.scale * 1.04) : s.scale;
-    if (Math.abs(next - s.scale) > .01) { s.scale = next; setDpr(next); }
-  });
+  const setDpr = useThree(s => s.setDpr), control = useMemo(() => createResolution(max, min), [max, min]);
+  useEffect(() => { setDpr(max); }, [control, max, setDpr]);
+  useFrame((_, dt) => { const next = control.frame(dt); if (next != null) setDpr(next); });
   return null;
 }
 
@@ -139,6 +140,7 @@ function Telemetry() {
     gl.domElement.addEventListener('webglcontextlost', lost); return () => gl.domElement.removeEventListener('webglcontextlost', lost);
   }, [gl, scene]);
   useFrame((_, dt) => {
+    if (dt > STALL) { frames.current = 0; elapsed.current = 0; return; }
     frames.current++; elapsed.current += dt;
     if (elapsed.current >= 2) {
       const fps = Math.round(frames.current / elapsed.current); useGame.getState().set({ fps });
@@ -200,7 +202,8 @@ function Campus({ quality }: { quality: QualityProfile }) {
 // QA builds only: `?qa-scale=0.25` renders the 3D view at a fixed low resolution, so browser tests
 // on machines without a GPU (software WebGL) stay responsive. Interface and gameplay are unchanged.
 const QA_SCALE = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale')) || 0)) : 0;
-export default function World() {
+// Memoised: the interface around the canvas re-renders on its own state; that must not reconcile the scene.
+export default memo(function World() {
   const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey], ceiling = QA_SCALE || Math.min(quality.dpr, window.devicePixelRatio || 1);
   return <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
     gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.AgXToneMapping, toneMappingExposure: LIGHTING.exposure, stencil: false }}
@@ -214,4 +217,4 @@ export default function World() {
     <AdaptiveResolution max={ceiling} min={QA_SCALE || (qualityKey === 'high' ? .75 : .6)} />
     <Telemetry />
   </Canvas>;
-}
+});

@@ -1,7 +1,7 @@
-import { chromium } from '@playwright/test';
+import { launch, QUERY } from './support/browser.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-const browser = await chromium.launch({headless:true, executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || 'C:/Program Files/Google/Chrome/Application/chrome.exe', args:['--use-angle=d3d11','--enable-gpu','--ignore-gpu-blocklist']});
+const browser = await launch();
 const ctx = await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
 // Isolated local gameplay: no QA movement enters a user's shared room.
 await ctx.addInitScript(()=>{ const Real=window.WebSocket; window.WebSocket=function(url,p){if(!String(url).endsWith('/ws'))return new Real(url,p);const fake={readyState:3,send(){},close(){}};setTimeout(()=>fake.onclose?.({code:1006}),0);return fake;};Object.assign(window.WebSocket,{OPEN:1,CLOSED:3}); });
@@ -13,7 +13,7 @@ const pass=name=>{results.push(name);console.log('PASS',name);};
 const pos=()=>page.evaluate(()=>window.__campusInspect());
 await mkdir('docs/screenshots/performance',{recursive:true});
 try {
- await page.goto(process.env.TEST_URL||'http://127.0.0.1:5173',{waitUntil:'domcontentloaded'});
+ await page.goto((process.env.TEST_URL||'http://127.0.0.1:5173')+QUERY,{waitUntil:'domcontentloaded'});
  await page.getByRole('button',{name:'Enter campus',exact:true}).click();await page.waitForTimeout(4000);
  assert.equal((await pos()).quality,'low');
  const downloads=await page.evaluate(()=>performance.getEntriesByType('resource').map(x=>x.name));
@@ -23,7 +23,8 @@ try {
  const start=await pos();
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y-33,id:1}]});
- await page.waitForTimeout(900);
+ // Held until the player has covered 2 m (a fixed 900 ms covered too few frames under software WebGL).
+ await page.waitForFunction(s=>{const p=window.__campusInspect().position;return Math.hypot(p.x-s.x,p.z-s.z)>2;},start.position,{timeout:20000}).catch(()=>{});
  assert.ok(Math.hypot((await pos()).position.x-start.position.x,(await pos()).position.z-start.position.z)>2);pass('Actual touch joystick moves the player');
  const yaw=(await pos()).yaw;
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y:y-33,id:1},{x:280,y:420,id:2}]});
@@ -31,7 +32,9 @@ try {
  await page.waitForFunction(y=>Math.abs(window.__campusInspect().yaw-y)>.2,yaw,{timeout:5000});pass('Two-finger movement and camera rotation work together');
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.waitForTimeout(1000);const stopped=(await pos()).position;
  await page.waitForTimeout(500);assert.ok(Math.hypot((await pos()).position.x-stopped.x,(await pos()).position.z-stopped.z)<.05);pass('Releasing touch stops movement');
- await page.getByRole('button',{name:'Jump',exact:true}).tap();await page.waitForFunction(()=>window.__campusInspect().position.y>.2);pass('Touch jump works');
+ // A jump can be over within two slow frames: record the peak height in the page from before the tap.
+ await page.evaluate(()=>{window.__peakY=0;const t0=performance.now();const f=()=>{window.__peakY=Math.max(window.__peakY,window.__campusInspect().position.y);if(performance.now()-t0<8000)requestAnimationFrame(f);};requestAnimationFrame(f);});
+ await page.getByRole('button',{name:'Jump',exact:true}).tap();await page.waitForFunction(()=>window.__peakY>.2,null,{timeout:8000});pass('Touch jump works');
  await page.waitForTimeout(1000);
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y-30,id:1}]});
  await page.getByRole('button',{name:'Pause and settings',exact:true}).click();

@@ -2,25 +2,24 @@
 // Usage: node tests/browser-interactions.mjs   (requires `npm run dev`; ONLY=seating,doors,... to select)
 // Movement goes through the normal input path (a QA steering hook stands in for the keyboard), so the
 // authoritative room server validates every seat, door and ball action exactly as it would in play.
-import { chromium } from '@playwright/test';
+import { launch, QUERY } from './support/browser.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-const exe = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const base = process.env.TEST_URL || 'http://localhost:5173', OUT = 'docs/screenshots/interactions';
 const only = (process.env.ONLY || '').split(',').filter(Boolean), want = s => !only.length || only.includes(s);
 await mkdir(OUT, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await launch();
 const results = [], errors = [], timings = {};
 const pass = label => { results.push(label); console.log('PASS', label); };
 
 async function open(name, { viewport = { width: 1280, height: 800 }, mobile = false } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: mobile, isMobile: mobile, deviceScaleFactor: 1 });
   await ctx.addInitScript(n => localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: n }, version: 0 })), name);
-  const page = await ctx.newPage(); page.setDefaultTimeout(20000); page.label = name;
+  const page = await ctx.newPage(); page.setDefaultTimeout(45000); page.label = name;
   page.on('pageerror', e => errors.push(`${name}: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION/.test(m.text())) errors.push(`${name}: ${m.text()}`); });
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.goto(base + QUERY, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 120000 });
   await page.getByRole('button', { name: 'Enter campus', exact: true }).click();
   await page.getByRole('button', { name: /online/ }).waitFor({ timeout: 30000 });
@@ -102,7 +101,7 @@ try {
     await walk(B, -29.6, -4.2);
     await face(A, 0); await until(A, () => /Close door/.test(window.__campusDebug.focus()?.label ?? '')).catch(async () => { await walk(A, -30, -6.4); await face(A, 0); });
     await until(A, () => /Close door/.test(window.__campusDebug.focus()?.label ?? ''));
-    await pressE(A); await A.waitForTimeout(900); assert.match(await toast(A), /doorway/); assert.equal((await st(A)).world.doors['library-main'], -1);
+    await pressE(A); await until(A, () => /doorway/.test(document.querySelector('.toast')?.textContent ?? '')).catch(() => {}); assert.match(await toast(A), /doorway/); assert.equal((await st(A)).world.doors['library-main'], -1);
     pass('a door will not close on someone standing in the doorway');
     await walk(B, -29.6, -1.5); await pressE(A); await until(A, () => window.__campusDebug.state().world.doors['library-main'] === 0);
     await A.waitForTimeout(1500); await shot(A, 'door-closed-from-inside'); pass('the door closes once the doorway is clear');
@@ -112,7 +111,7 @@ try {
     pass('a closed door is solid');
     // Locked staff door.
     await walk(A, -31.5, -21); await walk(A, -34.95, -24.8); await face(A, Math.PI);
-    await until(A, () => /Locked/.test(window.__campusDebug.focus()?.label ?? '')); await pressE(A); await A.waitForTimeout(600);
+    await until(A, () => /Locked/.test(window.__campusDebug.focus()?.label ?? '')); await pressE(A); await until(A, () => /Locked/.test(document.querySelector('.toast')?.textContent ?? '')).catch(() => {});
     assert.match(await toast(A), /Locked · Staff only/); await shot(A, 'door-locked'); pass('a locked door explains that it is locked');
   }
 
@@ -198,12 +197,12 @@ try {
       await face(A, Math.PI);
       const before = (await st(A)).ui.hoops;
       await A.keyboard.down('Space');
-      await until(A, () => window.__campusDebug.state().ui.zone);
-      // Release as the rising needle enters the gold band, as a player would: the key-up reaches
-      // the page a frame or more later, so aiming for its first part leaves room for that delay.
-      await A.evaluate(() => { window.__qaCharge = null; });
-      await A.waitForFunction(() => { const s = window.__campusDebug.state(), z = s.ui.zone, prev = window.__qaCharge; window.__qaCharge = s.charge; if (!z || s.charge == null || prev == null) return false; const w = z[1] - z[0]; return s.charge > prev && s.charge > z[0] + w * .1 && s.charge < z[0] + w * .45; }, null, { timeout: 8000, polling: 'raf' });
+      await until(A, () => { const s = window.__campusDebug.state(); return s.ui.zone && s.charge != null && performance.now() / 1000 - s.chargeStart > 2.4; });
       if (i === 0) await shot(A, 'ball-charging');
+      // Release at the moment the rising needle is 30% into the gold band. The game reads the meter at the
+      // release's own time; it is timed in the page because a key-up sent from the test process can arrive
+      // a second late on a slow machine, more than a whole sweep of the meter.
+      await A.evaluate(() => { const s = window.__campusDebug.state(), z = s.ui.zone, target = z[0] + (z[1] - z[0]) * .3, period = 1.15, now = performance.now() / 1000; const n = Math.floor(((now - s.chargeStart) / period - target) / 2); window.__campusDebug.releaseShot(s.chargeStart + (2 * n + target) * period); });
       await A.keyboard.up('Space'); attempts++;
       if (i === 0) { await A.waitForTimeout(450); await shot(A, 'ball-in-flight'); }
       await until(A, b => window.__campusDebug.state().ui.hoops.shots > b, before.shots, 6000);

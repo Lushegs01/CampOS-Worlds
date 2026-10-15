@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-13T18:59:04.065Z",
+  "date": "2026-10-15T03:23:07.119Z",
   "results": [
     "sit on a bench with the captured sit-down; the room records the occupant",
     "an occupied seat refuses a second player",
@@ -22,7 +22,7 @@
     "enter Studio D1, take a desk and read the whiteboard",
     "pick up a basketball; possession is server-validated",
     "a second player takes the other ball",
-    "five-shot round under real physics: 4/5 made, 8 points, each counted once",
+    "five-shot round under real physics: 5/5 made, 10 points, each counted once",
     "a weak shot misses",
     "Q drops the ball",
     "a disconnecting player releases their ball",
@@ -31,8 +31,8 @@
   ],
   "errors": [],
   "timings": {
-    "sitDown": 3513,
-    "mobileFps": 23,
-    "fps": 24
+    "sitDown": 13965,
+    "mobileFps": 2,
+    "fps": 2
   }
 }

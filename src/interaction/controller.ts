@@ -97,16 +97,24 @@ function usePoint(id: string) {
 }
 
 // ------------------------------------------------------------------ shooting
-const CHARGE_PERIOD = 1.15; // seconds for the meter to sweep from empty to full
+export const CHARGE_PERIOD = 1.15; // seconds for the meter to sweep from empty to full
 let chargeStart = 0, zoneAt = { x: 0, z: 0, yaw: 99, t: 0 };
-export function startCharge() {
+/** The meter at time `t` (seconds, performance.now() clock): it rises, falls, and repeats. */
+export const chargeAt = (t: number) => { const k = Math.max(0, t - chargeStart) / CHARGE_PERIOD; return 1 - Math.abs(1 - (k % 2)); };
+/** When the current charge started (seconds), for QA timing. */
+export const chargeStartedAt = () => chargeStart;
+/** An input event's own time (seconds), so the meter is read when the key or finger moved, not when the frame ran. */
+const eventTime = (at?: number) => { const now = nowS(); return at != null && Number.isFinite(at) && at <= now && at > now - 5 ? at : now; };
+export function startCharge(at?: number) {
   if (activity() !== 'holding') return;
-  player.charge = 0; chargeStart = nowS(); zoneAt = { x: 0, z: 0, yaw: 99, t: 0 };
+  player.charge = 0; chargeStart = eventTime(at); zoneAt = { x: 0, z: 0, yaw: 99, t: 0 };
 }
 export function cancelCharge() { player.charge = null; }
-export function releaseShot() {
+export function releaseShot(at?: number) {
   if (player.charge == null) return;
-  const charge = player.charge, ball = me.ball, zone = useInteraction.getState().zone;
+  // The meter's value at the moment of release, not at the last drawn frame: on a slow phone one frame
+  // can be a fifth of the sweep, which made the gold band impossible to hit.
+  const charge = chargeAt(Math.max(chargeStart, eventTime(at))), ball = me.ball, zone = useInteraction.getState().zone;
   player.charge = null; player.release = nowS();
   if (player.y === 0) player.vy = 4.4; // a small jump shot
   pending = true; sfx('shot');
@@ -241,7 +249,7 @@ export function tickInteractions(dt: number) {
   if (player.charge != null) {
     if (!me.ball) player.charge = null;
     else {
-      const t = (nowS() - chargeStart) / CHARGE_PERIOD; player.charge = 1 - Math.abs(1 - (t % 2));
+      player.charge = chargeAt(nowS());
       player.yaw = input.yaw + Math.PI; // shots go where the camera looks
       if (Math.abs(zoneAt.yaw - player.yaw) > .015 || Math.hypot(zoneAt.x - player.x, zoneAt.z - player.z) > .1) {
         zoneAt = { x: player.x, z: player.z, yaw: player.yaw, t: nowS() };

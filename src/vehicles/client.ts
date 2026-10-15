@@ -35,6 +35,7 @@ export function tickVehicles(dt:number){
  for(const v of localFleet.vehicles){const p=vehicleVisuals.get(v.id)!;const k=!online||Math.hypot(v.x-p.x,v.z-p.z)>35?1:1-Math.exp(-dt*15);p.x+=(v.x-p.x)*k;p.z+=(v.z-p.z)*k;p.yaw+=Math.atan2(Math.sin(v.yaw-p.yaw),Math.cos(v.yaw-p.yaw))*k;p.speed=v.speed;p.steering=v.steering;p.wheel+=v.speed*dt/.32;p.occupants=v.occupants;}
  senseVehicles();
 }
-export function vehicleFootBlocked(x:number,z:number){return [...vehicleVisuals.values()].some(v=>vehicleContains(v,x,z));}
+/** Called for every movement substep: no allocation. */
+export function vehicleFootBlocked(x:number,z:number){for(const v of vehicleVisuals.values())if(vehicleContains(v,x,z))return true;return false;}
 export function disconnectVehicles(){const v=localFleet.find(useVehicle.getState().id);if(v){v.speed=0;localFleet.exit(me,[me]);}localFleet.release(me);setOccupancy(null,null);driving.throttle=driving.steer=0;driving.brake=true;receiveVehicles(localFleet.snapshot());}
 export function occupiedAnchor(id:string,seat:number){const v=vehicleVisuals.get(id);return v?seatAnchor(v,seat):null;}

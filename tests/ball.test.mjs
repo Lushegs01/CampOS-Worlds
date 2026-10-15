@@ -54,3 +54,22 @@ test('a ball wedged between rim and backboard, or resting on the arm, returns to
     assert.ok(Math.abs(b.y - (floorAt(b.x, b.z) + BALL_R)) < .005, `${name}: and rests on the ground`);
   }
 });
+
+test('a ball left at rest away from the court returns to the rack instead of sleeping there forever', () => {
+  // Carried across campus and dropped on the lawn by the café: it rolls to rest and goes to sleep.
+  const b = Object.assign(newBall(BALLS[0]), { x: 20, y: 1, z: 6, vx: .8, vy: .5, vz: 0, state: 'free' }), events = [];
+  for (let t = 0; t < 6; t += 1 / 30) stepBall(b, 1 / 30, events);
+  assert.ok(b.rest > .5, 'the ball is asleep on the ground');
+  assert.equal(events.filter(e => e.type === 'respawn').length, 0, 'not straight away');
+  for (let t = 0; t < 21; t += 1 / 30) stepBall(b, 1 / 30, events);
+  assert.ok(events.some(e => e.type === 'respawn'), 'an idle ball far from the court respawns');
+  const spec = BALLS.find(s => s.id === b.id);
+  assert.ok(Math.hypot(b.x - spec.x, b.z - spec.z) < .01, 'back on the rack');
+});
+
+test('a ball at rest on the court stays where it is', () => {
+  const b = Object.assign(newBall(BALLS[0]), { x: 44, y: .3, z: 20, vx: 0, vy: 0, vz: 0, state: 'free' }), events = [];
+  for (let t = 0; t < 40; t += 1 / 30) stepBall(b, 1 / 30, events);
+  assert.equal(events.filter(e => e.type === 'respawn').length, 0);
+  assert.ok(Math.hypot(b.x - 44, b.z - 20) < .05);
+});

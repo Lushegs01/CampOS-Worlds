@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, BookOpen, CircleDot, Coffee, LogOut, Monitor, RotateCcw, Search } from 'lucide-react';
 import { POINTS } from '../../shared/interactions.mjs';
 import { player, useGame } from '../state';
-import { activate, drop, releaseShot, startCharge } from '../interaction/controller';
+import { activate, cancelCharge, drop, releaseShot, startCharge } from '../interaction/controller';
 import { request, useInteraction, world } from '../interaction/world';
 import { DuelModes } from './Duel';
 import { useDuel } from '../duel/store';
@@ -49,7 +49,7 @@ export function BasketballHUD() {
 export function TouchInteract() {
   const focus = useInteraction(s => s.focus), ball = useInteraction(s => s.ball);
   if (ball) return <>
-    <button className="touch-shoot" aria-label="Hold to shoot" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); startCharge(); }} onPointerUp={releaseShot} onPointerCancel={releaseShot}><CircleDot size={22} /><span>Shoot</span></button>
+    <button className="touch-shoot" aria-label="Hold to shoot" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); startCharge(e.timeStamp / 1000); }} onPointerUp={e => releaseShot(e.timeStamp / 1000)} onPointerCancel={cancelCharge}><CircleDot size={22} /><span>Shoot</span></button>
     <button aria-label="Drop the ball" onClick={drop}><RotateCcw size={18} /><span>Drop</span></button>
   </>;
   if (!focus) return null;
