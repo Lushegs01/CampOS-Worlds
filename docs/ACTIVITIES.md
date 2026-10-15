@@ -66,15 +66,12 @@ sessions: the Campus Loop, an event, a party exploring the districts. Nothing ex
 streaks or daily-login rewards, and cooldowns exist only for fairness or stability (meet-up travel,
 rate limits). Reminders are opt-out and only while you are already playing.
 
-## Personal spaces (designed, not built)
+## Personal spaces
 
-A dorm-room space per player in the Palm Residences district: an instanced interior (one shared
-mesh, per-player furniture layout), placing approved furniture from a fixed catalogue on a grid with
-collision checked by the room, showing chosen badges on a shelf, and inviting friends (visits only
-by invitation or for friends, per a privacy setting). Persistence as a validated JSON layout per
-player with limits on object count. It needs instancing work (interiors are not enterable today
-except the library, café and Studio D1) and should follow once social and competitive systems have
-been used in practice.
+Built as **your room in Palm House**: see [DORM-ROOMS.md](DORM-ROOMS.md). Every player has a private
+room behind Palm House's common room, furnished from a fixed catalogue on a floor plan. The room
+server validates every layout and keeps signed-in players' rooms in their accounts. Not built yet:
+visits by invitation, the badge shelf and wall items.
 
 ## Tests
 

@@ -1,4 +1,6 @@
 import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked } from '../vehicles/client';
+import { dormLayout } from '../dorm/client';
+import { furnitureAllows, inDormRoom, DORM_ROOM } from '../../shared/dorm.mjs';
 import { VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { QA_HOOKS } from '../qa';
 import { Suspense, useEffect, useRef } from 'react';
@@ -32,7 +34,8 @@ const arrive = (d: number, frame: number, connected: boolean) => { const f = Mat
 /** The walking velocity of the last input sent: what the room is applying until the next one arrives. */
 const sentMove = { x: 0, z: 0 };
 // Vehicles block walking into them, never walking out (someone left inside a footprint can step clear).
-const footAllowed = (x: number, z: number, fromX: number, fromZ: number) => !vehicleFootBlocked(x, z) || vehicleFootBlocked(fromX, fromZ);
+// Vehicles and, in your room, furniture: never step into one, always step out (shared/dorm.mjs, as the room server).
+const footAllowed = (x: number, z: number, fromX: number, fromZ: number) => (!vehicleFootBlocked(x, z) || vehicleFootBlocked(fromX, fromZ)) && furnitureAllows(dormLayout(), x, z, fromX, fromZ);
 
 /** Fraction (0..1) of the segment origin→end that is free of collider boxes. */
 export function cameraDistance(origin: THREE.Vector3, end: THREE.Vector3, pad = .3, colliders: readonly { x: number; z: number; w: number; d: number; h: number }[] = COLLIDERS) {
@@ -215,7 +218,9 @@ export default function Player() {
 
     // Third-person camera: damped orbit, spring arm that shortens fast and extends slowly.
     c.yaw += Math.atan2(Math.sin(input.yaw - c.yaw), Math.cos(input.yaw - c.yaw)) * (1 - Math.exp(-dt * 16));
-    c.pitch = THREE.MathUtils.damp(c.pitch, input.pitch + .08, 14, dt);
+    // In your room (3 m ceiling, a short spring arm), look down from a little higher, over the shoulder.
+    const indoors = inDormRoom(px, pz);
+    c.pitch = THREE.MathUtils.damp(c.pitch, input.pitch + .08 + (indoors ? .15 : 0), 14, dt);
     c.seated = THREE.MathUtils.damp(c.seated, onSeat && sit!.phase !== 'up' ? 1 : 0, 3, dt);
     target.set(px, ground + Math.min(player.y, 1.2) * .5 + 1.58 - c.seated * .45, pz);
     const zoom = c.zoom;
@@ -223,7 +228,7 @@ export default function Player() {
     const free = armFraction(target, desired) * zoom;
     c.arm = free < c.arm ? THREE.MathUtils.damp(c.arm, free, 30, dt) : THREE.MathUtils.damp(c.arm, free, 3.2, dt);
     desired.sub(target).normalize().multiplyScalar(c.arm).add(target);
-    desired.y = Math.max(desired.y, ground + .45);
+    desired.y = Math.max(desired.y, ground + .45); if (indoors) desired.y = Math.min(desired.y, DORM_ROOM.height - .25);
     look.copy(target); look.y += .1;
     if (c.intro < 1) {
       c.intro = Math.min(1, c.intro + dt / 1.8); const k = ease(c.intro);

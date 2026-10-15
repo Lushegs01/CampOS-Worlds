@@ -216,7 +216,10 @@ try {
     // A badly under-charged shot falls short and does not score.
     if (!(await st(A)).holding) { await fetchBall(A, 'ball-1'); await walk(A, 44, 16.2, .5); }
     await face(A, Math.PI); const pre = (await st(A)).ui.hoops;
-    await A.keyboard.down('Space'); await A.waitForTimeout(90); await A.keyboard.up('Space');
+    // Released 90 ms into the charge, timed in the page like the free throws: a key-up sent from the test
+    // process can land half a second late at 2 FPS, which is a full-strength shot.
+    await A.keyboard.down('Space'); await until(A, () => window.__campusDebug.state().charge != null);
+    await A.evaluate(() => window.__campusDebug.releaseShot(window.__campusDebug.state().chargeStart + .09)); await A.keyboard.up('Space');
     await until(A, b => window.__campusDebug.state().ui.hoops.shots > b, pre.shots, 6000);
     const miss = (await st(A)).ui.hoops; assert.equal(miss.made, pre.made, 'an under-charged shot misses'); console.log('  weak shot:', miss.last); pass('a weak shot misses');
     // Drop with Q; B disconnects while holding: the room frees B's ball.

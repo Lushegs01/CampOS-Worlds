@@ -6,7 +6,7 @@ import { createTrail } from '../shared/movement.mjs';
 import { createTrack } from './network/interpolation.mjs';
 export type AvatarConfig = ReturnType<typeof sanitizeAvatar>;
 export type Panel = null|'map'|'profile'|'settings'|'chat'|'players'|'avatar'|string;
-export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null;verified?:boolean;title?:string|null;vehicle?:string|null;vehicleSeat?:number|null};
+export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null;verified?:boolean;title?:string|null;vehicle?:string|null;vehicleSeat?:number|null;/** Set while they are in their room: drawn only for players in the same space. */space?:string};
 /** Public room chat or party chat. Private messages are separate (src/social) and never mixed in here. */
 export type ChatMessage = {id:string;name:string;text:string;at:number;channel:'room'|'party';handle:string|null;verified:boolean};
 /** Mutes are local to this device: by handle for signed-in players (it survives their reconnects), by session otherwise. */

@@ -418,3 +418,21 @@
   .touch-controls:has(.driving-touch) .touch-actions {bottom:175px}
   .app:has(.driving-touch) .quest-card {display:none}
 }
+/* Your room in Palm House: the in-room card and the floor-plan editor (src/ui/Dorm.tsx). */
+.dorm-hud{position:absolute;left:35px;top:290px;z-index:4;width:236px;border:1px solid #f1d69a66;background:#1d382fe8;backdrop-filter:blur(16px);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;color:#f4eedc;font-size:11px;animation:arrive .2s ease-out}
+.dorm-hud .eyebrow{margin:0;color:#e7c382}.dorm-hud small{color:#cfd5bf;line-height:1.4}
+.dorm-hud>div{display:flex;gap:6px;margin-top:3px}.dorm-hud button{flex:1;gap:5px;padding:7px 6px;border-radius:7px;background:#f4eedc1c;color:#f4eedc;font-size:11px;min-height:34px}
+.dorm-editor{display:flex;flex-direction:column;gap:10px}
+.dorm-plan{width:100%;max-height:46vh;touch-action:none;user-select:none;-webkit-user-select:none}
+.dorm-plan .wall{fill:#4b5a52}.dorm-plan .floor{fill:#d9c3a0}.dorm-plan .grid{stroke:#8a76571f;stroke-width:.012}
+.dorm-plan .clearance{fill:#efc57b33;stroke:#c79a4a;stroke-width:.015;stroke-dasharray:.06 .05}.dorm-plan .door{fill:#efc57b}.dorm-plan .window{fill:#9fc4cf}
+.dorm-plan .piece{cursor:pointer;outline:none}.dorm-plan .piece rect{stroke:#2a332e66;stroke-width:.02}.dorm-plan .floor-piece rect{opacity:.75}
+.dorm-plan .piece.selected rect,.dorm-plan .piece:focus-visible rect{stroke:#1d4e89;stroke-width:.06}
+.dorm-plan .front{stroke:#1f2a25;stroke-width:.05;stroke-linecap:round}.dorm-plan text{font-size:.17px;fill:#1f2a25;font-weight:600;pointer-events:none}
+.dorm-tools,.dorm-catalogue{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.dorm-tools b{margin-right:auto;font-size:13px}
+.dorm-tools button,.dorm-catalogue button{gap:5px;padding:7px 10px;border-radius:8px;background:#243d3314;color:var(--ink);font-size:12px;min-height:36px;min-width:36px}
+.dorm-catalogue button small{opacity:.6}.dorm-catalogue button.selected{background:var(--ink);color:#f4f0e6}
+.dorm-status{font-size:12px;color:#55605a;min-height:1.4em}.dorm-status.problem{color:#a3402a;font-weight:550}
+.dorm-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.dorm-actions .text-button{gap:5px;min-height:40px;padding:0 4px}
+@media(pointer:coarse){.dorm-hud{top:262px;left:12px;width:auto;max-width:calc(100vw - 24px);padding:7px 9px}.dorm-hud small{display:none}.dorm-hud button{flex:none;padding:6px 10px}}
+@media(pointer:coarse) and (max-height:500px){.dorm-hud{top:64px;left:50%;transform:translateX(-50%)}.dorm-plan{max-height:44vh}}

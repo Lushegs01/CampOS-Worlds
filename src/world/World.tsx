@@ -1,4 +1,6 @@
 import { occupiedAnchor } from '../vehicles/client';
+import { DormFurniture } from './Dorm';
+import { mySpace } from '../dorm/client';
 import Expansion from './Expansion';
 import Vehicles from './Vehicles';
 import { QA_HOOKS } from '../qa';
@@ -45,6 +47,8 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
   const motion = useRef<AvatarMotion & { last: THREE.Vector3; yaw: number }>({ speed: 0, y: 0, vy: 0, turn: 0, last: new THREE.Vector3(peer.x, 0, peer.z), yaw: peer.yaw, sit: peer.seat ? { seat: peer.seat, phase: 'seated', t: 0 } : null });
   useFrame(({ camera }, raw) => {
     const peer = livePeers.get(initial.id) ?? initial;
+    // Players in their own rooms (and, inside yours, everyone outside it) are elsewhere: not drawn.
+    const here = (peer.space ?? '') === mySpace(); group.current.visible = here; if (!here) return;
     const dt = Math.min(raw, .25), g = group.current, m = motion.current;
     // Seat state is replicated; the sit-down / stand-up motion itself plays locally.
     if (peer.seat && m.sit?.seat !== peer.seat) m.sit = { seat: peer.seat, phase: 'down', t: 0 } as SitState;
@@ -187,7 +191,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
   return <>
     <CompileGate post={quality.post} onReady={reveal}>
     <Ground surfaces={surfaces} quality={quality} />
-    <primitive object={campus.group} /><Expansion lib={lib} /><Vehicles />
+    <primitive object={campus.group} /><Expansion lib={lib} /><DormFurniture lib={lib} /><Vehicles />
     <Water reduced={reduced} />
     <Flags placements={campus.context.props} reduced={reduced} />
     <Props placements={campus.context.props} quality={quality} />

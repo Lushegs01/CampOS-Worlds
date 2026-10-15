@@ -58,6 +58,10 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     recordChallenge: (id, challenge, ms, run) => service('record_challenge', { p_user: id, p_challenge: challenge, p_ms: ms, p_run: run }),
     /** An achievement the room measured itself (time in a party of three or more). */
     recordRoomAchievement: (id, achievement) => service('record_room_achievement', { p_user: id, p_achievement: achievement }),
+    /** The saved layout of the player's room in Palm House (null until they first arrange it). */
+    dormLayout: id => service('dorm_layout', { p_user: id }),
+    /** Save a room layout the room server has validated (shared/dorm.mjs). */
+    saveDorm: (id, layout) => service('save_dorm_layout', { p_user: id, p_layout: layout }),
     /** A finished Court Duel between two signed-in players. Idempotent on the match id, so retries are safe. */
     recordDuel: m => service('record_duel', { p_match: m.id, p_player_a: m.a, p_player_b: m.b, p_score_a: m.scoreA, p_score_b: m.scoreB, p_outcome: m.outcome, p_forfeit_by: m.forfeitBy, p_started_at: new Date(m.startedAt).toISOString(), p_ended_at: new Date(m.endedAt).toISOString() }),
   };

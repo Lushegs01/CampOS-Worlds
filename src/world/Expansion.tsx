@@ -5,6 +5,8 @@ import { BUILDINGS, DISTRICTS, EXPANSION_TABLES, EXPANSION_PATHS, PARKING, STOPS
 import { player, useGame } from '../state';
 import { Kit, flatRoof, hipRoof, windowUnit, wall, sunshade, fins, breezeScreen, waterTank, acUnit, downpipe, type V3 } from './architecture/kit';
 import { sign, place } from './architecture/signage';
+import { residentsWing } from './Dorm';
+import { DORM_ROOM } from '../../shared/dorm.mjs';
 import { CARRIAGEWAY, STRIPS, FILLETS, LIGHTS, KERB, KERB_TOP, SIDEWALK_TOP, ASPHALT_TOP, courtyardLot } from './roads';
 import type { MaterialKey, Materials } from './materials';
 
@@ -86,6 +88,8 @@ function districtDetail(id: string, lib: Materials) {
     g.add(place(sign({ text: b.name, kind: 'panel', width: 7, height: .7, background: '#233e34', color: '#f7ead2' }), [b.x, 3.1, b.z + b.d / 2 + T + 4.42]));
     g.add(place(sign({ text: id === 'academic' || id === 'learning' ? 'SHARED LEARNING · DEMONSTRATION' : 'WELCOME · COMMON ROOM', kind: 'panel', width: 7, height: .5, background: '#233e34', color: '#f7ead2' }), [b.x, 2.3, b.z - b.d / 2 + .3]));
   }
+  // Palm House: the residents' wing with everyone's own room (src/world/Dorm.tsx, shared/dorm.mjs).
+  if (id === 'residential') for (const s of residentsWing(kit)) g.add(s);
   // Shuttle stop: steel frame, translucent roof, back screen, bench and timetable.
   const stop = STOPS.find(s => s.id === id)!;
   kit.within([stop.x, 0, stop.z], 0, () => {
@@ -116,6 +120,7 @@ function tintedKit(kit: Kit, color: string, fn: () => void) {
 function districtShells(id: string, lib: Materials) {
   const kit = new Kit();
   for (const b of BUILDINGS.filter(b => b.district === id)) shellBuilding(kit, b);
+  if (id === 'residential') kit.box('stucco', [(DORM_ROOM.x0 + DORM_ROOM.x1) / 2, 1.75, (DORM_ROOM.z0 + DORM_ROOM.z1) / 2 - .2], [DORM_ROOM.x1 - DORM_ROOM.x0 + .6, 3.5, DORM_ROOM.z1 - DORM_ROOM.z0 + .5]);
   return kit.build(lib, `district-far:${id}`);
 }
 
