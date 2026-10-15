@@ -49,7 +49,7 @@ try{
  await page.getByRole('button',{name:'Head to the court'}).click();
  // The real game: pick up a ball, take five free throws under physics, released in the gold band.
  // Like a player, wait for a loose ball to stop rolling (and come down off the hoop) before going to it.
- const takeBall=async()=>{await page.waitForFunction(()=>window.__campusDebug.state().world.balls.some(b=>b.state==='free'&&b.rest>.5&&b.y<1.7),null,{timeout:20000});const b=await debug(()=>window.__campusDebug.state().world.balls.find(b=>b.state==='free'&&b.rest>.5&&b.y<1.7));await steer(b.x+.9,b.z);await debug(()=>window.__campusDebug.face(-Math.PI/2));await page.waitForFunction(()=>window.__campusDebug.focus()?.label==='Pick up basketball');await page.keyboard.press('KeyE');await page.waitForFunction(()=>window.__campusDebug.state().holding);};
+ const takeBall=async()=>{/* one read: a ball found resting can respawn or be knocked before a second lookup */const b=await (await page.waitForFunction(()=>window.__campusDebug.state().world.balls.find(b=>b.state==='free'&&b.rest>.5&&b.y<1.7)??false,null,{timeout:20000})).jsonValue();await steer(b.x+.9,b.z);await debug(()=>window.__campusDebug.face(-Math.PI/2));await page.waitForFunction(()=>window.__campusDebug.focus()?.label==='Pick up basketball');await page.keyboard.press('KeyE');await page.waitForFunction(()=>window.__campusDebug.state().holding);};
  for(let i=0;i<5;i++){
   if(!(await debug(()=>window.__campusDebug.state().holding))){await takeBall();await steer(44,16.2);}
   await debug(()=>window.__campusDebug.face(Math.PI));await page.waitForTimeout(400);const before=await debug(()=>window.__campusDebug.state().ui.hoops.shots);

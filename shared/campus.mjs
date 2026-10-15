@@ -1,6 +1,7 @@
 import { WORLD_LIMIT, EXPANSION_LOCATIONS, EXPANSION_WALLS, ROADSIDE_TREES, BELT_TREES } from './expansion.mjs';
 import { DOORS, TABLES } from './interactions.mjs';
 import { LOCKED_ACCENTS } from './achievements.mjs';
+import { DORM_WALLS } from './dorm.mjs';
 export const BRAND = { name: 'CampOS', product: 'Worlds', campus: 'Òrìṣun Campus', subtitle: 'A new world. Your people.', room: 'The Courtyard' };
 // Spawn on the main avenue, facing north towards The Confluence and Horizon Auditorium.
 export const SPAWN = { x: 0, y: 0, z: 36 };
@@ -52,6 +53,8 @@ const LIBRARY = [
 ];
 export const COLLIDERS = [
  ...EXPANSION_WALLS,
+ // The residents' wing behind Palm House (shared/dorm.mjs).
+ ...DORM_WALLS,
  {x:0,z:-64.6,w:139.2,d:.4,h:2.7},{x:-69.6,z:-7.3,w:.4,d:114.6,h:2.7},{x:69.6,z:-7.3,w:.4,d:114.6,h:2.7},
  ...LIBRARY,
  // The Student House: kitchen block behind an enterable café (front glazing either side of the door).

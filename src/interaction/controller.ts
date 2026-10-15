@@ -187,6 +187,10 @@ function resolveMisses() {
 // ------------------------------------------------------------------ focus: the one prompt on screen
 type Candidate = { id: string; kind: string; label: string; key: string; hint?: string; disabled?: boolean; score: number; run: () => void };
 let current: Candidate | null = null;
+type Rank = (priority: number, x: number, z: number) => number;
+const extraCandidates: ((rank: Rank) => Candidate[])[] = [];
+/** Other features offer prompts here (the residents' door), so the controller does not import them. */
+export function registerCandidates(fn: (rank: Rank) => Candidate[]) { extraCandidates.push(fn); }
 const facingScore = (x: number, z: number) => { const dx = x - player.x, dz = z - player.z, d = Math.hypot(dx, dz) || 1; return (Math.sin(player.yaw) * dx + Math.cos(player.yaw) * dz) / d; };
 // What you are closest to and facing wins; priority only breaks near-ties (a ball over a seat beside it).
 const rank = (priority: number, x: number, z: number) => priority - Math.hypot(x - player.x, z - player.z) * 2.5 + facingScore(x, z) * 1.2;
@@ -231,6 +235,7 @@ function candidates(): Candidate[] {
     const at = car.door?.p ?? car.v;
     out.push({ id: car.v.id, kind: 'vehicle', label, key: 'E', hint: car.type.name, disabled: car.full || moving, score: rank(5, at.x, at.z), run: () => { if (!car.full && !moving) vehicleInteract(); } });
   }
+  if (!holding) for (const fn of extraCandidates) out.push(...fn(rank));
   const nearby = useGame.getState().nearby, loc = LOCATIONS.find(l => l.id === nearby);
   if (loc && !holding) out.push({ id: loc.id, kind: 'location', label: loc.id === 'sports' ? 'How to play' : `Explore ${loc.name}`, key: 'E', hint: loc.type, score: rank(3, loc.x, loc.z), run: () => interact(loc.id) });
   return out;

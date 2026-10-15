@@ -38,7 +38,7 @@ let roster='';const roomClock=createClock();
 function syncPeers(list:Peer[],count:number,roomAt?:number){
  const ids=new Set(list.map(p=>p.id));for(const id of livePeers.keys())if(!ids.has(id)){livePeers.delete(id);peerTracks.delete(id);}
  const at=typeof roomAt==='number'?roomClock.receive(roomAt,performance.now()):performance.now();
- for(const p of list){const live=livePeers.get(p.id);if(live)Object.assign(live,p);else livePeers.set(p.id,{...p});let track=peerTracks.get(p.id);if(!track)peerTracks.set(p.id,track=createTrack());track.push(at,p.x,p.y,p.z,p.yaw);}
+ for(const p of list){const live=livePeers.get(p.id);if(live){Object.assign(live,p);/* `space` is left out on campus: clear it when they come out of their room */if(p.space===undefined)delete live.space;}else livePeers.set(p.id,{...p});let track=peerTracks.get(p.id);if(!track)peerTracks.set(p.id,track=createTrack());track.push(at,p.x,p.y,p.z,p.yaw);}
  const next=list.map(p=>p.id+'|'+p.name+'|'+(p.handle??'')+(p.verified?'|v':'')+'|'+(p.title??'')+'|'+JSON.stringify(p.avatar)).sort().join(';');const s=useGame.getState();
  if(next!==roster||count!==s.count){roster=next;s.set({peers:list.map(p=>({...p})),count});}
 }

@@ -13,6 +13,7 @@ import { createDuels, DUEL_RULES } from './duels.mjs';
 import { createAnalytics } from './analytics.mjs';
 import { createChallenges } from './challenges.mjs';
 import { TOUR } from '../shared/campus.mjs';
+import { DEFAULT_LAYOUT, DORM_INSIDE, DORM_OUTSIDE, validateLayout, furnitureAllows, furnitureBlocked, inDormRoom, nearDormDoor } from '../shared/dorm.mjs';
 // Messages stay within 2 KB except the account handshake, which carries a Supabase access token.
 const MAX_MESSAGE=2048,MAX_AUTH_MESSAGE=6144;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -88,7 +89,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   // One account appears once: the newest verified window takes over (a reload or a second tab);
   // the older connection carries on as a guest and is told why.
   const prior=[...clients.values()].find(o=>o!==c&&o.account?.id===who.id);
-  if(prior){prior.authSeq++;prior.account=null;prior.social=null;prior.hoops=[];prior.name='Explorer';parties.touch(prior);send(prior.ws,{type:'auth',ok:false,code:'replaced',reason:'You opened campus with this account in another window, so this one continues as a guest.'});}
+  if(prior){if(prior.dorm)leaveDorm(prior,'Your account opened in another window, so you’re back in the common room.');prior.authSeq++;prior.account=null;prior.social=null;prior.hoops=[];prior.name='Explorer';parties.touch(prior);send(prior.ws,{type:'auth',ok:false,code:'replaced',reason:'You opened campus with this account in another window, so this one continues as a guest.'});}
+  if(c.dorm)leaveDorm(c,'You signed in, so you’re back in the common room. Go to your room again to open it.');
   bindAccount(c,who.id,snap);reply({ok:true,account:{handle:snap.handle,display_name:snap.display_name}});
  }
  // Earned accents and titles are only ever taken from the saved, verified profile.
@@ -149,12 +151,13 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // seated, driving or holding a ball, and with a cooldown. The room picks the spot, not the client.
  function meetUp(c,t){
   if(!t?.joined||t===c||!parties.sameParty(c,t))return {ok:false,reason:'You can travel only to members of your party.'};
+  if(t.dorm)return {ok:false,reason:`${t.name} is in their room. Meet up when they come out.`};
   if(c.seat||c.vehicle||c.ball)return {ok:false,reason:'Stand up, leave the vehicle and put the ball down first.'};
   if(c.duel)return {ok:false,reason:'Finish your match first.'};
   if(c.run)return {ok:false,reason:'Finish or cancel your challenge first.'};
   const wait=c.meetAt+meetCooldownMs-Date.now();if(wait>0)return {ok:false,reason:`You can travel again in ${Math.ceil(wait/1000)} s.`};
   const spot=spotNear(t);if(!spot)return {ok:false,reason:`There’s no clear space next to ${t.name} right now.`};
-  Object.assign(c,spot,{y:0,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false}});c.meetAt=Date.now();
+  Object.assign(c,spot,{y:0,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false}});c.meetAt=Date.now();c.dorm=null;c.dormSeq++;
   send(t.ws,{type:'notice',text:`${c.name} came to meet you.`});
   return {ok:true,x:spot.x,z:spot.z,to:t.id};
  }
@@ -168,6 +171,37 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   }
   return null;
  }
+ // ---- personal rooms (shared/dorm.mjs): one physical room behind Palm House; each resident in it is in
+ // their own space, sees only their own furniture and only the players in the same space. Guests' rooms
+ // last as long as the room server (by session); signed-in players' rooms are saved to their account.
+ const guestRooms=new Map(),GUEST_ROOMS=500;
+ const place=(c,p)=>Object.assign(c,{x:p.x,z:p.z,y:0,yaw:p.yaw,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false},simAt:Date.now()});
+ async function enterDorm(c){
+  if(c.dorm)return {ok:false,reason:'You’re already in your room.'};
+  if(c.seat||c.vehicle||c.ball)return {ok:false,reason:'Stand up, leave the vehicle and put the ball down first.'};
+  if(c.duel)return {ok:false,reason:'Finish your match first.'};
+  if(c.run)return {ok:false,reason:'Finish or cancel your challenge first.'};
+  if(!nearDormDoor(c.x,c.z,false))return {ok:false,reason:'Go to the residents’ door at the back of Palm House.'};
+  const seq=++c.dormSeq,id=c.account?.id;let layout;
+  if(id&&accounts.enabled){try{layout=await accounts.dormLayout(id);}catch{return {ok:false,reason:'Your room could not be opened right now. Try again in a moment.'};}}
+  else layout=guestRooms.get(c.token);
+  if(seq!==c.dormSeq||clients.get(c.id)!==c||c.account?.id!==id)return {ok:false,reason:'Try again.'};
+  if(c.seat||c.vehicle||c.ball||c.duel||c.run)return {ok:false,reason:'Try again.'};
+  const checked=validateLayout(layout??DEFAULT_LAYOUT);c.dorm={layout:checked.ok?checked.layout:DEFAULT_LAYOUT};
+  place(c,DORM_INSIDE);
+  return {ok:true,layout:c.dorm.layout,x:c.x,z:c.z,yaw:c.yaw,keeps:id&&accounts.enabled?'account':'session'};
+ }
+ /** Back to the common room, by the door (also when signing in or out, which changes whose room it is). */
+ function leaveDorm(c,reason){if(!c.dorm)return {ok:false,reason:'You’re not in your room.'};c.dorm=null;c.dormSeq++;place(c,DORM_OUTSIDE);if(reason)send(c.ws,{type:'dormResult',action:'leave',ok:true,x:c.x,z:c.z,yaw:c.yaw,reason});return {ok:true,x:c.x,z:c.z,yaw:c.yaw};}
+ async function saveDorm(c,raw){
+  if(!c.dorm)return {ok:false,reason:'Go to your room to arrange it.'};
+  const r=validateLayout(raw);if(!r.ok)return r;
+  c.dorm.layout=r.layout;
+  const id=c.account?.id;
+  if(!id||!accounts.enabled){guestRooms.delete(c.token);guestRooms.set(c.token,r.layout);if(guestRooms.size>GUEST_ROOMS)guestRooms.delete(guestRooms.keys().next().value);return {ok:true,layout:r.layout,saved:'session'};}
+  try{await accounts.saveDorm(id,r.layout);return {ok:true,layout:r.layout,saved:'account'};}
+  catch(e){return {ok:true,layout:r.layout,saved:'session',reason:e?.reason??'Your room is arranged, but it could not be saved to your account right now.'};}
+ }
  // Where recently departed sessions stood (session token -> position), so a reconnect resumes there.
  const recent=new Map();
  /** A connection leaves the room (closed, replaced by a newer one of the same session, or removed). Runs once. */
@@ -177,7 +211,9 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});
   const driving=!!c.vehicle;
   duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);
-  if(was&&c.token&&!driving)recent.set(c.token,{x:c.x,z:c.z,yaw:c.yaw,at:Date.now()});
+  // A resident reconnects outside their room's door: the room is entered (and its layout loaded) only on request.
+  const at=c.dorm||inDormRoom(c.x,c.z)?DORM_OUTSIDE:c;
+  if(was&&c.token&&!driving)recent.set(c.token,{x:at.x,z:at.z,yaw:at.yaw,at:Date.now()});
   clients.delete(c.id);if(was)broadcast({type:'left',id:c.id});
  }
  http.on('upgrade',(req,socket,head)=>{
@@ -185,7 +221,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));
  });
  wss.on('connection',ws=>{
-  const id=randomUUID(),now=Date.now();const c={id,ws,joined:false,token:'',name:'',avatar:sanitizeAvatar(),account:null,social:null,guestInvites:'everyone',party:null,meetAt:0,recentChat:[],authSeq:0,profileAt:0,visited:new Set(),hoops:[],...SPAWN,yaw:Math.PI,moving:false,sprinting:false,emote:'',emoteAt:0,vy:0,vx:0,vz:0,seat:null,ball:null,input:{dx:0,dz:0,sprint:false,jump:false},lastInput:now,alive:true,joinedAt:now,limits:{},collected:new Set()};clients.set(id,c);
+  const id=randomUUID(),now=Date.now();const c={id,ws,joined:false,token:'',name:'',avatar:sanitizeAvatar(),account:null,social:null,guestInvites:'everyone',party:null,meetAt:0,recentChat:[],authSeq:0,profileAt:0,visited:new Set(),hoops:[],...SPAWN,yaw:Math.PI,moving:false,sprinting:false,emote:'',emoteAt:0,vy:0,vx:0,vz:0,seat:null,ball:null,dorm:null,dormSeq:0,input:{dx:0,dz:0,sprint:false,jump:false},lastInput:now,alive:true,joinedAt:now,limits:{},collected:new Set()};clients.set(id,c);
   ws.on('pong',()=>{c.alive=true;});
   const rate=(key,max,window=1000)=>{const t=Date.now();const r=c.limits[key]??{at:t,n:0};if(t-r.at>=window){r.at=t;r.n=0;}c.limits[key]=r;return ++r.n<=max;};
   ws.on('message',data=>{
@@ -205,7 +241,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     c.token=token;c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});c.joined=true;
     // A reconnecting session carries on where the room last had it (if that spot is still clear), not at the gate.
     const back=recent.get(token);recent.delete(token);
-    if(back&&Date.now()-back.at<partyLimits.graceMs&&!blocked(back.x,back.z)&&!fleet.vehicles.some(v=>vehicleContains(v,back.x,back.z)))Object.assign(c,{x:back.x,z:back.z,y:0,yaw:back.yaw});
+    if(back&&Date.now()-back.at<partyLimits.graceMs&&!blocked(back.x,back.z)&&!inDormRoom(back.x,back.z)&&!fleet.vehicles.some(v=>vehicleContains(v,back.x,back.z)))Object.assign(c,{x:back.x,z:back.z,y:0,yaw:back.yaw});
     send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),classes:classes.snapshot(),accounts:!!accounts.enabled,room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
     // A reload or dropped connection with the same session token takes its party place back.
     parties.reconnect(c);
@@ -228,12 +264,12 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     // A standing player's client may nudge its server position to where it sees itself (small, walkable
     // corrections only), so range checks for seats, doors and balls agree with what the player sees.
     const x=num(m.x),z=num(m.z);if(!Number.isFinite(x)||!Number.isFinite(z)||c.seat||c.vehicle||Math.hypot(c.vx,c.vz)>.25||Date.now()-c.lastInput<INPUT_HOLD_MS&&Math.hypot(c.input.dx,c.input.dz)>.01)return;
-    if(Math.hypot(x-c.x,z-c.z)>.9||blocked(x,z))return;
+    if(Math.hypot(x-c.x,z-c.z)>.9||blocked(x,z)||furnitureBlocked(c.dorm?.layout,x,z))return;
     // Only as far as the player could walk there: never through a wall, a fence or a closed door.
     const q=moveWithCollisions(c.x,c.z,x-c.x,z-c.z);Object.assign(c,Math.hypot(q.x-x,q.z-z)<.05?{x,z}:q);
    }else if(m.type==='auth'&&rate('auth',4,60000)){
     if(typeof m.token==='string')authenticate(c,m.token);
-    else{c.authSeq++;if(c.account){c.account=null;c.social=null;c.hoops=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
+    else{c.authSeq++;if(c.account){if(c.dorm)leaveDorm(c,'You signed out, so you’re back in the common room.');c.account=null;c.social=null;c.hoops=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
    }else if(m.type==='profile'&&rate('profile',4,1000)){
     // Signed-in names and appearance come from the saved profile, never from the message.
     if(c.account)refreshAccount(c);else{c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}
@@ -279,6 +315,14 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
      // The organiser earns Community Builder when the third other player checks in.
      if(r?.organizer)for(const o of clients.values())if(o.account?.id===r.organizer){send(o.ws,{type:'progress',kind:'checkin',item:m.event,awarded:['community-builder']});analytics.track(o,'achievement_earned',{achievement:'community-builder'});}
     }).catch(e=>reply({ok:false,reason:e?.reason??'Check-in is unavailable right now. Try again in a moment.'}));
+   }else if(m.type==='dorm'){
+    const action=str(m.action),reply=r=>{if(clients.get(id)===c)send(ws,{type:'dormResult',action:action.slice(0,8),...r});};
+    if(!rate('dorm',6,5000)){reply({ok:false,reason:'Wait a moment and try again.'});return;}
+    if(c.vehicle&&action!=='leave'){reply({ok:false,reason:'Leave the vehicle first.'});return;}
+    if(action==='enter')enterDorm(c).then(reply);
+    else if(action==='leave')reply(leaveDorm(c));
+    else if(action==='save')saveDorm(c,m.layout).then(reply);
+    else reply({ok:false,reason:'Unknown room action.'});
    }else if(m.type==='meetUp'){
     const r=rate('meetUp',5,5000)?meetUp(c,clients.get(str(m.id))):{ok:false,reason:'Wait a moment before travelling again.'};send(ws,{type:'meetUpResult',...r});
    }else if(m.type==='prefs'&&rate('prefs',4,5000)){
@@ -322,7 +366,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  function changedVehicles(){const out=[];for(const v of fleet.snapshot()){const p=packVehicle(v),key=JSON.stringify(p);if(sentVehicles.get(v.id)!==key){sentVehicles.set(v.id,key);out.push(p);}}return out;}
  // The last input applies for INPUT_HOLD_MS after it arrived, then the player coasts to a stop
  // (shared/movement.mjs); vehicles block walking into them, never walking out of one's footprint.
- const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz)));
+ const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz))&&furnitureAllows(c.dorm?.layout,x,z,fx,fz));
  let last=performance.now(),tick=0;
  const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,MAX_STEP),wall=Date.now();last=now;
   for(const c of clients.values()){if(!c.joined){if(Date.now()-c.joinedAt>10000)c.ws.close();continue;}
@@ -341,7 +385,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
   // 15 Hz state: positions to the centimetre and angles to the milliradian (the client interpolates), and
   // only the vehicles that changed since the last broadcast (joining clients get the whole fleet in welcome).
-  if(++tick%2===0)broadcast({type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account})=>({id,name,avatar,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()});
+  if(++tick%2===0)broadcast({type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm})=>({id,name,avatar,space:dorm?id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()});
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
  return {http,wss,clients,fleet,parties,duels,challenges,world,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};

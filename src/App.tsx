@@ -1,4 +1,6 @@
 import { ClassPrompt } from './ui/Classes';
+import { useDorm } from './dorm/client';
+import { DormHud } from './ui/Dorm';
 import VehicleHUD from './ui/VehicleHUD';
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -33,10 +35,10 @@ function AccountChip(){const status=useAccount(a=>a.status),profile=useAccount(a
  if(status==='guest')return <button className="account-chip" onClick={()=>set({panel:'account'})}><UserRound size={16}/><span>Sign in</span></button>;
  return null;}
 /** Where you are. The position lives outside React, so this re-reads it twice a second and renders only on a change. */
-function LocationHud(){const nearby=useGame(g=>g.nearby),connected=useGame(g=>g.status==='connected'),[where,setWhere]=useState(()=>locate());
+function LocationHud(){const nearby=useGame(g=>g.nearby),connected=useGame(g=>g.status==='connected'),inRoom=useDorm(d=>d.inside),[where,setWhere]=useState(()=>locate());
  useEffect(()=>{const t=setInterval(()=>setWhere(w=>{const n=locate();return n.heart===w.heart&&n.district===w.district?w:n;}),500);return()=>clearInterval(t);},[]);
  const nearest=LOCATIONS.find(l=>l.id===nearby),district=where.district;
- return <div className="location-hud"><span className="eyebrow">{where.heart?'THE HEART OF CAMPUS':district&&!nearest?'YOU ARE IN':'TAKE THE SCENIC ROUTE'}</span><h3>{nearest?.name||district?.name||'Òrìṣun Campus'}</h3><span><Sun size={13}/> Golden hour <i/> {connected?'A shared little world':'Standalone exploration'}</span></div>;}
+ return <div className="location-hud"><span className="eyebrow">{inRoom?'PALM HOUSE · RESIDENTS':where.heart?'THE HEART OF CAMPUS':district&&!nearest?'YOU ARE IN':'TAKE THE SCENIC ROUTE'}</span><h3>{inRoom?'Your room':nearest?.name||district?.name||'Òrìṣun Campus'}</h3><span><Sun size={13}/> Golden hour <i/> {connected?'A shared little world':'Standalone exploration'}</span></div>;}
 const locate=()=>({heart:Math.abs(player.x)<14&&Math.abs(player.z)<15,district:districtAt(player.x,player.z)??null});
 export default function App(){
  // Only what this component shows: the frame-rate readout and other frequent store writes must not
@@ -51,7 +53,7 @@ export default function App(){
  <LocationHud/>
  <button className="minimap" aria-label="Open campus map" onClick={()=>s.set({panel:'map'})}><MapGraphic mini/><span><Map size={14}/>Campus map<kbd>M</kbd></span><b className="north">N ↑</b></button>
  <nav className="game-dock" aria-label="Game menu"><button onClick={()=>s.set({panel:'map'})}><Map size={19}/><span>Map</span></button><button onClick={()=>s.set({panel:'chat'})}><MessageCircle size={19}/><span>Chat</span></button><button onClick={()=>s.set({panel:'players'})}><Users size={19}/><span>People</span></button><button aria-pressed={socialOpen} aria-label={`Friends, messages and party${socialUnread?` (${socialUnread} new)`:''}`} onClick={toggleSocial}><span className="dock-icon"><HeartHandshake size={19}/>{socialUnread>0&&<span className="count-badge">{socialUnread>99?'99+':socialUnread}</span>}</span><span>{partySize?`Party ${partySize}`:'Friends'}</span></button><button aria-pressed={communityOpen} onClick={()=>useCommunity.getState().toggle()}><CalendarDays size={19}/><span>Events</span></button><span className="dock-divider"/><button onClick={()=>{player.emote='wave';player.emoteUntil=Date.now()+3000;send({type:'emote',emote:'wave'});s.notify('You waved hello. Press 2 to dance or 3 to cheer.');}}><span className="wave-icon">✋</span><span>Wave</span></button><button onClick={()=>s.set({panel:'profile'})}><UserRound size={19}/><span>You</span></button></nav>
- {!s.panel&&<InteractionPrompt/>}<BasketballHUD/><DuelHud/><ChallengeHud/><PartyHud/><VehicleHUD/><ClassPrompt/>
+ {!s.panel&&<InteractionPrompt/>}<BasketballHUD/><DuelHud/><ChallengeHud/><PartyHud/><DormHud/><VehicleHUD/><ClassPrompt/>
  <div className="control-hint"><kbd>W A S D</kbd> Move <span className="opt">· Drag to look</span> <span>·</span><kbd>E</kbd> Interact <span>·</span><kbd>V</kbd> Events <span>·</span><kbd>F</kbd> Friends <span className="opt">· <kbd>Space</kbd> Jump</span><button aria-label="Full screen" onClick={()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen?.().catch(()=>s.notify('Fullscreen is unavailable in this browser.'));}}><Maximize2 size={14}/></button></div>
  </>}
  <CommunityDrawer/><SocialDrawer/><PartyInvites/><DuelChallenges/><TouchControls/><Panels/><SoundFeedback/>{s.toast&&<div className="toast" role="status"><Compass size={20}/><span>{s.toast}</span><button aria-label="Dismiss notification" onClick={()=>s.set({toast:''})}><X size={16}/></button></div>}
