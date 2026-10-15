@@ -101,7 +101,7 @@ try {
     await walk(B, -29.6, -4.2);
     await face(A, 0); await until(A, () => /Close door/.test(window.__campusDebug.focus()?.label ?? '')).catch(async () => { await walk(A, -30, -6.4); await face(A, 0); });
     await until(A, () => /Close door/.test(window.__campusDebug.focus()?.label ?? ''));
-    await pressE(A); await A.waitForTimeout(900); assert.match(await toast(A), /doorway/); assert.equal((await st(A)).world.doors['library-main'], -1);
+    await pressE(A); await until(A, () => /doorway/.test(document.querySelector('.toast')?.textContent ?? '')).catch(() => {}); assert.match(await toast(A), /doorway/); assert.equal((await st(A)).world.doors['library-main'], -1);
     pass('a door will not close on someone standing in the doorway');
     await walk(B, -29.6, -1.5); await pressE(A); await until(A, () => window.__campusDebug.state().world.doors['library-main'] === 0);
     await A.waitForTimeout(1500); await shot(A, 'door-closed-from-inside'); pass('the door closes once the doorway is clear');
@@ -111,7 +111,7 @@ try {
     pass('a closed door is solid');
     // Locked staff door.
     await walk(A, -31.5, -21); await walk(A, -34.95, -24.8); await face(A, Math.PI);
-    await until(A, () => /Locked/.test(window.__campusDebug.focus()?.label ?? '')); await pressE(A); await A.waitForTimeout(600);
+    await until(A, () => /Locked/.test(window.__campusDebug.focus()?.label ?? '')); await pressE(A); await until(A, () => /Locked/.test(document.querySelector('.toast')?.textContent ?? '')).catch(() => {});
     assert.match(await toast(A), /Locked · Staff only/); await shot(A, 'door-locked'); pass('a locked door explains that it is locked');
   }
 
