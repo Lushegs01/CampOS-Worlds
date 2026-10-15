@@ -1,26 +1,71 @@
 // Your room: the card shown while you are in it, and the floor-plan editor for arranging furniture.
 // The editor checks layouts with the same rules the room server uses (shared/dorm.mjs), so problems
 // show before saving; the room server still checks again and has the last word.
-import { useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, DoorOpen, Palette, RotateCw, Sofa, Trash2, Undo2 } from 'lucide-react';
-import { useGame } from '../state';
-import { useDorm, leaveDorm, saveLayout, type DormItem, type DormLayout } from '../dorm/client';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, DoorOpen, Home, LogOut, Palette, RotateCw, Sofa, Trash2, Undo2, UserPlus } from 'lucide-react';
+import { livePeers, useGame } from '../state';
+import { useDorm, isResident, leaveDorm, saveLayout, inviteToRoom, visitRoom, declineRoomInvite, showOut, type DormItem, type DormLayout } from '../dorm/client';
+import { useSocial, presenceOf, saveSettings, refreshOverview } from '../social/store';
+import { useAccount } from '../account/store';
 import { DEFAULT_LAYOUT, DOOR_CLEARANCE, DORM_DOOR, DORM_ROOM, DORM_W, DORM_D, FURNITURE, FURNITURE_TYPES, MAX_ITEMS, SNAP, TONES, footprint, validateLayout } from '../../shared/dorm.mjs';
 
 type Kind = keyof typeof FURNITURE;
 const STEP = .25, round = (v: number) => Math.round(v * 100) / 100;
 const keepsText = (keeps: 'account' | 'session') => keeps === 'account' ? 'Saved to your account.' : 'Guest room: kept while you’re on campus. Sign in to keep it.';
 
-/** The card while you are in your room. */
+/** The card while you are in a room: yours (arrange, invite, leave) or a friend's (leave). */
 export function DormHud() {
-  const inside = useDorm(s => s.inside), keeps = useDorm(s => s.keeps), busy = useDorm(s => s.busy), set = useGame(s => s.set);
+  const inside = useDorm(s => s.inside), resident = useDorm(isResident), hostName = useDorm(s => s.hostName), keeps = useDorm(s => s.keeps), busy = useDorm(s => s.busy), visitors = useDorm(s => s.visitors), set = useGame(s => s.set);
   if (!inside) return null;
+  const open = (panel: string) => { set({ panel }); document.exitPointerLock?.(); };
+  if (!resident) return <aside className="dorm-hud" aria-label={`${hostName}’s room`}>
+    <span className="eyebrow">VISITING · PALM HOUSE</span><b>{hostName}’s room</b>
+    <div><button disabled={busy} onClick={() => void leaveDorm()}><DoorOpen size={15} />Leave room</button></div>
+  </aside>;
   return <aside className="dorm-hud" aria-label="Your room">
     <span className="eyebrow">YOUR ROOM · PALM HOUSE</span>
-    <small>{keepsText(keeps)}</small>
-    <div><button onClick={() => { set({ panel: 'dorm' }); document.exitPointerLock?.(); }}><Sofa size={15} />Arrange room</button>
-      <button disabled={busy} onClick={() => void leaveDorm()}><DoorOpen size={15} />Leave room</button></div>
+    <small>{visitors.length ? `Visiting: ${visitors.map(v => v.name).join(', ')}` : keepsText(keeps)}</small>
+    <div><button aria-label="Arrange room" onClick={() => open('dorm')}><Sofa size={15} />Arrange</button>
+      <button aria-label="Invite friends" onClick={() => open('dorm-guests')}><UserPlus size={15} />Invite</button>
+      <button aria-label="Leave room" disabled={busy} onClick={() => void leaveDorm()}><DoorOpen size={15} />Leave</button></div>
   </aside>;
+}
+
+/** Who is visiting, which friends on campus to invite, and who may come in. */
+export function DormGuests() {
+  const resident = useDorm(isResident), visitors = useDorm(s => s.visitors), overview = useSocial(s => s.overview), peers = useGame(s => s.peers);
+  const member = useAccount(a => a.status === 'signed-in' && !!a.profile), [sent, setSent] = useState<string[]>([]), [saving, setSaving] = useState(false), [choice, setChoice] = useState<'invite' | 'friends' | null>(null), [, tick] = useState(0);
+  useEffect(() => { if (member) void refreshOverview(); const t = setInterval(() => tick(n => n + 1), 1000); return () => clearInterval(t); }, [member]);
+  if (!resident) return <p className="muted">Go to your room in Palm House to invite friends.</p>;
+  if (!member) return <p className="muted">Sign in and add friends to invite them to your room. Visits are for friends only.</p>;
+  const here = new Set(visitors.map(v => v.id)), visits = choice ?? overview?.settings.room_visits ?? 'invite';
+  const online = (overview?.friends ?? []).map(f => ({ f, peer: presenceOf(f.handle, peers) })).filter(x => x.peer);
+  return <div className="dorm-guests">
+    <h4>In your room · {visitors.length + 1} of 6</h4>
+    {visitors.length ? visitors.map(v => <div key={v.id} className="person-row"><span className="person-name"><b>{v.name}</b><small>{v.handle ? `@${v.handle}` : 'Visiting'}</small></span>
+      <button className="secondary small" onClick={() => void showOut(v.id)}><LogOut size={14} />Show out</button></div>)
+      : <p className="muted small-text">Nobody else is here yet.</p>}
+    <h4>Friends on campus</h4>
+    {online.length ? online.map(({ f, peer }) => { const there = here.has(peer!.id), away = !!livePeers.get(peer!.id)?.space && !there;
+      return <div key={f.id} className="person-row"><span className="person-name"><b>{f.display_name}</b><small>@{f.handle}{away ? ' · in a room' : ''}</small></span>
+        <button className="secondary small" disabled={there || sent.includes(f.id)} onClick={() => void inviteToRoom(f.id).then(r => { if (r.ok) setSent(s => [...s, f.id]); })}>{there ? 'Here' : sent.includes(f.id) ? 'Invited' : <><UserPlus size={14} />Invite</>}</button></div>; })
+      : <p className="muted small-text">None of your friends are on campus right now. Friends who appear offline aren’t listed.</p>}
+    {overview && <fieldset><legend>Who can come in</legend><div className="radio-row" role="radiogroup">{([['invite', 'Friends you invite'], ['friends', 'Any friend, while you’re in']] as const).map(([v, t]) =>
+      <label key={v} className={visits === v ? 'selected' : ''}><input type="radio" name="room-visits" checked={visits === v} disabled={saving} onChange={() => { setChoice(v); setSaving(true); void saveSettings({ ...overview.settings, room_visits: v }).catch(() => { setChoice(null); useGame.getState().notify('That setting couldn’t be saved right now.'); }).finally(() => setSaving(false)); }} />{t}</label>)}</div>
+      <small className="muted">Only friends can visit, and only while you’re in your room. Blocking someone always keeps them out. You can show anyone out.</small></fieldset>}
+  </div>;
+}
+
+/** Invitations to friends' rooms: go now, or not. */
+export function DormInvites() {
+  const invites = useDorm(s => s.invites), phase = useGame(s => s.phase), [, tick] = useState(0);
+  useEffect(() => { if (!invites.length) return; const t = setInterval(() => tick(n => n + 1), 1000); return () => clearInterval(t); }, [invites.length]);
+  const live = invites.filter(i => i.expires > Date.now());
+  if (!live.length || phase !== 'playing') return null;
+  return <div className="party-invites room-invites" role="region" aria-label="Room invitations">{live.map(i => <div key={i.host} className="party-invite" role="alertdialog" aria-label={`Room invitation from ${i.from.name}`}>
+    <Home size={18} /><span><b>{i.from.name}{i.from.handle ? ` (@${i.from.handle})` : ''}</b> invited you to their room<small>Palm House · {Math.max(0, Math.ceil((i.expires - Date.now()) / 1000))} s</small></span>
+    <button className="primary small" onClick={() => void visitRoom(i.host)}>Go</button><button className="secondary small" onClick={() => declineRoomInvite(i.host)}>Not now</button>
+  </div>)}</div>;
 }
 
 const SHORT: Record<Kind, string> = { bed: 'Bed', nightstand: 'Side', desk: 'Desk', chair: 'Chair', wardrobe: 'Wardrobe', shelf: 'Shelf', beanbag: 'Bag', lamp: 'Lamp', plant: 'Plant', rug: 'Rug' };
@@ -35,7 +80,9 @@ export function DormEditor() {
   const svg = useRef<SVGSVGElement>(null!);
   const check = useMemo(() => validateLayout(draft), [draft]);
   const changed = JSON.stringify(draft) !== JSON.stringify(saved);
+  const resident = useDorm(isResident);
   if (!inside) return <p className="muted">Go to your room in Palm House to arrange it.</p>;
+  if (!resident) return <p className="muted">Only the resident can arrange this room.</p>;
   const counts = draft.items.reduce<Record<string, number>>((n, it) => ({ ...n, [it.t]: (n[it.t] ?? 0) + 1 }), {});
   const update = (i: number, patch: Partial<DormItem>) => { setDraft(d => ({ items: d.items.map((it, k) => k === i ? { ...it, ...patch } : it) })); setMessage(''); };
   const place = (e: React.PointerEvent) => {

@@ -93,7 +93,7 @@ test('declining, cancelling, removing, privacy and request limits', async () => 
   await call('save_social_settings', { p_friend_requests: 'nobody', p_direct_messages: 'friends', p_party_invites: 'nobody', p_appear_offline: true }, closed);
   await rejects(call('send_friend_request', { p_handle: closed.handle }, a), /isn’t accepting friend requests/);
   await rejects(call('save_social_settings', { p_friend_requests: 'all', p_direct_messages: 'friends', p_party_invites: 'friends', p_appear_offline: false }, closed), /listed privacy options/);
-  assert.deepEqual((await call('social_overview', {}, closed)).settings, { friend_requests: 'nobody', direct_messages: 'friends', party_invites: 'nobody', appear_offline: true, profile_visibility: 'public' });
+  assert.deepEqual((await call('social_overview', {}, closed)).settings, { friend_requests: 'nobody', direct_messages: 'friends', party_invites: 'nobody', appear_offline: true, profile_visibility: 'public', room_visits: 'invite' });
   // Rate limit: 20 requests an hour.
   const spammer = await player('spam_'), targets = [];
   for (let i = 0; i < 21; i++) targets.push(await player('t_'));

@@ -19,19 +19,47 @@ the **Residents’ rooms** door in the back wall, and press **E** (or tap the ac
   - **Start over:** **Start from the default room** puts back the furnished layout every new resident
     starts with.
 - **Furniture is solid.** You walk around beds, desks and wardrobes; rugs are walkable.
-- **Your room is private.** Other players don't see you while you are in your room, and you don't see
-  anyone else. You still show as online, and chat, parties and friends work as usual. Party members
-  can't travel to you while you are in your room. If you travel to a party member, you leave your room.
+- **Your room is private.** Only people in your room see you there, and you see only them: nobody,
+  unless friends are visiting. You still show as online, and chat, parties and friends work as usual.
+  Party members can't travel to you while you are in your room. If you travel to a party member, you
+  leave your room.
+
+## Visits
+
+Friends can visit while you are in your room. Visits are for **signed-in friends only**.
+
+- **Invite.** In your room, **Invite** lists your friends who are on campus. Friends who appear offline
+  aren't listed, and inviting one gives the same answer as for someone who isn't here.
+  - The invited friend gets a card: **Go** takes them straight into your room from anywhere on campus.
+  - An invitation lasts 2 minutes and works once.
+- **Drop in.** Under **Who can come in** (in the Invite panel, or **Privacy** in the Friends drawer)
+  you choose between two settings:
+  - **Friends you invite** (the default).
+  - **Any friend, while you're in.** Your friends then see "In their room · Palm House" and a
+    **Visit room** button in their friends list.
+- **While visiting:**
+  - Visitors see your furniture and walk among it, but only you can arrange the room.
+  - Their card says whose room it is, with **Leave room**.
+  - You see who is visiting on your card.
+- **Showing out.** The Invite panel lists your visitors with **Show out**.
+- **When visits end.** A room holds up to 6 people. Visitors go back to the common room with a short
+  message when:
+  - you leave your room, disconnect or travel elsewhere;
+  - you show them out;
+  - either of you blocks the other.
+
+  A blocked player can never visit.
 
 The catalogue has a bed, a bedside table, a desk and desk chair, a wardrobe, a bookshelf, a beanbag, a
 floor lamp, a plant and a rug. A room holds up to 16 pieces, and each type has its own limit (for
 example, one bed).
 
-## Saving
+## Saving (and the visit setting)
 
 | Who | Where the layout is kept |
 |---|---|
 | Signed-in player | Saved to the account (`public.dorm_rooms`). It opens the same in any later session or device. |
+| Visit setting | `player_settings.room_visits` (`invite` or `friends`), saved with the other privacy settings (`supabase/migrations/20261015120000_room_visits.sql`). |
 | Guest | Kept by the room server for the browser session, so it survives a reload or reconnect. It is lost when the room server restarts. The room tells guests to sign in to keep their room. |
 
 Signing in or out while in your room takes you back to the common room, because the room you were in
@@ -64,7 +92,7 @@ belonged to the previous identity.
 
 ## Not built yet
 
-- **Visits:** inviting friends into your room, with a privacy setting.
+- **Visits for guests** (visits need friends, and friends need accounts), and visiting an empty room.
 - **A badge shelf** showing the badges you choose.
 - **Wall items:** posters and pictures.
 - **More than one room design.**
@@ -72,6 +100,25 @@ belonged to the previous identity.
   that exists only in one player's space doesn't fit that model yet.
 
 ## Tests
+
+Visits:
+- `tests/dorm-visits.test.mjs`, on PostgreSQL with real friendships:
+  - invitations, used once, friends only;
+  - visitors can't rearrange, and see the resident's changes;
+  - dropping in when allowed;
+  - showing out;
+  - blocks either way;
+  - the resident leaving or disconnecting;
+  - a hidden friend is never revealed.
+- `tests/browser-dorm-visits.mjs`, two signed-in friends in real browsers:
+  - an invitation taken from anywhere on campus;
+  - seeing each other in the room;
+  - no arranging for visitors;
+  - showing out;
+  - drop-in from the friends list;
+  - the resident leaving.
+
+Rooms:
 
 - `tests/dorm.test.mjs`:
   - the wing is closed from every side;

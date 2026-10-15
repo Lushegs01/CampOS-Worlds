@@ -69,7 +69,7 @@ export interface EventFilter { when?: EventWhen; category?: EventCategory | null
 export interface AuthSession { userId: string; email: string }
 
 // ---------------------------------------------------------------- social (supabase/migrations/20261014090000_social.sql)
-export interface SocialSettings { friend_requests: 'everyone' | 'nobody'; direct_messages: 'friends' | 'nobody'; party_invites: 'everyone' | 'friends' | 'nobody'; appear_offline: boolean; profile_visibility: 'public' | 'friends' }
+export interface SocialSettings { friend_requests: 'everyone' | 'nobody'; direct_messages: 'friends' | 'nobody'; party_invites: 'everyone' | 'friends' | 'nobody'; appear_offline: boolean; profile_visibility: 'public' | 'friends'; /** Who may visit your room in Palm House (docs/DORM-ROOMS.md). */ room_visits?: 'invite' | 'friends' }
 export interface PlayerResult extends ProfileBrief { relationship: Relationship }
 export interface FriendRequest { id: string; player: ProfileBrief; created_at: string }
 export interface SocialOverview {

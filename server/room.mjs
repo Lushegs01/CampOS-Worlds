@@ -13,7 +13,7 @@ import { createDuels, DUEL_RULES } from './duels.mjs';
 import { createAnalytics } from './analytics.mjs';
 import { createChallenges } from './challenges.mjs';
 import { TOUR } from '../shared/campus.mjs';
-import { DEFAULT_LAYOUT, DORM_INSIDE, DORM_OUTSIDE, validateLayout, furnitureAllows, furnitureBlocked, inDormRoom, nearDormDoor } from '../shared/dorm.mjs';
+import { DEFAULT_LAYOUT, DORM_CAPACITY, DORM_INVITE_MS, DORM_INSIDE, DORM_OUTSIDE, validateLayout, furnitureAllows, furnitureBlocked, inDormRoom, nearDormDoor } from '../shared/dorm.mjs';
 // Messages stay within 2 KB except the account handshake, which carries a Supabase access token.
 const MAX_MESSAGE=2048,MAX_AUTH_MESSAGE=6144;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -99,7 +99,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // Analytics sessions start once we know who the player is (after any sign-in check), so a player keeps one pseudonym.
  function startSession(c){if(c.sessionStarted)return;c.sessionStarted=true;analytics.track(c,'session_start',{guest:!c.account});}
  function bindAccount(c,id,snap){c.account={id,handle:snap.handle,hidden:false,title:titleOf(snap)};c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{},earned(snap));for(const k of snap.progress?.keepsakes??[])c.collected.add(k);c.visited=new Set(snap.progress?.landmarks??[]);c.hoops=[];applySocial(c,snap.social);parties.touch(c);}
- function applySocial(c,s){const before=c.social?.friends.size;c.social={friends:new Set(Array.isArray(s?.friends)?s.friends:[]),blocked:new Set(Array.isArray(s?.blocked)?s.blocked:[]),settings:{party_invites:'friends',appear_offline:false,...(s?.settings??{})}};if(c.account)c.account.hidden=c.social.settings.appear_offline===true;if(before!==undefined&&c.social.friends.size>before)analytics.track(c,'friend_connected');}
+ function applySocial(c,s){queueMicrotask(()=>{if(c.dorm){checkRoomBlocks(c);for(const o of clients.values())if(o!==c&&o.dorm&&(o.dorm.host===c||c.dorm?.host===o))checkRoomBlocks(o);}});const before=c.social?.friends.size;c.social={friends:new Set(Array.isArray(s?.friends)?s.friends:[]),blocked:new Set(Array.isArray(s?.blocked)?s.blocked:[]),settings:{party_invites:'friends',appear_offline:false,...(s?.settings??{})}};if(c.account)c.account.hidden=c.social.settings.appear_offline===true;if(before!==undefined&&c.social.friends.size>before)analytics.track(c,'friend_connected');}
  /** Re-read friends, blocks and privacy after a change (debounced, so bursts collapse into one read). */
  function refreshSocial(c){
   if(!c.account||!accounts.enabled)return;clearTimeout(c.socialTimer);
@@ -151,13 +151,13 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // seated, driving or holding a ball, and with a cooldown. The room picks the spot, not the client.
  function meetUp(c,t){
   if(!t?.joined||t===c||!parties.sameParty(c,t))return {ok:false,reason:'You can travel only to members of your party.'};
-  if(t.dorm)return {ok:false,reason:`${t.name} is in their room. Meet up when they come out.`};
+  if(t.dorm)return {ok:false,reason:t.dorm.host===t?`${t.name} is in their room. Meet up when they come out.`:`${t.name} is visiting a room. Meet up when they come out.`};
   if(c.seat||c.vehicle||c.ball)return {ok:false,reason:'Stand up, leave the vehicle and put the ball down first.'};
   if(c.duel)return {ok:false,reason:'Finish your match first.'};
   if(c.run)return {ok:false,reason:'Finish or cancel your challenge first.'};
   const wait=c.meetAt+meetCooldownMs-Date.now();if(wait>0)return {ok:false,reason:`You can travel again in ${Math.ceil(wait/1000)} s.`};
   const spot=spotNear(t);if(!spot)return {ok:false,reason:`There’s no clear space next to ${t.name} right now.`};
-  Object.assign(c,spot,{y:0,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false}});c.meetAt=Date.now();c.dorm=null;c.dormSeq++;
+  Object.assign(c,spot,{y:0,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false}});c.meetAt=Date.now();vacate(c);
   send(t.ws,{type:'notice',text:`${c.name} came to meet you.`});
   return {ok:true,x:spot.x,z:spot.z,to:t.id};
  }
@@ -171,32 +171,106 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   }
   return null;
  }
- // ---- personal rooms (shared/dorm.mjs): one physical room behind Palm House; each resident in it is in
- // their own space, sees only their own furniture and only the players in the same space. Guests' rooms
- // last as long as the room server (by session); signed-in players' rooms are saved to their account.
+ // ---- personal rooms (shared/dorm.mjs): one physical room behind Palm House. Each resident who goes in
+ // hosts their own space; friends they invite (or, if they allow it, any friend) can visit while they are
+ // in. Players see only those in the same space, and walk among the host's furniture.
+ // c.dorm is { host: c, layout, invites, visitors } for a resident in their room, { host } for a visitor.
+ // Guests' rooms last as long as the room server (by session); signed-in players' rooms are saved.
  const guestRooms=new Map(),GUEST_ROOMS=500;
  const place=(c,p)=>Object.assign(c,{x:p.x,z:p.z,y:0,yaw:p.yaw,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false},simAt:Date.now()});
+ const hosting=c=>c.dorm?.host===c,layoutOf=c=>c.dorm?.host.dorm?.layout??null,spaceOf=c=>c.dorm?c.dorm.host.id:undefined;
+ const blockedReason='You can’t visit this room.';
+ /** Why `c` can't go into a room right now (null when they can). */
+ function busy(c){
+  if(c.seat||c.vehicle||c.ball)return 'Stand up, leave the vehicle and put the ball down first.';
+  if(c.duel)return 'Finish your match first.';
+  if(c.run)return 'Finish or cancel your challenge first.';
+  return null;
+ }
  async function enterDorm(c){
-  if(c.dorm)return {ok:false,reason:'You’re already in your room.'};
-  if(c.seat||c.vehicle||c.ball)return {ok:false,reason:'Stand up, leave the vehicle and put the ball down first.'};
-  if(c.duel)return {ok:false,reason:'Finish your match first.'};
-  if(c.run)return {ok:false,reason:'Finish or cancel your challenge first.'};
-  if(!nearDormDoor(c.x,c.z,false))return {ok:false,reason:'Go to the residents’ door at the back of Palm House.'};
+  if(hosting(c))return {ok:false,reason:'You’re already in your room.'};
+  const why=busy(c);if(why)return {ok:false,reason:why};
+  if(!c.dorm&&!nearDormDoor(c.x,c.z,false))return {ok:false,reason:'Go to the residents’ door at the back of Palm House.'};
   const seq=++c.dormSeq,id=c.account?.id;let layout;
   if(id&&accounts.enabled){try{layout=await accounts.dormLayout(id);}catch{return {ok:false,reason:'Your room could not be opened right now. Try again in a moment.'};}}
   else layout=guestRooms.get(c.token);
-  if(seq!==c.dormSeq||clients.get(c.id)!==c||c.account?.id!==id)return {ok:false,reason:'Try again.'};
-  if(c.seat||c.vehicle||c.ball||c.duel||c.run)return {ok:false,reason:'Try again.'};
-  const checked=validateLayout(layout??DEFAULT_LAYOUT);c.dorm={layout:checked.ok?checked.layout:DEFAULT_LAYOUT};
+  if(seq!==c.dormSeq||clients.get(c.id)!==c||c.account?.id!==id||busy(c))return {ok:false,reason:'Try again.'};
+  // Visiting someone and going home: from their room to yours (the same physical room, another space).
+  if(c.dorm)vacate(c);
+  const checked=validateLayout(layout??DEFAULT_LAYOUT);c.dorm={host:c,layout:checked.ok?checked.layout:DEFAULT_LAYOUT,invites:new Map(),visitors:new Set()};
   place(c,DORM_INSIDE);
-  return {ok:true,layout:c.dorm.layout,x:c.x,z:c.z,yaw:c.yaw,keeps:id&&accounts.enabled?'account':'session'};
+  return {ok:true,host:c.id,layout:c.dorm.layout,x:c.x,z:c.z,yaw:c.yaw,keeps:id&&accounts.enabled?'account':'session'};
+ }
+ /** Out of a room without moving: a resident's visitors are shown out first. Returns whether they were in one. */
+ function vacate(c){
+  const room=c.dorm;if(!room)return false;
+  c.dorm=null;c.dormSeq++;
+  if(room.host===c)for(const v of room.visitors)leaveDorm(v,`${c.name} has left their room, so you’re back in the common room.`);
+  else if(room.host.dorm?.visitors.delete(c)&&clients.get(room.host.id)===room.host)send(room.host.ws,{type:'dormVisitors',visitors:visitorsOf(room.host)});
+  return true;
  }
  /** Back to the common room, by the door (also when signing in or out, which changes whose room it is). */
- function leaveDorm(c,reason){if(!c.dorm)return {ok:false,reason:'You’re not in your room.'};c.dorm=null;c.dormSeq++;place(c,DORM_OUTSIDE);if(reason)send(c.ws,{type:'dormResult',action:'leave',ok:true,x:c.x,z:c.z,yaw:c.yaw,reason});return {ok:true,x:c.x,z:c.z,yaw:c.yaw};}
+ function leaveDorm(c,reason){if(!vacate(c))return {ok:false,reason:'You’re not in a room.'};place(c,DORM_OUTSIDE);if(reason)send(c.ws,{type:'dormResult',action:'leave',ok:true,x:c.x,z:c.z,yaw:c.yaw,reason});return {ok:true,x:c.x,z:c.z,yaw:c.yaw};}
+ const visitorsOf=h=>[...(h.dorm?.visitors??[])].map(v=>describe(v));
+ const friends=(a,b)=>!!(a.account&&b.account&&a.social?.friends.has(b.account.id)&&b.social?.friends.has(a.account.id));
+ const occupancy=h=>1+(h.dorm?.visitors.size??0);
+ /** The resident invites a friend who is on campus (and not hidden: an invitation must not reveal them). */
+ function inviteToRoom(c,to){
+  if(!hosting(c))return {ok:false,reason:'Go to your room to invite friends.'};
+  if(!c.account)return {ok:false,reason:'Sign in to invite friends to your room.'};
+  const t=typeof to==='string'&&UUID.test(to)?[...clients.values()].find(o=>o.joined&&o.account?.id===to):null;
+  if(!t||t.account.hidden||blockedBetween(c,t))return {ok:false,reason:'That friend isn’t on campus right now.'};
+  if(!friends(c,t))return {ok:false,reason:'You can invite friends only.'};
+  if(t.dorm?.host===c)return {ok:false,reason:`${t.name} is already here.`};
+  if(occupancy(c)>=DORM_CAPACITY)return {ok:false,reason:`Your room is full (${DORM_CAPACITY} people).`};
+  const expires=Date.now()+DORM_INVITE_MS;c.dorm.invites.set(t.account.id,expires);
+  send(t.ws,{type:'dormInvite',host:c.id,from:describe(c),expires});
+  return {ok:true,to:t.name};
+ }
+ /** A friend goes into a resident's room: invited, or allowed to drop in. Travels straight there. */
+ function visitRoom(c,hostId){
+  const h=clients.get(hostId);
+  if(!c.account)return {ok:false,reason:'Sign in to visit friends’ rooms.'};
+  if(!h||!h.joined||!hosting(h)||h===c)return {ok:false,reason:'That room isn’t open right now: its resident isn’t in.'};
+  if(blockedBetween(c,h))return {ok:false,reason:blockedReason};
+  if(c.dorm?.host===h)return {ok:false,reason:'You’re already there.'};
+  const invited=(h.dorm.invites.get(c.account.id)??0)>Date.now(),dropIn=h.social?.settings.room_visits==='friends'&&friends(c,h);
+  if(!invited&&!dropIn)return {ok:false,reason:friends(c,h)?`${h.name} welcomes visitors by invitation. Ask them to invite you.`:'You can visit friends’ rooms only.'};
+  if(occupancy(h)>=DORM_CAPACITY)return {ok:false,reason:`${h.name}’s room is full.`};
+  const why=busy(c);if(why)return {ok:false,reason:why};
+  vacate(c);h.dorm.invites.delete(c.account.id);
+  c.dorm={host:h};h.dorm.visitors.add(c);place(c,arrival(h));
+  send(h.ws,{type:'notice',text:`${c.name} came to visit.`});send(h.ws,{type:'dormVisitors',visitors:visitorsOf(h)});
+  return {ok:true,host:h.id,hostName:h.name,layout:h.dorm.layout,x:c.x,z:c.z,yaw:c.yaw};
+ }
+ /** Where a visitor arrives: inside the door, beside (not on top of) everyone already in the room. */
+ function arrival(h){
+  const here=[h,...h.dorm.visitors].filter(o=>o.dorm?.host===h);
+  for(const [dx,dz] of [[0,0],[.9,0],[-.9,0],[0,.8],[.9,.8],[-.9,.8],[.45,-.8],[-.45,-.8]]){
+   const x=DORM_INSIDE.x+dx,z=DORM_INSIDE.z+dz;
+   if(!blocked(x,z)&&!furnitureBlocked(h.dorm.layout,x,z)&&here.every(o=>Math.hypot(o.x-x,o.z-z)>.7))return {x,z,yaw:DORM_INSIDE.yaw};
+  }
+  return DORM_INSIDE;
+ }
+ /** The resident shows a visitor out. */
+ function showOut(c,id){
+  const v=clients.get(id);
+  if(!hosting(c)||!v||v.dorm?.host!==c)return {ok:false,reason:'That visitor isn’t in your room.'};
+  leaveDorm(v,`${c.name} has shown you out, so you’re back in the common room.`);
+  return {ok:true,visitors:visitorsOf(c)};
+ }
+ /** After a block (either way), nobody stays in a room with someone who blocked them or whom they blocked. */
+ function checkRoomBlocks(c){
+  const room=c.dorm;if(!room)return;
+  if(room.host===c){for(const v of room.visitors)if(blockedBetween(c,v))leaveDorm(v,'You’re back in the common room.');}
+  else if(blockedBetween(c,room.host))leaveDorm(c,'You’re back in the common room.');
+ }
  async function saveDorm(c,raw){
   if(!c.dorm)return {ok:false,reason:'Go to your room to arrange it.'};
+  if(!hosting(c))return {ok:false,reason:'Only the resident can arrange this room.'};
   const r=validateLayout(raw);if(!r.ok)return r;
   c.dorm.layout=r.layout;
+  for(const v of c.dorm.visitors)send(v.ws,{type:'dormLayout',layout:r.layout});
   const id=c.account?.id;
   if(!id||!accounts.enabled){guestRooms.delete(c.token);guestRooms.set(c.token,r.layout);if(guestRooms.size>GUEST_ROOMS)guestRooms.delete(guestRooms.keys().next().value);return {ok:true,layout:r.layout,saved:'session'};}
   try{await accounts.saveDorm(id,r.layout);return {ok:true,layout:r.layout,saved:'account'};}
@@ -212,7 +286,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   const driving=!!c.vehicle;
   duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);
   // A resident reconnects outside their room's door: the room is entered (and its layout loaded) only on request.
-  const at=c.dorm||inDormRoom(c.x,c.z)?DORM_OUTSIDE:c;
+  const at=c.dorm||inDormRoom(c.x,c.z)?DORM_OUTSIDE:c;vacate(c);
   if(was&&c.token&&!driving)recent.set(c.token,{x:at.x,z:at.z,yaw:at.yaw,at:Date.now()});
   clients.delete(c.id);if(was)broadcast({type:'left',id:c.id});
  }
@@ -264,7 +338,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     // A standing player's client may nudge its server position to where it sees itself (small, walkable
     // corrections only), so range checks for seats, doors and balls agree with what the player sees.
     const x=num(m.x),z=num(m.z);if(!Number.isFinite(x)||!Number.isFinite(z)||c.seat||c.vehicle||Math.hypot(c.vx,c.vz)>.25||Date.now()-c.lastInput<INPUT_HOLD_MS&&Math.hypot(c.input.dx,c.input.dz)>.01)return;
-    if(Math.hypot(x-c.x,z-c.z)>.9||blocked(x,z)||furnitureBlocked(c.dorm?.layout,x,z))return;
+    if(Math.hypot(x-c.x,z-c.z)>.9||blocked(x,z)||furnitureBlocked(layoutOf(c),x,z))return;
     // Only as far as the player could walk there: never through a wall, a fence or a closed door.
     const q=moveWithCollisions(c.x,c.z,x-c.x,z-c.z);Object.assign(c,Math.hypot(q.x-x,q.z-z)<.05?{x,z}:q);
    }else if(m.type==='auth'&&rate('auth',4,60000)){
@@ -317,11 +391,14 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     }).catch(e=>reply({ok:false,reason:e?.reason??'Check-in is unavailable right now. Try again in a moment.'}));
    }else if(m.type==='dorm'){
     const action=str(m.action),reply=r=>{if(clients.get(id)===c)send(ws,{type:'dormResult',action:action.slice(0,8),...r});};
-    if(!rate('dorm',6,5000)){reply({ok:false,reason:'Wait a moment and try again.'});return;}
+    if(!rate('dorm',10,5000)){reply({ok:false,reason:'Wait a moment and try again.'});return;}
     if(c.vehicle&&action!=='leave'){reply({ok:false,reason:'Leave the vehicle first.'});return;}
     if(action==='enter')enterDorm(c).then(reply);
     else if(action==='leave')reply(leaveDorm(c));
     else if(action==='save')saveDorm(c,m.layout).then(reply);
+    else if(action==='invite')reply(rate('dormInvite',6,30000)?inviteToRoom(c,m.to):{ok:false,reason:'You’re sending invitations quickly. Wait a moment.'});
+    else if(action==='visit')reply(visitRoom(c,str(m.host)));
+    else if(action==='showOut')reply(showOut(c,str(m.id)));
     else reply({ok:false,reason:'Unknown room action.'});
    }else if(m.type==='meetUp'){
     const r=rate('meetUp',5,5000)?meetUp(c,clients.get(str(m.id))):{ok:false,reason:'Wait a moment before travelling again.'};send(ws,{type:'meetUpResult',...r});
@@ -366,7 +443,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  function changedVehicles(){const out=[];for(const v of fleet.snapshot()){const p=packVehicle(v),key=JSON.stringify(p);if(sentVehicles.get(v.id)!==key){sentVehicles.set(v.id,key);out.push(p);}}return out;}
  // The last input applies for INPUT_HOLD_MS after it arrived, then the player coasts to a stop
  // (shared/movement.mjs); vehicles block walking into them, never walking out of one's footprint.
- const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz))&&furnitureAllows(c.dorm?.layout,x,z,fx,fz));
+ const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz))&&furnitureAllows(layoutOf(c),x,z,fx,fz));
  let last=performance.now(),tick=0;
  const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,MAX_STEP),wall=Date.now();last=now;
   for(const c of clients.values()){if(!c.joined){if(Date.now()-c.joinedAt>10000)c.ws.close();continue;}
@@ -385,7 +462,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
   // 15 Hz state: positions to the centimetre and angles to the milliradian (the client interpolates), and
   // only the vehicles that changed since the last broadcast (joining clients get the whole fleet in welcome).
-  if(++tick%2===0)broadcast({type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm})=>({id,name,avatar,space:dorm?id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()});
+  if(++tick%2===0)broadcast({type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm})=>({id,name,avatar,space:dorm?dorm.host.id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()});
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
  return {http,wss,clients,fleet,parties,duels,challenges,world,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};

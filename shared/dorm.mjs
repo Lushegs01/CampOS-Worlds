@@ -18,6 +18,10 @@ export const DORM_DOOR = { x: PALM.x + 6.8, outsideFace: BACK + .2, insideFace: 
 export const DORM_OUTSIDE = { x: DORM_DOOR.x, z: BACK + .2 + .9, yaw: 0 };
 // Arrivals stand 2.2 m in, so the third-person camera has room behind them.
 export const DORM_INSIDE = { x: DORM_DOOR.x, z: DORM_ROOM.z1 - 2.2, yaw: Math.PI };
+/** At most this many people in a room: the resident and their visitors. */
+export const DORM_CAPACITY = 6;
+/** An invitation to visit lasts this long (ms). */
+export const DORM_INVITE_MS = 120_000;
 /** How close to the door (either side) a player must be to go through it. */
 export const DORM_REACH = 2.2;
 /** Kept clear of furniture (room-relative): the doorway and where arrivals stand, so they can always move. */
