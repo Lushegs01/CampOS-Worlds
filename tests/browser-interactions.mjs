@@ -16,7 +16,7 @@ const pass = label => { results.push(label); console.log('PASS', label); };
 async function open(name, { viewport = { width: 1280, height: 800 }, mobile = false } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: mobile, isMobile: mobile, deviceScaleFactor: 1 });
   await ctx.addInitScript(n => localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: n }, version: 0 })), name);
-  const page = await ctx.newPage(); page.setDefaultTimeout(20000); page.label = name;
+  const page = await ctx.newPage(); page.setDefaultTimeout(45000); page.label = name;
   page.on('pageerror', e => errors.push(`${name}: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION/.test(m.text())) errors.push(`${name}: ${m.text()}`); });
   await page.goto(base + QUERY, { waitUntil: 'domcontentloaded' });

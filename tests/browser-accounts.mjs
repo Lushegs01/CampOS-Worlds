@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { startStack } from './support/stack.mjs';
-import { launch, QUERY } from './support/browser.mjs';
+import { gpu, launch, QUERY } from './support/browser.mjs';
 
 const exe = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || 'C:/Program Files/Google/Chrome/Application/chrome.exe', OUT = 'docs/screenshots/accounts';
 await mkdir(OUT, { recursive: true });
@@ -19,7 +19,7 @@ const stamp = Date.now().toString(36);
 async function open(name, viewport = { width: 1280, height: 800 }) {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(n => { if (!localStorage.getItem('campos-worlds-v1')) localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: n }, version: 0 })); }, name);
-  const page = await ctx.newPage(); page.setDefaultTimeout(20000); page.label = name;
+  const page = await ctx.newPage(); page.setDefaultTimeout(gpu ? 20000 : 45000); page.label = name;
   page.on('pageerror', e => errors.push(`${name}: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION|status of 4\d\d/.test(m.text())) errors.push(`${name}: ${m.text()}`); });
   page.on('request', r => urls.push(r.url()));
