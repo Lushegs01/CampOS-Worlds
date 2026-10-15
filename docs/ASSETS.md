@@ -6,7 +6,7 @@ Every runtime asset is stored in `public/assets/` and served by the app itself: 
 
 | Asset | Source | Licence |
 |---|---|---|
-| `characters/*.glb` (Tunde, Chidi, Ibrahim, Ada, Amara and the other selectable students) | [Microsoft Rocketbox Avatar Library](https://github.com/microsoft/Microsoft-Rocketbox), adult avatars (each character's exact source folder is listed in `characters/manifest.json`) | MIT, © 2020 Microsoft |
+| `characters/*.glb` (Tunde, Chidi, Ibrahim, Ada, Amara, Mel and the other selectable students) | [Microsoft Rocketbox Avatar Library](https://github.com/microsoft/Microsoft-Rocketbox), adult avatars (each character's exact source folder is listed in `characters/manifest.json`) | MIT, © 2020 Microsoft |
 | `characters/anim-m.glb`, `anim-f.glb` | Rocketbox motion-capture clips: idle, look, walk, jog, run, wave, dance, cheer, sit down / stand up (chair and table), seated idle, seated look, seated at table, door push / pull, crouch, holding (used as an arm-only layer) | MIT, © 2020 Microsoft |
 
 Skin-tone variation is a shader tint driven by a skin mask baked by `scripts/assets/build-characters.mjs`; the backpack, headphones and glasses accessories are procedural geometry.

@@ -112,6 +112,20 @@
       ],
       "height": 1.735,
       "hip": 0.9233
+    },
+    {
+      "id": "mel",
+      "name": "Mel",
+      "body": "f",
+      "style": "Sweater dress & boots",
+      "source": "https://github.com/microsoft/Microsoft-Rocketbox/tree/master/Assets/Avatars/Adults/Female_Adult_11",
+      "skinRef": [
+        0.491,
+        0.227,
+        0.0976
+      ],
+      "height": 1.736,
+      "hip": 0.9233
     }
   ],
   "animations": {

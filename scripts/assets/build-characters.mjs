@@ -28,6 +28,8 @@ export const CAST = [
   { id: 'amara', name: 'Amara', src: 'Adults/Female_Adult_12', body: 'f', style: 'Zip hoodie' },
   { id: 'zainab', name: 'Zainab', src: 'Adults/Female_Adult_06', body: 'f', style: 'Hijab & abaya' },
   { id: 'ada', name: 'Ada', src: 'Adults/Female_Adult_08', body: 'f', style: 'Graphic tee' },
+  // Female_Adult_11 stands left of centre in Rocketbox's preview render: `portrait` moves the picker crop (default .41).
+  { id: 'mel', name: 'Mel', src: 'Adults/Female_Adult_11', body: 'f', style: 'Sweater dress & boots', portrait: .383 },
 ];
 
 // Motion-captured clips. `xy` clips have horizontal root motion we measure, then remove.
@@ -163,7 +165,7 @@ async function buildCharacter(c, tree) {
   // Portrait for the character picker, cropped from Rocketbox's own preview render.
   const preview = await fetchCached(`${RB}/Assets/Avatars/${c.src}/${base}.png`, path.join(dir, `${base}.png`));
   const meta = await sharp(preview).metadata();
-  await sharp(preview).extract({ left: Math.round(meta.width * .41), top: Math.round(meta.height * .02), width: Math.round(meta.width * .18), height: Math.round(meta.height * .3) }).resize(160, 200).flatten({ background: '#22352d' }).webp({ quality: 80 }).toFile(path.join(OUT_DIR, `${c.id}.webp`));
+  await sharp(preview).extract({ left: Math.round(meta.width * (c.portrait ?? .41)), top: Math.round(meta.height * .02), width: Math.round(meta.width * .18), height: Math.round(meta.height * .3) }).resize(160, 200).flatten({ background: '#22352d' }).webp({ quality: 80 }).toFile(path.join(OUT_DIR, `${c.id}.webp`));
   console.log(`  ${c.id}: ${kb(out)} skin ${ref.srgb} height ${top.toFixed(2)}m hip ${bip.getTranslation()[1].toFixed(3)}`);
   return { id: c.id, name: c.name, body: c.body, style: c.style, source: `${RB.replace('raw.githubusercontent.com', 'github.com').replace('/master', '/tree/master')}/Assets/Avatars/${c.src}`, skinRef: linRef, height: +top.toFixed(3), hip: +bip.getTranslation()[1].toFixed(4) };
 }

@@ -108,7 +108,7 @@ export function moveWithCollisions(x,z,dx,dz){
 
 // Avatars: a realistic base character, an optional skin-tone shift, an accent colour
 // (bag, headphones, frames and name tag) and one accessory.
-export const MODELS=['tunde','amara','chidi','ngozi','kelechi','zainab','ibrahim','ada'];
+export const MODELS=['tunde','amara','chidi','ngozi','kelechi','zainab','ibrahim','ada','mel'];
 export const SKINS=['natural','#3a2219','#5b3424','#7a4a31','#a66b46','#cb9168'];
 export const ACCENTS=['#353c4c','#537d70','#b05f49','#506b96','#e8b95e','#eee9df'];
 export const ACCESSORIES=['none','backpack','headphones','glasses'];
