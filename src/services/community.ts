@@ -209,7 +209,7 @@ function supabaseService(client: SupabaseClient): CommunityService {
     removeFriend: user => call<FriendState>('remove_friend', { p_user: user }, 'object'),
     blockPlayer: user => call<FriendState>('block_player', { p_user: user }, 'object'),
     unblockPlayer: user => call<FriendState>('unblock_player', { p_user: user }, 'object'),
-    saveSocialSettings: v => call<SocialSettings>('save_social_settings', { p_friend_requests: v.friend_requests, p_direct_messages: v.direct_messages, p_party_invites: v.party_invites, p_appear_offline: v.appear_offline, p_profile_visibility: v.profile_visibility, p_room_visits: v.room_visits ?? null }, 'object'),
+    saveSocialSettings: v => call<SocialSettings>('save_social_settings', { p_friend_requests: v.friend_requests, p_direct_messages: v.direct_messages, p_party_invites: v.party_invites, p_appear_offline: v.appear_offline, p_profile_visibility: v.profile_visibility, ...(v.room_visits ? { p_room_visits: v.room_visits } : {}) }, 'object'),
     unreadSummary: () => call<UnreadSummary>('unread_summary', {}, 'object'),
     listConversations: () => call<Conversation[]>('list_conversations', { p_limit: 30 }, 'array'),
     openConversation: user => call<Conversation>('open_conversation', { p_user: user }, 'object'),
