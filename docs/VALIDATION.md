@@ -1,7 +1,38 @@
 # Validation
 
-Three rounds are recorded here, newest first. The `*-results.json` files in this folder are rewritten
+Four rounds are recorded here, newest first. The `*-results.json` files in this folder are rewritten
 by every run, so each holds that suite's **latest** run, with its date inside.
+
+## 15 October 2026: your room in Palm House
+
+Same machine and method as the round below: a Linux container with 4 CPU cores and **no GPU**, and
+Chromium rendering WebGL in software (SwiftShader) at about 2–3 FPS, against `npm run dev`. **No
+physical phone**: the phone checks use a 390 × 844 touch viewport. The feature is described in
+[DORM-ROOMS.md](DORM-ROOMS.md).
+
+| Command | Result |
+|---|---|
+| `npm test` | **135 / 135**. New: `dorm` (4), `dorm-room` (3), `dorm-accounts` (3, PostgreSQL through the local Supabase stand-in); `fuzz` now also sends malformed room messages and layouts |
+| `npx tsc -b`, `npm run build` | Pass. `index` chunk 613.5 kB (203.3 kB gzip), up 13 kB (4.8 kB gzip) for the editor and room client; the 3D parts are in the scene chunk |
+| `node tests/browser-dorm.mjs` (new) | **7 / 7**: walk from the gate to the door, enter, privacy between two players, arrange and save, furniture collision agreeing with the room, leave, resume on a phone |
+| `node tests/browser-reliability.mjs` | **8 / 8** |
+| `node tests/browser-mobile.mjs` | **12 / 12** |
+| `node tests/browser-verify.mjs` | **17 / 17** after the test fix below (the first run failed on that race) |
+| `node tests/browser-interactions.mjs` | **27 / 27** at about 2 FPS after the test fix below (the first run failed on that timing) |
+
+Found while building it, and fixed:
+
+- **A peer kept a stale `space` after leaving their room.** The client merges each update into the
+  stored player with `Object.assign`, which never removes a field the room leaves out, so other players
+  went on treating them as being in their room. The client now clears it (`browser-dorm` step 6).
+- **The first window wasn't told it had left its room.** When the same account opened in a second
+  window, the first was moved out of its room without being told (`dorm-accounts`).
+- **Two existing browser steps were timing-dependent at 2 FPS.** These are test changes; no assertion
+  changed:
+  - `browser-verify` looked up a resting ball twice, so the ball could respawn between the two reads.
+    It now uses one read.
+  - `browser-interactions` timed its weak shot with a key-up sent from the test process, which can
+    land half a second late. It now releases in the page, like its free throws.
 
 ## 14–15 October 2026: reliability, multiplayer consistency and performance
 
