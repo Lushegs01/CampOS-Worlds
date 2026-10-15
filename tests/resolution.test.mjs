@@ -15,6 +15,13 @@ test('returning to a backgrounded tab does not lower the resolution', () => {
   assert.equal(r.scale, 1);
 });
 
+test('under 2 FPS, frames still count: the resolution steps down', () => {
+  const r = createResolution(1, .6);
+  // 0.8 s frames at full scale (software rendering, a very weak phone), proportional to the pixels drawn.
+  const changes = run(r, 120, s => .8 * s * s);
+  assert.ok(changes.length >= 1 && r.scale < 1, `stepped down: ${changes}`);
+});
+
 test('a fill-rate-limited device steps down until frames are fast enough, then holds', () => {
   const r = createResolution(1, .6);
   // Frame time proportional to the pixels drawn: 35 ms at full scale.

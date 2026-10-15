@@ -1,8 +1,12 @@
 // Adaptive render resolution. Kept free of React and three.js so the policy is unit-tested
 // (tests/resolution.test.mjs); world/World.tsx feeds it frame times and applies its answers.
 
-/** Longer than this between frames is a pause (a backgrounded tab, a shader compile), not a frame rate. */
-export const STALL = .5;
+/**
+ * Longer than this between frames is a pause (a backgrounded tab, a frozen page), not a frame rate. It
+ * was 0.5 s, which on a device drawing under 2 FPS discarded every frame: the FPS readout and the
+ * telemetry never updated and the resolution never adapted, exactly where it matters most.
+ */
+export const STALL = 3;
 const WINDOW = 1.5, SETTLE = .4, LOW_FPS = 50, HIGH_FPS = 59, STEP_DOWN = .85, STEP_UP = 1.04, GAIN = 1.08;
 
 /**
