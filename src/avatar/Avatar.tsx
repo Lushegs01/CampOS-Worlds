@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -236,6 +236,19 @@ function avatarLod(root: THREE.Object3D, camera: THREE.Camera, frame: number) {
   const d = BOUNDS.center.distanceTo(camera.position);
   return d > 60 ? 4 : d > 30 ? 2 : 1;
 }
+/**
+ * Textures of other players' characters waiting for the GPU. A character behind the camera is not drawn,
+ * so without this its textures were uploaded the first time someone turned towards it: a long frame on a
+ * phone, just as a newcomer came into view. They are uploaded when the character arrives, one per frame.
+ */
+const pendingUploads: THREE.Texture[] = [], queuedUploads = new WeakSet<THREE.Texture>();
+let uploadAt = -1;
+function queueUploads(root: THREE.Object3D) {
+  root.traverse(o => {
+    const material = (o as THREE.Mesh).material as THREE.Material | undefined; if (!material) return;
+    for (const value of Object.values(material)) { const t = value as THREE.Texture; if (t?.isTexture && !queuedUploads.has(t)) { queuedUploads.add(t); pendingUploads.push(t); } }
+  });
+}
 /** How far each table chair is pulled back from the table (1 = pulled out, 0 = tucked in), by seat id. */
 export const chairPull = new Map<string, number>();
 const SCOOT = .6;
@@ -252,11 +265,17 @@ export default function Avatar({ config, motion, preview = false, id }: { config
   });
   const remote = !!id && id !== 'local' && !preview;
   useEffect(() => registerMovingCaster(rig.root), [rig]);
+  // Prepare a newcomer before anyone looks at them: textures (queued, see above) and shader programs.
+  // (Not compileAsync: it polls the programs on a timer and throws once a player who left quickly has had
+  // their materials disposed.)
+  const { gl, scene, camera } = useThree();
+  useEffect(() => { if (!remote) return; queueUploads(rig.root); gl.compile(rig.root, camera, scene); }, [rig, remote, gl, scene, camera]);
   useEffect(() => () => contactMat.dispose(), [contactMat]);
   const anchor = useMemo(() => ({ ball: new THREE.Vector3(), holding: false }), []);
   useEffect(() => { if (!id) return; avatars.set(id, anchor); return () => { if (avatars.get(id) === anchor) avatars.delete(id); }; }, [id, anchor]);
 
-  useFrame(({ clock, camera }, raw) => {
+  useFrame(({ clock, camera, gl }, raw) => {
+    if (pendingUploads.length && uploadAt !== clock.elapsedTime) { uploadAt = clock.elapsedTime; gl.initTexture(pendingUploads.shift()!); }
     // Real time, up to a quarter second a frame: a 50 ms cap played every animation (and the sit-down and
     // stand-up that gate actions) in slow motion below 20 FPS, ten times slower at 2 FPS.
     const dt = Math.min(raw, .25), m = motion?.() ?? { speed: 0, y: 0, vy: 0 }, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;
