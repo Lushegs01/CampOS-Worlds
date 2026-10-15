@@ -18,7 +18,7 @@ so edits could not hot-reload a running test; the account-backed suites start th
 | `npm run build` | Passes | Passes; `index` chunk 600.6 kB (198.5 kB gzip), was 593.1 kB (195.6 kB). Secret scan of the bundle: clean |
 | `node tests/browser-smoke.mjs` | Fails (clicked a `bun` accessory that does not exist; asserted nothing) | **Passes** (real controls, appearance, walking, settings, phone layout) |
 | `node tests/browser-verify.mjs` | Fails at the jump step, then walks overshoot (fixed sleeps at 4–5 FPS) | **17 / 17** (dev stack, and again on the final QA production build) |
-| `node tests/browser-reliability.mjs` (new) | — | **7 / 7** |
+| `node tests/browser-reliability.mjs` (new) | — | **8 / 8** (the 8th, texture preloading, added after this round merged) |
 | `node tests/browser-mobile.mjs` | Could not start (hard-coded Windows Chrome) | **12 / 12** |
 | `node tests/browser-interactions.mjs` | Could not start; then walk drift and slow-motion sit-down | **27 / 27** at about 2 FPS (5 / 5 free throws) |
 | `node tests/browser-social.mjs` | Timed out entering under load | **4 / 4** |

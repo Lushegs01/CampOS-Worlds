@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-15T03:59:48.717Z",
+  "date": "2026-10-15T07:01:32.204Z",
   "results": [
     "desktop real WebGL campus renders",
     "customization and welcome Escape",
@@ -26,11 +26,11 @@
       "y": 0,
       "z": 36
     },
-    "fps": 1,
-    "drawCalls": 144,
-    "triangles": 308308,
-    "textures": 52,
-    "geometries": 103,
+    "fps": 21,
+    "drawCalls": 0,
+    "triangles": 0,
+    "textures": 0,
+    "geometries": 0,
     "quality": "low",
     "peers": [],
     "tokens": [

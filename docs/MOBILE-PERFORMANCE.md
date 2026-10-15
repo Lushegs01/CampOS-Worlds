@@ -129,8 +129,12 @@ Loading: 49 requests / 12.24 MB solo and 57 / 21.1 MB with eight characters, the
 - No physical device. No GPU frame times, thermal throttling, memory pressure or mobile network.
 - The static-shadow change was checked mechanically (`tests/browser-reliability.mjs`), not visually.
 - Room CPU under load: the payload change is measured, room CPU differences were within noise.
-- A character's textures now upload when it first comes into view rather than when it joins; on a
-  phone that may show as one longer frame the first time you turn towards a newcomer. Not measured.
+- Follow-up: with culling, a character's textures were uploaded the first time it came into view (a
+  long frame on a phone as you turned towards a newcomer). They are now uploaded when the character
+  arrives, one texture per frame, and its shader programs compiled then too
+  (`tests/browser-reliability.mjs` checks all six textures are on the GPU while the newcomer is still out
+  of view; it found none without the change). The frame-time effect was not measured: at SwiftShader's
+  frame rates one upload is lost in the noise.
 
 On the S24 (or a similar phone), with **Settings → Low**: note the live FPS readout in Settings at the
 gate, while walking through the courtyard, in the library and on the courts, alone and with several

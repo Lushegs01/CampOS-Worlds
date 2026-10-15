@@ -129,6 +129,37 @@ try {
     await debug(page, () => window.__lost.restoreContext());
     await page.context().close();
   }
+  // ---- 7. Someone arriving behind the camera is ready before you turn round: their character's
+  //         textures are on the GPU while they are still out of view (uploading them on first sight
+  //         was a long frame on a phone).
+  {
+    const page = await open('Upload QA');
+    await debug(page, () => window.__campusDebug.walkTo(0, 24));
+    await page.waitForFunction(() => !window.__campusDebug.walking(), null, { timeout: 90000 });
+    const mine = await debug(page, () => window.__campusInspect().avatar.model);
+    const model = ['ibrahim', 'ada', 'tunde'].find(m => m !== mine);
+    const ws = new WebSocket(base.replace(/^http/, 'ws') + '/ws', { origin: new URL(base).origin }); sockets.push(ws);
+    await new Promise((r, j) => { ws.once('open', r); ws.once('error', j); });
+    ws.send(JSON.stringify({ type: 'join', name: 'Behind You', avatar: { model } }));
+    // Their figure is out of view (culled), and every texture of it has a GPU texture.
+    const state = () => page.evaluate(() => {
+      const gl = window.__campusGL, textures = new Set(); let hidden = 0;
+      window.__campusScene.traverse(o => {
+        if (!o.isSkinnedMesh) return; let shown = true; for (let p = o; p; p = p.parent) shown &&= p.visible; if (shown) return;
+        hidden++; for (const v of Object.values(o.material)) if (v?.isTexture) textures.add(v);
+      });
+      const uploaded = [...textures].filter(t => gl.properties.get(t).__webglTexture).length;
+      return { hidden, textures: textures.size, uploaded };
+    });
+    await page.waitForFunction(() => window.__campusInspect().peers.some(p => p.name === 'Behind You'));
+    await page.waitForFunction(() => { let n = 0; window.__campusScene.traverse(o => { if (o.isSkinnedMesh) { let shown = true; for (let p = o; p; p = p.parent) shown &&= p.visible; if (!shown) n++; } }); return n > 0; }, null, { timeout: 30000 });
+    await page.waitForTimeout(8000);
+    const r = await state();
+    assert.ok(r.hidden > 0 && r.textures > 0, `the newcomer is out of view (${JSON.stringify(r)})`);
+    assert.equal(r.uploaded, r.textures, `all of the newcomer's textures are uploaded before they are seen (${JSON.stringify(r)})`);
+    pass(`a newcomer behind the camera has all ${r.textures} character textures on the GPU before coming into view`);
+    ws.close(); await page.context().close();
+  }
   await writeFile('docs/reliability-results.json', JSON.stringify({ date: new Date().toISOString(), results, errors }, null, 2));
   assert.deepEqual(errors, []);
   console.log('ALL PASSED', results.length);
