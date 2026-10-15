@@ -1,6 +1,16 @@
 {
   "results": [
-    "App loads and joins room"
+    "App loads and joins room",
+    "Walk from original hub; enter driver seat with E",
+    "Second actual browser enters passenger seat",
+    "Authoritative forward movement, braking, passenger anchoring and remote synchronization",
+    "Both players safely exit parked car",
+    "Re-enter same persisted vehicle",
+    "Reverse and handbrake",
+    "Recovery returns stopped driver to a clear home bay",
+    "Expanded university map is available while driving",
+    "Driver disconnect releases control and stops vehicle",
+    "No uncaught browser errors"
   ],
   "errors": []
 }

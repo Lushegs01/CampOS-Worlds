@@ -1,0 +1,480 @@
+{
+  "date": "2026-10-15T03:44:06.573Z",
+  "label": "after-8-players",
+  "url": "http://127.0.0.1:4173",
+  "browser": "141.0.7390.37",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "hardwareGpu": false,
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 3
+  },
+  "bots": 8,
+  "secondsPerSample": 8,
+  "environment": "Linux container without a GPU: Chromium with SwiftShader (software WebGL), mobile viewport and touch emulation. Frame times measure a CPU rasterizer; not a phone measurement.",
+  "readyMs": 9359,
+  "resources": {
+    "requests": 57,
+    "transferredBytes": 21098914,
+    "decodedBytes": 22506236
+  },
+  "samples": [
+    {
+      "name": "entry",
+      "frames": 12,
+      "fps": 1.5,
+      "p50Ms": 500,
+      "p95Ms": 2333.3,
+      "p99Ms": 2333.3,
+      "maxMs": 2333.3,
+      "longFrames": 11,
+      "longFrameMs": 8183,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 0,
+        "drawCalls": 266,
+        "triangles": 631560,
+        "textures": 82,
+        "geometries": 190,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "a634bb7d-a7ef-4212-8e73-cb4acf91b337",
+            "x": -5.77,
+            "z": 36.18
+          },
+          {
+            "id": "b0110c0b-20ff-4489-8a00-ba2c987e7a91",
+            "x": -0.81,
+            "z": 39.07
+          },
+          {
+            "id": "72aba9ab-a4e4-413e-bf08-3ea70e29bbe2",
+            "x": -1.24,
+            "z": 41.44
+          },
+          {
+            "id": "d510b9e2-d234-4441-8fc8-5374cca451ed",
+            "x": -2.94,
+            "z": 33.75
+          },
+          {
+            "id": "2e7003e1-3345-403c-8c13-91a86270f450",
+            "x": 0.94,
+            "z": 33
+          },
+          {
+            "id": "0618d18f-9de6-43ba-a202-2b3b236292eb",
+            "x": 9.1,
+            "z": 51.38
+          },
+          {
+            "id": "146bbdd1-794f-45a4-9a7a-54e4b3ca5558",
+            "x": -4.96,
+            "z": 30.46
+          },
+          {
+            "id": "254d5d0c-c0b0-4425-9394-63a74f31dd1f",
+            "x": 0.73,
+            "z": 31.38
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1,
+      "heapMB": 178,
+      "mainThread": {
+        "scriptMsPerSec": 45.6,
+        "taskMsPerSec": 999.1,
+        "layoutsPerSec": 0.2,
+        "recalcStylesPerSec": 0.2
+      }
+    },
+    {
+      "name": "walk-and-turn",
+      "frames": 13,
+      "fps": 1.6,
+      "p50Ms": 633.3,
+      "p95Ms": 1266.6,
+      "p99Ms": 1266.6,
+      "maxMs": 1266.6,
+      "longFrames": 12,
+      "longFrameMs": 8283,
+      "telemetry": {
+        "position": {
+          "x": 1.6152765259497996,
+          "y": 0,
+          "z": 18.598351063265895
+        },
+        "fps": 2,
+        "drawCalls": 129,
+        "triangles": 313770,
+        "textures": 135,
+        "geometries": 228,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "a634bb7d-a7ef-4212-8e73-cb4acf91b337",
+            "x": 3.62,
+            "z": 15.67
+          },
+          {
+            "id": "b0110c0b-20ff-4489-8a00-ba2c987e7a91",
+            "x": -10.65,
+            "z": 18.49
+          },
+          {
+            "id": "72aba9ab-a4e4-413e-bf08-3ea70e29bbe2",
+            "x": -22.66,
+            "z": 32.15
+          },
+          {
+            "id": "d510b9e2-d234-4441-8fc8-5374cca451ed",
+            "x": -24.1,
+            "z": 42.03
+          },
+          {
+            "id": "2e7003e1-3345-403c-8c13-91a86270f450",
+            "x": -20.07,
+            "z": 49.18
+          },
+          {
+            "id": "0618d18f-9de6-43ba-a202-2b3b236292eb",
+            "x": 18.8,
+            "z": 73.24
+          },
+          {
+            "id": "146bbdd1-794f-45a4-9a7a-54e4b3ca5558",
+            "x": 16.46,
+            "z": 39.7
+          },
+          {
+            "id": "254d5d0c-c0b0-4425-9394-63a74f31dd1f",
+            "x": 22.45,
+            "z": 22.85
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1,
+      "heapMB": 156.5,
+      "mainThread": {
+        "scriptMsPerSec": 25.3,
+        "taskMsPerSec": 998.4,
+        "layoutsPerSec": 0.7,
+        "recalcStylesPerSec": 0.7
+      }
+    },
+    {
+      "name": "after-walk",
+      "frames": 13,
+      "fps": 1.5,
+      "p50Ms": 700,
+      "p95Ms": 833.3,
+      "p99Ms": 833.3,
+      "maxMs": 833.3,
+      "longFrames": 12,
+      "longFrameMs": 8483,
+      "telemetry": {
+        "position": {
+          "x": 4.012722347362884,
+          "y": 0,
+          "z": 10.847459883923827
+        },
+        "fps": 1,
+        "drawCalls": 124,
+        "triangles": 309004,
+        "textures": 135,
+        "geometries": 228,
+        "quality": "low",
+        "peers": [
+          {
+            "id": "a634bb7d-a7ef-4212-8e73-cb4acf91b337",
+            "x": 7.12,
+            "z": 35.53
+          },
+          {
+            "id": "b0110c0b-20ff-4489-8a00-ba2c987e7a91",
+            "x": 5.87,
+            "z": 30.06
+          },
+          {
+            "id": "72aba9ab-a4e4-413e-bf08-3ea70e29bbe2",
+            "x": -2.8,
+            "z": 28.65
+          },
+          {
+            "id": "d510b9e2-d234-4441-8fc8-5374cca451ed",
+            "x": -12.53,
+            "z": 25.46
+          },
+          {
+            "id": "2e7003e1-3345-403c-8c13-91a86270f450",
+            "x": -23.57,
+            "z": 28.6
+          },
+          {
+            "id": "0618d18f-9de6-43ba-a202-2b3b236292eb",
+            "x": 2.27,
+            "z": 61.67
+          },
+          {
+            "id": "146bbdd1-794f-45a4-9a7a-54e4b3ca5558",
+            "x": -3.4,
+            "z": 43.2
+          },
+          {
+            "id": "254d5d0c-c0b0-4425-9394-63a74f31dd1f",
+            "x": 10.88,
+            "z": 39.37
+          }
+        ],
+        "tokens": []
+      },
+      "dpr": 1,
+      "heapMB": 157.6,
+      "mainThread": {
+        "scriptMsPerSec": 12,
+        "taskMsPerSec": 998.4,
+        "layoutsPerSec": 0.4,
+        "recalcStylesPerSec": 0.3
+      }
+    },
+    {
+      "name": "library",
+      "frames": 17,
+      "fps": 2.1,
+      "p50Ms": 450,
+      "p95Ms": 1666.6,
+      "p99Ms": 1666.6,
+      "maxMs": 1666.6,
+      "longFrames": 16,
+      "longFrameMs": 8100,
+      "telemetry": {
+        "position": {
+          "x": -30,
+          "y": 0,
+          "z": -14
+        },
+        "fps": 2,
+        "drawCalls": 112,
+        "triangles": 350582,
+        "textures": 70,
+        "geometries": 160,
+        "quality": "low",
+        "peers": [],
+        "tokens": [
+          "t2"
+        ]
+      },
+      "dpr": 0.85,
+      "heapMB": 146.4,
+      "mainThread": {
+        "scriptMsPerSec": 50.5,
+        "taskMsPerSec": 999.9,
+        "layoutsPerSec": 0.3,
+        "recalcStylesPerSec": 0.3
+      }
+    },
+    {
+      "name": "cafe",
+      "frames": 17,
+      "fps": 2,
+      "p50Ms": 516.7,
+      "p95Ms": 600,
+      "p99Ms": 600,
+      "maxMs": 600,
+      "longFrames": 16,
+      "longFrameMs": 8383,
+      "telemetry": {
+        "position": {
+          "x": 30,
+          "y": 0,
+          "z": -8
+        },
+        "fps": 2,
+        "drawCalls": 111,
+        "triangles": 289832,
+        "textures": 74,
+        "geometries": 171,
+        "quality": "low",
+        "peers": [],
+        "tokens": [
+          "t2"
+        ]
+      },
+      "dpr": 0.85,
+      "heapMB": 109.1,
+      "mainThread": {
+        "scriptMsPerSec": 11.4,
+        "taskMsPerSec": 999.9,
+        "layoutsPerSec": 0,
+        "recalcStylesPerSec": 0
+      }
+    },
+    {
+      "name": "court",
+      "frames": 17,
+      "fps": 2,
+      "p50Ms": 533.2,
+      "p95Ms": 616.7,
+      "p99Ms": 616.7,
+      "maxMs": 616.7,
+      "longFrames": 16,
+      "longFrameMs": 8516,
+      "telemetry": {
+        "position": {
+          "x": 44,
+          "y": 0,
+          "z": 20
+        },
+        "fps": 2,
+        "drawCalls": 107,
+        "triangles": 293880,
+        "textures": 74,
+        "geometries": 173,
+        "quality": "low",
+        "peers": [],
+        "tokens": [
+          "t2"
+        ]
+      },
+      "dpr": 0.85,
+      "heapMB": 109,
+      "mainThread": {
+        "scriptMsPerSec": 10.2,
+        "taskMsPerSec": 999.9,
+        "layoutsPerSec": 0,
+        "recalcStylesPerSec": 0
+      }
+    }
+  ],
+  "scene": [
+    [
+      "Mesh",
+      317790
+    ],
+    [
+      "trees:road",
+      282128
+    ],
+    [
+      "chairs:schoolChair",
+      127800
+    ],
+    [
+      "trees:wood",
+      45280
+    ],
+    [
+      "books",
+      38520
+    ],
+    [
+      "chairs:monobloc",
+      34200
+    ],
+    [
+      "campus:stucco",
+      29328
+    ],
+    [
+      "street-lights",
+      17512
+    ],
+    [
+      "campus:bronze",
+      16780
+    ],
+    [
+      "prop:pottedPalm",
+      16700
+    ],
+    [
+      "campus:aluminium",
+      15156
+    ],
+    [
+      "trees:leaves",
+      14860
+    ],
+    [
+      "prop:pottedPlant",
+      14256
+    ],
+    [
+      "campus-roads:lineWhite",
+      12180
+    ],
+    [
+      "ground",
+      8192
+    ],
+    [
+      "m007_hipoly_81_bones_1",
+      7388
+    ],
+    [
+      "campus:darkMetal",
+      7284
+    ],
+    [
+      "campus:stuccoCream",
+      7188
+    ],
+    [
+      "m007_hipoly_81_bones_2",
+      6056
+    ],
+    [
+      "campus:steel",
+      5672
+    ],
+    [
+      "campus-roads:brushed",
+      5436
+    ],
+    [
+      "campus:paintDark",
+      5420
+    ],
+    [
+      "f014_hipoly_81_bones_opacity_1",
+      5146
+    ],
+    [
+      "campus:paintTerracotta",
+      4876
+    ],
+    [
+      "m006_hipoly_81_bones_opacity_1",
+      4760
+    ],
+    [
+      "f012_hipoly_81_bones_opacity_1",
+      4714
+    ],
+    [
+      "prop:picnic",
+      4713
+    ],
+    [
+      "prop:hydrant",
+      4708
+    ],
+    [
+      "campus:paintGreen",
+      4468
+    ],
+    [
+      "campus:paintWhite",
+      4420
+    ]
+  ],
+  "errors": []
+}
