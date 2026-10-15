@@ -228,8 +228,9 @@ const FRUSTUM = new THREE.Frustum(), VIEW = new THREE.Matrix4(), BOUNDS = new TH
 let frustumAt = -1;
 /** 0: outside the view; otherwise pose the skeleton every n-th frame (1 near, 2 beyond 30 m, 4 beyond 60 m). */
 function avatarLod(root: THREE.Object3D, camera: THREE.Camera, frame: number) {
-  // One frustum per frame for every avatar, from last frame's camera (a generous sphere covers the difference).
-  if (frustumAt !== frame) { frustumAt = frame; FRUSTUM.setFromProjectionMatrix(VIEW.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)); }
+  // One frustum per frame for every avatar. The camera's matrices are refreshed first: at 2 FPS last
+  // frame's view can be turned far enough that someone now in front of the camera would be skipped.
+  if (frustumAt !== frame) { frustumAt = frame; camera.updateMatrixWorld(); FRUSTUM.setFromProjectionMatrix(VIEW.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)); }
   const e = (root.parent ?? root).matrixWorld.elements; BOUNDS.center.set(e[12], e[13] + 1, e[14]);
   if (!FRUSTUM.intersectsSphere(BOUNDS)) return 0;
   const d = BOUNDS.center.distanceTo(camera.position);

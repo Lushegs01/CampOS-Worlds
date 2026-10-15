@@ -1,7 +1,9 @@
 // Long-session check: players keep joining and leaving around you while you walk. GPU textures and
 // geometries and the JS heap are sampled; they should level off rather than climb with every visitor.
 //   TEST_URL=http://127.0.0.1:4173 SOAK_SECONDS=300 SOAK_LABEL=after node tests/browser-soak.mjs
-// SOAK_ASSERT=1 fails the run when GPU textures keep growing after the warm-up.
+// SOAK_ASSERT=1 fails the run when GPU textures keep growing after the warm-up (2 minutes: a character's
+// textures are uploaded the first time it is drawn, and players behind the camera are not drawn, so the
+// working set of eight characters takes a while to fill; a leak keeps adding about one per visitor).
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { WebSocket } from 'ws';
@@ -42,10 +44,10 @@ try {
     await page.waitForTimeout(500);
   }
   await page.keyboard.up(key);
-  const warm = series.find(s => s.t >= 60) ?? series[0], end = series.at(-1);
+  const warm = series.find(s => s.t >= 120) ?? series[0], end = series.at(-1);
   const report = { date: new Date().toISOString(), label, url: base, seconds, visitors: n, environment: 'Linux container, Chromium with SwiftShader (software WebGL), Low quality, 800x600. Not a phone.', series, growthAfterWarmup: { textures: end.textures - warm.textures, geometries: end.geometries - warm.geometries, heapMB: +(end.heapMB - warm.heapMB).toFixed(1) }, errors };
-  await writeFile(`docs/soak-${label}.json`, JSON.stringify(report, null, 2));
+  await writeFile(`docs/performance/soak-${label}.json`, JSON.stringify(report, null, 2));
   console.log('growth after warm-up', JSON.stringify(report.growthAfterWarmup));
-  if (process.env.SOAK_ASSERT === '1') assert.ok(report.growthAfterWarmup.textures <= 4, `GPU textures kept growing: +${report.growthAfterWarmup.textures}`);
+  if (process.env.SOAK_ASSERT === '1') assert.ok(report.growthAfterWarmup.textures <= 8, `GPU textures kept growing: +${report.growthAfterWarmup.textures}`);
   assert.deepEqual(errors, []);
 } finally { for (const b of [...bots]) b.stop(); await browser.close(); }
