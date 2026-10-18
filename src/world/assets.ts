@@ -3,10 +3,11 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { ASSET_BASE as BASE, assetUrl } from './assetUrl';
+export { assetUrl };
 
 // Runtime assets are built by scripts/assets/* into public/assets. Textures are Basis/KTX2
 // (transcoded to BC/ETC2/ASTC on the GPU) and geometry is meshopt-compressed.
-const BASE = `${import.meta.env.BASE_URL}assets/`;
 let ktx2: KTX2Loader | null = null, gltf: GLTFLoader | null = null, anisotropy = 4;
 const textures = new Map<string, Promise<THREE.Texture>>(), models = new Map<string, Promise<GLTF>>();
 
@@ -29,8 +30,6 @@ export function initLoaders(renderer: THREE.WebGLRenderer, maxAnisotropy: number
   ktx2 = new KTX2Loader(manager).setTranscoderPath(BASE + 'basis/').setWorkerLimit(2).detectSupport(renderer);
   gltf = new GLTFLoader(manager).setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
 }
-
-export const assetUrl = (path: string) => `${BASE}${path}?v=${__CAMPUS_ASSET_VERSION__}`;
 
 /** A KTX2 texture configured for tiling. Repeats are applied per material via clone(). */
 export function loadTexture(path: string): Promise<THREE.Texture> {

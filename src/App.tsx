@@ -25,9 +25,10 @@ import { Portrait } from './ui/Account';
 import { CommunityDrawer } from './ui/Community';
 import { useCommunity } from './community/store';
 import { CalendarDays } from 'lucide-react';
+import { chime } from './interaction/sound';
 const World=lazy(()=>import('./world/World'));
 class WorldBoundary extends Component<{children:ReactNode},{error:boolean}>{state={error:false};static getDerivedStateFromError(){return {error:true};}render(){if(this.state.error)return <div className="graphics-error"><h2>The campus couldn’t open.</h2><p>A WebGL-capable browser is needed. Try reloading with fewer tabs open.</p><button className="primary" onClick={()=>{useGame.getState().set({quality:'low'});location.reload();}}>Reload on low quality</button></div>;return this.props.children;}}
-function SoundFeedback(){const toast=useGame(s=>s.toast);useEffect(()=>{const volume=useGame.getState().volume;if(!toast||!volume)return;try{const ctx=new AudioContext();const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(523,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(784,ctx.currentTime+.16);gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(volume*.09,ctx.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.38);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.4);osc.onended=()=>void ctx.close();}catch{}},[toast]);return null;}
+function SoundFeedback(){const toast=useGame(s=>s.toast);useEffect(()=>{if(toast)chime();},[toast]);return null;}
 /** Account entry in the top bar: your portrait and handle when signed in, a sign-in button for guests. */
 function AccountChip(){const status=useAccount(a=>a.status),profile=useAccount(a=>a.profile),set=useGame(g=>g.set);
  if(status==='signed-in'&&profile)return <button className="account-chip" aria-label={`Your profile, @${profile.handle}`} onClick={()=>set({panel:'profile'})}><Portrait person={profile} size={26}/><span>@{profile.handle}</span></button>;
@@ -39,6 +40,11 @@ function LocationHud(){const nearby=useGame(g=>g.nearby),connected=useGame(g=>g.
  useEffect(()=>{const t=setInterval(()=>setWhere(w=>{const n=locate();return n.heart===w.heart&&n.district===w.district?w:n;}),500);return()=>clearInterval(t);},[]);
  const nearest=LOCATIONS.find(l=>l.id===nearby),district=where.district;
  return <div className="location-hud"><span className="eyebrow">{inRoom?'PALM HOUSE · RESIDENTS':where.heart?'THE HEART OF CAMPUS':district&&!nearest?'YOU ARE IN':'TAKE THE SCENIC ROUTE'}</span><h3>{inRoom?(roomHost?`${roomHost}’s room`:'Your room'):nearest?.name||district?.name||'Òrìṣun Campus'}</h3><span><Sun size={13}/> Golden hour <i/> {connected?'A shared little world':'Standalone exploration'}</span></div>;}
+/** Full screen where the browser allows it (Safari still names it webkit…; iPhones have none at all). */
+function toggleFullscreen(){const d=document as Document&{webkitFullscreenElement?:Element|null;webkitExitFullscreen?:()=>void},el=document.documentElement as HTMLElement&{webkitRequestFullscreen?:()=>void};
+ if(d.fullscreenElement||d.webkitFullscreenElement){if(d.exitFullscreen)void d.exitFullscreen().catch(()=>{});else d.webkitExitFullscreen?.();return;}
+ const unavailable=()=>useGame.getState().notify('Fullscreen is unavailable in this browser.');
+ if(el.requestFullscreen)el.requestFullscreen().catch(unavailable);else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();else unavailable();}
 const locate=()=>({heart:Math.abs(player.x)<14&&Math.abs(player.z)<15,district:districtAt(player.x,player.z)??null});
 export default function App(){
  // Only what this component shows: the frame-rate readout and other frequent store writes must not
@@ -54,7 +60,7 @@ export default function App(){
  <button className="minimap" aria-label="Open campus map" onClick={()=>s.set({panel:'map'})}><MapGraphic mini/><span><Map size={14}/>Campus map<kbd>M</kbd></span><b className="north">N ↑</b></button>
  <nav className="game-dock" aria-label="Game menu"><button onClick={()=>s.set({panel:'map'})}><Map size={19}/><span>Map</span></button><button onClick={()=>s.set({panel:'chat'})}><MessageCircle size={19}/><span>Chat</span></button><button onClick={()=>s.set({panel:'players'})}><Users size={19}/><span>People</span></button><button aria-pressed={socialOpen} aria-label={`Friends, messages and party${socialUnread?` (${socialUnread} new)`:''}`} onClick={toggleSocial}><span className="dock-icon"><HeartHandshake size={19}/>{socialUnread>0&&<span className="count-badge">{socialUnread>99?'99+':socialUnread}</span>}</span><span>{partySize?`Party ${partySize}`:'Friends'}</span></button><button aria-pressed={communityOpen} onClick={()=>useCommunity.getState().toggle()}><CalendarDays size={19}/><span>Events</span></button><span className="dock-divider"/><button onClick={()=>{player.emote='wave';player.emoteUntil=Date.now()+3000;send({type:'emote',emote:'wave'});s.notify('You waved hello. Press 2 to dance or 3 to cheer.');}}><span className="wave-icon">✋</span><span>Wave</span></button><button onClick={()=>s.set({panel:'profile'})}><UserRound size={19}/><span>You</span></button></nav>
  {!s.panel&&<InteractionPrompt/>}<BasketballHUD/><DuelHud/><ChallengeHud/><PartyHud/><DormHud/><VehicleHUD/><ClassPrompt/>
- <div className="control-hint"><kbd>W A S D</kbd> Move <span className="opt">· Drag to look</span> <span>·</span><kbd>E</kbd> Interact <span>·</span><kbd>V</kbd> Events <span>·</span><kbd>F</kbd> Friends <span className="opt">· <kbd>Space</kbd> Jump</span><button aria-label="Full screen" onClick={()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen?.().catch(()=>s.notify('Fullscreen is unavailable in this browser.'));}}><Maximize2 size={14}/></button></div>
+ <div className="control-hint"><kbd>W A S D</kbd> Move <span className="opt">· Drag to look</span> <span>·</span><kbd>E</kbd> Interact <span>·</span><kbd>V</kbd> Events <span>·</span><kbd>F</kbd> Friends <span className="opt">· <kbd>Space</kbd> Jump</span><button aria-label="Full screen" onClick={toggleFullscreen}><Maximize2 size={14}/></button></div>
  </>}
  <CommunityDrawer/><SocialDrawer/><PartyInvites/><DormInvites/><DuelChallenges/><TouchControls/><Panels/><SoundFeedback/>{s.toast&&<div className="toast" role="status"><Compass size={20}/><span>{s.toast}</span><button aria-label="Dismiss notification" onClick={()=>s.set({toast:''})}><X size={16}/></button></div>}
  </main>;

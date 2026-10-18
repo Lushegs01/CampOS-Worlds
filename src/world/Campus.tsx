@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Kit } from './architecture/kit';
@@ -10,6 +10,7 @@ import { NOISE_GLSL, type Materials } from './materials';
 import { loadModel } from './assets';
 import { PLAZA, SURFACE_Y } from './layout';
 import type { QualityProfile } from './quality';
+import { freeze, prepare } from './rendering';
 
 function wireTexture(cell: number, line: number, color = '#ffffff') {
   const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!;
@@ -47,7 +48,7 @@ export function buildCampus(lib: Materials) {
     const top = new THREE.PlaneGeometry(5, .9).rotateX(-Math.PI / 2).translate(g.x, 2, (g.z + back) / 2); const uv = top.getAttribute('uv') as THREE.BufferAttribute; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 40, uv.getY(i) * 7.5); nets.push(top);
   }
   if (nets.length) group.add(new THREE.Mesh(mergeAll(nets), netMat));
-  return { group, context: c, books };
+  return { group: freeze(group), context: c, books };
 }
 
 /** Hide fine interior detail (thousands of book spines) unless the camera is near. */
@@ -64,10 +65,10 @@ function mergeAll(list: THREE.BufferGeometry[]) {
   out.computeBoundingSphere(); return out;
 }
 
-/** Instanced Poly Haven props, grouped into 40 m cells so fine detail can be distance-culled. */
+/** Instanced Poly Haven props, grouped into 20 m cells so fine detail can be distance-culled. */
 export function Props({ placements, quality }: { placements: Placements; quality: QualityProfile }) {
   const [models, setModels] = useState<Partial<Record<PropFile, GLTF>>>({});
-  const requested = useRef(new Set<string>()), alive = useRef(true), lastLoad = useRef(-10);
+  const requested = useRef(new Set<string>()), alive = useRef(true), lastLoad = useRef(-10), { gl, scene, camera } = useThree();
   useEffect(() => {
     alive.current = true;
     return () => { alive.current = false; };
@@ -81,32 +82,42 @@ export function Props({ placements, quality }: { placements: Placements; quality
       const radius = quality.detailDistance + 18;
       if (!list.some(m => Math.hypot(m.elements[12] - camera.position.x, m.elements[14] - camera.position.z) < radius)) continue;
       requested.current.add(key);
-      loadModel(`props/${key}.glb`).then(g => { if (alive.current) setModels(m => ({ ...m, [key]: g })); }).catch(e => console.warn('prop failed', key, e));
+      loadModel(`props/${key}.glb`).then(g => { if (alive.current) setModels(m => ({ ...m, [key]: g })); }).catch(e => { console.warn('prop failed', key, e); setTimeout(() => requested.current.delete(key), 6000); }); // a dropped download is tried again
       if (++started === 2) break;
     }
   });
+  // Each model's cells are built once, when it arrives; the others are kept (rebuilding every prop's
+  // instanced meshes for each newly streamed model re-uploaded them all).
+  const built = useRef(new Map<string, Cell[]>());
   const cells = useMemo(() => {
-    const out: { mesh: THREE.InstancedMesh; centre: THREE.Vector3; detail: boolean }[] = [];
-    for (const [key, gltf] of Object.entries(models) as [PropFile, GLTF][]) {
-      const list = placements.map.get(key); if (!list) continue;
-      gltf.scene.updateMatrixWorld(true);
-      const parts: THREE.Mesh[] = []; gltf.scene.traverse(o => { if ((o as THREE.Mesh).isMesh) parts.push(o as THREE.Mesh); });
-      const buckets = new Map<string, THREE.Matrix4[]>(), p = new THREE.Vector3();
-      for (const m of list) { p.setFromMatrixPosition(m); const k = `${Math.floor(p.x / 20)},${Math.floor(p.z / 20)}`; (buckets.get(k) ?? buckets.set(k, []).get(k)!).push(m); }
-      for (const mats of buckets.values()) for (const part of parts) {
-        const mesh = new THREE.InstancedMesh(part.geometry, part.material, mats.length), tmp = new THREE.Matrix4(), centre = new THREE.Vector3();
-        mats.forEach((m, i) => { mesh.setMatrixAt(i, tmp.multiplyMatrices(m, part.matrixWorld)); centre.add(p.setFromMatrixPosition(m)); });
-        centre.divideScalar(mats.length);
-        mesh.castShadow = key !== 'wetFloor'; mesh.receiveShadow = true; mesh.computeBoundingSphere(); mesh.name = `prop:${key}`;
-        out.push({ mesh, centre, detail: DETAIL_PROPS.includes(key) });
-      }
-    }
-    return out;
+    for (const [key, gltf] of Object.entries(models) as [PropFile, GLTF][]) if (!built.current.has(key)) built.current.set(key, propCells(key, gltf, placements));
+    return [...built.current.values()].flat();
   }, [models, placements]);
-  const root = useRef<THREE.Group>(null!);
-  useEffect(() => () => cells.forEach(c => c.mesh.dispose()), [cells]);
-  useFrame(({ camera }) => { for (const c of cells) c.mesh.visible = c.centre.distanceToSquared(camera.position) < (quality.detailDistance + (c.detail ? 10 : 25)) ** 2; });
-  return <group ref={root}>{cells.map((c, i) => <primitive key={i} object={c.mesh} />)}</group>;
+  useEffect(() => () => { for (const list of built.current.values()) for (const c of list) c.mesh.dispose(); built.current.clear(); }, []);
+  // A model's shaders compile before its cells are shown: no hitch as a new kind of prop comes into view.
+  const ready = useRef(new Set<string>());
+  useEffect(() => {
+    const fresh = [...built.current].filter(([key]) => !ready.current.has(key));
+    if (fresh.length) void prepare(gl, scene, camera, fresh.flatMap(([, list]) => list.map(c => c.mesh)), quality.post).then(() => { for (const [key] of fresh) ready.current.add(key); });
+  }, [cells, gl, scene, camera, quality.post]);
+  useFrame(({ camera }) => { for (const c of cells) c.mesh.visible = ready.current.has(c.key) && c.centre.distanceToSquared(camera.position) < (quality.detailDistance + (c.detail ? 10 : 25)) ** 2; });
+  return <group matrixAutoUpdate={false}>{cells.map(c => <primitive key={c.mesh.uuid} object={c.mesh} />)}</group>;
+}
+interface Cell { key: PropFile; mesh: THREE.InstancedMesh; centre: THREE.Vector3; detail: boolean }
+function propCells(key: PropFile, gltf: GLTF, placements: Placements) {
+  const out: Cell[] = [], list = placements.map.get(key); if (!list) return out;
+  gltf.scene.updateMatrixWorld(true);
+  const parts: THREE.Mesh[] = []; gltf.scene.traverse(o => { if ((o as THREE.Mesh).isMesh) parts.push(o as THREE.Mesh); });
+  const buckets = new Map<string, THREE.Matrix4[]>(), p = new THREE.Vector3();
+  for (const m of list) { p.setFromMatrixPosition(m); const k = `${Math.floor(p.x / 20)},${Math.floor(p.z / 20)}`; (buckets.get(k) ?? buckets.set(k, []).get(k)!).push(m); }
+  for (const mats of buckets.values()) for (const part of parts) {
+    const mesh = new THREE.InstancedMesh(part.geometry, part.material, mats.length), tmp = new THREE.Matrix4(), centre = new THREE.Vector3();
+    mats.forEach((m, i) => { mesh.setMatrixAt(i, tmp.multiplyMatrices(m, part.matrixWorld)); centre.add(p.setFromMatrixPosition(m)); });
+    centre.divideScalar(mats.length);
+    mesh.castShadow = key !== 'wetFloor'; mesh.receiveShadow = true; mesh.computeBoundingSphere(); mesh.name = `prop:${key}`; mesh.visible = false;
+    out.push({ key, mesh: freeze(mesh), centre, detail: DETAIL_PROPS.includes(key) });
+  }
+  return out;
 }
 
 function flagTexture(kind: 'flagNG' | 'flagUni') {
@@ -123,7 +134,7 @@ export function Flags({ placements, reduced }: { placements: Placements; reduced
     material.onBeforeCompile = s => { s.uniforms.uTime = time.current; s.vertexShader = 'uniform float uTime;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       float k = uv.x; transformed.z += sin(uv.x * 7. - uTime * 3.4) * .12 * k + sin(uv.x * 13. + uv.y * 3. - uTime * 5.1) * .03 * k; transformed.y -= k * k * .08;`); };
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.8, .9, 24, 8).translate(.9, -.45, 0), material);
-    mesh.applyMatrix4(m); mesh.castShadow = true; return mesh;
+    mesh.applyMatrix4(m); mesh.castShadow = true; return freeze(mesh);
   })), [placements]);
   useFrame((_, dt) => { if (!reduced) time.current.value += dt; });
   return <>{flags.map((f, i) => <primitive key={i} object={f} />)}</>;

@@ -100,8 +100,10 @@ test('only the player’s own ball, released from inside the court, scores', asy
     room.duels.step([{ type: 'score', by: a.id, ball: 'ball-1', shot: 778, points: 2 }]);
     assert.deepEqual(d.scores, [3, 0], 'a shot released off the court does not count');
     a.place(44, 20);
+    // Listening before conceding: the result to Ada and the broadcast to Tobi can arrive in either order.
+    const finished = next(b.ws, m => m.type === 'duel' && m.duel?.state === 'finished');
     assert.equal((await a.duel('concede')).ok, true);
-    const end = await next(b.ws, m => m.type === 'duel' && m.duel?.state === 'finished');
+    const end = await finished;
     assert.equal(end.duel.result.outcome, 'forfeit'); assert.equal(end.duel.result.winner, b.id, 'conceding loses, whatever the score');
   } finally { a.ws.close(); b.ws.close(); await sleep(400); }
 });

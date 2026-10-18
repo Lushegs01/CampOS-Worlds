@@ -9,6 +9,7 @@ import { residentsWing } from './Dorm';
 import { DORM_ROOM } from '../../shared/dorm.mjs';
 import { CARRIAGEWAY, STRIPS, FILLETS, LIGHTS, KERB, KERB_TOP, SIDEWALK_TOP, ASPHALT_TOP, courtyardLot } from './roads';
 import type { MaterialKey, Materials } from './materials';
+import { freeze } from './rendering';
 
 type Building = typeof BUILDINGS[number];
 const T = .4; // wall thickness, as the shared colliders
@@ -109,7 +110,7 @@ function districtDetail(id: string, lib: Materials) {
     for (const s of [-1, 1]) { kit.box('lineWhite', [x, .03, z + s * (52.5 - 16.5)], [40.3, .02, .12]); for (const dx of [-20.15, 20.15]) kit.box('lineWhite', [x + dx, .03, z + s * (52.5 - 8.25)], [.12, .02, 16.5]); }
     for (const dz of [-52.5, 52.5]) { for (const dx of [-3.66, 3.66]) kit.box('paintWhite', [x + dx, 1.22, z + dz], [.12, 2.44, .12]); kit.box('paintWhite', [x, 2.44, z + dz], [7.44, .12, .12]); }
   }
-  g.add(kit.build(lib, `district:${id}`)); return g;
+  g.add(kit.build(lib, `district:${id}`)); return freeze(g);
 }
 /** Wraps Kit.add so every part added inside `fn` that uses the tinted stucco gets the given vertex colour. */
 function tintedKit(kit: Kit, color: string, fn: () => void) {
@@ -121,7 +122,7 @@ function districtShells(id: string, lib: Materials) {
   const kit = new Kit();
   for (const b of BUILDINGS.filter(b => b.district === id)) shellBuilding(kit, b);
   if (id === 'residential') kit.box('stucco', [(DORM_ROOM.x0 + DORM_ROOM.x1) / 2, 1.75, (DORM_ROOM.z0 + DORM_ROOM.z1) / 2 - .2], [DORM_ROOM.x1 - DORM_ROOM.x0 + .6, 3.5, DORM_ROOM.z1 - DORM_ROOM.z0 + .5]);
-  return kit.build(lib, `district-far:${id}`);
+  return freeze(kit.build(lib, `district-far:${id}`));
 }
 
 function District({ id, lib }: { id: string; lib: Materials }) {
@@ -170,7 +171,7 @@ function buildNetwork(lib: Materials) {
   slab('asphalt', courtyardLot, ASPHALT_TOP - .004, -.05);
   for (const p of EXPANSION_PATHS) slab('pavers', { x0: p.x - p.w / 2, x1: p.x + p.w / 2, z0: p.z - p.d / 2, z1: p.z + p.d / 2 }, .05, -.02);
   for (const p of PARKING) { slab('brushed', { x0: p.x - p.w / 2 - KERB, x1: p.x + p.w / 2 + KERB, z0: p.z + p.d / 2, z1: p.z + p.d / 2 + KERB }, KERB_TOP, 0, { shadow: true }); }
-  return k.build(lib, 'campus-roads');
+  return freeze(k.build(lib, 'campus-roads'));
 }
 
 /** Street lights: one instanced draw for the steelwork and one for the lamp lenses. */
@@ -183,7 +184,7 @@ function StreetLights({ lib }: { lib: Materials }) {
     const a = new THREE.InstancedMesh(steel, lib.steel, LIGHTS.length), b = new THREE.InstancedMesh(lens, lib.emissiveWarm, LIGHTS.length), o = new THREE.Object3D();
     LIGHTS.forEach((l, i) => { o.position.set(l.x, 0, l.z); o.rotation.y = l.yaw; o.updateMatrix(); a.setMatrixAt(i, o.matrix); b.setMatrixAt(i, o.matrix); });
     a.castShadow = true; a.name = 'street-lights'; b.name = 'street-lights:lens';
-    for (const m of [a, b]) { m.computeBoundingSphere(); }
+    for (const m of [a, b]) { m.computeBoundingSphere(); freeze(m); }
     return [a, b];
   }, [lib]);
   useEffect(() => () => meshes.forEach(m => { m.geometry.dispose(); m.dispose(); }), [meshes]);
@@ -193,5 +194,5 @@ function StreetLights({ lib }: { lib: Materials }) {
 export default function Expansion({ lib }: { lib: Materials }) {
   const network = useMemo(() => buildNetwork(lib), [lib]);
   useEffect(() => () => disposeGeometry(network), [network]);
-  return <group name="open-world"><primitive object={network} /><StreetLights lib={lib} />{DISTRICTS.map(d => <District key={d.id} id={d.id} lib={lib} />)}</group>;
+  return <group name="open-world" matrixAutoUpdate={false}><primitive object={network} /><StreetLights lib={lib} />{DISTRICTS.map(d => <District key={d.id} id={d.id} lib={lib} />)}</group>;
 }

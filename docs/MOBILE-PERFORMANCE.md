@@ -4,6 +4,64 @@ Target reported by the owner: **itel S24, Chrome** (a low-end Android phone). **
 been available to any round of this work.** Every figure below is browser emulation and must not be
 read as a phone frame rate.
 
+## 18 October 2026: speed, hitches, data and phone fixes
+
+Same machine and caveats as the 15 October pass below (SwiftShader, no GPU, no phone). Production
+bundle with the inspection hooks (`VITE_QA=1`), 390 × 844 at device scale 3, touch, Low, walking with
+the joystick for 10 s under the CPU profiler (`tests/browser-cpu-profile.mjs`). Before = the commit
+this round started from.
+
+| | Before | After |
+|---|---:|---:|
+| Main-thread script per frame (this CPU; a phone's is slower) | 7.2 ms | 5.9 ms |
+| Scene nodes whose matrices were recomputed every frame | 1,161 (all) | 137 |
+| Time blocked on shader compilation during the 10 s walk | 88 ms | 6 ms |
+| JavaScript needed before the welcome screen can draw (gzip) | 454 KB | 151 KB |
+| Room traffic to each player, 8 players walking | 41.5 KB/s | 2.2 KB/s |
+| Room traffic to each player, 24 players walking | 114.8 KB/s | 5.3 KB/s |
+
+What changed
+- **Matrices.** The scene root re-composed its matrix every frame, which forced every one of the
+  1,161 objects under it to recompute its world matrix, and the 14 parked vehicles (about 40 parts
+  each) and the doors re-composed theirs whether or not they moved. Static scenery is now composed
+  once; vehicles, wheels, suspension and door leaves update only when they move.
+- **Hitches.** Your own character, the chairs and every streamed prop compiled their shaders in the
+  frame they first appeared (pressing Enter, walking into the café). They are compiled before they
+  are shown. Streamed props no longer rebuild every other prop's instanced meshes on each new model;
+  a prop whose download failed is fetched again later instead of never appearing.
+- **Menus on phones.** With a menu open (it covers the view on a phone) the world behind it is drawn
+  ten times a second; players, the ball and the room keep running every frame. The FPS reading in
+  Settings shows the frame rate measured while playing, and the adaptive resolution ignores that time.
+- **Interface.** The minimap rebuilt its whole SVG (roads, districts, 80 buildings) every 300 ms; only
+  what moves is rebuilt now. Aiming a shot ran 41 simulated shots (about 3,000 physics steps) on every
+  frame of a turn; at most ten times a second now. No backdrop blur is left over the 3D view on touch
+  screens (party, duel, challenge and room cards, the account chip and the events drawer still had it).
+- **Loading.** three.js and React had been bundled together, so nothing, not even the welcome screen,
+  could draw until the 3D engine had downloaded. The interface (with React) now loads first and the
+  engine in parallel with the scene; the avatar editor loads when it is opened.
+- **Data.** The room compresses its messages (WebSocket permessage-deflate; small messages are sent as
+  they are). Each player receives about 95 % fewer bytes; the browser decompresses natively. Room CPU
+  rises by a few per cent of a core with 24 players.
+
+Phone fixes (not measurable here; check on a device)
+- On 360 px-wide phones (most budget Androids, the itel S24 among them) the pause button and the
+  dock's last button ran off the right edge, and tapping the pause button scrolled the whole interface
+  sideways so menus opened off centre. The top bar and dock now fit (checked at 360 × 640, 360 × 780,
+  375 × 667, 412 × 915, 800 × 360, tablets and a laptop), and the game frame clips instead of scrolling.
+- Pull-to-refresh no longer reloads the campus on a downward swipe (Android Chrome), a double tap no
+  longer zooms the interface, and holding Shoot or a dock button no longer selects text or opens the
+  long-press menu (iOS).
+- Text fields are 16 px on touch screens: iOS zoomed into chat or sign-in and left the game magnified.
+- Notification and interaction sounds share one audio context, resumed by the first tap (a new context
+  per notice ran into the browser's limit, and on phones started silent).
+- Full screen falls back to Safari's prefixed API (older iPads) and says so where there is none (iPhone).
+
+Reproduce (production bundle as in "Reproduce" below):
+
+```bash
+TEST_URL=http://127.0.0.1:4173 PERF_OUT=docs/performance/cpu-after.json node tests/browser-cpu-profile.mjs
+```
+
 ## 15 October 2026: low-end Android pass
 
 ### How this was measured, and what it can show

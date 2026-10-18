@@ -267,15 +267,17 @@ export default function Avatar({ config, motion, preview = false, id }: { config
   useEffect(() => registerMovingCaster(rig.root), [rig]);
   // Prepare a newcomer before anyone looks at them: textures (queued, see above) and shader programs.
   // (Not compileAsync: it polls the programs on a timer and throws once a player who left quickly has had
-  // their materials disposed.)
+  // their materials disposed.) Your own character too: it loads behind the welcome screen, hidden, and was
+  // otherwise compiled and uploaded in the frame you entered the campus.
   const { gl, scene, camera } = useThree();
-  useEffect(() => { if (!remote) return; queueUploads(rig.root); gl.compile(rig.root, camera, scene); }, [rig, remote, gl, scene, camera]);
+  useEffect(() => { if (preview) return; queueUploads(rig.root); gl.compile(rig.root, camera, scene); }, [rig, preview, gl, scene, camera]);
   useEffect(() => () => contactMat.dispose(), [contactMat]);
   const anchor = useMemo(() => ({ ball: new THREE.Vector3(), holding: false }), []);
   useEffect(() => { if (!id) return; avatars.set(id, anchor); return () => { if (avatars.get(id) === anchor) avatars.delete(id); }; }, [id, anchor]);
 
   useFrame(({ clock, camera, gl }, raw) => {
-    if (pendingUploads.length && uploadAt !== clock.elapsedTime) { uploadAt = clock.elapsedTime; gl.initTexture(pendingUploads.shift()!); }
+    // The queue belongs to the campus renderer: the avatar editor's preview canvas has a context of its own.
+    if (!preview && pendingUploads.length && uploadAt !== clock.elapsedTime) { uploadAt = clock.elapsedTime; gl.initTexture(pendingUploads.shift()!); }
     // Real time, up to a quarter second a frame: a 50 ms cap played every animation (and the sit-down and
     // stand-up that gate actions) in slow motion below 20 FPS, ten times slower at 2 FPS.
     const dt = Math.min(raw, .25), m = motion?.() ?? { speed: 0, y: 0, vy: 0 }, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;

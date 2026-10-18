@@ -3,6 +3,12 @@ import { player, useGame } from '../state';
 // Small synthesized foley for interactions: no audio files, nothing fetched. Every sound respects the
 // player's volume setting (silent by default) and fades with distance from the listener.
 let ctx: AudioContext | null = null, noise: AudioBuffer | null = null;
+// Mobile browsers start audio suspended until a tap or key press; most sounds play from the frame loop,
+// where resuming is refused, so the first gesture after sound is turned on resumes the one shared context.
+if (typeof window !== 'undefined') {
+  const unlock = () => { if (!useGame.getState().volume) return; try { ctx ??= new AudioContext(); if (ctx.state === 'suspended') void ctx.resume(); } catch { /* no audio */ } };
+  for (const e of ['pointerdown', 'keydown']) window.addEventListener(e, unlock, { capture: true, passive: true });
+}
 function audio() {
   const volume = useGame.getState().volume;
   if (!volume) return null;
@@ -25,6 +31,16 @@ function hiss(c: AudioContext, out: AudioNode, t0: number, dur: number, peak: nu
   s.buffer = noise; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
   g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(peak, t0 + .01); g.gain.exponentialRampToValueAtTime(.0005, t0 + dur);
   s.connect(f).connect(g).connect(out); s.start(t0); s.stop(t0 + dur + .02);
+}
+
+/** The discovery chime for notices. Uses the shared context: a new AudioContext per notice ran into the
+ * browser's limit on contexts and, on phones, started suspended (silent). */
+export function chime() {
+  const a = audio(); if (!a) return;
+  const { ctx: c, volume } = a, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(523, t); o.frequency.exponentialRampToValueAtTime(784, t + .16);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(volume * .09, t + .02); g.gain.exponentialRampToValueAtTime(.001, t + .38);
+  o.connect(g).connect(c.destination); o.start(t); o.stop(t + .4); o.onended = () => g.disconnect();
 }
 
 export type Sfx = 'bounce' | 'rim' | 'board' | 'swish' | 'door-open' | 'door-close' | 'locked' | 'sit' | 'pickup' | 'shot' | 'deny';
