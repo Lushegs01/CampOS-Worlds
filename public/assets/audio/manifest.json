@@ -1,0 +1,81 @@
+{
+  "pad": 0.15,
+  "sounds": {
+    "step-hard": {
+      "variants": 5
+    },
+    "step-grass": {
+      "variants": 5
+    },
+    "step-wood": {
+      "variants": 5
+    },
+    "door-open": {
+      "variants": 2
+    },
+    "door-close": {
+      "variants": 4
+    },
+    "door-latch": {
+      "variants": 2
+    },
+    "glass": {
+      "variants": 3
+    },
+    "cloth": {
+      "variants": 4
+    },
+    "creak": {
+      "variants": 3
+    },
+    "seat-soft": {
+      "variants": 3
+    },
+    "seat-wood": {
+      "variants": 3
+    },
+    "seat-plastic": {
+      "variants": 3
+    },
+    "car-door-open": {
+      "variants": 1
+    },
+    "car-door-close": {
+      "variants": 1
+    },
+    "engine-start": {
+      "variants": 1
+    },
+    "engine-stop": {
+      "variants": 1
+    },
+    "engine": {
+      "variants": 1,
+      "loop": [
+        0.15,
+        2.4499999999999997
+      ]
+    },
+    "birds": {
+      "variants": 1,
+      "loop": [
+        0.15,
+        30.15
+      ]
+    },
+    "wind": {
+      "variants": 1,
+      "loop": [
+        0.15,
+        20.15
+      ]
+    },
+    "water": {
+      "variants": 1,
+      "loop": [
+        0.15,
+        12.15
+      ]
+    }
+  }
+}

@@ -53,6 +53,8 @@ At The Courts, the basketball panel offers free shooting and **Court Duel**: cha
 
 The Welcome Pavilion starts the five-stop tour. Visit The Confluence, Adunni Learning Commons, The Student House and Horizon Auditorium to earn the Campus Compass badge. Walk through the library entrance to explore the shelves. Six golden keepsakes form a second, independent scavenger hunt. In Palm Residences, the door at the back of Palm House's common room leads to **your own room**: arrange its furniture on a floor plan, keep it private, or invite friends over ([your room](docs/DORM-ROOMS.md)). Sit on any bench or chair, open the library, café and Studio D1 doors and use what is inside, and play basketball with real ball physics at The Courts. See [interactions](docs/INTERACTIONS.md). Collectibles and badges are **gameplay only**.
 
+The campus sounds like a place: footsteps that change between paving, grass and timber floors, doors with their handles and latches, benches and chairs taking your weight and scraping back from tables, cars that start, idle, rev with speed and shut off (the garden cart hums electrically), birdsong and a breeze outdoors and the fountain in the courtyard, muffled when you go inside. Other players and vehicles are heard from where they are. Sound is on by default and starts with your first tap or key press; **Settings → Sound** sets the volume (0 turns it off completely). The recordings are CC0 ([sources](docs/ASSETS.md)).
+
 The campus also has a football field, cafeteria terrace, campus road, shuttle shelter, academic buildings, noticeboard and CampOS Connect service kiosk. The football field is scenery; basketball is the implemented sports activity. Library readings, club interest, events and service information are clearly labelled demonstrations.
 
 ## Configuration
@@ -134,6 +136,7 @@ node tests/browser-activities.mjs        # check-in, challenges, titles, friends
 node tests/browser-reliability.mjs       # a failed character download, a silently dropped connection, a duplicated tab
 node tests/browser-smoke.mjs             # welcome, avatar editor, walking, settings, phone layout
 node tests/browser-dorm.mjs              # your room in Palm House: enter, arrange, privacy, leave, phone
+node tests/browser-sound.mjs             # footsteps by surface, doors, sitting, the car, ambience, volume 0
 PERF_LABEL=after node tests/browser-mobile-performance.mjs   # phone-viewport benchmark (PERF_BOTS=n adds players)
 SOAK_SECONDS=300 node tests/browser-soak.mjs                 # GPU memory while players come and go
 node tests/browser-cpu-profile.mjs                           # main-thread script per frame on a phone viewport, and where it goes

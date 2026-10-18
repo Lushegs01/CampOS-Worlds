@@ -33,6 +33,8 @@ import { signFontsReady } from './architecture/signage';
 import { surfaceHeight } from './layout';
 import { registerMovingCaster } from './shadows';
 import { behindMenu, MENU_FRAME, postStack } from './rendering';
+import { setListener } from '../audio/mixer';
+import { stopAmbience, tickAmbience } from '../audio/ambience';
 const PostFX = lazy(() => import('./PostFX'));
 
 const LIBRARY_CENTRE: [number, number, number] = [-30, 2, -15];
@@ -142,6 +144,17 @@ function Render() {
   return null;
 }
 
+/** Sound is heard from the camera; on campus the ambience plays around you (../audio). */
+function Soundscape() {
+  const forward = useMemo(() => new THREE.Vector3(), []), playing = useGame(s => s.phase === 'playing');
+  useEffect(() => { if (!playing) stopAmbience(); }, [playing]);
+  useFrame(({ camera }) => {
+    camera.getWorldDirection(forward); setListener(camera.position, forward);
+    if (playing) tickAmbience(player.x, player.z);
+  });
+  return null;
+}
+
 function Telemetry() {
   const { gl, scene, camera } = useThree(), frames = useRef(0), elapsed = useRef(0), sample = useRef({ calls: 0, triangles: 0 });
   // The post stack renders several passes per frame; accumulate them all and sample per frame.
@@ -238,6 +251,7 @@ export default memo(function World() {
     </Suspense>
     <AdaptiveResolution max={ceiling} min={QA_SCALE || (qualityKey === 'high' ? .75 : .6)} />
     <Telemetry />
+    <Soundscape />
     <Render />
   </Canvas>;
 });

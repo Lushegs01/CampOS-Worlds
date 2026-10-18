@@ -7,6 +7,7 @@ import { vehicleVisuals, tickVehicles } from '../vehicles/client';
 import { buildVehicleModel, type VehicleType } from './vehicleModels';
 import { registerMovingCaster } from './shadows';
 import { freeze } from './rendering';
+import { silenceVehicle, vehicleSound } from '../audio/vehicles';
 
 function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
   // Every part is static until it moves: a parked vehicle's forty-odd parts were re-composed every frame
@@ -15,11 +16,13 @@ function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
   const motion = useRef({ speed: 0, accel: 0, yaw: 0, yawRate: 0, pitch: 0, roll: 0, brake: 0, x: NaN, z: NaN, placedYaw: NaN });
   useEffect(() => () => model.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && !m.geometry.name) m.geometry.dispose(); }), [model]);
   useEffect(() => registerMovingCaster(model.root), [model]);
+  useEffect(() => () => silenceVehicle(id), [id]);
   useFrame((_, raw) => {
     const v = vehicleVisuals.get(id); if (!v) return;
     const dt = Math.min(Math.max(raw, 1e-3), .1), m = motion.current;
     const visible = Math.hypot(v.x - player.x, v.z - player.z) < 320, g = group.current; g.visible = visible;
     if (v.x !== m.x || v.z !== m.z || v.yaw !== m.placedYaw) { m.x = v.x; m.z = v.z; m.placedYaw = v.yaw; g.position.set(v.x, 0, v.z); g.rotation.y = v.yaw; g.updateMatrix(); }
+    vehicleSound(id, type, v, m.accel * Math.sign(v.speed || 1), v.occupants);
     if (!visible) { m.speed = v.speed; m.yaw = v.yaw; return; }
     // Body motion on the suspension: squat and dive under acceleration, lean into turns.
     const accel = (v.speed - m.speed) / dt, yawRate = Math.atan2(Math.sin(v.yaw - m.yaw), Math.cos(v.yaw - m.yaw)) / dt;

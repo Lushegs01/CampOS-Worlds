@@ -10,6 +10,7 @@ import { SEAT_BY_ID } from '../../shared/interactions.mjs';
 import { BALL_R, floorAt } from '../../shared/ball.mjs';
 import { avatars } from './registry';
 import { registerMovingCaster } from '../world/shadows';
+import { chairScrape, footstep, jump, land, sitDown, standUp } from '../audio/foley';
 
 // Realistic, rigged students from the Microsoft Rocketbox library (MIT), converted by
 // scripts/assets/build-characters.mjs. Motion-captured clips are blended by speed on a shared,
@@ -261,7 +262,7 @@ export default function Avatar({ config, motion, preview = false, id }: { config
   const state = useRef({
     phase: 0, weights: { idle: 1, walk: 0, jog: 0, run: 0, emote: 0 } as Record<string, number>, emote: '', air: 0, land: 0, wasAir: false, lean: 0, look: 0, nextLook: 6,
     sitPhase: '', sitSeat: '', sitT: 0, settle: 0, out: 0, sitLook: 0, nextSitLook: 7,
-    gesture: -1, gestureKind: '', hold: 0, dribble: 0, dribbleW: 0, raise: 0, poseDt: 0, poseFrame: 0, cast: true,
+    gesture: -1, gestureKind: '', hold: 0, dribble: 0, dribbleW: 0, raise: 0, poseDt: 0, poseFrame: 0, cast: true, inAir: false,
   });
   const remote = !!id && id !== 'local' && !preview;
   useEffect(() => registerMovingCaster(rig.root), [rig]);
@@ -285,6 +286,10 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     const sit = inVehicle ? {seat:'vehicle',phase:'seated',t:0} as SitState : preview ? null : m.sit ?? null, seat = inVehicle ? {id:'vehicle',y:m.vehicleSeatHeight!,table:true,pull:0} : sit ? SEAT_BY_ID.get(sit.seat) : undefined;
     const seated = !!(sit && seat && (sit.phase === 'down' || sit.phase === 'seated' || sit.phase === 'up'));
     const speed = preview || seated ? 0 : m.speed;
+    // Sound: where this character stands (its parent group), heard from there unless it is you. Players in
+    // another space (their own room) are hidden and silent.
+    const body = rig.root.parent, audible = !preview && !!body && body.visible, px = body?.position.x ?? 0, pz = body?.position.z ?? 0;
+    const at = remote ? { x: px, y: (body?.position.y ?? 0) + .1, z: pz } : null;
 
     // ------------------------------------------------------------------ seating
     // The parent group stands on the seat anchor facing the seat's direction; the captured root travel
@@ -293,7 +298,16 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     const idleSeat = seat?.table ? 'sitTable' : 'sitIdle';
     if (seated && sit && seat) {
       const pull = seat.pull ?? 0, dy = seat.y - (seat.table ? lib.tableSeatHeight : lib.seatHeight);
-      if (s.sitPhase !== sit.phase || s.sitSeat !== seat.id) { s.sitPhase = sit.phase; s.sitSeat = seat.id; s.sitT = 0; if (sit.phase === 'seated') { actions.sitIdle.reset().play(); actions.sitTable.reset().play(); } }
+      if (s.sitPhase !== sit.phase || s.sitSeat !== seat.id) {
+        const was = s.sitPhase; s.sitPhase = sit.phase; s.sitSeat = seat.id; s.sitT = 0; if (sit.phase === 'seated') { actions.sitIdle.reset().play(); actions.sitTable.reset().play(); }
+        // Sitting down, the chair scooting in to the table, standing up (pushing it back first).
+        if (audible && seat.id !== 'vehicle') {
+          const seatAt = { x: seat.x, y: .5, z: seat.z }, info = seat as typeof seat & { kind: string; model?: string }, plastic = info.model === 'monobloc';
+          if (sit.phase === 'down') sitDown(info, seatAt, (lib.down.end - lib.down.start) / lib.down.rate * .72);
+          else if (sit.phase === 'seated' && was === 'down' && seat.pull) chairScrape(seatAt, SCOOT, plastic);
+          else if (sit.phase === 'up' && was) { if (seat.pull) chairScrape(seatAt, SCOOT, plastic); standUp(info, seatAt, seat.pull ? SCOOT : 0); }
+        }
+      }
       s.sitT += dt; s.out = 0;
       if (sit.phase === 'down') {
         const tr = lib.down, span = (tr.end - tr.start) / tr.rate, t = Math.min(s.sitT, span), clipT = tr.start + t * tr.rate;
@@ -349,7 +363,14 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     // Shared gait phase: the blended stride length sets how fast the cycle advances.
     let stride = 0, w = 0;
     for (const n of LOCO) { const len = lib.speeds[n] * lib.clips[n].duration; stride += s.weights[n] * len; w += s.weights[n]; }
+    const before = s.phase;
     if (w > .001 && speed > .05) s.phase = (s.phase + dt * speed / (stride / w)) % 1;
+    // A footstep as each foot meets the ground: the gait cycle starts at the left foot's contact (lib.contact)
+    // and the right foot's is half a cycle later.
+    if (audible && speed > .35 && m.y < .05 && (s.phase < before || (before < .5 && s.phase >= .5))) footstep(px, pz, speed, at);
+    // Jumping and landing (a shot's hop too).
+    if (audible && !s.inAir && m.y > .12) { s.inAir = true; jump(px, pz, at); }
+    else if (s.inAir && m.y < .02) { s.inAir = false; if (audible) land(px, pz, at); }
     for (const n of LOCO) { const a = actions[n]; a.time = ((s.phase + lib.contact[n]) % 1) * lib.clips[n].duration; }
     // Idle variety: an occasional glance around.
     s.nextLook -= dt; if (s.nextLook < 0 && speed < .1 && !emoteActive && !seated && !holding) { s.look = 1; s.nextLook = 9 + Math.random() * 8; actions.look.reset().play(); }

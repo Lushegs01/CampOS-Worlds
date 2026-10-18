@@ -58,7 +58,7 @@ export function requestSit() {
     if (player.sit !== sit) return;
     if (!r.ok) { player.sit = null; afterSit = null; notify(r.reason); sfx('deny'); return; }
     const seat = SEAT_BY_ID.get(sit.seat)!;
-    player.x = seat.x; player.z = seat.z; player.yaw = seat.yaw; sit.phase = 'down'; sit.t = 0; sfx('sit', seat);
+    player.x = seat.x; player.z = seat.z; player.yaw = seat.yaw; sit.phase = 'down'; sit.t = 0; // the avatar plays the sitting sounds (audio/foley)
   });
 }
 export function cancelApproach() { if (player.sit?.phase === 'approach') { player.sit = null; afterSit = null; } }
