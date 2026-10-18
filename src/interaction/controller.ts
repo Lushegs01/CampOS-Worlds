@@ -256,7 +256,9 @@ export function tickInteractions(dt: number) {
     else {
       player.charge = chargeAt(nowS());
       player.yaw = input.yaw + Math.PI; // shots go where the camera looks
-      if (Math.abs(zoneAt.yaw - player.yaw) > .015 || Math.hypot(zoneAt.x - player.x, zoneAt.z - player.z) > .1) {
+      // Finding the scoring band simulates 41 shots (about 3,000 physics steps): at most ten times a second
+      // while aiming, not on every frame of a turn (a long frame each time on a phone).
+      if ((Math.abs(zoneAt.yaw - player.yaw) > .015 || Math.hypot(zoneAt.x - player.x, zoneAt.z - player.z) > .1) && nowS() - zoneAt.t > .1) {
         zoneAt = { x: player.x, z: player.z, yaw: player.yaw, t: nowS() };
         const hoop = targetHoop(player.x, player.z, player.yaw);
         useInteraction.getState().set({ zone: scoringZone(player.x, player.z, player.yaw), target: hoop?.id ?? null });

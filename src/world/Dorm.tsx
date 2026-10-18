@@ -9,6 +9,7 @@ import { sign, place } from './architecture/signage';
 import { DORM_ROOM, DORM_DOOR, DORM_W, DORM_D, FURNITURE, TONES } from '../../shared/dorm.mjs';
 import { useDorm, type DormLayout } from '../dorm/client';
 import type { Materials } from './materials';
+import { freeze } from './rendering';
 
 const H = 3, OUTER = 3.4, cx = (DORM_ROOM.x0 + DORM_ROOM.x1) / 2, cz = (DORM_ROOM.z0 + DORM_ROOM.z1) / 2;
 /** The window in the north wall, room-relative x (from the west wall). */
@@ -127,7 +128,7 @@ export function buildFurniture(layout: DormLayout, lib: Materials) {
 /** Your furniture, while you are in your room. */
 export function DormFurniture({ lib }: { lib: Materials }) {
   const layout = useDorm(s => s.inside ? s.layout : null);
-  const group = useMemo(() => layout ? buildFurniture(layout, lib) : null, [layout, lib]);
+  const group = useMemo(() => layout ? freeze(buildFurniture(layout, lib)) : null, [layout, lib]);
   useEffect(() => () => { group?.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose(); }); }, [group]);
   return group ? <primitive object={group} /> : null;
 }

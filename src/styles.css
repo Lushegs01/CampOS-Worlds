@@ -443,3 +443,32 @@
 .dorm-guests{display:flex;flex-direction:column;gap:8px}.dorm-guests h4{margin:8px 0 0;font-size:13px}
 .dorm-guests .person-row{display:flex;align-items:center;gap:10px;justify-content:space-between}.dorm-guests .person-row button{min-height:36px}
 .dorm-guests fieldset{margin-top:8px}
+/* The page under the game never scrolls, bounces, zooms or reloads: Android's pull-to-refresh reloaded the campus on a downward swipe, and a double tap zoomed the interface. */
+html,body{overscroll-behavior:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* Holding a control (Shoot, the joystick, a dock button) must not select text or open the long-press menu. */
+button,.touch-controls,.game-dock,.minimap,.interact-prompt,.location-hud,.quest-card{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+@media (pointer:coarse){
+  /* No backdrop blur anywhere over the moving 3D view on phones and tablets: each one re-blurred the canvas every frame (party, duel, challenge and room cards, the account chip and the events drawer still did). */
+  *,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .account-chip,.about-button{background:#203c33e0}
+  /* iOS zooms into any text field under 16px when it is focused, and stays zoomed: chat and sign-in left the whole game magnified. */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select{font-size:16px!important}
+}
+/* Narrow phones: 360 px is the width of most budget Androids (the itel S24 among them). The pause button and the dock's last button ran off the right edge. */
+@media (max-width:400px){
+  .brand-worlds{display:none}
+  .game-dock{padding:6px 4px;gap:0}
+  .game-dock button{min-width:44px}
+  .dock-divider{margin:0 2px}
+}
+/* The account chip keeps its portrait or icon; the handle or "Sign in" stays readable to screen readers. */
+@media (max-width:480px){
+  .account-chip{padding:4px}
+  .account-chip>span:last-child{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+}
+@media (pointer:coarse) and (max-height:650px) and (max-width:760px){
+  .quest-card{max-height:140px}
+  .location-hud{bottom:92px}
+}
+/* The game frame clips instead of scrolling: focusing a control that sat partly off screen scrolled the whole interface sideways (menus opened off centre). */
+.app{overflow:clip}

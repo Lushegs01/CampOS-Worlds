@@ -32,6 +32,7 @@ import { Vegetation, setSunDirection } from './Vegetation';
 import { signFontsReady } from './architecture/signage';
 import { surfaceHeight } from './layout';
 import { registerMovingCaster } from './shadows';
+import { behindMenu, MENU_FRAME, postStack } from './rendering';
 const PostFX = lazy(() => import('./PostFX'));
 
 const LIBRARY_CENTRE: [number, number, number] = [-30, 2, -15];
@@ -122,7 +123,22 @@ function Waypoint() {
 function AdaptiveResolution({ max, min }: { max: number; min: number }) {
   const setDpr = useThree(s => s.setDpr), control = useMemo(() => createResolution(max, min), [max, min]);
   useEffect(() => { setDpr(max); }, [control, max, setDpr]);
-  useFrame((_, dt) => { const next = control.frame(dt); if (next != null) setDpr(next); });
+  // Behind a menu on a touch screen frames are skipped on purpose (./rendering): not a measure of the device.
+  useFrame((_, dt) => { const next = control.frame(behindMenu() ? Infinity : dt); if (next != null) setDpr(next); });
+  return null;
+}
+
+/**
+ * Draws each frame, through the post stack when there is one. Behind a menu on a touch screen the view is
+ * drawn ten times a second; everything else (players, the ball, the room) still runs every frame.
+ */
+function Render() {
+  const skipped = useRef(0);
+  useFrame(({ gl, scene, camera }, dt) => {
+    if (behindMenu()) { skipped.current += dt; if (skipped.current < MENU_FRAME) return; }
+    const elapsed = skipped.current + dt; skipped.current = 0;
+    if (postStack.composer) postStack.composer.render(elapsed); else gl.render(scene, camera);
+  }, 1);
   return null;
 }
 
@@ -130,7 +146,7 @@ function Telemetry() {
   const { gl, scene, camera } = useThree(), frames = useRef(0), elapsed = useRef(0), sample = useRef({ calls: 0, triangles: 0 });
   // The post stack renders several passes per frame; accumulate them all and sample per frame.
   useEffect(() => { gl.info.autoReset = false; return () => { gl.info.autoReset = true; }; }, [gl]);
-  useFrame(() => { sample.current = { calls: gl.info.render.calls, triangles: gl.info.render.triangles }; gl.info.reset(); }, -100);
+  useFrame(() => { if (gl.info.render.calls) sample.current = { calls: gl.info.render.calls, triangles: gl.info.render.triangles }; gl.info.reset(); }, -100);
   useEffect(() => {
     if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene, __campusCamera: camera });
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusHide = (prefix: string, hide = true) => { let n = 0; scene.traverse(o => { if (o.name.startsWith(prefix)) { o.visible = !hide; n++; } }); return n; };
@@ -144,7 +160,8 @@ function Telemetry() {
     gl.domElement.addEventListener('webglcontextlost', lost); return () => gl.domElement.removeEventListener('webglcontextlost', lost);
   }, [gl, scene]);
   useFrame((_, dt) => {
-    if (dt > STALL) { frames.current = 0; elapsed.current = 0; return; }
+    // Behind a menu the frame rate is held down on purpose: keep showing the one measured while playing.
+    if (dt > STALL || behindMenu()) { frames.current = 0; elapsed.current = 0; return; }
     frames.current++; elapsed.current += dt;
     if (elapsed.current >= 2) {
       const fps = Math.round(frames.current / elapsed.current); useGame.getState().set({ fps });
@@ -171,7 +188,7 @@ function CompileGate({ children, post, onReady }: { children: ReactNode; post: b
     pending.then(() => { target?.dispose(); if (!alive) return; gl.shadowMap.needsUpdate = true; scene.traverse(o => { if ((o as THREE.DirectionalLight).isDirectionalLight) (o as THREE.DirectionalLight).shadow.needsUpdate = true; }); if (QA_HOOKS) console.info(`shaders compiled in ${Math.round(performance.now() - t)} ms`); setShown(true); onReady?.(); }).catch(() => { target?.dispose(); if (alive) useGame.getState().set({ panel: 'recovery' }); });
     return () => { alive = false; };
   }, [gl, camera, scene, post, onReady]);
-  return <group ref={group} visible={shown}>{children}</group>;
+  return <group ref={group} visible={shown} matrixAutoUpdate={false}>{children}</group>;
 }
 
 /** Everything that depends on loaded textures. Suspends until the material library is ready. */
@@ -196,7 +213,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
     <Flags placements={campus.context.props} reduced={reduced} />
     <Props placements={campus.context.props} quality={quality} />
     <DistanceCull object={campus.books} centre={LIBRARY_CENTRE} distance={Math.min(60, quality.detailDistance)} />
-    <Doors lib={lib} distance={quality.detailDistance + 12} /><Chairs distance={quality.detailDistance} /><Computers /><Balls />
+    <Doors lib={lib} distance={quality.detailDistance + 12} /><Chairs distance={quality.detailDistance} post={quality.post} /><Computers /><Balls />
     <Collectibles /><Waypoint /><Player /><Peers />
     </CompileGate>
     <Suspense fallback={null}><CompileGate post={quality.post}><Vegetation lib={lib} quality={quality} reduced={reduced} /></CompileGate></Suspense>
@@ -211,7 +228,8 @@ export default memo(function World() {
   const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey], ceiling = QA_SCALE || Math.min(quality.dpr, window.devicePixelRatio || 1);
   return <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
     gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.AgXToneMapping, toneMappingExposure: LIGHTING.exposure, stencil: false }}
-    onCreated={({ gl }) => { gl.setClearColor('#b9c8d4'); }}>
+    // The scene root never moves: without this every object's world matrix was recomputed every frame.
+    onCreated={({ gl, scene }) => { gl.setClearColor('#b9c8d4'); scene.matrixAutoUpdate = false; }}>
     <Suspense fallback={null}>
       <SkyDome quality={quality} />
       <Lighting quality={quality} />
@@ -220,5 +238,6 @@ export default memo(function World() {
     </Suspense>
     <AdaptiveResolution max={ceiling} min={QA_SCALE || (qualityKey === 'high' ? .75 : .6)} />
     <Telemetry />
+    <Render />
   </Canvas>;
 });

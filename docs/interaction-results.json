@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-15T09:25:52.981Z",
+  "date": "2026-10-18T00:35:24.782Z",
   "results": [
     "sit on a bench with the captured sit-down; the room records the occupant",
     "an occupied seat refuses a second player",
@@ -31,8 +31,8 @@
   ],
   "errors": [],
   "timings": {
-    "sitDown": 10552,
-    "mobileFps": 2,
-    "fps": 2
+    "sitDown": 10374,
+    "mobileFps": 3,
+    "fps": 3
   }
 }

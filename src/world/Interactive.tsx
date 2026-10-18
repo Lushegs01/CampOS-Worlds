@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DOORS, SEATS, LIBRARY_COMPUTERS } from '../../shared/interactions.mjs';
@@ -13,6 +13,7 @@ import { avatars } from '../avatar/registry';
 import { selfIdNow, tickWorld, world } from '../interaction/world';
 import { sfx } from '../interaction/sound';
 import { registerMovingCaster } from './shadows';
+import { freeze, prepare } from './rendering';
 
 // Everything players can move: hinged doors, table chairs and basketballs. State comes from the
 // shared world (server-authoritative online, local rules offline); this file only presents it.
@@ -45,7 +46,8 @@ export function Doors({ lib, distance }: { lib: Materials; distance: number }) {
     const group = new THREE.Group(); group.name = `door:${d.id}`;
     const y = surfaceHeight(d.x, d.z - .05);
     const leaves = d.leaves.map(l => { const pivot = new THREE.Group(); pivot.position.set(l.hx, y, l.hz); pivot.add(leafMeshes(lib, l.len, d.height, d.glass, l.dir)); group.add(pivot); return { pivot, dir: l.dir }; });
-    return { d, group, leaves, angle: 0, vel: 0, open: 0, latched: true };
+    // Static until a leaf swings: the pivots' matrices are composed by hand below.
+    return { d, group: freeze(group), leaves, angle: 0, vel: 0, open: 0, latched: true };
   }), [lib]);
   useEffect(() => { const off = doors.map(s => registerMovingCaster(s.group)); return () => off.forEach(f => f()); }, [doors]);
   useFrame(({ camera }, raw) => {
@@ -59,7 +61,7 @@ export function Doors({ lib, distance }: { lib: Materials; distance: number }) {
       const k = 26, c = 2 * Math.sqrt(k) * 1.1, steps = Math.ceil(dt / .008), h = dt / steps;
       for (let i = 0; i < steps; i++) { s.vel += (k * (open * OPEN_ANGLE - s.angle) - c * s.vel) * h; s.angle += s.vel * h; }
       if (!open && !s.latched && Math.abs(s.angle) < .04) { s.latched = true; sfx('door-close', s.d); }
-      for (const l of s.leaves) l.pivot.rotation.y = -l.dir * s.angle;
+      for (const l of s.leaves) { const y = -l.dir * s.angle; if (Math.abs(l.pivot.rotation.y - y) > 1e-5) { l.pivot.rotation.y = y; l.pivot.updateMatrix(); } }
     }
   });
   return <>{doors.map(s => <primitive key={s.d.id} object={s.group} />)}</>;
@@ -69,8 +71,8 @@ export function Doors({ lib, distance }: { lib: Materials; distance: number }) {
 type ChairModel = 'schoolChair' | 'monobloc';
 const CHAIRS = SEATS.filter(s => s.kind === 'chair') as (typeof SEATS[number] & { model: ChairModel; pull: number })[];
 /** Free-standing chairs from the shared seat list. Table chairs slide as their sitter scoots in and out. */
-export function Chairs({ distance }: { distance: number }) {
-  const [models, setModels] = useState<Partial<Record<ChairModel, GLTF>>>({});
+export function Chairs({ distance, post }: { distance: number; post: boolean }) {
+  const [models, setModels] = useState<Partial<Record<ChairModel, GLTF>>>({}), { gl, scene, camera } = useThree();
   useEffect(() => { let alive = true; for (const m of ['schoolChair', 'monobloc'] as const) loadModel(`props/${m}.glb`).then(g => { if (alive) setModels(v => ({ ...v, [m]: g })); }); return () => { alive = false; }; }, []);
   const sets = useMemo(() => (Object.entries(models) as [ChairModel, GLTF][]).flatMap(([key, gltf]) => {
     const cells = new Map<string, typeof CHAIRS>();
@@ -78,16 +80,22 @@ export function Chairs({ distance }: { distance: number }) {
     gltf.scene.updateMatrixWorld(true);
     const parts: THREE.Mesh[] = []; gltf.scene.traverse(o => { if ((o as THREE.Mesh).isMesh) parts.push(o as THREE.Mesh); });
     return [...cells.values()].map(list => {
-      const meshes = parts.map(p => { const m = new THREE.InstancedMesh(p.geometry, p.material, list.length); m.castShadow = true; m.receiveShadow = true; m.name = `chairs:${key}`; return { m, local: p.matrixWorld.clone() }; });
+      const meshes = parts.map(p => { const m = new THREE.InstancedMesh(p.geometry, p.material, list.length); m.castShadow = true; m.receiveShadow = true; m.name = `chairs:${key}`; m.visible = false; m.matrixAutoUpdate = false; return { m, local: p.matrixWorld.clone() }; });
       const centre = new THREE.Vector3(list.reduce((a,s)=>a+s.x,0)/list.length, 0, list.reduce((a,s)=>a+s.z,0)/list.length);
-      return { list, meshes, centre, last: new Float32Array(list.length).fill(-1) };
+      return { key, list, meshes, centre, last: new Float32Array(list.length).fill(-1) };
     });
   }), [models]);
+  // Each model's shaders compile before its chairs are shown: no hitch the first time chairs come into view.
+  const ready = useRef(new Set<ChairModel>());
+  useEffect(() => {
+    const fresh = sets.filter(s => !ready.current.has(s.key));
+    if (fresh.length) void prepare(gl, scene, camera, fresh.flatMap(s => s.meshes.map(({ m }) => m)), post).then(() => { for (const s of fresh) ready.current.add(s.key); });
+  }, [sets, gl, scene, camera, post]);
   const tmp = useMemo(() => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), p: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1), up: new THREE.Vector3(0, 1, 0) }), []);
-  useEffect(() => { const off = sets.flatMap(s => s.meshes.map(({ m }) => registerMovingCaster(m))); return () => off.forEach(f => f()); }, [sets]);
+  useEffect(() => { const off = sets.flatMap(s => s.meshes.map(({ m }) => registerMovingCaster(m))); return () => { off.forEach(f => f()); sets.forEach(s => s.meshes.forEach(({ m }) => m.dispose())); }; }, [sets]);
   useFrame(({ camera }) => {
     for (const set of sets) {
-      const visible = Math.hypot(camera.position.x - set.centre.x, camera.position.z - set.centre.z) < distance + 10;
+      const visible = ready.current.has(set.key) && Math.hypot(camera.position.x - set.centre.x, camera.position.z - set.centre.z) < distance + 10;
       for (const { m } of set.meshes) m.visible = visible;
       let dirty = false;
       set.list.forEach((s, i) => {

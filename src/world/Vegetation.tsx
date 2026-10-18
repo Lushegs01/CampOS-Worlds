@@ -10,6 +10,7 @@ import { NOISE_GLSL, type Materials } from './materials';
 import { HEDGES, BEDS, isLawn, onPath } from './layout';
 import { layoutMask, MASK, terrainHeight } from './Ground';
 import type { QualityProfile } from './quality';
+import { freeze } from './rendering';
 
 const wind = { uTime: { value: 0 }, uSun: { value: new THREE.Vector3(.55, .74, .38) } };
 export function setSunDirection(d: THREE.Vector3) { wind.uSun.value.copy(d).normalize(); }
@@ -147,12 +148,12 @@ export function Vegetation({ lib, quality, reduced }: { lib: Materials; quality:
       leaves.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: leafMat.map, alphaTest: .42 });
       wood.name = 'trees:wood'; leaves.name = 'trees:leaves';
       if (g.chunk) for (const m of [wood, leaves]) { m.name = 'trees:road'; m.userData.cell = new THREE.Vector2((g.chunk[0] + .5) * CHUNK, (g.chunk[1] + .5) * CHUNK); }
-      out.push(wood, leaves);
+      out.push(freeze(wood), freeze(leaves));
     }
     const garden = new THREE.Mesh(gardens, materials.hedge);
     garden.castShadow = true; garden.receiveShadow = true; garden.name = 'gardens';
     garden.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: materials.hedge.map, alphaTest: .42 });
-    out.push(garden);
+    out.push(freeze(garden));
     return out;
   }, [materials, lib, trees, gardens]);
   // Geometry belongs to the session cache; quality switches must not dispose shared buffers.

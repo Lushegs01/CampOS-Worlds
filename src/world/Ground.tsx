@@ -173,5 +173,5 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
     return m;
   }, [surfaces, quality.groundLayers]);
   useEffect(() => () => material.dispose(), [material]);
-  return <mesh geometry={geometry} material={material} receiveShadow name="ground" />;
+  return <mesh geometry={geometry} material={material} receiveShadow name="ground" matrixAutoUpdate={false} />;
 }

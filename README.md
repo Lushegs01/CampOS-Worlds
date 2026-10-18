@@ -136,6 +136,7 @@ node tests/browser-smoke.mjs             # welcome, avatar editor, walking, sett
 node tests/browser-dorm.mjs              # your room in Palm House: enter, arrange, privacy, leave, phone
 PERF_LABEL=after node tests/browser-mobile-performance.mjs   # phone-viewport benchmark (PERF_BOTS=n adds players)
 SOAK_SECONDS=300 node tests/browser-soak.mjs                 # GPU memory while players come and go
+node tests/browser-cpu-profile.mjs                           # main-thread script per frame on a phone viewport, and where it goes
 ```
 
 All browser suites use `tests/support/browser.mjs`: the installed Chrome and GPU on Windows, Chromium with SwiftShader elsewhere (with a low QA render scale, so the interface stays responsive without a GPU).

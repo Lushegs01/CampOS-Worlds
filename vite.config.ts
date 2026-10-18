@@ -23,6 +23,8 @@ export default defineConfig(({ mode }) => {
   server:{port:5173,strictPort:true,proxy},
   // The preview server proxies the room too, so the production bundle can be tested end to end.
   preview:{port:4173,strictPort:true,proxy},
-  build:{chunkSizeWarningLimit:1000,rollupOptions:{output:{manualChunks:{three:['three','@react-three/fiber']}}}}
+  // three.js and the renderer get a chunk of their own (React stays with the interface), so the welcome
+  // screen paints while the 3D engine is still downloading instead of waiting for it.
+  build:{chunkSizeWarningLimit:1000,rollupOptions:{output:{manualChunks:id=>/node_modules[\\/](three|@react-three)[\\/]/.test(id)?'three':/node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/.test(id)?'react':undefined}}}
  };
 });

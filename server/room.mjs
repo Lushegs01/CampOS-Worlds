@@ -76,7 +76,10 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    let body='';try{for await(const chunk of req){body+=chunk;if(body.length>1024)throw Error('size');}const {id}=JSON.parse(body);const c=clients.get(id);if(c){bans.add(c.token);c.ws.close(4003,'Removed by room moderator');}res.end(JSON.stringify({removed:!!c}));}catch{res.writeHead(400);res.end('{}');}return;
   }res.writeHead(404);res.end('{}');
  });
- const wss=new WebSocketServer({noServer:true,maxPayload:MAX_AUTH_MESSAGE,perMessageDeflate:false});
+ // Room messages are repetitive JSON (15 state messages a second): compressed, a phone receives a fraction
+ // of the bytes (mobile data costs money). Small messages (inputs, chat) are sent as they are; the browser
+ // decompresses natively. maxPayload still bounds the decompressed size of what a client sends.
+ const wss=new WebSocketServer({noServer:true,maxPayload:MAX_AUTH_MESSAGE,perMessageDeflate:{threshold:512,zlibDeflateOptions:{level:1,memLevel:7},clientNoContextTakeover:true}});
  // ---- accounts: verified identity, profile projection and server-validated progression
  async function authenticate(c,token){
   const seq=++c.authSeq,live=()=>seq===c.authSeq&&clients.get(c.id)===c,reply=data=>{if(live()){send(c.ws,{type:'auth',...data});startSession(c);if(data.ok&&data.account)analytics.track(c,'account_linked');}};
