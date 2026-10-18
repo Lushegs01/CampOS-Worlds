@@ -35,10 +35,23 @@ Skin-tone variation is a shader tint driven by a skin mask baked by `scripts/ass
 | `props/wetFloor.glb` | [Wet Floor Sign 01](https://polyhaven.com/a/WetFloorSign_01) | Fran Calvente |
 | `props/seating.glb` | [Modular Street Seating](https://polyhaven.com/a/modular_street_seating) | Stuart Attenborrow (no longer placed: forecourt benches are sittable timber benches) |
 
+## Sound — CC0
+
+Built into `public/assets/audio/` (mono MP3, trimmed, level-matched, loops made seamless) by `scripts/assets/build-audio.mjs`, which downloads these sources into `.asset-cache/audio/`.
+
+| Sound | Source | Author |
+|---|---|---|
+| Footsteps on paving, grass and timber (`step-*`); landings, sitting on chairs and benches (`seat-*`); glass | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney |
+| Doors opening and closing, latches, clothes, creaks (`door-*`, `cloth`, `creak`) | [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney |
+| Car doors, engine start, idle loop and shut-off (`car-door-*`, `engine*`) | [Car Sound Effects Pack](https://opengameart.org/content/car-sound-effects-pack-low-quality) | GGBotNet |
+| Birdsong, breeze and running water (`birds`, `wind`, `water`) | [Park ambiences](https://opengameart.org/content/park-ambiences) | Thimras |
+
+Tyre noise on the road, the garden cart's electric motor and chair legs scraping on the floor are synthesized at runtime (Web Audio).
+
 ## Authored for this project
 
 - Campus architecture, doors, benches, tables, desks, counters, signage, sculpture, water and landscaping layout are procedural geometry (`src/world/architecture/`), textured with the CC0 materials above.
-- The basketball (canvas-generated leather and seams), library catalogue screens, interaction sounds (Web Audio synthesis, silent by default) and the CampOS logo are generated at runtime.
+- The basketball (canvas-generated leather and seams), library catalogue screens, the ball, hoop and notification sounds (Web Audio synthesis) and the CampOS logo are generated at runtime.
 - Basketball physics, seat anchors and door definitions live in `shared/` and are original code.
 
 ## Libraries and fonts

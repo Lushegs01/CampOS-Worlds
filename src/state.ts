@@ -4,6 +4,8 @@ import { SPAWN, TOUR, LOCATIONS, sanitizeAvatar } from '../shared/campus.mjs';
 import { suggestedQuality } from './world/quality';
 import { createTrail } from '../shared/movement.mjs';
 import { createTrack } from './network/interpolation.mjs';
+/** Sound is on from the start (Settings → Sound); browsers only let it play after the first tap or key press. */
+const DEFAULT_VOLUME=.7;
 export type AvatarConfig = ReturnType<typeof sanitizeAvatar>;
 export type Panel = null|'map'|'profile'|'settings'|'chat'|'players'|'avatar'|string;
 export type Peer = {id:string;name:string;avatar:AvatarConfig;x:number;y:number;z:number;yaw:number;moving:boolean;sprinting:boolean;emote:string;emoteAt:number;seat?:string|null;ball?:string|null;handle?:string|null;verified?:boolean;title?:string|null;vehicle?:string|null;vehicleSeat?:number|null;/** Set while they are in their room: drawn only for players in the same space. */space?:string};
@@ -29,14 +31,18 @@ export const livePeers = new Map<string,Peer>();
 /** Each remote player's recent positions on our clock, drawn slightly in the past (network/interpolation.mjs). */
 export const peerTracks = new Map<string,ReturnType<typeof createTrack>>();
 export const useGame = create<Game>()(persist((set,get)=>({
- phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,volume:0,
+ phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,volume:DEFAULT_VOLUME,
  discovered:[],tokens:[],tour:false,tourStep:0,bestScore:0,nearby:null,toast:'',destination:null,
  status:'offline',count:1,peers:[],messages:[],muted:[],invite:'',fps:0,
  set:(value)=>set(value),
  notify:(toast)=>{set({toast});setTimeout(()=>{if(get().toast===toast)set({toast:''});},4500);},
  discover:(id)=>{const s=get();if(!s.discovered.includes(id))set({discovered:[...s.discovered,id]});if(s.tour&&TOUR[s.tourStep]===id){const next=s.tourStep+1;set({tourStep:next,destination:TOUR[next]??null});s.notify(next===TOUR.length?'Campus compass badge earned. You belong here!':`Stop ${next} complete. Next: ${LOCATIONS.find(l=>l.id===TOUR[next])?.name}`);}},
  collect:(id)=>{if(get().tokens.includes(id))return;set({tokens:[...get().tokens,id]});get().notify(get().tokens.length===6?'All six found! Discovery badge earned.':'Campus keepsake found · '+get().tokens.length+' / 6');}
-}),{name:'campos-worlds-v1',partialize:s=>({name:s.name,avatar:s.avatar,quality:s.quality,reducedMotion:s.reducedMotion,volume:s.volume,discovered:s.discovered,tokens:s.tokens,tour:s.tour,tourStep:s.tourStep,bestScore:s.bestScore,muted:s.muted}),merge:(saved,current)=>{const s=saved as Partial<Game>;return {...current,...s,avatar:sanitizeAvatar(s?.avatar??{}),phase:'welcome',panel:null};}}));
+}),{name:'campos-worlds-v1',
+ // Version 1 brought footsteps, doors, vehicles and ambience. Sound used to start off (volume 0) and almost
+ // nobody had changed it, so a saved 0 from before is turned up once; anyone can turn it down again.
+ version:1,migrate:(saved,version)=>{const s=(saved??{}) as Partial<Game>;if(version<1&&!s.volume)s.volume=DEFAULT_VOLUME;return s as Game;},
+ partialize:s=>({name:s.name,avatar:s.avatar,quality:s.quality,reducedMotion:s.reducedMotion,volume:s.volume,discovered:s.discovered,tokens:s.tokens,tour:s.tour,tourStep:s.tourStep,bestScore:s.bestScore,muted:s.muted}),merge:(saved,current)=>{const s=saved as Partial<Game>;return {...current,...s,avatar:sanitizeAvatar(s?.avatar??{}),phase:'welcome',panel:null};}}));
 interface Game {
  phase:'welcome'|'playing'; panel:Panel;ready:boolean;name:string;avatar:AvatarConfig;quality:'low'|'medium'|'high';reducedMotion:boolean;volume:number;
  discovered:string[];tokens:string[];tour:boolean;tourStep:number;bestScore:number;nearby:string|null;toast:string;destination:string|null;
