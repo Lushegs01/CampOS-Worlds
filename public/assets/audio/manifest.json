@@ -25,9 +25,6 @@
     "cloth": {
       "variants": 4
     },
-    "creak": {
-      "variants": 3
-    },
     "seat-soft": {
       "variants": 3
     },

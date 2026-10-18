@@ -42,7 +42,7 @@ Built into `public/assets/audio/` (mono MP3, trimmed, level-matched, loops made 
 | Sound | Source | Author |
 |---|---|---|
 | Footsteps on paving, grass and timber (`step-*`); landings, sitting on chairs and benches (`seat-*`); glass | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney |
-| Doors opening and closing, latches, clothes, creaks (`door-*`, `cloth`, `creak`) | [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney |
+| Doors opening and closing, latches, clothes (`door-*`, `cloth`) | [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney |
 | Car doors, engine start, idle loop and shut-off (`car-door-*`, `engine*`) | [Car Sound Effects Pack](https://opengameart.org/content/car-sound-effects-pack-low-quality) | GGBotNet |
 | Birdsong, breeze and running water (`birds`, `wind`, `water`) | [Park ambiences](https://opengameart.org/content/park-ambiences) | Thimras |
 

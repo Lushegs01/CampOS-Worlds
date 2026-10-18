@@ -23,7 +23,7 @@ try {
   await page.goto((process.env.TEST_URL || 'http://127.0.0.1:5173') + QUERY, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 180000 });
   await page.getByRole('button', { name: 'Enter campus', exact: true }).click();
-  await page.waitForFunction(() => window.__campusSounds().loaded.length >= 20, null, { timeout: 120000 });
+  await page.waitForFunction(() => window.__campusSounds().loaded.length >= 19, null, { timeout: 120000 });
   const s0 = await sounds(); assert.equal(s0.state, 'running', 'the click on Enter starts audio');
   pass(`sound is on by default and ${s0.loaded.length} recorded sounds load after entering`);
   await page.waitForFunction(() => ['loop:birds', 'loop:wind', 'loop:water'].every(n => window.__campusSounds().played.includes(n)), null, { timeout: 30000 });
@@ -51,7 +51,7 @@ try {
   const seat = await page.evaluate(async () => { const { SEATS } = await import('/shared/interactions.mjs'); const p = window.__campusInspect().position; return SEATS.filter(s => s.kind === 'bench').sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0]; });
   await page.evaluate(([x, z, yaw]) => window.__campusDebug.teleport(x + Math.sin(yaw) * .9, z + Math.cos(yaw) * .9, yaw), [seat.x, seat.z, seat.yaw]);
   m = await mark(); await page.evaluate(id => window.__campusDebug.sit(id), seat.id);
-  await heard('cloth', m, 60000); await heard('seat-wood', m, 60000); await heard('creak', m, 60000); pass('sitting on a bench: clothes, the timber seat and its creak');
+  await heard('cloth', m, 60000); await heard('seat-wood', m, 60000); pass('sitting on a bench: clothes and the timber seat');
   await page.waitForFunction(() => window.__campusDebug.state().sit?.phase === 'seated', null, { timeout: 60000 });
   m = await mark(); await page.evaluate(() => window.__campusDebug.standUp()); await heard('cloth', m, 60000); pass('standing up');
   await page.waitForFunction(() => !window.__campusDebug.state().sit, null, { timeout: 60000 });

@@ -30,7 +30,8 @@ function hiss(c: AudioContext, out: AudioNode, t0: number, dur: number, peak: nu
 export function chime() {
   const a = audio(); if (!a) return;
   const { ctx: c, ui } = a, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
-  o.type = 'sine'; o.frequency.setValueAtTime(523, t); o.frequency.exponentialRampToValueAtTime(784, t + .16);
+  // A soft low two-note rise (it was an octave higher, 523-784 Hz, which read as a squeak on every notice).
+  o.type = 'sine'; o.frequency.setValueAtTime(262, t); o.frequency.exponentialRampToValueAtTime(392, t + .16);
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.09, t + .02); g.gain.exponentialRampToValueAtTime(.001, t + .38);
   o.connect(g).connect(ui); o.start(t); o.stop(t + .4); o.onended = () => g.disconnect();
 }
@@ -46,7 +47,8 @@ export function sfx(kind: Sfx, at?: { x: number; z: number; glass?: boolean }, s
   const out = c.createGain(); out.gain.value = .35 * Math.min(1.4, strength) / (1 + d / 7); out.connect(a.out);
   switch (kind) {
     case 'bounce': tone(c, out, 'sine', 150, 55, t, .16, .9); hiss(c, out, t, .05, .25, 900); break;
-    case 'rim': tone(c, out, 'triangle', 1180, 1100, t, .5, .35); tone(c, out, 'sine', 2730, 2700, t, .3, .12); tone(c, out, 'sine', 520, 500, t, .25, .2); break;
+    // A short dull clank off the steel (pure 1.2 and 2.7 kHz tones ringing half a second squeaked).
+    case 'rim': tone(c, out, 'sine', 480, 440, t, .14, .6); hiss(c, out, t, .07, .8, 1800, 1.5); break;
     case 'board': tone(c, out, 'sine', 210, 120, t, .18, .7); hiss(c, out, t, .06, .3, 1600); break;
     case 'swish': hiss(c, out, t, .32, .45, 4200, .7); break;
     case 'door-open': hiss(c, out, t, .45, .12, 380, 3); tone(c, out, 'sine', 95, 70, t, .2, .25); break;

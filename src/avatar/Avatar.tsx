@@ -305,7 +305,7 @@ export default function Avatar({ config, motion, preview = false, id }: { config
           const seatAt = { x: seat.x, y: .5, z: seat.z }, info = seat as typeof seat & { kind: string; model?: string }, plastic = info.model === 'monobloc';
           if (sit.phase === 'down') sitDown(info, seatAt, (lib.down.end - lib.down.start) / lib.down.rate * .72);
           else if (sit.phase === 'seated' && was === 'down' && seat.pull) chairScrape(seatAt, SCOOT, plastic);
-          else if (sit.phase === 'up' && was) { if (seat.pull) chairScrape(seatAt, SCOOT, plastic); standUp(info, seatAt, seat.pull ? SCOOT : 0); }
+          else if (sit.phase === 'up' && was) { if (seat.pull) chairScrape(seatAt, SCOOT, plastic); standUp(seatAt, seat.pull ? SCOOT : 0); }
         }
       }
       s.sitT += dt; s.out = 0;

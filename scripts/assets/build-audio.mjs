@@ -88,7 +88,6 @@ family('door-close', n5(i => rpg(`doorClose_${i + 1}.ogg`), 4));
 family('door-latch', [rpg('metalLatch.ogg'), rpg('metalClick.ogg')]);
 family('glass', [impact('impactGlass_light_000.ogg'), impact('impactGlass_light_001.ogg'), impact('impactGlass_light_002.ogg')], { gain: -9 });
 family('cloth', n5(i => rpg(`cloth${i + 1}.ogg`), 4));
-family('creak', n5(i => rpg(`creak${i + 1}.ogg`), 3));
 family('seat-soft', n5(i => impact(`impactSoft_medium_00${i}.ogg`), 3));
 family('seat-wood', n5(i => impact(`impactWood_light_00${i}.ogg`), 3));
 family('seat-plastic', n5(i => impact(`impactPlate_light_00${i}.ogg`), 3), { gain: -8 });

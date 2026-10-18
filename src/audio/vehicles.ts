@@ -4,7 +4,7 @@ import { audio, ear, loop, noise, play, spot, type Loop, type Spot } from './mix
 // Each vehicle as it sounds on a real campus road. The car and the shuttle (a lower, heavier engine) start
 // when someone takes the driver's seat, idle, rev with speed and acceleration and shut off when the driver
 // gets out; their doors open and shut as people get in and out. The garden cart is electric: a click when
-// switched on and a motor whine that rises with speed, silent at rest. Every vehicle rolls on the asphalt.
+// switched on and a low motor hum that rises with speed, silent at rest. Every vehicle rolls on the asphalt.
 // Only vehicles within earshot keep sound running.
 
 type Type = keyof typeof VEHICLE_TYPES;
@@ -21,7 +21,8 @@ function rolling(at: { x: number; y: number; z: number }): Rolling | null {
   src.buffer = noise(c); src.loop = true; filter.type = 'lowpass'; filter.frequency.value = 500; road.gain.value = 0;
   src.connect(filter).connect(road).connect(out.input); src.start();
   const motor = c.createOscillator(), tone = c.createBiquadFilter(), whine = c.createGain();
-  motor.type = 'sawtooth'; motor.frequency.value = 90; tone.type = 'lowpass'; tone.frequency.value = 900; whine.gain.value = 0;
+  // A low electric hum: a triangle wave kept under 450 Hz (a sawtooth through 900 Hz whined at 1-1.5 kHz).
+  motor.type = 'triangle'; motor.frequency.value = 55; tone.type = 'lowpass'; tone.frequency.value = 450; whine.gain.value = 0;
   motor.connect(tone).connect(whine).connect(out.input); motor.start();
   return {
     spot: out, road, filter, whine, motor,
@@ -65,7 +66,7 @@ export function vehicleSound(id: string, type: Type, v: { x: number; z: number; 
     const r = s.rolling; r.spot.move({ ...at, y: .3 });
     r.road.gain.setTargetAtTime(Math.min(.6, pace * .9), now, .08); r.filter.frequency.setTargetAtTime(350 + pace * 900, now, .08);
     const motor = type === 'cart' && s.running;
-    r.motor.frequency.setTargetAtTime(80 + speed * 38, now, .08); r.whine.gain.setTargetAtTime(motor ? Math.min(.12, speed * .016) : 0, now, .08);
+    r.motor.frequency.setTargetAtTime(55 + speed * 15, now, .08); r.whine.gain.setTargetAtTime(motor ? Math.min(.12, speed * .016) : 0, now, .08);
   }
 }
 

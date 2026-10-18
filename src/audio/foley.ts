@@ -31,26 +31,28 @@ export function sitDown(seat: SeatKind, at: At, settle: number) {
   const o = { at, range: 20, ref: 1.5 };
   play('cloth', { ...o, gain: .5 });
   play('seat-soft', { ...o, gain: .6, delay: settle });
-  if (seat.kind === 'bench') { play('seat-wood', { ...o, gain: .45, delay: settle }); play('creak', { ...o, gain: .35, delay: settle + .05 }); }
+  if (seat.kind === 'bench') play('seat-wood', { ...o, gain: .45, delay: settle });
   else if (seat.model === 'monobloc') play('seat-plastic', { ...o, gain: .5, delay: settle });
   else play('seat-wood', { ...o, gain: .5, delay: settle });
 }
-/** Standing up: clothes, and a bench lets go of its load. */
-export function standUp(seat: SeatKind, at: At, delay = 0) {
-  const o = { at, range: 20, ref: 1.5 };
-  play('cloth', { ...o, gain: .45, delay });
-  if (seat.kind === 'bench') play('creak', { ...o, gain: .3, delay: delay + .25 });
+/** Standing up: clothes moving. */
+export function standUp(at: At, delay = 0) {
+  play('cloth', { at, range: 20, ref: 1.5, gain: .45, delay });
 }
 
-/** A chair's legs dragged across the floor (scooting in or pushing back from a table). */
+/**
+ * A chair's legs dragged across the floor (scooting in or pushing back from a table): a dull, low drag. It was
+ * a resonant band sweeping up through 0.9-2.3 kHz, which with the stick-slip judder read as a squeak. (The
+ * lowpass lets through far more of the noise's low end, so the level is lower for the same loudness.)
+ */
 export function chairScrape(at: At, seconds: number, plastic: boolean) {
   const m = audio(); if (!m) return;
-  const c = m.ctx, t = c.currentTime, src = c.createBufferSource(), band = c.createBiquadFilter(), stick = c.createGain(), g = c.createGain(), judder = c.createOscillator(), depth = c.createGain();
+  const c = m.ctx, t = c.currentTime, src = c.createBufferSource(), dull = c.createBiquadFilter(), stick = c.createGain(), g = c.createGain(), judder = c.createOscillator(), depth = c.createGain();
   src.buffer = noise(c); src.loop = true; src.playbackRate.value = plastic ? 1.6 : 1.1;
-  band.type = 'bandpass'; band.Q.value = 2.5; band.frequency.setValueAtTime(plastic ? 1700 : 900, t); band.frequency.linearRampToValueAtTime(plastic ? 2300 : 1200, t + seconds);
+  dull.type = 'lowpass'; dull.Q.value = 0; dull.frequency.value = plastic ? 900 : 700;
   // Stick-slip: the legs catch and release about 30 times a second (0.3–1 of the level), inside the envelope.
   judder.frequency.value = 28 + Math.random() * 8; stick.gain.value = .65; depth.gain.value = .35; judder.connect(depth).connect(stick.gain);
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.55, t + .05); g.gain.setValueAtTime(.55, t + seconds - .08); g.gain.linearRampToValueAtTime(0, t + seconds);
-  src.connect(band).connect(stick).connect(g).connect(output(m, at, 1.5));
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.3, t + .05); g.gain.setValueAtTime(.3, t + seconds - .08); g.gain.linearRampToValueAtTime(0, t + seconds);
+  src.connect(dull).connect(stick).connect(g).connect(output(m, at, 1.5));
   src.start(t); judder.start(t); src.stop(t + seconds + .05); judder.stop(t + seconds + .05);
 }
