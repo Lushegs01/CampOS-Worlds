@@ -154,3 +154,9 @@ node tests/browser-verify.mjs
 ```
 
 Voice chat, tournament brackets, team basketball, multi-room presence and parties, and a moderator dashboard are designed but not built ([status](docs/IMPLEMENTATION-STATUS.md)). Production Core (institutional) authentication, tenant feature settings, migrating guest progress into an account, account-backed moderation and durable bans, multi-room scaling, licensed realistic character assets, full accessible building interiors, advanced terrain physics, audio ambience, and physical mid-range phone profiling are follow-up work. The current art is bespoke procedural game art, not a photorealistic scan of a real university. The library, café, Studio D1 and your own room in Palm House are enterable. In the other blocks, only the ground-floor common rooms are open. High quality adds screen-space AO and SMAA; there is no WebGPU dependency.
+
+## Economic Simulation Lab
+
+An optional, walk-in research hall now sits on the southwest lawn, between the playing field and shuttle walk. Select **Economic Simulation Lab** on the campus map, open its door with **E** / **Interact**, and walk to one of six workstations. Start a Campus Logistics Economy scenario, create orders, perform campus deliveries, inspect a bounded deterministic worker, review server-verified evidence and local recognition, and compare reproducible dispatch policies.
+
+See [the lab guide and technical report](docs/ECONOMIC-LAB.md) and [validation results](docs/ECONOMIC-LAB-VALIDATION.md). Economic records use the room server's atomic file store (`LAB_DATA_FILE`, default `server/data/economic-lab.json`); preserve that volume. Simulation and recognition units have no redemption value. WorkStream is an explicitly unconnected adapter boundary.

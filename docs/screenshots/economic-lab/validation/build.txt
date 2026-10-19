@@ -1,0 +1,32 @@
+
+> campos-worlds@0.1.0 build
+> tsc -b && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 1918 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                0.68 kB │ gzip:   0.41 kB
+dist/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2      8.52 kB
+dist/assets/manrope-greek-wght-normal-DL7QRZyv.woff2           9.44 kB
+dist/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2       14.50 kB
+dist/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2      15.12 kB
+dist/assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2      18.23 kB
+dist/assets/manrope-latin-wght-normal-DHIcAJRg.woff2          24.84 kB
+dist/assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2          36.93 kB
+dist/assets/index-CQY3tjAt.css                                79.25 kB │ gzip:  19.99 kB
+dist/assets/AvatarEditor-Boo7XqSp.js                           4.57 kB │ gzip:   1.98 kB
+dist/assets/LabPanel-BdFj5bW5.js                              18.14 kB │ gzip:   5.58 kB
+dist/assets/AvatarBoundary-DymHjnn6.js                        29.85 kB │ gzip:  12.37 kB
+dist/assets/World-CfCF_UU9.js                                152.03 kB │ gzip:  57.36 kB
+dist/assets/react-BdtylicS.js                                201.99 kB │ gzip:  64.13 kB
+dist/assets/index-CJsiKs--.js                                278.09 kB │ gzip:  91.60 kB
+dist/assets/PostFX-BCaZzv4J.js                               286.20 kB │ gzip: 148.16 kB
+dist/assets/three-WR-nCyr5.js                              1,041.41 kB │ gzip: 290.69 kB
+
+(!) Some chunks are larger than 1000 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 5.76s

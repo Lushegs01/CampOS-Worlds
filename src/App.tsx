@@ -26,6 +26,7 @@ import { CommunityDrawer } from './ui/Community';
 import { useCommunity } from './community/store';
 import { CalendarDays } from 'lucide-react';
 import { chime } from './interaction/sound';
+import { LabHud } from './economy/LabHud';
 const World=lazy(()=>import('./world/World'));
 class WorldBoundary extends Component<{children:ReactNode},{error:boolean}>{state={error:false};static getDerivedStateFromError(){return {error:true};}render(){if(this.state.error)return <div className="graphics-error"><h2>The campus couldn’t open.</h2><p>A WebGL-capable browser is needed. Try reloading with fewer tabs open.</p><button className="primary" onClick={()=>{useGame.getState().set({quality:'low'});location.reload();}}>Reload on low quality</button></div>;return this.props.children;}}
 function SoundFeedback(){const toast=useGame(s=>s.toast);useEffect(()=>{if(toast)chime();},[toast]);return null;}
@@ -59,7 +60,7 @@ export default function App(){
  <LocationHud/>
  <button className="minimap" aria-label="Open campus map" onClick={()=>s.set({panel:'map'})}><MapGraphic mini/><span><Map size={14}/>Campus map<kbd>M</kbd></span><b className="north">N ↑</b></button>
  <nav className="game-dock" aria-label="Game menu"><button onClick={()=>s.set({panel:'map'})}><Map size={19}/><span>Map</span></button><button onClick={()=>s.set({panel:'chat'})}><MessageCircle size={19}/><span>Chat</span></button><button onClick={()=>s.set({panel:'players'})}><Users size={19}/><span>People</span></button><button aria-pressed={socialOpen} aria-label={`Friends, messages and party${socialUnread?` (${socialUnread} new)`:''}`} onClick={toggleSocial}><span className="dock-icon"><HeartHandshake size={19}/>{socialUnread>0&&<span className="count-badge">{socialUnread>99?'99+':socialUnread}</span>}</span><span>{partySize?`Party ${partySize}`:'Friends'}</span></button><button aria-pressed={communityOpen} onClick={()=>useCommunity.getState().toggle()}><CalendarDays size={19}/><span>Events</span></button><span className="dock-divider"/><button onClick={()=>{player.emote='wave';player.emoteUntil=Date.now()+3000;send({type:'emote',emote:'wave'});s.notify('You waved hello. Press 2 to dance or 3 to cheer.');}}><span className="wave-icon">✋</span><span>Wave</span></button><button onClick={()=>s.set({panel:'profile'})}><UserRound size={19}/><span>You</span></button></nav>
- {!s.panel&&<InteractionPrompt/>}<BasketballHUD/><DuelHud/><ChallengeHud/><PartyHud/><DormHud/><VehicleHUD/><ClassPrompt/>
+ {!s.panel&&<InteractionPrompt/>}<BasketballHUD/><DuelHud/><ChallengeHud/><LabHud/><PartyHud/><DormHud/><VehicleHUD/><ClassPrompt/>
  <div className="control-hint"><kbd>W A S D</kbd> Move <span className="opt">· Drag to look</span> <span>·</span><kbd>E</kbd> Interact <span>·</span><kbd>V</kbd> Events <span>·</span><kbd>F</kbd> Friends <span className="opt">· <kbd>Space</kbd> Jump</span><button aria-label="Full screen" onClick={toggleFullscreen}><Maximize2 size={14}/></button></div>
  </>}
  <CommunityDrawer/><SocialDrawer/><PartyInvites/><DormInvites/><DuelChallenges/><TouchControls/><Panels/><SoundFeedback/>{s.toast&&<div className="toast" role="status"><Compass size={20}/><span>{s.toast}</span><button aria-label="Dismiss notification" onClick={()=>s.set({toast:''})}><X size={16}/></button></div>}

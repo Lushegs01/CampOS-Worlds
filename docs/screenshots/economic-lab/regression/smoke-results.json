@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-19T19:33:51.326Z",
+  "errors": [],
+  "metrics": {
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 32.37
+    },
+    "fps": 1,
+    "drawCalls": 171,
+    "triangles": 337804,
+    "textures": 86,
+    "geometries": 192,
+    "quality": "low",
+    "peers": [],
+    "tokens": []
+  }
+}
