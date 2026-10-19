@@ -1,0 +1,19 @@
+PASS walked from campus spawn, opened the real door and entered the lab
+STATION control
+PASS physical Simulation Control starts an authoritative run
+STATION market
+PASS Market Operations creates reserved orders
+STATION tasks
+PASS a fabricated incomplete submission is returned for revision with actual failure reasons
+STATION tasks
+PASS human walked to pickup and receiver; server verified and atomically settled the delivery
+STATION agents
+PASS physical AI station executes a bounded deterministic delivery through the same verifier
+STATION verification
+PASS verification station preserves failed and verified evidence plus both contribution records
+STATION research
+PASS research compares actual runs, downloads JSON and readable report, and discloses no external connection
+PASS exited to ordinary campus with avatar and unrelated progress intact
+STATION research
+PASS 390px phone uses touch workstation interaction and usable comparison/export controls without horizontal overflow
+10 browser checks passed

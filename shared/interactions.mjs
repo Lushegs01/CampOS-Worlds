@@ -1,3 +1,4 @@
+import { LAB_DOOR } from './economic-lab.mjs';
 import { EXPANSION_SEATS, EXPANSION_TABLES } from './expansion.mjs';
 // Interactive fixtures shared by the renderer, client prediction and the authoritative room server.
 // Everything a player can sit on, open, pick up or use is defined here once, with stable ids.
@@ -50,6 +51,7 @@ export const TABLES = [...EXPANSION_TABLES,...LIBRARY_TABLES.map(([x,z])=>({x,z,
 // Double-acting doors swing away from whoever opens them. `collider` blocks the doorway while the door
 // is closed. Locked doors never open.
 export const DOORS = [
+ LAB_DOOR,
  {id:'library-main',label:'Library entrance',x:-30,z:-4.3,leaves:[{hx:-32,hz:-4.3,dir:1,len:2},{hx:-28,hz:-4.3,dir:-1,len:2}],swing:-1,double:true,height:3.2,glass:true,collider:{x:-30,z:-4.3,w:4,d:.6}},
  {id:'cafe-main',label:'Café entrance',x:26.95,z:-4.45,leaves:[{hx:25.95,hz:-4.45,dir:1,len:1},{hx:27.95,hz:-4.45,dir:-1,len:1}],swing:1,double:true,height:2.6,glass:true,collider:{x:26.95,z:-4.45,w:2,d:.5}},
  {id:'classroom-d1',label:'Classroom D1',x:32.7,z:-36.55,leaves:[{hx:32.2,hz:-36.55,dir:1,len:1}],swing:-1,double:true,height:2.24,glass:false,collider:{x:32.7,z:-36.55,w:1,d:.3}},

@@ -1,4 +1,5 @@
 import { createClasses } from '../shared/classes.mjs';
+import { createEconomyService, principalOf } from './economy/service.mjs';
 import { createFleet, vehicleContains } from '../shared/vehicles.mjs';
 import { randomUUID, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -24,7 +25,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const str=v=>typeof v==='string'?v:'',num=v=>typeof v==='number'?v:NaN;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
-export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=24,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000}={}){
+export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=24,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null}={}){
  const clients=new Map(),bans=new Set();let reportQueue=Promise.resolve();
  // ---- social: what others may know about a player, account-level blocks, and parties
  // A player who chose "appear offline" keeps their name and avatar (they are visibly here) but their
@@ -37,6 +38,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // Seats, doors and basketballs are authoritative here; clients send requests, never outcomes.
  const fleet=createFleet(),classes=createClasses();
  const world=createWorld();let worldRevision=world.revision;
+ const economy=createEconomyService({file:labFile});
  // Court Duel: one match at a time on The Courts, scored by the room's own physics.
  const duels=createDuels({world,players:()=>joined(),byId:id=>clients.get(id),send:(c,m)=>send(c.ws,m),broadcast:m=>broadcast(m),describe,rules:duelRules,record:m=>recordDuel(m),
   onStart:d=>d.players.forEach(p=>analytics.track(p,'duel_started')),onFinish:d=>d.players.forEach(p=>analytics.track(p,'duel_completed',{outcome:d.result.outcome}))});
@@ -326,7 +328,11 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     // A signed-in player joins as a guest and is upgraded once the room has verified the token.
     if(typeof m.access==='string'&&rate('auth',4,60000))authenticate(c,m.access);else startSession(c);return;
    }if(!c.joined)return;
-   if(m.type==='classAction'&&rate('classAction',5)){const r=classes.action(c,m);if(!r.ok)send(ws,{type:'notice',text:r.reason});broadcast({type:'classes',sessions:classes.snapshot()});
+   if(m.type==='lab'){
+    if(!rate('lab',12,10000)){send(ws,{type:'labResult',ref:Number.isInteger(m.ref)?m.ref:null,ok:false,reason:'Wait a moment before using this workstation again.'});return;}
+    const principal=principalOf(c);
+    economy.request(c,m).then(r=>{if(clients.get(id)===c&&c.joined&&principalOf(c)===principal)send(ws,{type:'labResult',ref:Number.isInteger(m.ref)?m.ref:null,...r});});
+   }else if(m.type==='classAction'&&rate('classAction',5)){const r=classes.action(c,m);if(!r.ok)send(ws,{type:'notice',text:r.reason});broadcast({type:'classes',sessions:classes.snapshot()});
    }else if(m.type==='vehicleInput'&&rate('vehicleInput',35)){fleet.control(c,m);
    }else if(['vehicleEnter','vehicleExit','vehicleRecover'].includes(m.type)&&rate('vehicleAction',5)){
     const r=m.type==='vehicleEnter'?fleet.enter(c,str(m.id),m.seat??0):m.type==='vehicleExit'?fleet.exit(c,joined()):fleet.recover(c,joined());
@@ -468,6 +474,6 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(++tick%2===0)broadcast({type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm})=>({id,name,avatar,space:dorm?dorm.host.id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()});
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
- return {http,wss,clients,fleet,parties,duels,challenges,world,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:()=>new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);})};
+ return {http,wss,clients,fleet,parties,duels,challenges,world,economy,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:async()=>{await economy.close();return new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);});}};
 }
 function clean(value,max){return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,max):'';}

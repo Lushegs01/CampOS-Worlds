@@ -1,3 +1,4 @@
+import { buildEconomicLab } from './economicLab';
 import * as THREE from 'three';
 import { Kit, wall, windowUnit, fins, sunshade, breezeScreen, railing, hipRoof, flatRoof, waterTank, acUnit, downpipe, door, rng, wasteBin, type V3 } from './kit';
 import { sign } from './signage';
@@ -414,7 +415,7 @@ export function bench(kit: Kit, x: number, z: number, rotY: number, length = 1.9
 }
 
 export function buildBuildings(c: BuildContext) {
-  library(c); studentHouse(c); auditorium(c);
+  library(c); studentHouse(c); auditorium(c); buildEconomicLab(c);
   academic(c, -62, -42, -53.5, -36.5, { roof: 'roofRed', wallMat: 'stuccoCream', balustrade: 'breeze', name: 'FACULTY OF SCIENCES', seed: 300, monument: [-46, 0, -33.6] });
   academic(c, 31, 53, -52, -34, { roof: 'roofGreen', wallMat: 'stucco', balustrade: 'rail', name: 'SCHOOL OF DESIGN', seed: 400, monument: [47.5, 0, -32.6], classroom: true });
   boundary(c); pavilions(c);
