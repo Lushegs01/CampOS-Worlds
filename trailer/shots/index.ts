@@ -172,7 +172,7 @@ export const SHOTS: Shot[] = [
     act: r => { if (emote && r.memory.e !== true && r.sim > -.75) { r.emote(emote); r.memory.e = true; } },
     cam: (r, t) => {
       const T = i * .5 + t, a = mix(-.55, .55, T / 2);
-      return pose(orbit([0, 0, 31], 3.4, a, .34), vec([0, 1.18, 31]), fovFor(r.aspect, 48));
+      return pose(orbit([0, 0, 31], 3.4, a, .34), vec([0, 1.18, 31]), fovFor(r.aspect, 48, 44));
     },
   })),
   // Through the library's open double doors (opening x -32..-28) behind two players.
@@ -272,7 +272,7 @@ export const SHOTS: Shot[] = [
       const along = pos.clone().sub(vec([SHOOT.x, 0, SHOOT.z])).dot(toHoop), limit = vec([HOOP.x, 0, HOOP.z]).sub(vec([SHOOT.x, 0, SHOOT.z])).length() - 2.2;
       if (along > limit) pos.addScaledVector(toHoop, limit - along);
       pos.y = Math.max(1.2, pos.y);
-      return pose(pos, lerpV(target, hoop, .35), fovFor(r.aspect, 52));
+      return pose(pos, lerpV(target, hoop, .35), fovFor(r.aspect, 52, 42));
     },
   },
   // Score: an orbit around the celebration, a friend waving.
@@ -285,7 +285,7 @@ export const SHOTS: Shot[] = [
     cam: (r, t) => {
       const a = mix(.2, 1.35, ease.out(seg(t, -.2, 1.0)));
       // The camera tilts up with the jump (the game's jump peaks about 2.5 m up).
-      return pose(orbit([44.4, 0, 16.6], 3.9, a, 1.0), vec([44.4, 1.35 + r.player.y * .55, 16.6]), fovFor(r.aspect, 62), .03);
+      return pose(orbit([44.4, 0, 16.6], 3.9, a, 1.0), vec([44.4, 1.35 + r.player.y * .55, 16.6]), fovFor(r.aspect, 62, 58), .03);
     },
     blur: () => 2,
   },
@@ -376,7 +376,7 @@ export const SHOTS: Shot[] = [
     cam: (r, t) => {
       const k = ease.inOut(seg(t, -.2, 1.95));
       const pos = vec([0, mix(1.7, 30, k), mix(14.4, 50, k)]);
-      return pose(pos, vec([0, mix(1.9, 0, k), mix(6, -8, k)]), fovFor(r.aspect, mix(48, 58, k)));
+      return pose(pos, vec([0, mix(1.9, 0, k), mix(6, -8, k)]), fovFor(r.aspect, mix(48, 58, k), mix(52, 38, k)));
     },
   },
 

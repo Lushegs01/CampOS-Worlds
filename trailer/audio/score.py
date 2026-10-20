@@ -541,7 +541,7 @@ def main():
     # Loudness for social platforms (they normalise to about -14 LUFS): gain to the target, then a peak
     # limiter catches only the impacts, so the quiet sections stay quiet and the hits still land.
     gain = 10 ** ((TARGET_LUFS - lufs(mix)) / 20)
-    mix = limiter(mix * gain, ceiling=10 ** (-1.5 / 20))
+    mix = limiter(mix * gain, ceiling=10 ** (-2.0 / 20))
     for k, v in stems.items():
         write_wav(os.path.join(out, 'stems', f'{k}.wav'), v * gain * 0.7)
         print(f'{k:9s} {rms_db(v * gain):6.1f} dB RMS')
