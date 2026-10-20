@@ -11,6 +11,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, EXTMeshoptCompression, KHRTextureBasisu } from '@gltf-transform/extensions';
 import { prune, dedup, resample, weld, meshopt } from '@gltf-transform/functions';
 import { MeshoptEncoder } from 'meshoptimizer';
+import { shapeAmara } from './shape-amara.mjs';
 import { CACHE, OUT, ROOT, ensureDir, fetchCached, decodeTGA, encodeKTX2Batch, writeJSON, kb } from './common.mjs';
 
 const RB = 'https://raw.githubusercontent.com/microsoft/Microsoft-Rocketbox/master';
@@ -99,6 +100,7 @@ async function buildCharacter(c, tree) {
   }
   const glb = fbx2glb(fbx, path.join(dir, 'raw'));
   const doc = await io().read(glb);
+  if (c.id === 'amara') shapeAmara(doc);
   const head = decodeTGA(fs.readFileSync(textures.head_color));
   const ref = skinReference(head);
 
