@@ -5,6 +5,7 @@ import { createServer as httpServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'vite';
 import { createRoom } from '../server/room.mjs';
+import { localPoint, VEHICLE_TYPES, vehicleContains } from '../shared/vehicles.mjs';
 import { launch, open } from './support/browser.mjs';
 
 const port=5182, origin=`http://127.0.0.1:${port}`, room=createRoom({port:0,origins:[origin]});
@@ -58,6 +59,14 @@ try{
  await page.waitForFunction(old=>window.__campusNet.id()!==old&&window.__campusDebug.state().prediction.active,before);
  await page.waitForTimeout(2000);const resting=await page.evaluate(()=>window.__campusDebug.state());await page.waitForTimeout(1500);const later=await page.evaluate(()=>window.__campusDebug.state());
  assert.ok(Math.hypot(later.x-resting.x,later.z-resting.z)<.02);pass('blur clears held movement; reconnect resets prediction and velocity');
+ const car=room.fleet.vehicles[0],front=localPoint(car,0,VEHICLE_TYPES[car.type].length/2+.7),walker=room.clients.get(await page.evaluate(()=>window.__campusNet.id()));
+ Object.assign(walker,front,{y:0,vx:0,vz:0,vy:0});
+ await page.waitForFunction(p=>Math.hypot(window.__campusDebug.state().x-p.x,window.__campusDebug.state().z-p.z)<.01,front);
+ const beside=await page.evaluate(()=>window.__campusNet.id());await page.evaluate(()=>window.__campusNet.abandon());Object.assign(car,front,{idle:0});
+ await page.waitForFunction(id=>window.__campusNet.id()&&window.__campusNet.id()!==id&&window.__campusDebug.state().prediction.active,beside);
+ const resumed=await page.evaluate(()=>window.__campusDebug.state());
+ assert.ok(Math.hypot(resumed.x-front.x,resumed.z-front.z)<4,`car reconnect reset to ${resumed.x},${resumed.z}`);
+ assert.equal(vehicleContains(car,resumed.x,resumed.z),false);pass('reconnecting when a car covers the standing spot resumes safely beside it instead of at the gate');
  const shooter=room.clients.get(await page.evaluate(()=>window.__campusNet.id())),ball=room.world.balls[0];
  Object.assign(shooter,{x:ball.x,z:ball.z+.5,y:0,vx:0,vz:0,vy:0});
  await page.waitForFunction(x=>Math.abs(window.__campusDebug.state().x-x)<.01,ball.x);

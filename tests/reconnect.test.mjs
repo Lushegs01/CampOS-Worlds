@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 import { createRoom } from '../server/room.mjs';
 import { SPAWN, blocked, setDoorOpen } from '../shared/campus.mjs';
+import { localPoint, vehicleContains, VEHICLE_TYPES } from '../shared/vehicles.mjs';
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 function next(ws, predicate, timeout = 3000) {
@@ -15,11 +16,11 @@ function next(ws, predicate, timeout = 3000) {
     ws.on('message', handler);
   });
 }
-async function join(url, name, token) {
+async function join(url, name, token, movement) {
   const ws = new WebSocket(url, { origin: 'http://localhost:5173' });
   await new Promise((r, j) => { ws.once('open', r); ws.once('error', j); });
   const welcome = next(ws, m => m.type === 'welcome');
-  ws.send(JSON.stringify({ type: 'join', name, avatar: {}, ...(token ? { token } : {}) }));
+  ws.send(JSON.stringify({ type: 'join', name, avatar: {}, movement, ...(token ? { token } : {}) }));
   return { ws, welcome: await welcome, send: m => ws.send(JSON.stringify(m)) };
 }
 async function withRoom(fn, options = {}) {
@@ -85,6 +86,34 @@ test('a new session, or one whose spot is no longer clear, starts at the gate', 
   assert.equal(blocked(-30, -4.3), true);
   const back = await connect('Ada', a.welcome.token);
   assert.deepEqual([back.welcome.position.x, back.welcome.position.z], [SPAWN.x, SPAWN.z]);
+}));
+
+test('a car occupying a saved walking position resumes the player beside it, not at the gate', () => withRoom(async (room, connect) => {
+  const a = await connect('Ada', undefined, 1), car = room.fleet.vehicles[0];
+  const front = localPoint(car, 0, VEHICLE_TYPES[car.type].length / 2 + .7);
+  assert.equal(blocked(front.x, front.z), false);
+  assert.equal(vehicleContains(car, front.x, front.z), false);
+  Object.assign(room.clients.get(a.welcome.id), front);
+  const closed = new Promise(r => a.ws.once('close', r)); a.ws.close(); await closed;
+  // While the connection is absent, another driver can move onto the old standing spot.
+  Object.assign(car, { x: front.x, z: front.z, idle: 0 });
+  const back = await connect('Ada', a.welcome.token, 1), p = back.welcome.position;
+  assert.ok(Math.hypot(p.x - front.x, p.z - front.z) < 4, `reconnected at ${p.x},${p.z}, away from the car`);
+  assert.equal(blocked(p.x, p.z), false);
+  assert.equal(vehicleContains(car, p.x, p.z), false);
+  assert.ok(Math.hypot(p.x - SPAWN.x, p.z - SPAWN.z) > 10);
+  assert.deepEqual([back.welcome.motion.x, back.welcome.motion.z], [p.x, p.z]);
+}));
+
+test('a disconnected vehicle occupant reconnects on foot beside the car with the seat freed', () => withRoom(async (room, connect) => {
+  const a = await connect('Ada', undefined, 1), car = room.fleet.vehicles[0], c = room.clients.get(a.welcome.id);
+  Object.assign(c, localPoint(car, VEHICLE_TYPES[car.type].width / 2 + .65, -.02));
+  assert.equal(room.fleet.enter(c, car.id, 0).ok, true);
+  const back = await connect('Ada', a.welcome.token, 1), p = back.welcome.position;
+  assert.ok(Math.hypot(p.x - car.x, p.z - car.z) < 5, `reconnected at ${p.x},${p.z}, away from the car`);
+  assert.equal(vehicleContains(car, p.x, p.z), false);
+  assert.equal(car.occupants[0], null);
+  assert.equal(room.clients.get(back.welcome.id).vehicle ?? null, null);
 }));
 
 test('a settle request cannot move a player through a closed door or a wall', () => withRoom(async (room, connect) => {

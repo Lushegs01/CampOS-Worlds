@@ -286,16 +286,29 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  }
  // Where recently departed sessions stood (session token -> position), so a reconnect resumes there.
  const recent=new Map();
+ // A car can occupy a saved spot while someone is disconnected. Resume on clear ground beside it
+ // instead of throwing away a valid campus position and sending the player all the way to the gate.
+ function resumePosition(back){
+  if(!back||Date.now()-back.at>=partyLimits.graceMs||blocked(back.x,back.z)||inDormRoom(back.x,back.z))return null;
+  const clear=(x,z)=>!blocked(x,z)&&!inDormRoom(x,z)&&!fleet.vehicles.some(v=>vehicleContains(v,x,z));
+  if(clear(back.x,back.z))return {x:back.x,z:back.z,yaw:back.yaw};
+  for(let r=.5;r<=6;r+=.5)for(let i=0;i<24;i++){
+   const a=back.yaw+i*Math.PI/12,x=back.x+Math.sin(a)*r,z=back.z+Math.cos(a)*r;
+   if(!clear(x,z))continue;
+   const q=moveWithCollisions(back.x,back.z,x-back.x,z-back.z);
+   if(Math.hypot(q.x-x,q.z-z)<.05)return {x,z,yaw:back.yaw};
+  }
+  return null;
+ }
  /** A connection leaves the room (closed, replaced by a newer one of the same session, or removed). Runs once. */
  function depart(c,code){
   if(c.departed)return;c.departed=true;const was=c.joined;c.joined=false;
   clearTimeout(c.socialTimer);challenges.release(c);
   if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});
-  const driving=!!c.vehicle;
   duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);
   // A resident reconnects outside their room's door: the room is entered (and its layout loaded) only on request.
   const at=c.dorm||inDormRoom(c.x,c.z)?DORM_OUTSIDE:c;vacate(c);
-  if(was&&c.token&&!driving)recent.set(c.token,{x:at.x,z:at.z,yaw:at.yaw,at:Date.now()});
+  if(was&&c.token)recent.set(c.token,{x:at.x,z:at.z,yaw:at.yaw,at:Date.now()});
   clients.delete(c.id);if(was)broadcast({type:'left',id:c.id});
  }
  http.on('upgrade',(req,socket,head)=>{
@@ -322,8 +335,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     if(prior){depart(prior,4004);prior.ws.close(4004,'Session opened in another window');}
     c.token=token;c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});c.joined=true;
     // A reconnecting session carries on where the room last had it (if that spot is still clear), not at the gate.
-    const back=recent.get(token);recent.delete(token);
-    if(back&&Date.now()-back.at<partyLimits.graceMs&&!blocked(back.x,back.z)&&!inDormRoom(back.x,back.z)&&!fleet.vehicles.some(v=>vehicleContains(v,back.x,back.z)))Object.assign(c,{x:back.x,z:back.z,y:0,yaw:back.yaw});
+    const back=resumePosition(recent.get(token));recent.delete(token);
+    if(back)Object.assign(c,back,{y:0});
     if(m.movement===MOTION_VERSION)c.motion=createMotionAuthority(c,performance.now());
     send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),classes:classes.snapshot(),accounts:!!accounts.enabled,room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
     // A reload or dropped connection with the same session token takes its party place back.

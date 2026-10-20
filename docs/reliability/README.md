@@ -10,6 +10,7 @@ A deterministic replay of the old path produced 19 backward corrections (largest
 | --- | --- |
 | Delayed snapshots pull walking players backward | Acknowledgements and replay replace the trail heuristic for the new protocol |
 | Private velocity survives position corrections/reconnects | Physics velocity is part of the reconciled state and resets on disconnect |
+| Reconnecting near or inside a vehicle can reset the player to the gate | Keep vehicle occupants’ saved position and search for nearby clear ground when a car covers it |
 | Buffered input bursts can strand a movement sequence | Bounded burst allowance; duplicates are harmless and sequence gaps resynchronize |
 | Remote clock retains an old connection's offset | Reset clock mapping on welcome |
 | Cars extrapolate forever when other/empty vehicle deltas refresh a shared timestamp | Immutable snapshots with a separate 250 ms horizon for each vehicle |
@@ -24,17 +25,25 @@ A deterministic replay of the old path produced 19 backward corrections (largest
 ## Validation
 
 - Baseline: 159 automated tests passed before changes.
-- Final automated suite: **173 passed, 0 failed**.
+- Final automated suite: **175 passed, 0 failed**.
 - Automated regressions cover delayed/bursty delivery, turns, jump, key release, 2 FPS frames, command duplication, forged durations, collision corrections, stale generations, bounded history, packet size, real WebSocket acknowledgement, legacy-message bypass, vehicle extrapolation and corrupt preferences.
-- Chrome movement: 1,000 ms one-way delay plus 600 ms jitter; no backward corrections, final authoritative position gap **0 m**. Median frame interval 394 ms, maximum 1355 ms under software WebGL. This deliberately exercises slow frames; it is not a hardware performance benchmark.
+- Chrome movement: 1,000 ms one-way delay plus 600 ms jitter; no backward corrections, final authoritative position gap **0 m**. Median frame interval 233 ms, maximum 595 ms under software WebGL. This deliberately exercises slow frames; it is not a hardware performance benchmark.
 - Chrome touch: real multi-touch joystick, camera look and accelerator ownership; visibility resets; recovery from corrupt saved settings.
 - Charging decelerates through shared physics; jump-shot impulses are sequenced even when released between frames, so acknowledgements preserve the jump. Transition generations preserve the server's time budget.
 - Production TypeScript/Vite build passes. Vite retains its existing large Three.js chunk warning.
 
-All **28 browser checks** passed: movement/shooting (4), controls/storage (6), campus recovery (8), and the economic lab (10). Machine-readable browser results are beside this document. The long campus and economic-lab workflows retain their own result files.
+All **29 browser checks** passed: movement/shooting (5), controls/storage (6), campus recovery (8), and the economic lab (10). Machine-readable browser results are beside this document. The long campus and economic-lab workflows retain their own result files.
 
 ## Scope and operation
 
 Deploy/restart both the room server and client bundle for the new movement protocol, then reload open game tabs. Older clients retain their existing protocol during a rolling deployment. No database migration is needed.
 
 The checks cover reproduced defects and exercised workflows, not a proof that every possible bug is absent. Real authoritative collisions or teleports can still correct a prediction. Prolonged disconnection and unavailable GPU resources cannot be made into smooth real-time play by reconciliation alone. Voice chat, multi-room scaling and other roadmap features were not treated as defects.
+
+## Car-side reconnect follow-up
+
+The reported car-to-gate jump has a separate reproducible path. During rejoin, a vehicle overlapping the saved position caused that position to be discarded and the default gate spawn `(0, 36)` to be used. Departing vehicle occupants also had no saved position at all. Two real-WebSocket regressions reproduced both failures before this change.
+
+Vehicle occupants now keep their authoritative position when disconnected. Within the existing reconnect grace period, a vehicle-blocked position resolves to the closest sampled clear campus spot within 6 m, with campus collision checks along the path. Rejoining never restores vehicle occupancy automatically. The Chrome workflow also reconnects after a car covers the standing spot and asserts that the player remains nearby outside the car.
+
+This fixes the reproduced vehicle fallback; it does not establish the cause of a particular live session without its logs. Saved positions are still held in the room process for the existing grace period. A room restart, an expired session, an unusable position with no nearby safe spot, or a new token can still start at the gate. Deploy the updated room server to apply this follow-up; refreshing only the frontend does not change that server behavior.
