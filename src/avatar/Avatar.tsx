@@ -150,7 +150,7 @@ function surface(rig: Rig, toRig: THREE.Matrix4, part: 'head' | 'body') {
       if ((onHead[i] & onHead[j] & onHead[k]) !== (part === 'head' ? 1 : 0)) continue;
       const a = vertex(i), b = vertex(j), c = vertex(k);
       if (part === 'body' && (Math.max(a.y, b.y, c.y) < waist || Math.min(Math.abs(a.x), Math.abs(b.x), Math.abs(c.x)) > arm)) continue;
-      const steps = Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / .01);
+      const steps = Math.max(1, Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / .01));
       ab.subVectors(b, a).divideScalar(steps); ac.subVectors(c, a).divideScalar(steps);
       for (let u = 0; u <= steps; u++) for (let v = 0; v <= steps - u; v++) {
         const p = a.clone().addScaledVector(ab, u).addScaledVector(ac, v);
@@ -179,6 +179,7 @@ function outline(points: THREE.Vector3[], c: THREE.Vector3, u: THREE.Vector3, v:
   return filled.map((x, i) => Math.max(x, filled[i - 1] ?? 0, filled[i + 1] ?? 0));
 }
 const onArc = (c: THREE.Vector3, u: THREE.Vector3, v: THREE.Vector3, a: number, r: number) => c.clone().addScaledVector(u, Math.cos(a) * r).addScaledVector(v, Math.sin(a) * r);
+const finite = (v: unknown): boolean => typeof v === 'number' ? Number.isFinite(v) : !v || typeof v !== 'object' || Object.values(v).every(finite);
 const highest = (points: THREE.Vector3[], keep: (p: THREE.Vector3) => boolean, value: (p: THREE.Vector3) => number) => { let m = -Infinity; for (const p of points) if (keep(p)) m = Math.max(m, value(p)); return m; };
 
 /** Glasses and headphones, measured on a rig posed at rest (bones at their glTF transforms, matrices up to date). */
@@ -327,12 +328,17 @@ function useRig(config: AvatarConfig): Rig {
     // Fit the accessory to the rest pose in the rig's space, then re-parent it to the bone.
     const saved = Object.values(rig.bones).map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()] as const);
     for (const b of Object.values(rig.bones)) rig.rest.get(b.name)?.decompose(b.position, b.quaternion, b.scale);
-    rig.root.updateMatrixWorld(true);
+    // Parents first: a player who has just come into view mounts before their group's first world matrix,
+    // and the measurement needs the rig, its bones and its meshes (with their bind matrices, which only
+    // updateMatrixWorld refreshes) in one consistent frame.
+    rig.root.updateWorldMatrix(true, false); rig.root.updateMatrixWorld(true);
     const back = config.accessory === 'backpack', key = `${rig.info.id}:${back ? 'back' : 'head'}`;
-    let fit = fits.get(key); if (!fit) fits.set(key, fit = back ? backFit(rig) : headFit(rig));
-    const mesh = accessoryMeshes(config.accessory, config.accent, fit);
-    rig.root.add(mesh); rig.root.updateMatrixWorld(true); bone.attach(mesh);
+    let fit = fits.get(key); if (!fit) { fit = back ? backFit(rig) : headFit(rig); if (finite(fit)) fits.set(key, fit); }
+    // A character the measurement cannot read goes without the accessory rather than without its body.
+    const mesh = finite(fit) ? accessoryMeshes(config.accessory, config.accent, fit) : null;
+    if (mesh) { rig.root.add(mesh); rig.root.updateMatrixWorld(true); bone.attach(mesh); }
     for (const [b, p, q, s] of saved) { b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); }
+    if (!mesh) return;
     rig.accessory = mesh;
     return () => { mesh.removeFromParent(); mesh.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } }); rig.accessory = null; };
   }, [rig, config.accessory, config.accent]);
