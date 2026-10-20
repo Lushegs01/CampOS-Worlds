@@ -38,7 +38,9 @@ export function keyed(t: number, keys: [number, number][], curve = ease.sine) {
 export function travel(t: number, speeds: [number, number][]) {
   const t0 = speeds[0][0], t1 = speeds[speeds.length - 1][0], n = 400, h = (t1 - t0) / n;
   let total = 0, done = 0;
-  for (let i = 0; i < n; i++) { const a = t0 + (i + .5) * h, v = keyed(a, speeds, ease.linear) * h; total += v; if (a < t) done += a + h / 2 <= t ? v : v * (t - (a - h / 2)) / h; }
+  // Each step counts in proportion from its start, so distance grows smoothly with t (no step pattern
+  // beating against the frame rate).
+  for (let i = 0; i < n; i++) { const lo = t0 + i * h, v = keyed(lo + h / 2, speeds, ease.linear) * h; total += v; if (lo < t) done += lo + h <= t ? v : v * (t - lo) / h; }
   return clamp01(done / total);
 }
 

@@ -100,7 +100,8 @@ export const SHOTS: Shot[] = [
       const fov = r.aspect < 1 ? keyed(t, [[0, 46], [.7, 48], [1.55, 70], [2.3, 64], [4.2, 60]]) : keyed(t, [[0, 28], [.7, 30], [1.55, 46], [2.3, 41], [4.2, 38]]);
       return pose(p, look, fov, keyed(t, [[1.8, 0], [3, -.025], [4.2, -.03]]));
     },
-    blur: t => t > .8 && t < 2.5 ? 3 : 1,
+    // The rush covers up to 3.5 m a frame with palms and lamp posts close by: sub-frames follow the speed.
+    blur: t => Math.min(9, Math.max(1, Math.round(hookPos(t + 1 / 30).distanceTo(hookPos(t)) * 2.6))),
   },
 
   // ------------------------------------------------------------------ scene 02 — enter the world
