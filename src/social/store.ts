@@ -42,7 +42,7 @@ const EMPTY: UnreadSummary = { requests: 0, messages: 0, conversations: 0 };
 export const useSocial = create<SocialState>(() => ({
   open: false, tab: 'friends', conversation: null,
   overview: null, overviewState: 'idle', overviewError: '', unread: EMPTY, conversations: null, conversationsError: '', threads: {},
-  party: null, invites: [], guestInvites: 'everyone', notifications: savedPrefs.notifications !== false, chatChannel: 'room',
+  party: null, invites: [], guestInvites: 'everyone', notifications: savedPrefs?.notifications !== false, chatChannel: 'room',
 }));
 const set = useSocial.setState, get = useSocial.getState, svc = getCommunityService;
 export const isMember = () => { const a = useAccount.getState(); return a.status === 'signed-in' && !!a.profile; };

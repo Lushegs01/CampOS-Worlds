@@ -8,8 +8,8 @@ import {LAB_STATIONS} from '../shared/economic-lab.mjs';
 
 const webPort=5181,room=createRoom({port:0,origins:[`http://127.0.0.1:${webPort}`]}),address=await room.start();
 process.env.ROOM_URL=`127.0.0.1:${address.port}`;
-const web=await createServer({server:{port:webPort,strictPort:true,host:'127.0.0.1'},logLevel:'warn'});await web.listen();
-const browser=await launch(),errors=[],results=[],shots='docs/screenshots/economic-lab';await mkdir(shots,{recursive:true});
+const web=await createServer({server:{hmr:false,port:webPort,strictPort:true,host:'127.0.0.1'},logLevel:'warn'});await web.listen();
+const browser=await launch(),errors=[],results=[],shots=process.env.TEST_OUTPUT_DIR||'docs/screenshots/economic-lab';await mkdir(shots,{recursive:true});
 const pass=s=>{results.push(s);console.log('PASS',s);};
 let page;
 const state=()=>page.evaluate(()=>window.__campusDebug.state());

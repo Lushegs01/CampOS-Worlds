@@ -24,7 +24,8 @@ async function withRoom(fn) {
     ws.send(JSON.stringify({ type: 'join', name, avatar: {}, ...(token ? { token } : {}) }));
     const c = { ws, welcome: await welcome, send: m => ws.send(JSON.stringify(m)) };
     c.id = c.welcome.id; c.server = () => room.clients.get(c.id);
-    c.dorm = (action, extra = {}) => { const r = next(ws, m => m.type === 'dormResult' && m.action === action); c.send({ type: 'dorm', action, ...extra }); return r; };
+    let ref = 0;
+    c.dorm = (action, extra = {}) => { const id = ++ref, r = next(ws, m => m.type === 'dormResult' && m.ref === id); c.send({ type: 'dorm', ref: id, action, ...extra }); return r; };
     c.state = () => next(ws, m => m.type === 'state');
     return c;
   };

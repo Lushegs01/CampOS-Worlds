@@ -137,8 +137,9 @@ function AdaptiveResolution({ max, min }: { max: number; min: number }) {
 function Render() {
   const skipped = useRef(0);
   useFrame(({ gl, scene, camera }, dt) => {
-    if (behindMenu()) { skipped.current += dt; if (skipped.current < MENU_FRAME) return; }
-    const elapsed = skipped.current + dt; skipped.current = 0;
+    skipped.current += dt;
+    if (behindMenu() && skipped.current < MENU_FRAME) return;
+    const elapsed = skipped.current; skipped.current = 0;
     if (postStack.composer) postStack.composer.render(elapsed); else gl.render(scene, camera);
   }, 1);
   return null;

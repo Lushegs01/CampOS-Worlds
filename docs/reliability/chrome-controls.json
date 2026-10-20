@@ -1,0 +1,11 @@
+{
+  "results": [
+    "two fingers on the joystick: releasing a secondary touch preserves movement; releasing its owner stops it",
+    "secondary touch release preserves camera look ownership",
+    "two fingers on accelerator: each pointer releases only its own hold",
+    "visibility changes clear movement and jump latches",
+    "corrupt saved settings recover to a playable campus",
+    "denied session storage still joins and reconnects with the same room token"
+  ],
+  "errors": []
+}

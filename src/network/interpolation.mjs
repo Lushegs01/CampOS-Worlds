@@ -15,6 +15,7 @@ const EXTRAPOLATE = 250, TELEPORT = 5;
 export function createClock() {
   let offset = null;
   return {
+    reset() { offset = null; },
     /** Record a message stamped `roomMs` that arrived at `localMs`; returns its time on our clock. */
     receive(roomMs, localMs) {
       const d = localMs - roomMs;

@@ -1,7 +1,9 @@
 import { receiveClasses } from '../ui/Classes';
 import { receiveVehicles, vehicleResult, setOccupancy, disconnectVehicles } from '../vehicles/client';
 import { useEffect } from 'react';
-import { livePeers, peerTracks, player, trail, useGame, type Peer } from '../state';
+import { livePeers, peerTracks, player, prediction, trail, useGame, type Peer } from '../state';
+import { MOTION_VERSION } from '../../shared/prediction.mjs';
+import { createSession } from './session.mjs';
 import { createClock, createTrack } from './interpolation.mjs';
 import { bindNetwork, unbindNetwork, receive, loadSnapshot, releaseLocal } from '../interaction/world';
 import type { AvatarConfig } from '../state';
@@ -28,7 +30,15 @@ export function sendAccountIdentity(token:string|null|'refresh',name?:string,ava
 let socket:WebSocket|null=null;let ownId='';let reconnect:ReturnType<typeof setTimeout>;let retry=0;let stopped=false;
 /** Connection attempts that failed since the last successful join (a reliability statistic, sent only with consent). */
 let failures=0;
-export function send(data:unknown){if(socket?.readyState===WebSocket.OPEN){socket.send(JSON.stringify(data));return true;}return false;}
+const session=createSession(()=>sessionStorage);
+export function flushMovement(){
+ if(!prediction.active||socket?.readyState!==WebSocket.OPEN)return;
+ for(let batch=prediction.batch();batch.commands.length;batch=prediction.batch()){
+  socket.send(JSON.stringify(batch));prediction.didSend(batch);
+ }
+}
+// TCP preserves ordering: range-checked actions must follow the movement that brought us there.
+export function send(data:unknown){if(socket?.readyState===WebSocket.OPEN){if((data as {type?:string})?.type!=='move')flushMovement();socket.send(JSON.stringify(data));return true;}return false;}
 /** Where the room last placed us (read by the development QA hook to diagnose drift). */
 export const roomSelf={x:NaN,z:NaN};
 export function interact(id:string){if(useGame.getState().status==='connected'){send({type:'interact',id});}else openLocation(id);}
@@ -51,17 +61,17 @@ export function connect(){
  const ws=new WebSocket(url);socket=ws;
  // Signed-in players include their access token in the join message (never in the URL); the room
  // verifies it with the account service and upgrades the guest identity.
- ws.onopen=async()=>{if(socket!==ws)return;const access=await bridge?.access().catch(()=>null)??null;if(socket!==ws)return;const g=useGame.getState();send({type:'join',name:g.name,avatar:g.avatar,invite:g.invite,token:sessionStorage.getItem('campus-session'),analytics:analyticsPayload(),...(access?{access}:{})});};
+ ws.onopen=async()=>{if(socket!==ws)return;const access=await bridge?.access().catch(()=>null)??null;if(socket!==ws)return;const g=useGame.getState();send({type:'join',movement:MOTION_VERSION,name:g.name,avatar:g.avatar,invite:g.invite,token:session.get(),analytics:analyticsPayload(),...(access?{access}:{})});};
  ws.onmessage=event=>{if(socket!==ws)return;let m;try{m=JSON.parse(event.data);}catch{return;}const s=useGame.getState();
   if(m.classes)receiveClasses(m.classes);if(m.type==='classes')receiveClasses(m.sessions);
-  if(m.type==='welcome'){ownId=m.id;retry=0;if(failures&&analyticsPayload().consent)setTimeout(()=>send({type:'telemetry',failures}),1000);failures=0;Object.assign(roomInfo,m.room??{id:'courtyard',name:'The Courtyard'});sessionStorage.setItem('campus-session',m.token);Object.assign(player,m.position,{vy:0,reconcile:null});trail.clear();releaseLocal(true);bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);if(m.vehicles)receiveVehicles(m.vehicles);setOccupancy(null,null);s.set({status:'connected'});}
+  if(m.type==='welcome'){prediction.stop();roomClock.reset();ownId=m.id;retry=0;if(failures&&analyticsPayload().consent)setTimeout(()=>send({type:'telemetry',failures}),1000);failures=0;Object.assign(roomInfo,m.room??{id:'courtyard',name:'The Courtyard'});session.set(m.token);Object.assign(player,m.position,{vx:0,vz:0,vy:0,reconcile:null});trail.clear();releaseLocal(true);bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);if(m.vehicles)receiveVehicles(m.vehicles);setOccupancy(null,null);s.set({status:'connected'});}
   if(m.type==='vehicles')receiveVehicles(m.vehicles);
   if(m.type==='vehicleResult')vehicleResult(m);
   if(m.type==='state'){if(m.vehicles)receiveVehicles(m.vehicles);const self=m.players.find((p:{id:string})=>p.id===ownId);if(self){setOccupancy(self.vehicle??null,self.vehicleSeat??null);roomSelf.x=self.x;roomSelf.z=self.z;}const live=self&&!self.vehicle,gap=live?Math.hypot(self.x-player.x,self.z-player.z):0;
    // The room's position trails ours by the network and tick delay: only a position away from the path we
    // just walked is real disagreement (beyond 2 m, snap to it). A lagging snapshot used to snap us back.
-   if(live&&gap>2&&trail.distance(self.x,self.z,performance.now())>2){Object.assign(player,{x:self.x,z:self.z,y:self.y,reconcile:null});trail.clear();}
-   else player.reconcile=live&&!self.moving&&gap>.9&&player.speed<.05&&!player.sit?{x:self.x,z:self.z}:null;/* glide only once the room has stopped us too (never toward a mid-stride snapshot); under 0.9 m a settle request corrects the room instead */if(m.balls)receive({type:'balls',balls:m.balls});syncPeers(m.players.filter((p:Peer)=>p.id!==ownId),m.players.length,m.at);}
+   if(!m.motion&&live&&gap>2&&trail.distance(self.x,self.z,performance.now())>2){Object.assign(player,{x:self.x,z:self.z,y:self.y,reconcile:null});trail.clear();}
+   else player.reconcile=!m.motion&&live&&!self.moving&&gap>.9&&player.speed<.05&&!player.sit?{x:self.x,z:self.z}:null;/* glide only once the room has stopped us too (never toward a mid-stride snapshot); under 0.9 m a settle request corrects the room instead */if(m.balls)receive({type:'balls',balls:m.balls});syncPeers(m.players.filter((p:Peer)=>p.id!==ownId),m.players.length,m.at);}
   if(m.type==='left'){livePeers.delete(m.id);peerTracks.delete(m.id);s.set({peers:s.peers.filter(p=>p.id!==m.id),count:Math.max(1,s.count-1)});}
   if(m.type==='chat')s.set({messages:[...s.messages,{id:m.id,name:m.name,text:m.text,at:m.at,channel:(m.channel==='party'?'party':'room') as 'party'|'room',handle:m.handle??null,verified:m.verified===true}].slice(-80)});
   // The room moved us (meeting up with a party member): jump there rather than gliding.
@@ -73,10 +83,11 @@ export function connect(){
   if(m.type==='auth')bridge?.onAuth(m);
   if(m.type==='progress')bridge?.onProgress(m);
   for(const fn of roomListeners)fn(m);
+  if(m.motion){prediction.receive(m.motion);player.reconcile=null;}
  };
  // Only a session that actually joined has room state to tear down: failed reconnect attempts while
  // exploring offline must not eject the player from the local vehicle or reset local interactions.
- ws.onclose=e=>{if(socket!==ws)return;socket=null;const joined=useGame.getState().status==='connected';if(!joined)failures++;livePeers.clear();peerTracks.clear();if(joined){disconnectVehicles();unbindNetwork();ownId='';for(const fn of roomListeners)fn({type:'disconnected'});}useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
+ ws.onclose=e=>{if(socket!==ws)return;socket=null;if(prediction.active)prediction.stop();const joined=useGame.getState().status==='connected';if(!joined)failures++;livePeers.clear();peerTracks.clear();if(joined){disconnectVehicles();unbindNetwork();ownId='';for(const fn of roomListeners)fn({type:'disconnected'});}useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
  ws.onerror=()=>{};
 }
 // QA builds only: lose the connection the way a phone does when it changes networks (the room still holds
