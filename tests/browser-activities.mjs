@@ -76,7 +76,7 @@ try {
   await T.getByRole('button', { name: 'Close panel' }).click();
   await T.getByRole('button', { name: /^Friends, messages and party/ }).click();
   await T.locator('.social-drawer').getByRole('tab', { name: /^Privacy/ }).click();
-  await T.locator('.social-drawer').getByText('Friends only').click();
+  await T.locator('.social-drawer').getByText('Friends only', { exact: true }).click();
   await T.locator('.social-drawer').getByRole('button', { name: 'Save privacy settings' }).click();
   await T.locator('.social-drawer .field-ok', { hasText: 'Saved' }).waitFor();
   A = await open(browser, stack, 'Ada', errors, { viewport: { width: 1100, height: 760 } }); await signIn(A, ada);
