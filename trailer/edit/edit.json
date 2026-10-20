@@ -1,0 +1,43 @@
+{
+  "about": "Edit decision list for the CampOS Worlds reveal (42 s). Times are seconds on the film timeline at 30 fps; 120 BPM, so a beat is 15 frames and a bar 2 s. Each cut plays the take from its edit in-point (take time 0) unless 'from' says otherwise. compose.mjs (picture) and audio/score.py (music and sound) both read this file.",
+  "fps": 30,
+  "bpm": 120,
+  "duration": 42.0,
+  "cuts": [
+    { "shot": "01-hook", "at": 0.0, "to": 4.0, "in": "black" },
+    { "shot": "02-descend", "at": 4.0, "to": 7.0, "in": "flash" },
+    { "shot": "02-lateral", "at": 7.0, "to": 8.5, "in": "cut" },
+    { "shot": "02-shoulder", "at": 8.5, "to": 10.0, "in": "cut" },
+    { "shot": "03-connect", "at": 10.0, "to": 12.0, "in": "whip" },
+    { "shot": "03-style-1", "at": 12.0, "to": 12.5, "in": "flash", "from": 0.0 },
+    { "shot": "03-style-2", "at": 12.5, "to": 13.0, "in": "flash", "from": 0.0 },
+    { "shot": "03-style-3", "at": 13.0, "to": 13.5, "in": "flash", "from": 0.0 },
+    { "shot": "03-style-4", "at": 13.5, "to": 14.0, "in": "flash", "from": 0.0 },
+    { "shot": "03-doorway", "at": 14.0, "to": 15.25, "in": "cut" },
+    { "shot": "03-together", "at": 15.25, "to": 16.0, "in": "cut" },
+    { "shot": "04-wheel", "at": 16.0, "to": 17.0, "in": "whip" },
+    { "shot": "04-drive-wide", "at": 17.0, "to": 18.25, "in": "cut" },
+    { "shot": "04-court-slide", "at": 18.25, "to": 19.0, "in": "push" },
+    { "shot": "04-swish", "at": 19.0, "to": 21.25, "in": "cut" },
+    { "shot": "04-celebrate", "at": 21.25, "to": 22.0, "in": "cut" },
+    { "shot": "04-keepsake", "at": 22.0, "to": 23.25, "in": "flash" },
+    { "shot": "04-overhead", "at": 23.25, "to": 24.0, "in": "cut" },
+    { "shot": "05-landmark", "at": 24.0, "to": 26.75, "in": "spin" },
+    { "shot": "05-crane", "at": 26.75, "to": 28.75, "in": "dissolve" },
+    { "shot": "05-dolly", "at": 28.75, "to": 30.25, "in": "cut" },
+    { "shot": "05-pullback", "at": 30.25, "to": 32.0, "in": "cut" },
+    { "shot": "06-rise", "at": 32.0, "to": 42.0, "in": "dissolve" }
+  ],
+  "titles": [
+    { "text": "WHAT IF CAMPUS WAS A WORLD?", "at": 2.15, "to": 3.9, "style": "question" },
+    { "text": "EXPLORE.", "at": 5.0, "to": 6.5, "style": "word" },
+    { "text": "CONNECT.", "at": 10.5, "to": 11.9, "style": "word" },
+    { "text": "MAKE IT YOURS.", "at": 12.0, "to": 13.95, "style": "build", "beats": [12.0, 12.5, 13.0] },
+    { "text": "EXPLORE.", "at": 16.0, "to": 17.3, "style": "word" },
+    { "text": "COMPETE.", "at": 19.0, "to": 20.6, "style": "word" },
+    { "text": "DISCOVER.", "at": 22.0, "to": 23.2, "style": "word", "y": 0.66, "about": "below the keepsake, which floats at the centre of the frame" },
+    { "text": "YOUR CAMPUS.", "at": 25.0, "to": 26.6, "style": "statement" },
+    { "text": "YOUR STORIES.", "at": 27.0, "to": 28.7, "style": "statement" }
+  ],
+  "brand": { "logo": 36.0, "name": 37.2, "tagline": 38.2, "end": 42.0, "name_text": "CampOS Worlds", "tagline_text": "A CAMPUS YOU DON'T JUST VISIT. YOU EXPERIENCE." }
+}

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CampOS Worlds trailer compositor</title>
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }</script>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+  #out { position: absolute; left: 0; top: 0; }
+  #overlay, #logo { display: none; }
+</style>
+</head>
+<body>
+<canvas id="out"></canvas>
+<canvas id="overlay"></canvas>
+<canvas id="logo"></canvas>
+<script type="module" src="./compose.js"></script>
+</body>
+</html>

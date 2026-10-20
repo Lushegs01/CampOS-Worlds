@@ -1,0 +1,1 @@
+{"extends":"../tsconfig.json","include":["rig","shots","vite.capture.config.ts","../src/vite-env.d.ts","../src/n8ao.d.ts"]}
