@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-20T08:02:40.241Z",
+  "results": [
+    "a character that cannot be downloaded shows a stand-in; the campus keeps running",
+    "a silently dropped connection while seated reconnects in place, standing, with one session",
+    "after reconnecting, sitting and standing work again",
+    "a duplicated tab takes the session over; the older tab stops and says why",
+    "Low's render-once shadow leaves out 65 moving objects (vehicles, doors, balls, people) and restores them",
+    "a frozen (backgrounded) tab resumes connected, in place, and playable",
+    "a lost WebGL context offers a reload on Low instead of leaving a dead canvas",
+    "a newcomer behind the camera has all 6 character textures on the GPU before coming into view"
+  ],
+  "errors": []
+}

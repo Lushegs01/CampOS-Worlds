@@ -60,4 +60,5 @@ test('the room clock offset follows the least-delayed message', () => {
   assert.equal(clock.receive(1000, 5100), 5100);
   assert.equal(clock.receive(1100, 5150), 5150, 'a faster message lowers the offset');
   assert.ok(clock.receive(1200, 5400) < 5400, 'a slow one barely moves it');
+  clock.reset(); assert.equal(clock.receive(100, 9000), 9000, 'a new server connection starts with a fresh offset');
 });

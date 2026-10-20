@@ -160,9 +160,9 @@ try {
     pass(`a newcomer behind the camera has all ${r.textures} character textures on the GPU before coming into view`);
     ws.close(); await page.context().close();
   }
-  await writeFile('docs/reliability-results.json', JSON.stringify({ date: new Date().toISOString(), results, errors }, null, 2));
+  await writeFile(process.env.TEST_OUTPUT_FILE||'docs/reliability-results.json', JSON.stringify({ date: new Date().toISOString(), results, errors }, null, 2));
   assert.deepEqual(errors, []);
   console.log('ALL PASSED', results.length);
 } catch (e) {
-  console.error('FAILED', e); await writeFile('docs/reliability-results.json', JSON.stringify({ date: new Date().toISOString(), results, errors, failure: String(e) }, null, 2)); process.exitCode = 1;
+  console.error('FAILED', e); await writeFile(process.env.TEST_OUTPUT_FILE||'docs/reliability-results.json', JSON.stringify({ date: new Date().toISOString(), results, errors, failure: String(e) }, null, 2)); process.exitCode = 1;
 } finally { sockets.forEach(ws => ws.terminate()); await browser.close(); }

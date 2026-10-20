@@ -12,7 +12,7 @@ export type DormLayout = { items: DormItem[] };
 export type Person = { id: string; name: string; handle: string | null };
 export type RoomInvite = { host: string; from: Person; expires: number };
 type Action = 'enter' | 'leave' | 'save' | 'invite' | 'visit' | 'showOut';
-type Result = { ok: boolean; reason?: string; layout?: DormLayout; saved?: 'account' | 'session'; keeps?: 'account' | 'session'; x?: number; z?: number; yaw?: number; host?: string; hostName?: string; to?: string; visitors?: Person[] };
+type Result = { ok: boolean; ref?: number | null; reason?: string; layout?: DormLayout; saved?: 'account' | 'session'; keeps?: 'account' | 'session'; x?: number; z?: number; yaw?: number; host?: string; hostName?: string; to?: string; visitors?: Person[] };
 
 interface DormState {
   /** In a room: our own (host is our connection id) or a friend's. */
@@ -35,14 +35,15 @@ function arrive(r: Result) {
   Object.assign(player, { x: r.x, z: r.z, y: 0, vy: 0, reconcile: null }); trail.clear();
   if (typeof r.yaw === 'number') { player.yaw = r.yaw; input.yaw = r.yaw + Math.PI; }
 }
-// Requests waiting for their answer. The room answers some at once and some after reading the database,
-// so an answer goes to the oldest waiting request of the same action.
-const pending: { action: Action; done: (r: Result) => void }[] = [];
+// Correlate replies even after a request timed out and the same action was retried.
+let requestRef = 0;
+const pending: { ref: number; action: Action; done: (r: Result) => void }[] = [];
 function request(action: Action, extra: Record<string, unknown> = {}): Promise<Result> {
-  if (useGame.getState().status !== 'connected' || !send({ type: 'dorm', action, ...extra })) return Promise.resolve({ ok: false, reason: 'Rooms open when you’re connected to the campus.' });
+  const ref = ++requestRef;
+  if (useGame.getState().status !== 'connected' || !send({ type: 'dorm', ref, action, ...extra })) return Promise.resolve({ ok: false, reason: 'Rooms open when you’re connected to the campus.' });
   useDorm.setState({ busy: true });
   return new Promise(resolve => {
-    const entry = { action, done: (r: Result) => { clearTimeout(timer); resolve(r); } };
+    const entry = { ref, action, done: (r: Result) => { clearTimeout(timer); resolve(r); } };
     const timer = setTimeout(() => { const i = pending.indexOf(entry); if (i >= 0) pending.splice(i, 1); useDorm.setState({ busy: pending.length > 0 }); resolve({ ok: false, reason: 'The campus didn’t answer. Try again in a moment.' }); }, 8000);
     pending.push(entry);
   });
@@ -74,7 +75,7 @@ onRoomMessage(m => {
   if (m.type === 'dormResult') {
     const r = m as Result & { action: Action };
     // A leave the room decided on its own (the resident left, we were shown out) comes with a reason and answers no request.
-    const i = r.action === 'leave' && r.ok && r.reason ? -1 : pending.findIndex(p => p.action === r.action), resolve = i >= 0 ? pending.splice(i, 1)[0].done : null;
+    const i = r.action === 'leave' && r.ok && r.reason && r.ref == null ? -1 : typeof r.ref === 'number' ? pending.findIndex(p => p.ref === r.ref) : pending.findIndex(p => p.action === r.action), resolve = i >= 0 ? pending.splice(i, 1)[0].done : null;
     if (r.ok && (r.action === 'enter' || r.action === 'visit')) {
       useDorm.setState({ inside: true, host: r.host ?? selfConnection(), hostName: r.action === 'visit' ? r.hostName ?? '' : '', layout: r.layout ?? null, keeps: r.keeps ?? 'session', visitors: [] });
       arrive(r); useGame.getState().set({ panel: null });

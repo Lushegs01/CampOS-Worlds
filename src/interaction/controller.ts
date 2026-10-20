@@ -2,7 +2,7 @@ import { vehicleInteract, useVehicle, nearestDoor } from '../vehicles/client';
 import { SEATS, SEAT_BY_ID, DOORS, POINTS as POINT_DATA, BALLS, seatApproach, SEAT_RANGE, BALL_PICKUP_RANGE } from '../../shared/interactions.mjs';
 import { LOCATIONS } from '../../shared/campus.mjs';
 import { newBall, planShot, stepBall, targetHoop } from '../../shared/ball.mjs';
-import { input, player, useGame, type Gesture } from '../state';
+import { input, player, prediction, useGame, type Gesture } from '../state';
 import { interact } from '../network/client';
 import { me, onWorldEvent, request, selfIdNow, useInteraction, world, type WorldEvent } from './world';
 import { sfx } from './sound';
@@ -116,7 +116,7 @@ export function releaseShot(at?: number) {
   // can be a fifth of the sweep, which made the gold band impossible to hit.
   const charge = chargeAt(Math.max(chargeStart, eventTime(at))), ball = me.ball, zone = useInteraction.getState().zone;
   player.charge = null; player.release = nowS();
-  if (player.y === 0) player.vy = 4.4; // a small jump shot
+  if (player.y === 0) { if (prediction.active) prediction.hop(); else player.vy = 4.4; }
   pending = true; sfx('shot');
   void request('shoot', { yaw: player.yaw, charge }).then(r => {
     pending = false;

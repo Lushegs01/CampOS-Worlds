@@ -8,11 +8,11 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Avatar from '../avatar/Avatar';
 import { AvatarBoundary } from '../avatar/AvatarBoundary';
-import { input, player, trail, useGame } from '../state';
+import { input, player, prediction, trail, useGame } from '../state';
 import { COLLIDERS, LOCATIONS, TOKENS, collidersIn } from '../../shared/campus.mjs';
 import { stepFrame, MAX_STEP, WALK_SPEED, SPRINT_SPEED, JUMP_SPEED } from '../../shared/movement.mjs';
 import { SEAT_BY_ID, seatApproach } from '../../shared/interactions.mjs';
-import { roomSelf, send } from '../network/client';
+import { roomSelf, send, flushMovement } from '../network/client';
 import { activate, activity, beginSit, cancelApproach, cancelCharge, chargeStartedAt, drop, releaseShot, requestSit, standUp, startCharge, tickInteractions } from '../interaction/controller';
 import { useInteraction, world } from '../interaction/world';
 import { currentKeepsakes } from '../account/store';
@@ -26,11 +26,10 @@ let qaTarget: { x: number; z: number; until: number } | null = null;
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 const body = { x: 0, z: 0, y: 0, vx: 0, vz: 0, vy: 0 };
 /**
- * Steering to a point `d` away: no faster than covers most of what is left after the next frame. Connected,
- * a new input only takes effect after one more frame of the one already sent (the room's order), so that
- * frame's travel is subtracted first; otherwise one slow frame carried the player past the point.
+ * Steering to a point `d` away: no faster than covers most of what is left after the next frame.
+ * Legacy rooms apply the last sent input for one more frame, so subtract that travel first.
  */
-const arrive = (d: number, frame: number, connected: boolean) => { const f = Math.max(Math.min(frame, MAX_STEP), 1 / 60), coming = connected ? Math.hypot(sentMove.x, sentMove.z) * f : 0; return Math.max(0, .8 * (d - coming) / f); };
+const arrive = (d: number, frame: number, connected: boolean) => { const f = Math.max(Math.min(frame, MAX_STEP), 1 / 60), coming = connected && !prediction.active ? Math.hypot(sentMove.x, sentMove.z) * f : 0; return Math.max(0, .8 * (d - coming) / f); };
 /** The walking velocity of the last input sent: what the room is applying until the next one arrives. */
 const sentMove = { x: 0, z: 0 };
 // Vehicles block walking into them, never walking out (someone left inside a footprint can step clear).
@@ -78,7 +77,7 @@ const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3)
 
 export default function Player() {
   const avatar = useGame(s => s.avatar), root = useRef<THREE.Group>(null!), { gl } = useThree();
-  const velocity = useRef({ x: 0, z: 0 }), idle = useRef({ t: 0, sent: 0 }), lastSend = useRef(0), sentStill = useRef(false), lastSense = useRef(0), collectSent = useRef<Record<string, number>>({});
+  const idle = useRef({ t: 0, sent: 0 }), lastSend = useRef(0), sentStill = useRef(false), lastSense = useRef(0), collectSent = useRef<Record<string, number>>({});
   const cam = useRef({ yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0 });
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
@@ -99,7 +98,7 @@ export default function Player() {
       if (['Digit1', 'Digit2', 'Digit3'].includes(e.code) && act === 'free') { const emote = ['wave', 'dance', 'cheer'][Number(e.code.slice(-1)) - 1]; player.emote = emote; player.emoteUntil = Date.now() + 3000; send({ type: 'emote', emote }); }
     };
     const keyup = (e: KeyboardEvent) => { keys.delete(e.code); if (e.code === 'Space') releaseShot(e.timeStamp / 1000); };
-    const clear = () => { keys.clear(); input.x = input.z = 0; input.dragging = false; cancelCharge(); };
+    const clear = () => { keys.clear(); input.jump = false; input.x = input.z = 0; input.dragging = false; cancelCharge(); };
     const mouse = (e: MouseEvent) => { const s = useGame.getState(); if (s.phase !== 'playing' || s.panel) return; if (document.pointerLockElement === gl.domElement || input.dragging) { input.yaw -= e.movementX * .0032; input.pitch = THREE.MathUtils.clamp(input.pitch + e.movementY * .0022, -.25, .95); } };
     const down = (e: PointerEvent) => { if (e.pointerType === 'touch') return; if (useGame.getState().phase === 'playing' && !useGame.getState().panel) input.dragging = true; };
     const up = () => { input.dragging = false; };
@@ -107,16 +106,18 @@ export default function Player() {
     // Development-only QA hook for scripted screenshots from fixed viewpoints.
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusDebug = {
       scene: () => gl.domElement,
-      teleport: (x: number, z: number, yaw = 0, pitch = .04, zoom = 5.4) => { if (player.sit) return; player.x = x; player.z = z; player.y = 0; player.vy = 0; trail.clear(); input.yaw = yaw; input.pitch = pitch; cam.current.zoom = zoom; cam.current.arm = zoom; cam.current.yaw = yaw; cam.current.intro = 1; player.yaw = yaw + Math.PI; },
+      teleport: (x: number, z: number, yaw = 0, pitch = .04, zoom = 5.4) => { if (player.sit) return; player.x = x; player.z = z; player.y = 0; player.vx = player.vz = player.vy = 0; trail.clear(); input.yaw = yaw; input.pitch = pitch; cam.current.zoom = zoom; cam.current.arm = zoom; cam.current.yaw = yaw; cam.current.intro = 1; player.yaw = yaw + Math.PI; },
       activate, standUp, drop, startCharge, releaseShot, sit: (id: string) => beginSit(id),
       walkTo: (x: number, z: number) => { qaTarget = Number.isFinite(x) && Number.isFinite(z) ? { x, z, until: performance.now() + 120000 } : null; }, walking: () => !!qaTarget,
       focus: () => useInteraction.getState().focus,
-      state: () => ({ activity: activity(), chargeStart: chargeStartedAt(), x: player.x, z: player.z, room: { ...roomSelf }, y: player.y, yaw: player.yaw, sit: player.sit && { ...player.sit }, holding: player.holding, charge: player.charge, ui: { ...useInteraction.getState(), set: undefined }, world: world.snapshot() }),
+      state: () => ({ prediction: { active: prediction.active, pending: prediction.pending }, activity: activity(), chargeStart: chargeStartedAt(), x: player.x, z: player.z, room: { ...roomSelf }, y: player.y, yaw: player.yaw, sit: player.sit && { ...player.sit }, holding: player.holding, charge: player.charge, ui: { ...useInteraction.getState(), set: undefined }, world: world.snapshot() }),
       face: (yaw: number) => { player.yaw = yaw; input.yaw = yaw + Math.PI; cam.current.yaw = input.yaw; },
     };
-    window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
-    return () => { window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
+    window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); document.addEventListener('visibilitychange', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
+    return () => { window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
   }, [gl]);
+
+  useEffect(() => { prediction.collision(footAllowed); }, []);
 
   useFrame(({ camera, clock }, raw) => {
     const dt = Math.min(raw, .25), s = useGame.getState(), c = cam.current;
@@ -133,7 +134,7 @@ export default function Player() {
     tickInteractions(dt);
     const vehicle=currentVehicle(),occupancy=useVehicle.getState();
     if(vehicle){
-      velocity.current.x=velocity.current.z=0;input.jump=false;player.y=player.vy=player.speed=0;player.moving=false;
+      player.vx=player.vz=0;input.jump=false;player.y=player.vy=player.speed=0;player.moving=false;
       driving.throttle=enabled?(Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-input.z):0;
       driving.steer=enabled?(Number(keys.has('KeyA')||keys.has('ArrowLeft'))-Number(keys.has('KeyD')||keys.has('ArrowRight'))-input.x):0;
       driving.brake=!enabled||keys.has('Space');
@@ -146,7 +147,7 @@ export default function Player() {
     }
     driving.throttle=driving.steer=0;
     // Finished standing: step onto the spot the stand-up motion ended on.
-    if (player.sit?.phase === 'done') { const exit = player.sit.exit; if (exit) { player.x = exit.x; player.z = exit.z; } player.sit = null; velocity.current.x = velocity.current.z = 0; }
+    if (player.sit?.phase === 'done') { const exit = player.sit.exit; if (exit) { player.x = exit.x; player.z = exit.z; } player.sit = null; player.vx = player.vz = 0; }
     const act = activity(), sit = player.sit, seat = sit ? SEAT_BY_ID.get(sit.seat) : undefined;
     const onSeat = !!seat && (sit!.phase === 'down' || sit!.phase === 'seated' || sit!.phase === 'up');
     const still = onSeat || act === 'charging' || sit?.phase === 'request';
@@ -165,9 +166,9 @@ export default function Player() {
         if (via && d < .14) sit.path!.shift();
         else if (via || d > .05) { dx = ex / d; dz = ez / d; speed = Math.min(via ? 1.4 : Math.min(1.5, d * 3 + .3), arrive(d, raw, s.status === 'connected')); scale = speed / WALK_SPEED; }
         else {
-          dx = dz = 0; player.x = a.x; player.z = a.z; player.yaw = seat.yaw;
+          dx = dz = 0; player.yaw = seat.yaw;
           let err = seat.yaw - root.current.rotation.y; err = Math.atan2(Math.sin(err), Math.cos(err));
-          if (Math.abs(err) < .12 && Math.hypot(velocity.current.x, velocity.current.z) < .3) requestSit();
+          if (Math.abs(err) < .12 && Math.hypot(player.vx, player.vz) < .3) requestSit();
         }
         if (sit.t > 8 && d > .2) { cancelApproach(); s.notify('Something is in the way of that seat.'); }
       }
@@ -177,7 +178,7 @@ export default function Player() {
       if (d < .1 || performance.now() > qaTarget.until) qaTarget = null;
       else { dx = ex / d; dz = ez / d; sprint = false; speed = Math.min(WALK_SPEED, d * 4 + .3, arrive(d, raw, s.status === 'connected')); scale = speed / WALK_SPEED; }
     }
-    if (still) { dx = dz = 0; velocity.current.x = velocity.current.z = 0; }
+    if (still) { dx = dz = 0; if (!prediction.active) player.vx = player.vz = 0; }
     // Drifted out of agreement with the room while standing: glide back (any input cancels it).
     if (player.reconcile) {
       if (Math.hypot(dx, dz) > .01 || player.sit) player.reconcile = null;
@@ -186,25 +187,26 @@ export default function Player() {
         if (d < .05) player.reconcile = null; else { player.x += ex / d * step; player.z += ez / d * step; }
       }
     }
-    // Integrate movement in real time (in ≤50 ms substeps) even when frames are slow, with the room's
-    // own integrator and limit. Connected, the time since the last frame is walked with the input the
-    // room has been applying (the last one sent), not the one just computed: applying a new input to time
-    // that had already passed weighted each input by a different frame than the room did, so on uneven
-    // slow frames the two stopped up to a frame's walk apart (then glided or snapped).
+    // Predict each timed command with the shared physics, retaining it until the room acknowledges it.
+    // Older rooms retain the previous-input integrator until both client and server are deployed.
     const beforeX = player.x, beforeZ = player.z, connected = s.status === 'connected';
-    const jump = enabled && input.jump && player.y === 0 && !still && !sit; if (jump) player.vy = JUMP_SPEED;
+    const jump = enabled && input.jump && player.y === 0 && !still && !sit; if (jump && !prediction.active) player.vy = JUMP_SPEED;
     input.jump = false;
     const wantX = dx * speed, wantZ = dz * speed;
+    if (Math.hypot(dx, dz) > .1) player.yaw = Math.atan2(dx, dz);
+    if (prediction.active) { sentMove.x = wantX; sentMove.z = wantZ; }
     if (still || !connected) { sentMove.x = wantX; sentMove.z = wantZ; }
-    body.x = player.x; body.z = player.z; body.y = player.y; body.vy = player.vy; body.vx = velocity.current.x; body.vz = velocity.current.z;
-    const real = stepFrame(body, sentMove.x, sentMove.z, raw, footAllowed);
-    player.x = body.x; player.z = body.z; player.y = body.y; player.vy = body.vy; velocity.current.x = body.vx; velocity.current.z = body.vz;
+    body.x = player.x; body.z = player.z; body.y = player.y; body.vy = player.vy; body.vx = player.vx; body.vz = player.vz;
+    const real = prediction.active
+      ? prediction.frame(raw, dx * scale, dz * scale, sprint, jump, player.yaw)
+      : stepFrame(body, sentMove.x, sentMove.z, raw, footAllowed);
+    if (prediction.active && !real && jump) input.jump = true;
+    if (!prediction.active) { player.x = body.x; player.z = body.z; player.y = body.y; player.vy = body.vy; player.vx = body.vx; player.vz = body.vz; }
     trail.push(player.x, player.z, performance.now());
     // Animation reads the speed actually achieved (so walking into a wall doesn't run on the spot).
     const achieved = Math.hypot(player.x - beforeX, player.z - beforeZ) / Math.max(real, 1e-4);
     player.speed = THREE.MathUtils.damp(player.speed, achieved, 14, dt);
-    player.moving = Math.hypot(velocity.current.x, velocity.current.z) > .2; player.sprinting = sprint;
-    if (Math.hypot(dx, dz) > .1) player.yaw = Math.atan2(dx, dz);
+    player.moving = achieved > .2; player.sprinting = sprint;
     // Sitting down, seated and standing up, the body is anchored to the seat; the avatar replays the
     // captured travel onto and off it.
     const px = onSeat ? seat!.x : player.x, pz = onSeat ? seat!.z : player.z;
@@ -239,14 +241,16 @@ export default function Player() {
     // needs reminding 4 times a second (the first "stopped" still goes out at once). The room allows 35 a second.
     const stillInput = Math.hypot(dx, dz) < .01 && !sprint, since = clock.elapsedTime - lastSend.current;
     const changed = Math.abs(wantX - sentMove.x) + Math.abs(wantZ - sentMove.z) > .05;
-    if (jump || (changed && since > .04) || since > (stillInput && sentStill.current ? .25 : .05)) {
+    if (prediction.active) {
+      if (since > .05 || prediction.batch().commands.length >= 16) { flushMovement(); lastSend.current = clock.elapsedTime; }
+    } else if (jump || (changed && since > .04) || since > (stillInput && sentStill.current ? .25 : .05)) {
       if (send({ type: 'input', dx: dx * scale, dz: dz * scale, yaw: player.yaw, sprint, jump })) { sentMove.x = wantX; sentMove.z = wantZ; }
       lastSend.current = clock.elapsedTime; sentStill.current = stillInput;
     }
     // Standing still: keep the room's copy of our position in step with what we see.
     const resting = !player.sit && Math.hypot(dx, dz) < .01 && player.speed < .05 && player.y === 0;
     idle.current.t = resting ? idle.current.t + dt : 0;
-    if (idle.current.t > .25 && clock.elapsedTime - idle.current.sent > .5) { idle.current.sent = clock.elapsedTime; send({ type: 'settle', x: player.x, z: player.z }); }
+    if (!prediction.active && idle.current.t > .25 && clock.elapsedTime - idle.current.sent > .5) { idle.current.sent = clock.elapsedTime; send({ type: 'settle', x: player.x, z: player.z }); }
     if (clock.elapsedTime - lastSense.current > .15) {
       lastSense.current = clock.elapsedTime;
       const near = LOCATIONS.map(l => ({ id: l.id, d: Math.hypot(l.x - player.x, l.z - player.z) })).sort((a, b) => a.d - b.d)[0]; const id = near.d < 5 ? near.id : null; if (s.nearby !== id) s.set({ nearby: id });
