@@ -202,7 +202,7 @@ export const SHOTS: Shot[] = [
       const look = lerpV(vec([hero.x - .5, 1.15, 11.1]), vec([hero.x + 14, 1.5, 22]), whip);
       return pose(pos, look, fovFor(r.aspect, 56), -whip * .06);
     },
-    blur: t => t < 0 ? 1 : 6,
+    blur: t => t < 0 ? 1 : 3,
   },
 
   // ------------------------------------------------------------------ scene 04 — live the moment
@@ -252,7 +252,7 @@ export const SHOTS: Shot[] = [
       const x = mix(37.5, 44.2, ease.sine(seg(t, -.2, .95))), hero = at(r);
       return pose(vec([x, 1.45, 7.5]), vec([mix(x + 2, hero.x, .7), 1.15, hero.z]), fovFor(r.aspect, 40));
     },
-    blur: t => t < -.15 || t > .75 ? 1 : 6,
+    blur: t => t < -.15 || t > .75 ? 1 : 3,
   },
   // The jump shot in slow motion: the camera rides with the ball to the south hoop.
   {
@@ -292,7 +292,7 @@ export const SHOTS: Shot[] = [
       // The camera tilts up with the jump (the game's jump peaks about 2.5 m up).
       return pose(orbit([44.4, 0, 16.6], 3.9, a, 1.0), vec([44.4, 1.35 + r.player.y * .55, 16.6]), fovFor(r.aspect, 62, 58), .03);
     },
-    blur: t => t < 0 ? 1 : t < .3 ? 8 : t < .55 ? 6 : 4,
+    blur: t => t < 0 ? 1 : t < .35 ? 4 : 3,
   },
   // Discover: a golden keepsake in the library reading room; the player walks up to it.
   {

@@ -1,6 +1,7 @@
 # CampOS Worlds: cinematic reveal
 
-A 42-second vertical reveal film (1080 × 1920, 30 fps) and a 16:9 cut (1920 × 1080), made entirely
+A 42-second vertical reveal film (1080 × 1920, 30 fps), with every take and graphic also framed for a
+16:9 cut (1920 × 1080), made entirely
 from the real game. Every shot is rendered by the CampOS Worlds client itself, at its High quality
 setting, in the real Òrìṣun Campus. A frame-accurate capture rig drives the game and places a
 cinematic camera, so the camera moves do not come from gameplay recordings. The music and sound
@@ -9,7 +10,7 @@ ambience and engine sounds.
 
 | | |
 |---|---|
-| Films | `deliverables/campos-worlds-reveal-9x16.mp4`, `deliverables/campos-worlds-reveal-16x9.mp4` |
+| Film | `deliverables/campos-worlds-reveal-9x16.mp4` (H.264 / AAC, 8 Mb/s). The 16:9 cut is set up (takes, framing, titles) but not yet rendered: `tools/build.sh 16x9` makes it |
 | Captions | `deliverables/captions/on-screen-text.srt` (every word shown), `voiceover.srt` (script on the cut) |
 | Audio | `deliverables/audio/mix.wav` (48 kHz / 24-bit, −14 LUFS), `deliverables/audio/stems/*.flac`: music, bass, drums, fx, ambience (24-bit, lossless; together they make the mix before the master bus, 3 dB down, so a voiceover can be mixed in) |
 | What was staged, what to capture live | [`CAPTURE-CHECKLIST.md`](CAPTURE-CHECKLIST.md) |
