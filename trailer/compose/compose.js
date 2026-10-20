@@ -298,7 +298,7 @@ function project(pose, p) {
 const MARKERS = [
   // The game's own location names (shared/campus.mjs), pinned to the real places.
   // They pin themselves to the campus first, then clear for the title (YOUR CAMPUS. at 25.0).
-  { shot: '05-landmark', at: 24.15, to: 25.3, name: 'THE CONFLUENCE', kind: 'LANDMARK', p: [0, 7.4, 0] },
+  { shot: '05-landmark', at: 24.15, to: 25.3, name: 'THE CONFLUENCE', kind: 'LANDMARK', p: [0, 8.8, 0] }, // just above the bronze arcs (top about 8.3 m)
   { shot: '05-landmark', at: 24.3, to: 25.3, name: 'HORIZON AUDITORIUM', kind: 'TALKS & EVENTS', p: [0, 13.6, -40] },
   { shot: '05-landmark', at: 24.45, to: 25.3, name: 'ADUNNI LEARNING COMMONS', kind: 'LIBRARY', p: [-30, 10.2, -10] },
   { shot: '05-landmark', at: 24.6, to: 25.3, name: 'THE STUDENT HOUSE', kind: 'COMMUNITY & CAFÉ', p: [30, 9.4, -9] },
@@ -306,15 +306,19 @@ const MARKERS = [
 function drawMarker(ctx, m, T, pose) {
   const q = project(pose, m.p); if (!q) return;
   const [x, y] = q, k = ease.outExpo(seg(T, m.at, m.at + .5)), e = ease.in(seg(T, m.to - .3, m.to));
-  const margin = 70 * U; if (x < margin || x > W - margin * 2.6 || y < H * .12 || y > H * .7) return;
+  const margin = 70 * U; if (x < margin || x > W - margin || y < H * .12 || y > H * .7) return;
+  // The text reads to the right of its leader line, or to the left where it would run off the frame.
+  ctx.font = font(700, 27 * U);
+  const nameW = [...m.name].reduce((s, ch) => s + ctx.measureText(ch).width, 0) + 1.2 * U * (m.name.length - 1);
+  const flip = x + 12 * U + nameW > W - 40 * U, tx = flip ? x - 12 * U : x + 12 * U, align = flip ? 'right' : 'left';
   ctx.save(); ctx.globalAlpha = k * (1 - e);
   ctx.strokeStyle = BRAND.gold; ctx.lineWidth = 2.5 * U;
   ctx.beginPath(); ctx.arc(x, y, 9 * U * k, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle = BRAND.gold; ctx.beginPath(); ctx.arc(x, y, 3.2 * U, 0, Math.PI * 2); ctx.fill();
   const len = 64 * U * k; ctx.beginPath(); ctx.moveTo(x, y - 12 * U); ctx.lineTo(x, y - 12 * U - len); ctx.stroke();
   ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(10,20,15,.45)'; ctx.shadowBlur = 14 * U;
-  ctx.font = font(600, 17 * U, 'DM Sans'); ctx.fillStyle = BRAND.gold; spaced(ctx, m.kind, x + 12 * U, y - 12 * U - len + 4 * U, 3.4 * U, 'left');
-  ctx.font = font(700, 27 * U); ctx.fillStyle = BRAND.cream; spaced(ctx, m.name, x + 12 * U, y - 12 * U - len + 36 * U, 1.2 * U, 'left');
+  ctx.font = font(600, 17 * U, 'DM Sans'); ctx.fillStyle = BRAND.gold; spaced(ctx, m.kind, tx, y - 12 * U - len + 4 * U, 3.4 * U, align);
+  ctx.font = font(700, 27 * U); ctx.fillStyle = BRAND.cream; spaced(ctx, m.name, tx, y - 12 * U - len + 36 * U, 1.2 * U, align);
   ctx.restore();
 }
 // The five-stop campus tour (shared/campus.mjs TOUR), along the real walks: Welcome Pavilion, The
@@ -373,7 +377,7 @@ function drawEndCard(ctx, T) {
   // Tagline.
   const tk = ease.out(seg(T, B.tagline, B.tagline + .8));
   if (tk > 0) {
-    const ty = sym.y + sym.h + (portrait ? 165 : 120) * U, size = (portrait ? 36 : 32) * U, tr = (portrait ? 4.4 : 5) * U;
+    const ty = sym.y + sym.h + (portrait ? 165 : 120) * U, size = (portrait ? 40 : 32) * U, tr = (portrait ? 4 : 5) * U;
     ctx.save(); ctx.globalAlpha = tk; ctx.textBaseline = 'alphabetic';
     ctx.font = font(600, size, 'DM Sans'); ctx.fillStyle = BRAND.cream;
     if (portrait) {
