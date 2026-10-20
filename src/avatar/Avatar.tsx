@@ -115,31 +115,163 @@ function patchMaterial(material: THREE.MeshStandardMaterial, uniforms: { uSkinTi
   material.customProgramCacheKey = () => 'avatar-skin';
 }
 
-function accessoryMeshes(kind: string, accent: string) {
+/**
+ * Where accessories meet one character, measured on its own rest-pose mesh in rig space (+Z is the wearer's
+ * front). Hair, hoods and headscarves are part of the mesh, so headphones sit over them and straps over collars.
+ */
+interface HeadFit { eye: THREE.Vector3; lensZ: number; temple: number; side: number; ear: THREE.Vector3; earWidth: number; band: THREE.Vector3[] }
+interface BackFit { pack: THREE.Vector3; strap: THREE.Vector3[]; webbing: THREE.Vector3[] }
+const fits = new Map<string, HeadFit | BackFit>();
+
+/**
+ * Points about a centimetre apart over a rig's surface at rest, in rig space: everything that moves with the
+ * head (face, hair, headwear), or the clothed upper body without the arms, folded onto one side (+X) so both
+ * shoulder straps follow the same outline. The bodies are low-poly: their vertices alone are too sparse to find
+ * a chest or a shoulder. `face` is the vertices of the head material alone: the face is finely modelled, and a
+ * headscarf's large triangles in the same material would otherwise reach in beside the eyes.
+ */
+function surface(rig: Rig, toRig: THREE.Matrix4, part: 'head' | 'body') {
+  const points: THREE.Vector3[] = [], face: THREE.Vector3[] = [], index = new THREE.Vector4(), weight = new THREE.Vector4(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+  const at = (name: string) => rig.bones[name].getWorldPosition(new THREE.Vector3()).applyMatrix4(toRig), waist = at('Bip01_Pelvis').y, arm = Math.abs(at('Bip01_L_UpperArm').x);
+  rig.root.traverse(o => {
+    const mesh = o as THREE.SkinnedMesh, material = (mesh.material as THREE.Material | undefined)?.name;
+    if (!mesh.isSkinnedMesh || part === 'body' && material !== 'body') return;
+    const g = mesh.geometry, count = g.attributes.position.count, hb = mesh.skeleton.bones.indexOf(rig.bones.Bip01_Head), toLocal = toRig.clone().multiply(mesh.matrixWorld);
+    const onHead = new Uint8Array(count), skinned: THREE.Vector3[] = [];
+    for (let i = 0; i < count; i++) {
+      index.fromBufferAttribute(g.attributes.skinIndex as THREE.BufferAttribute, i); weight.fromBufferAttribute(g.attributes.skinWeight as THREE.BufferAttribute, i);
+      let w = 0; for (let k = 0; k < 4; k++) if (index.getComponent(k) === hb) w += weight.getComponent(k);
+      onHead[i] = w > .5 ? 1 : 0;
+    }
+    const vertex = (i: number) => skinned[i] ??= mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(toLocal);
+    if (part === 'head' && material === 'head') for (let i = 0; i < count; i++) if (onHead[i]) face.push(vertex(i));
+    for (let t = 0; t < (g.index?.count ?? count); t += 3) {
+      const [i, j, k] = [t, t + 1, t + 2].map(n => g.index ? g.index.getX(n) : n);
+      if ((onHead[i] & onHead[j] & onHead[k]) !== (part === 'head' ? 1 : 0)) continue;
+      const a = vertex(i), b = vertex(j), c = vertex(k);
+      if (part === 'body' && (Math.max(a.y, b.y, c.y) < waist || Math.min(Math.abs(a.x), Math.abs(b.x), Math.abs(c.x)) > arm)) continue;
+      const steps = Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / .01);
+      ab.subVectors(b, a).divideScalar(steps); ac.subVectors(c, a).divideScalar(steps);
+      for (let u = 0; u <= steps; u++) for (let v = 0; v <= steps - u; v++) {
+        const p = a.clone().addScaledVector(ab, u).addScaledVector(ac, v);
+        if (part === 'body') p.x = Math.abs(p.x);
+        points.push(p);
+      }
+    }
+  });
+  return { points, face };
+}
+
+/**
+ * The outermost surface around `c` in the plane of `u` and `v`: for each of `n` angles from a0 to a1 (from `u`
+ * towards `v`), the furthest of the points lying within `slab` of that plane.
+ */
+function outline(points: THREE.Vector3[], c: THREE.Vector3, u: THREE.Vector3, v: THREE.Vector3, slab: number, a0: number, a1: number, n: number) {
+  const r = new Array<number>(n).fill(0), normal = new THREE.Vector3().crossVectors(u, v), d = new THREE.Vector3();
+  for (const p of points) {
+    d.subVectors(p, c); if (Math.abs(d.dot(normal)) > slab) continue;
+    const x = d.dot(u), y = d.dot(v); let a = Math.atan2(y, x); if (a < a0) a += Math.PI * 2;
+    const i = Math.floor((a - a0) / (a1 - a0) * n); if (i >= 0 && i < n) r[i] = Math.max(r[i], Math.hypot(x, y));
+  }
+  // Angles no point fell into take their neighbours' radius; each then takes the widest of its neighbours,
+  // so a line drawn through them never dips into the surface in between.
+  const filled = r.map((x, i) => { if (x) return x; let a = i, b = i; while (a > 0 && !r[a]) a--; while (b < n - 1 && !r[b]) b++; return Math.max(r[a], r[b]); });
+  return filled.map((x, i) => Math.max(x, filled[i - 1] ?? 0, filled[i + 1] ?? 0));
+}
+const onArc = (c: THREE.Vector3, u: THREE.Vector3, v: THREE.Vector3, a: number, r: number) => c.clone().addScaledVector(u, Math.cos(a) * r).addScaledVector(v, Math.sin(a) * r);
+const highest = (points: THREE.Vector3[], keep: (p: THREE.Vector3) => boolean, value: (p: THREE.Vector3) => number) => { let m = -Infinity; for (const p of points) if (keep(p)) m = Math.max(m, value(p)); return m; };
+
+/** Glasses and headphones, measured on a rig posed at rest (bones at their glTF transforms, matrices up to date). */
+function headFit(rig: Rig): HeadFit {
+  const toRig = rig.root.matrixWorld.clone().invert(), at = (name: string) => rig.bones[name].getWorldPosition(new THREE.Vector3()).applyMatrix4(toRig);
+  const { points: head, face } = surface(rig, toRig, 'head');
+  // Glasses: lenses in front of the eyes, clear of the lids and resting on the bridge of the nose; arms past
+  // the temples to the tops of the ears.
+  const left = at('Bip01_LEye'), right = at('Bip01_REye'), eye = new THREE.Vector3(Math.abs(left.x - right.x) / 2, (left.y + right.y) / 2, (left.z + right.z) / 2);
+  const ear = new THREE.Vector3(0, eye.y - .022, at('Bip01_Head').z - .005), level = (p: THREE.Vector3) => Math.abs(p.y - eye.y) < .012;
+  const lid = highest(face, p => Math.abs(Math.abs(p.x) - eye.x) < .009 && Math.abs(p.y - eye.y) < .009, p => p.z);
+  const nose = highest(face, p => Math.abs(p.x) < .006 && level(p), p => p.z);
+  const temple = highest(face, p => level(p) && p.z > eye.z - .05 && p.z < eye.z, p => Math.abs(p.x));
+  const side = Math.max(temple, highest(face, p => level(p) && p.z > ear.z + .01 && p.z < ear.z + .035, p => Math.abs(p.x)));
+  // Headphones: cups over the ears (and whatever covers them), the band over the crown in the same plane.
+  const earWidth = highest(head, p => Math.abs(p.y - ear.y) < .035 && Math.abs(p.z - ear.z) < .04, p => Math.abs(p.x));
+  const crown = outline(head, ear, AXIS_X, AXIS_Y, .03, 0, Math.PI, 24).map((r, i, all) => Math.max(r, all[all.length - 1 - i]));
+  const band = crown.map((r, i) => onArc(ear, AXIS_X, AXIS_Y, (i + .5) / crown.length * Math.PI, r + .012)).filter(p => p.y > ear.y + .05);
+  return { eye, lensZ: Math.max(lid + .012, nose + .003), temple, side, ear, earWidth, band };
+}
+
+/** The backpack, measured on a rig posed at rest. */
+function backFit(rig: Rig): BackFit {
+  const toRig = rig.root.matrixWorld.clone().invert(), { points: body } = surface(rig, toRig, 'body');
+  // The pack hangs from just below the shoulders, against the back.
+  const strapX = Math.abs(rig.bones.Bip01_L_UpperArm.getWorldPosition(new THREE.Vector3()).applyMatrix4(toRig).x) * .5 + .02, onStrap = (p: THREE.Vector3) => Math.abs(p.x - strapX) < .02;
+  const shoulder = highest(body, onStrap, p => p.y), top = shoulder - .07;
+  const back = -highest(body, p => p.x < .15 && p.y < top && p.y > top - .42, p => -p.z), pack = new THREE.Vector3(0, top - .21, back - .085);
+  // Each strap leaves the top of the pack and follows the body over the shoulder (an outline around the upper
+  // chest) and straight down the front of the chest to a buckle; webbing runs from there under the arm to the
+  // bottom corner of the pack.
+  const across = (y: number) => (p: THREE.Vector3) => onStrap(p) && Math.abs(p.y - y) < .012;
+  const chest = new THREE.Vector3(strapX, shoulder - .13, 0);
+  chest.z = (highest(body, across(chest.y), p => p.z) - highest(body, across(chest.y), p => -p.z)) / 2;
+  const front = Array.from({ length: 8 }, (_, i) => chest.y - .14 + i * .02).map(y => new THREE.Vector3(strapX, y, highest(body, across(y), p => p.z) + .012));
+  const around = outline(body, chest, AXIS_Z, AXIS_Y, .02, 0, Math.PI, 24);
+  const over = around.map((r, i) => onArc(chest, AXIS_Z, AXIS_Y, (i + .5) / around.length * Math.PI, r + .012)).filter(p => p.z > chest.z || p.y > top + .02);
+  const strap = [...front, ...over, new THREE.Vector3(strapX, top - .03, pack.z + .05)];
+  const buckle = strap[0], below = buckle.y - .05, flank = highest(body, p => Math.abs(p.y - below) < .02, p => p.x);
+  const webbing = [buckle, new THREE.Vector3(flank + .008, below, chest.z), new THREE.Vector3(.14, pack.y - .16, pack.z + .05)];
+  return { pack, strap, webbing };
+}
+
+/** A tube along `points` with an oval section: `r` thick and `r * flat` wide along `axis`. */
+function flatTube(points: THREE.Vector3[], r: number, flat: number, axis: 'x' | 'z', material: THREE.Material) {
+  const offset = points[0][axis], curve = new THREE.CatmullRomCurve3(points.map(p => p.clone().setComponent(axis === 'x' ? 0 : 2, 0)));
+  const geometry = new THREE.TubeGeometry(curve, points.length * 4, r, 8);
+  if (axis === 'x') geometry.scale(flat, 1, 1).translate(offset, 0, 0); else geometry.scale(1, 1, flat).translate(0, 0, offset);
+  return new THREE.Mesh(geometry, material);
+}
+
+/** Accessory meshes in rig space, fitted to the character measured in `fit`. */
+function accessoryMeshes(kind: string, accent: string, fit: HeadFit | BackFit) {
   const group = new THREE.Group(), color = new THREE.Color(accent); group.userData.accessory = true; // disposed by its own effect
   const fabric = new THREE.MeshStandardMaterial({ color, roughness: .85 }), dark = new THREE.MeshStandardMaterial({ color: '#1e2124', roughness: .5, metalness: .3 });
   if (kind === 'backpack') {
-    // Daypack in the avatar's local frame (+Z is the wearer's front, so the pack sits at -Z).
+    // Daypack against the back (-Z); the straps are mirrored across the body.
+    const { pack: center, strap, webbing } = fit as BackFit, pack = new THREE.Group(); pack.position.copy(center);
     const body = new THREE.Mesh(new RoundedBoxGeometry(.31, .42, .15, 4, .06), fabric);
     const pocket = new THREE.Mesh(new RoundedBoxGeometry(.24, .17, .06, 3, .025), fabric); pocket.position.set(0, -.1, -.09);
     const trim = new THREE.Mesh(new THREE.BoxGeometry(.25, .012, .012), dark); trim.position.set(0, -.015, -.12);
     const handle = new THREE.Mesh(new THREE.TorusGeometry(.035, .008, 6, 16, Math.PI), dark); handle.position.set(0, .21, .01);
-    group.add(body, pocket, trim, handle);
-    // Shoulder straps curve over the shoulders and down the chest.
-    for (const x of [-.085, .085]) {
-      const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, .17, .05), new THREE.Vector3(x * 1.1, .27, .16), new THREE.Vector3(x * 1.2, .24, .3), new THREE.Vector3(x * 1.3, .04, .335), new THREE.Vector3(x * 1.3, -.17, .3)]);
-      group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 16, .014, 5).scale(1, 1, 1), dark));
+    pack.add(body, pocket, trim, handle); group.add(pack);
+    for (const s of [1, -1]) {
+      const side = (p: THREE.Vector3) => p.clone().setX(p.x * s);
+      const buckle = new THREE.Mesh(new THREE.BoxGeometry(.044, .022, .009), dark); buckle.position.copy(side(strap[0]));
+      buckle.quaternion.setFromUnitVectors(AXIS_Y, strap[1].clone().sub(strap[0]).normalize());
+      group.add(flatTube(strap.map(side), .006, 3, 'x', dark), buckle, new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(webbing.map(side)), 16, .004, 5), dark));
     }
   } else if (kind === 'headphones') {
-    const band = new THREE.Mesh(new THREE.TorusGeometry(.105, .012, 8, 32, Math.PI), dark); band.rotation.y = Math.PI / 2;
-    group.add(band);
-    for (const z of [-1, 1]) { const cup = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, .03, 20).rotateX(Math.PI / 2), fabric); cup.position.set(0, -.005, z * .1); group.add(cup); }
+    // Band over the crown from cup to cup; each cup is an accent shell on a dark cushion, centred on the ear.
+    const { ear, earWidth, band } = fit as HeadFit, cupX = earWidth + .004;
+    const ends = [1, -1].map(s => new THREE.Vector3(s * (cupX + .02), ear.y + .03, ear.z));
+    group.add(flatTube([ends[0], ...band, ends[1]], .006, 2.6, 'z', dark));
+    for (const s of [1, -1]) {
+      const cushion = new THREE.Mesh(new THREE.CylinderGeometry(.038, .04, .014, 24).rotateZ(Math.PI / 2).scale(1, 1.15, 1), dark); cushion.position.set(s * (cupX + .007), ear.y, ear.z);
+      const shell = new THREE.Mesh(new THREE.CylinderGeometry(.035, .042, .024, 24).rotateZ(-s * Math.PI / 2).scale(1, 1.15, 1), fabric); shell.position.set(s * (cupX + .026), ear.y, ear.z);
+      group.add(cushion, shell);
+    }
   } else if (kind === 'glasses') {
-    for (const x of [-1, 1]) { const rim = new THREE.Mesh(new THREE.TorusGeometry(.027, .0035, 6, 24).scale(1.15, 1, 1), dark); rim.position.set(x * .033, 0, 0); group.add(rim); }
-    const bridge = new THREE.Mesh(new THREE.BoxGeometry(.016, .004, .004), dark); group.add(bridge);
-    for (const x of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(.003, .004, .1), dark); arm.position.set(x * .064, .004, -.05); group.add(arm); }
+    // Rims a little wider than the eyes, a bridge over the nose, and arms that clear the temples and hook
+    // over the ears.
+    const { eye, lensZ, temple, side, ear } = fit as HeadFit, cx = eye.x + .004, rx = .0235 * 1.1, y = eye.y + .003, edge = cx + rx;
     const lens = new THREE.MeshStandardMaterial({ color: '#9bb', roughness: .05, transparent: true, opacity: .18 });
-    for (const x of [-1, 1]) { const l = new THREE.Mesh(new THREE.CircleGeometry(.026, 20).scale(1.15, 1, 1), lens); l.position.set(x * .033, 0, .001); group.add(l); }
+    for (const s of [1, -1]) {
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(.0235, .0026, 6, 28).scale(1.1, 1, 1), dark); rim.position.set(s * cx, y, lensZ);
+      const glass = new THREE.Mesh(new THREE.CircleGeometry(.0235, 24).scale(1.1, 1, 1), lens); glass.position.set(s * cx, y, lensZ - .001);
+      const piece = new THREE.Mesh(new THREE.BoxGeometry(.008, .006, .005), dark); piece.position.set(s * (edge + .002), y + .004, lensZ - .002);
+      const arm = new THREE.CatmullRomCurve3([[edge + .005, y + .004, lensZ - .004], [Math.max(temple, edge) + .004, y + .005, eye.z - .025], [side + .004, y + .004, ear.z + .02], [side - .002, y - .022, ear.z - .018]].map(([x, py, z]) => new THREE.Vector3(s * x, py, z)));
+      group.add(rim, glass, piece, new THREE.Mesh(new THREE.TubeGeometry(arm, 20, .0022, 5), dark));
+    }
+    const bridge = new THREE.Mesh(new THREE.TorusGeometry(cx - rx + .001, .0022, 5, 12, Math.PI), dark); bridge.position.set(0, y + .003, lensZ);
+    group.add(bridge);
   }
   group.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
   return group;
@@ -192,21 +324,15 @@ function useRig(config: AvatarConfig): Rig {
   useEffect(() => {
     if (config.accessory === 'none') return;
     const boneName = config.accessory === 'backpack' ? 'Bip01_Spine2' : 'Bip01_Head', bone = rig.bones[boneName]; if (!bone) return;
-    const mesh = accessoryMeshes(config.accessory, config.accent);
-    // Author the accessory against the rest pose in the rig's space, then re-parent it to the bone.
+    // Fit the accessory to the rest pose in the rig's space, then re-parent it to the bone.
     const saved = Object.values(rig.bones).map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()] as const);
     for (const b of Object.values(rig.bones)) rig.rest.get(b.name)?.decompose(b.position, b.quaternion, b.scale);
-    const savedRoot = rig.root.position.clone(); rig.root.position.set(0, 0, 0);
     rig.root.updateMatrixWorld(true);
-    // Work in the rig's own space: the avatar's parent may be rotated or moved.
-    const anchor = rig.root.worldToLocal(bone.getWorldPosition(new THREE.Vector3()));
-    const female = rig.info.body === 'f';
-    if (config.accessory === 'backpack') mesh.position.set(0, anchor.y - .08, anchor.z - (female ? .17 : .19));
-    else if (config.accessory === 'headphones') mesh.position.set(0, anchor.y + .1, anchor.z + .005);
-    else mesh.position.set(0, anchor.y + .065, anchor.z + (female ? .095 : .1));
+    const back = config.accessory === 'backpack', key = `${rig.info.id}:${back ? 'back' : 'head'}`;
+    let fit = fits.get(key); if (!fit) fits.set(key, fit = back ? backFit(rig) : headFit(rig));
+    const mesh = accessoryMeshes(config.accessory, config.accent, fit);
     rig.root.add(mesh); rig.root.updateMatrixWorld(true); bone.attach(mesh);
     for (const [b, p, q, s] of saved) { b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); }
-    rig.root.position.copy(savedRoot);
     rig.accessory = mesh;
     return () => { mesh.removeFromParent(); mesh.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } }); rig.accessory = null; };
   }, [rig, config.accessory, config.accent]);
