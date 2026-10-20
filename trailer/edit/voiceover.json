@@ -1,0 +1,16 @@
+{
+  "about": "The brief's exact voiceover script, placed against the cut (seconds on the film timeline). The delivered film has no voiceover: no recorded or licensed voice was available, and a synthetic voice would not meet the brief. These cues are ready for a recording session; tools/captions.mjs turns them into captions.",
+  "direction": "Confident, mature, cinematic. Natural and assured, measured pauses, rising energy. Pronunciation: confirm 'CampOS' with the brand team before the session (the likely reading is 'Camp O-S', as in operating system). Òrìṣun is Yorùbá: 'OH-ree-shoon', low tone on Ò and rì, mid tone on ṣun, ṣ as 'sh', the final n nasalising the vowel.",
+  "lines": [
+    { "at": 0.7, "to": 3.0, "text": "What if campus was more than a place?" },
+    { "at": 4.3, "to": 6.6, "text": "What if it was a world of its own?" },
+    { "at": 7.1, "to": 8.4, "text": "Explore new places." },
+    { "at": 10.4, "to": 11.8, "text": "Meet your people." },
+    { "at": 19.1, "to": 19.9, "text": "Compete." },
+    { "at": 22.1, "to": 22.9, "text": "Discover." },
+    { "at": 25.0, "to": 27.4, "text": "Every corner holds another possibility." },
+    { "at": 36.4, "to": 37.9, "text": "This is CampOS Worlds." },
+    { "at": 38.4, "to": 40.0, "text": "A campus you don't just visit." },
+    { "at": 40.3, "to": 41.5, "text": "You experience." }
+  ]
+}
