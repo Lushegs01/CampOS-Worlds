@@ -11,7 +11,7 @@ ambience and engine sounds.
 |---|---|
 | Films | `deliverables/campos-worlds-reveal-9x16.mp4`, `deliverables/campos-worlds-reveal-16x9.mp4` |
 | Captions | `deliverables/captions/on-screen-text.srt` (every word shown), `voiceover.srt` (script on the cut) |
-| Audio | `deliverables/audio/mix.wav` (48 kHz / 24-bit, −14 LUFS), stems: music, bass, drums, fx, ambience |
+| Audio | `deliverables/audio/mix.wav` (48 kHz / 24-bit, −14 LUFS), `deliverables/audio/stems/*.flac`: music, bass, drums, fx, ambience (24-bit, lossless; together they make the mix before the master bus, 3 dB down, so a voiceover can be mixed in) |
 | What was staged, what to capture live | [`CAPTURE-CHECKLIST.md`](CAPTURE-CHECKLIST.md) |
 
 ## The film

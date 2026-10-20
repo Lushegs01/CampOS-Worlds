@@ -213,9 +213,10 @@ function lightSweep(ctx, x0, y0, w, h, k) {
   g.addColorStop(0, 'rgba(255,240,205,0)'); g.addColorStop(.5, 'rgba(255,240,205,.75)'); g.addColorStop(1, 'rgba(255,240,205,0)');
   ctx.fillStyle = g; ctx.fillRect(x0 - w, y0 - h, w * 3, h * 3); ctx.restore();
 }
+/** A soft darkening slid in beneath whatever the canvas already holds (drawn after the type it sits under). */
 function scrim(ctx, x, y, rx, ry, alpha) {
   if (alpha <= 0) return;
-  ctx.save(); ctx.translate(x, y); ctx.scale(rx, ry);
+  ctx.save(); ctx.globalCompositeOperation = 'destination-over'; ctx.translate(x, y); ctx.scale(rx, ry);
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
   g.addColorStop(0, `rgba(8,18,14,${alpha})`); g.addColorStop(.55, `rgba(8,18,14,${alpha * .55})`); g.addColorStop(1, 'rgba(8,18,14,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); ctx.fill(); ctx.restore();
@@ -234,9 +235,6 @@ function drawTitles(ctx, T) {
     // Exit progress 0..1 (unclamped, a negative opacity would be ignored by the canvas and the title linger).
     const t = T - ti.at, exit = clamp01((T - (ti.to - .32)) / .32);
     const cx = W / 2;
-    // A soft, wide darkening behind the type, so it reads over any background without a visible box.
-    const sy = ti.y ? (ti.y - .03) * H : { word: portrait ? H * .4 : H * .52, question: portrait ? H * .37 : H * .43, build: portrait ? H * .44 : H * .48, statement: portrait ? H * .22 : H * .27 }[ti.style];
-    scrim(ctx, cx, sy, W * (portrait ? .75 : .42), H * (portrait ? .2 : .3), .42 * ease.out(seg(t, 0, .35)) * (1 - ease.in(exit)));
     ctx.save(); ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(10,20,15,.35)'; ctx.shadowBlur = 28 * U;
     if (ti.style === 'word') {
       const size = (portrait ? 132 : 128) * U, y = (ti.y ?? (portrait ? .43 : .56)) * H;
@@ -275,6 +273,10 @@ function drawTitles(ctx, T) {
       if (k > 0 && k < 1) { ctx.fillStyle = BRAND.gold; ctx.globalAlpha = bell(k); ctx.fillRect(cx - w / 2 - 20 * U + (w + 40 * U) * k, y - big * .9, 3 * U, big * 1.05); }
     }
     ctx.restore();
+    // A soft, wide darkening behind the type, so it reads over any background without a visible box. It
+    // goes in last, beneath the type: the light sweep (source-atop) must find only the glyphs on the canvas.
+    const sy = ti.y ? (ti.y - .03) * H : { word: portrait ? H * .4 : H * .52, question: portrait ? H * .37 : H * .43, build: portrait ? H * .44 : H * .48, statement: portrait ? H * .22 : H * .27 }[ti.style];
+    scrim(ctx, cx, sy, W * (portrait ? .75 : .42), H * (portrait ? .2 : .3), .42 * ease.out(seg(t, 0, .35)) * (1 - ease.in(exit)));
   }
 }
 
@@ -414,7 +416,7 @@ async function frame(i) {
   ['A', 'B', 'OV', 'LG'].forEach((k, n) => { gl.activeTexture(gl.TEXTURE0 + n); gl.bindTexture(gl.TEXTURE_2D, tex[k]); gl.uniform1i(loc(k), n); });
   const set = (n, L) => { gl.uniform4fv(loc('xf' + n), L.xf); gl.uniform4fv(loc('bl' + n), L.bl); gl.uniform4fv(loc('gr' + n), L.gr); gl.uniform4fv(loc('fx' + n), L.fx); };
   set('A', P.a); set('B', P.b ?? P.a);
-  gl.uniform1f(loc('mixAB'), P.b ? P.mixAB : 0); gl.uniform1f(loc('time'), (i * 7.13) % 100); gl.uniform1f(loc('grainAmt'), .035);
+  gl.uniform1f(loc('mixAB'), P.b ? P.mixAB : 0); gl.uniform1f(loc('time'), (i * 7.13) % 100); gl.uniform1f(loc('grainAmt'), .012);
   gl.uniform1f(loc('vign'), .32); gl.uniform1f(loc('aspect'), W / H); gl.uniform1f(loc('flash'), P.flash);
   // The hook: a thin line of light opens into the picture.
   const hook = P.a.cut.shot === '01-hook' && T < 1.3;

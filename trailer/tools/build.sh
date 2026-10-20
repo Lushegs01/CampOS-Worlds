@@ -17,5 +17,5 @@ for f in $formats; do
   trailer/tools/encode.sh "trailer/out/frames/$f-$size" trailer/out/audio/mix.wav "trailer/deliverables/campos-worlds-reveal-$f.mp4"
 done
 cp trailer/out/audio/mix.wav trailer/deliverables/audio/mix.wav
-cp trailer/out/audio/stems/*.wav trailer/deliverables/audio/stems/
+for s in trailer/out/audio/stems/*.wav; do ffmpeg -y -v error -i "$s" -c:a flac -compression_level 8 "trailer/deliverables/audio/stems/$(basename "$s" .wav).flac"; done
 node trailer/tools/captions.mjs
