@@ -66,7 +66,7 @@ Copy `.env.example` to `.env` if changing defaults. Keep server secrets out of `
 | `PORT` | Room | `3001` |
 | `HOST` | Room | `127.0.0.1`; use `0.0.0.0` in a container |
 | `ALLOWED_ORIGINS` | Room | Comma-separated exact frontend origins; defaults to localhost and 127.0.0.1 on 5173 |
-| `ROOM_CAPACITY` | Room | `24`; configurable 2–48; a limit, **not a tested capacity claim** |
+| `ROOM_CAPACITY` | Room | `48`; configurable 2–48; a limit, **not a tested capacity claim** |
 | `ROOM_INVITE` | Room | Optional private demo invitation; enter it in Settings and reconnect |
 | `ADMIN_TOKEN` | Room | Optional long random token enabling moderator removal |
 | `ROOM_ID` | Room | `courtyard`; names this room instance (parties and presence are scoped to it) |
