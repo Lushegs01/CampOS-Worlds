@@ -1,5 +1,7 @@
-import { blocked } from './campus.mjs';
-import { drivable, DISTRICTS, COURTYARD_PARKING } from './expansion.mjs';
+import { blocked, FOOTPRINTS } from './campus.mjs';
+import { BUILDINGS, DISTRICTS, COURTYARD_PARKING } from './expansion.mjs';
+import { DORM_ROOM } from './dorm.mjs';
+import { COURT } from './ball.mjs';
 export const VEHICLE_TYPES = {
  // Dimensions in metres. Seats are [x, z] hip points in the vehicle frame (+z forward, +x left):
  // left-hand drive, as on Nigerian roads. seatHeight is the cushion height used by the seated pose.
@@ -13,6 +15,13 @@ export const VEHICLE_SPAWNS=[{id:'courtyard-car',type:'car',x:COURTYARD_PARKING.
 export function localPoint(v,x,z){return {x:v.x+x*Math.cos(v.yaw)+z*Math.sin(v.yaw),z:v.z-x*Math.sin(v.yaw)+z*Math.cos(v.yaw)};}
 export function seatAnchor(v,index){const t=VEHICLE_TYPES[v.type],s=t.seats[index];return {...localPoint(v,...s),y:t.seatHeight,yaw:v.yaw};}
 export function vehicleContains(v,x,z,pad=.3){const dx=x-v.x,dz=z-v.z,t=VEHICLE_TYPES[v.type],c=Math.cos(v.yaw),s=Math.sin(v.yaw);return Math.abs(dx*c-dz*s)<t.width/2+pad&&Math.abs(dx*s+dz*c)<t.length/2+pad;}
+// Vehicles drive anywhere outdoors: roads, car parks, lawns, paths, the football pitch and open land between
+// districts. Walls, trees, fences and people block them; they never enter a building (or your room), and
+// stay off the fenced basketball court, where a parked car would block a game.
+const span_=r=>({x:(r.x0+r.x1)/2,z:(r.z0+r.z1)/2,w:r.x1-r.x0,d:r.z1-r.z0});
+export const NO_DRIVE=[...FOOTPRINTS.map(span_),...BUILDINGS,span_(DORM_ROOM),span_(COURT)];
+/** False where any part of a vehicle `pad` metres round this point would be inside a building or on the court. */
+export function drivable(x,z,pad=0){return !NO_DRIVE.some(r=>Math.abs(x-r.x)<r.w/2+pad&&Math.abs(z-r.z)<r.d/2+pad);}
 const fail=reason=>({ok:false,reason});
 const blank=()=>({throttle:0,steer:0,brake:true});
 export function vehicleBlocked(v,all,players=[]){

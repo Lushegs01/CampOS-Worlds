@@ -1,8 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createFleet,VEHICLE_TYPES,VEHICLE_SPAWNS,localPoint,seatAnchor,vehicleBlocked,vehicleContains} from '../shared/vehicles.mjs';
-import {DISTRICTS,ROADS,ROAD_LENGTH,roadRoute,BUILDINGS,EXPANSION_LOCATIONS,transportSurface,drivable,FIELD_ACCESS,FIELD_TRACK,ROADSIDE_TREES,BELT_TREES} from '../shared/expansion.mjs';
-import {blocked,moveWithCollisions} from '../shared/campus.mjs';
+import {createFleet,VEHICLE_TYPES,VEHICLE_SPAWNS,localPoint,seatAnchor,vehicleBlocked,vehicleContains,drivable} from '../shared/vehicles.mjs';
+import {DISTRICTS,ROADS,ROAD_LENGTH,roadRoute,BUILDINGS,EXPANSION_LOCATIONS,transportSurface,ROADSIDE_TREES,BELT_TREES} from '../shared/expansion.mjs';
+import {blocked,moveWithCollisions,setDoorOpen,FOOTPRINTS} from '../shared/campus.mjs';
 import {createClasses,classroomAt} from '../shared/classes.mjs';
 import {createWorld} from '../shared/world.mjs';
 import {SEAT_BY_ID} from '../shared/interactions.mjs';
@@ -23,13 +23,21 @@ function driveTo(f,p,v,route,limit=240){let i=0,stuck=0,back=0,last={x:v.x,z:v.z
  const want=Math.atan2(tx-v.x,tz-v.z),err=Math.atan2(Math.sin(want-v.yaw),Math.cos(want-v.yaw));let steer=Math.max(-1,Math.min(1,err*2.5)),throttle=Math.abs(v.speed)>(Math.abs(err)>.4?2:5)?0:1;
  if(back>0){back-=1/30;throttle=-1;steer=-Math.sign(err)||1;}f.control(p,{throttle,steer,brake:false});f.step(1/30,[p]);assert.equal(vehicleBlocked(v,f.vehicles),false);
  if(Math.round(t*30)%15===0){if(Math.hypot(v.x-last.x,v.z-last.z)<.05&&back<=0&&++stuck>=2){back=1.6;stuck=0;}else if(Math.hypot(v.x-last.x,v.z-last.z)>=.05)stuck=0;last={x:v.x,z:v.z};}}return i;}
-test('cars can drive from the courtyard car park through the gateway and up the track onto the football pitch',()=>{const f=createFleet(),v=f.find('courtyard-car'),p=actor();enter(f,v,p);
- const route=[[13.5,57],[3,55.5],[0,49],[-6,45.75],[-20,45.75],[-38,45.5],...FIELD_TRACK.slice(0,2),[-45,11],[-52,6],[-56,-4],[-56,-14]];
- assert.equal(driveTo(f,p,v,route),route.length,'reached the far end of the pitch');assert.ok(v.x>-66&&v.x<-46&&v.z>-19&&v.z<13,'on the pitch');
- // Back out the same way, so a driver is never stranded on the field.
- assert.equal(driveTo(f,p,v,[[-56,-4],[-50,7],[-44,12],[-41.5,20],[-41.5,40],[-38,45.5],[-20,45.75],[-4,46],[0,50],[0,56]]),10,'returned to the campus road');assert.ok(transportSurface(v.x,v.z));
- run(f,p,2,0,0,true);assert.equal(f.exit(p,[p]).ok,true);});
-test('field access keeps the avenue, its hedges, the lab, the courts and buildings car-free; the worn track is drivable and clear',()=>{const pad=VEHICLE_TYPES.car.width/2;
- for(const [x,z,what] of [[0,30,'main avenue'],[0,40,'avenue near spawn'],[5.4,40,'avenue hedge'],[-57,24,'lab interior'],[-57,29,'lab entrance'],[-57,31.5,'Lab Stores'],[44,24,'basketball court'],[-30,-15,'library'],[0,8,'The Confluence'],[-16,42.8,'service-road hedge'],[-42.2,3.8,'library hedge']])assert.equal(drivable(x,z,pad),false,what);
- for(const a of FIELD_ACCESS)assert.ok(a.w>2*pad&&a.d>2*pad,`${a.id} fits a car`);
- for(let k=0;k<FIELD_TRACK.length-1;k++)for(let s=0;s<=1;s+=.05){const [ax,az]=FIELD_TRACK[k],[bx,bz]=FIELD_TRACK[k+1],x=ax+(bx-ax)*s,z=az+(bz-az)*s;assert.ok(drivable(x,z,pad),`track ${x},${z}`);assert.equal(blocked(x,z,pad),false,`track clear at ${x},${z}`);}});
+test('cars leave the road and drive anywhere outdoors: across the courtyard lawns to the football pitch and over open land',()=>{
+ for(const [route,name] of [[[[13.5,57],[3,55.5],[0,49],[-12,44],[-28,32],[-30,15],[-45,14],[-56,2],[-56,-12]],'courtyard lawns to the far end of the pitch'],[[[13.5,57],[40,56],[60,70],[60,120],[140,140],[200,90]],'open land outside the walls']]) {
+  const f=createFleet(),v=f.find('courtyard-car'),p=actor();enter(f,v,p);let offRoad=0;
+  const reached=driveTo(f,p,v,route.map(([x,z])=>[x,z]));assert.equal(reached,route.length,name);
+  for(const [x,z] of route.slice(3))if(!transportSurface(x,z))offRoad++;assert.ok(offRoad>0,`${name} leaves the road`);
+  run(f,p,2,0,0,true);assert.equal(f.exit(p,[p]).ok,true,`${name}: the driver can get out off-road`);
+ }});
+test('cars stay out of buildings, your room and the basketball court, even through an open door',()=>{const pad=VEHICLE_TYPES.car.width/2;
+ for(const [x,z,what] of [[0,30,'main avenue'],[-30,30,'lawn'],[-56,0,'football pitch'],[300,300,'open land'],[0,55.5,'campus road']])assert.ok(drivable(x,z,pad),what);
+ for(const [x,z,what] of [[-57,22,'lab'],[-30,-15,'library'],[30,-8,'Student House'],[0,-43,'auditorium'],[44,24,'basketball court'],[BUILDINGS[3].x,BUILDINGS[3].z,'district building']])assert.equal(drivable(x,z,0),false,what);
+ // Drive straight at each: the car stops at the edge, however long the throttle is held.
+ setDoorOpen('economic-lab-main',1);
+ for(const [start,stop,what] of [[{x:-57.3,z:36,yaw:Math.PI},v=>v.z-VEHICLE_TYPES.car.length/2>=FOOTPRINTS[0].z1-.05,'open lab door'],[{x:26,z:24,yaw:Math.PI/2},v=>v.x+VEHICLE_TYPES.car.length/2<=32.65,'court opening'],
+  [{x:BUILDINGS[3].x,z:BUILDINGS[3].z+BUILDINGS[3].d/2+8,yaw:Math.PI},v=>v.z-VEHICLE_TYPES.car.length/2>=BUILDINGS[3].z+BUILDINGS[3].d/2-.05,'district building entrance']]) {
+  const f=createFleet(),v=f.find('courtyard-car'),p=actor();Object.assign(v,start);assert.equal(vehicleBlocked(v,f.vehicles),false,`${what}: clear start`);enter(f,v,p);
+  const from={x:v.x,z:v.z};run(f,p,8,1);assert.ok(stop(v),`${what}: stopped outside`);assert.ok(Math.hypot(v.x-from.x,v.z-from.z)>1,`${what}: drove up to it`);
+ }
+ setDoorOpen('economic-lab-main',0);});

@@ -35,14 +35,15 @@ raised sidewalks. Vehicles are left-hand drive, as on Nigerian roads, and park
 nose-out in marked bays: the courtyard car park opens off the road outside the
 gate, and each district has bays beside its driveway.
 
-Inside the courtyard, vehicles may also drive out to the football pitch: through
-the main gateway, along the paved service lane and bus bay inside the south wall,
-up a worn grass track east of the Economic Simulation Lab and onto the pitch and
-its run-off (`FIELD_ACCESS` and `FIELD_TRACK` in `shared/expansion.mjs`). Walls,
-trees, the lab and people still block them; the avenue, its hedges, the courts and
-building interiors stay car-free. Two trees beside the track were moved about two
-metres east so a car has a clear lane. `tests/vehicles.test.mjs` drives the
-courtyard car there and back with the room's own physics.
+Vehicles are not limited to the roads: they can drive anywhere outdoors, through
+the main gateway onto the courtyard lawns, paths and football pitch, and across the
+open land between districts. Walls, trees, fences, closed doors and people block
+them. `drivable()` in `shared/vehicles.mjs` keeps them out of every building
+footprint (courtyard and district buildings, and your room), even through an open
+doorway, and off the fenced basketball court, where a parked car would block a
+Court Duel. The room applies the same rule. `tests/vehicles.test.mjs` drives the
+courtyard car across the lawns to the pitch and over open land, and checks that it
+stops at the lab's open door, the court and a district building entrance.
 
 Steering sensitivity (Settings, 0.2–1, default 0.6) shapes only the steering this
 player sends (`src/vehicles/steering.mjs`): lower values turn the wheel in gradually

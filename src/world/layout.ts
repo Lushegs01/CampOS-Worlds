@@ -1,5 +1,5 @@
 import { LAB_PATH } from '../../shared/economic-lab.mjs';
-import { COLLIDERS, TREES } from '../../shared/campus.mjs';
+import { COLLIDERS, FOOTPRINTS, TREES } from '../../shared/campus.mjs';
 import { roadsideHeight } from './roads';
 
 // Campus ground plan (metres, +x east, +z south). Paths are axis-aligned slabs so overlaps
@@ -37,12 +37,8 @@ export const SURFACE_Y: Record<PathMaterial | 'plaza', number> = { asphalt: .025
 export const PLAZA = { x: 0, z: 0, r: 11.4 };
 export const PITCH = { x0: -66, x1: -46, z0: -19, z1: 13 };
 export const COURT = { x0: 32.6, x1: 55.4, z0: 8.6, z1: 39.4 };
-/** Building footprints (no lawn or vegetation inside). */
-export const FOOTPRINTS = [
-  { x0:-64.8, x1:-45.2, z0:16.2, z1:27.8 },
-  { x0: -42.6, x1: -17.4, z0: -26.6, z1: -0.6 }, { x0: 17.5, x1: 42.5, z0: -20.5, z1: 5.5 }, { x0: -16.6, x1: 16.6, z0: -52, z1: -34 },
-  { x0: -63, x1: -41, z0: -54.5, z1: -35.5 }, { x0: 30, x1: 54, z0: -53, z1: -33 }, { x0: 12.6, x1: 17.4, z0: 44.4, z1: 48.6 },
-];
+/** Building footprints (no lawn or vegetation inside); shared so the room keeps vehicles out of them too. */
+export { FOOTPRINTS };
 
 export const inRect = (x: number, z: number, r: { x0: number; x1: number; z0: number; z1: number }, pad = 0) => x > r.x0 - pad && x < r.x1 + pad && z > r.z0 - pad && z < r.z1 + pad;
 export function onPath(x: number, z: number, pad = 0) {
