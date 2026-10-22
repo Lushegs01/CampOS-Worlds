@@ -6,21 +6,28 @@ const fail = reason => ({ok:false,reason});
 const terminal = t => ['accepted','rejected','cancelled'].includes(t.status);
 const event = (run,type,data={}) => {const e={id:`${run.id}:e${run.events.length+1}`,type,time:elapsed(run),...data};run.events.push(e);return e;};
 export function elapsed(run,now=Date.now()) {return Math.max(run.virtualSeconds,run.clockSeconds+(run.mode==='live'&&run.status==='running'?Math.max(0,now-run.resumedAt)/1000:0));}
-export function newRun(owner,policy,seed=42,now=Date.now(),mode='live') {
- const run={id:randomUUID(),owner,scenario:SCENARIO.id,scenarioVersion:SCENARIO.version,ruleVersion:SCENARIO.ruleVersion,seed,policy,mode,status:'running',startedAt:now,endedAt:null,resumedAt:now,clockSeconds:0,virtualSeconds:0,
-  initial:{stock:SCENARIO.stock,balances:{...SCENARIO.initialBalances}},stock:SCENARIO.stock,reserved:0,balances:{...SCENARIO.initialBalances},orders:[],tasks:[],events:[],transactions:[],contributions:[],agentTrace:[]};
+// Scenario 1 (the live lab) has no config. Policy-sandbox runs carry a validated config snapshot instead.
+const LIVE_CONFIG=Object.freeze({stock:SCENARIO.stock,price:SCENARIO.price,maxOrders:SCENARIO.maxOrders,deadlineSeconds:SCENARIO.deadlineSeconds,priorityDeadline:SCENARIO.deadlineSeconds,initialBalances:SCENARIO.initialBalances,speed:5,priorityBonusSeconds:0});
+export const configOf=run=>run.config??LIVE_CONFIG;
+export function newRun(owner,policy,seed=42,now=Date.now(),mode='live',{id=randomUUID(),config=null}={}) {
+ const c=config??LIVE_CONFIG;
+ const run={id,owner,scenario:SCENARIO.id,scenarioVersion:config?.scenarioVersion??SCENARIO.version,ruleVersion:SCENARIO.ruleVersion,seed,policy,mode,status:'running',startedAt:now,endedAt:null,resumedAt:now,clockSeconds:0,virtualSeconds:0,
+  initial:{stock:c.stock,balances:{...c.initialBalances}},stock:c.stock,reserved:0,balances:{...c.initialBalances},orders:[],tasks:[],events:[],transactions:[],contributions:[],agentTrace:[]};
+ if(config)run.config=structuredClone(config);
  event(run,'initialized',{policy,seed,initial:structuredClone(run.initial)});
  return run;
 }
-export function createOrder(run,{destination,quantity},now=Date.now()) {
- if(run.orders.length>=SCENARIO.maxOrders)return fail('This run has reached its 12-order budget. Finish it and start a new run.');
+export function createOrder(run,{destination,quantity,priority=false},now=Date.now()) {
+ const c=configOf(run);
+ if(run.orders.length>=c.maxOrders)return fail(`This run has reached its ${c.maxOrders}-order budget. Finish it and start a new run.`);
  if(!['commons','student','welcome','courts'].includes(destination)||!Number.isInteger(quantity)||quantity<1||quantity>3)return fail('Choose a receiver and 1–3 resource packs.');
  if(run.stock-run.reserved<quantity){event(run,'stockout',{requested:quantity,available:run.stock-run.reserved});return fail('Insufficient unreserved stock. No order or payment was created.');}
- const at=elapsed(run,now),index=run.orders.length+1,id=`${run.id}:o${index}`,taskId=`${run.id}:t${index}`;
- const order={id,taskId,origin:'stores',destination,quantity,unitPrice:SCENARIO.price,status:'reserved',createdAt:now,createdTime:at,deadline:at+SCENARIO.deadlineSeconds};
+ const at=elapsed(run,now),index=run.orders.length+1,id=`${run.id}:o${index}`,taskId=`${run.id}:t${index}`,window=priority?c.priorityDeadline:c.deadlineSeconds;
+ const order={id,taskId,origin:'stores',destination,quantity,unitPrice:c.price,status:'reserved',createdAt:now,createdTime:at,deadline:at+window};
+ if(run.config)order.serviceClass=priority?'priority':'standard';
  run.orders.push(order);run.reserved+=quantity;
  run.tasks.push({id:taskId,orderId:id,description:`Deliver ${quantity} resource pack${quantity===1?'':'s'} to ${siteById(destination).name}`,category:'campus-delivery',creator:run.owner,
-  ruleVersion:SCENARIO.ruleVersion,criteria:['Assigned worker only','Collect the reserved packs at Lab Stores','Deliver to the named receiver','Submit before the 600-second active deadline','Maximum three verification attempts'],
+  ruleVersion:SCENARIO.ruleVersion,criteria:['Assigned worker only','Collect the reserved packs at Lab Stores','Deliver to the named receiver',`Submit before the ${window}-second active deadline`,'Maximum three verification attempts'],
   inputs:{origin:'stores',quantity},outputs:{destination,quantity},constraints:{deadline:order.deadline,maxAttempts:SCENARIO.maxAttempts},eligible:['human','agent'],status:'available',worker:null,principal:null,attempts:[],pickup:null,delivery:null,createdAt:now,acceptedAt:null});
  event(run,'order_created',{order:id,task:taskId,quantity,destination});
  return {ok:true,order:id,task:taskId};
@@ -57,7 +64,7 @@ export function routeFor(run,order) {
  if(order.destination==='courts')points.push({x:13,z:26},{x:26,z:26});
  points.push(destination);
  const distance=points.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-points[i].x,p.z-points[i].z),0);
- return {points,distance,duration:distance/5+2,cost:1+Math.ceil(distance/20)};
+ return {points,distance,duration:distance/configOf(run).speed+2,cost:1+Math.ceil(distance/20)};
 }
 function release(run,task,reason) {
  const order=run.orders.find(o=>o.id===task.orderId);
@@ -101,11 +108,20 @@ export function submit(run,task,output,now=Date.now()) {
  event(run,'accepted',{task:task.id,evidence:evidence.id,recognitionUnits:SCENARIO.recognitionPerDelivery});
  return {ok:true,evidence:evidence.id};
 }
+/**
+ * The dispatch decision rule shared by the live worker and the policy sandbox: fixed keeps creation order,
+ * demand-aware ranks by route duration, priority-aware subtracts a declared bonus for priority orders.
+ */
+export function rankTasks(run,tasks) {
+ const duration=t=>routeFor(run,run.orders.find(o=>o.id===t.orderId)).duration;
+ const bonus=t=>run.policy==='priority-aware'&&run.orders.find(o=>o.id===t.orderId).serviceClass==='priority'?configOf(run).priorityBonusSeconds:0;
+ const ranked=[...tasks];
+ if(run.policy==='demand-aware'||run.policy==='priority-aware')ranked.sort((a,b)=>(duration(a)-bonus(a))-(duration(b)-bonus(b))||a.id.localeCompare(b.id));
+ return ranked.map(t=>({task:t,duration:duration(t)}));
+}
 export function agentStep(run,principal,taskId=null) {
  const at=elapsed(run),eligible=run.tasks.filter(t=>t.status==='available'&&(!taskId||t.id===taskId));
- const score=t=>routeFor(run,run.orders.find(o=>o.id===t.orderId)).duration;
- if(run.policy==='demand-aware')eligible.sort((a,b)=>score(a)-score(b)||a.id.localeCompare(b.id));
- const task=eligible.find(t=>at+score(t)<=t.constraints.deadline);
+ const task=rankTasks(run,eligible).find(x=>at+x.duration<=x.task.constraints.deadline)?.task;
  if(!task)return fail('No feasible available task within the agent’s time and resource budget.');
  const route=routeFor(run,run.orders.find(o=>o.id===task.orderId));
  run.agentTrace.push({id:run.agentTrace.length+1,task:task.id,principal,agent:LAB_AGENT.id,policy:run.policy,decision:'Selected feasible delivery',candidateCount:eligible.length,route,execution:LAB_AGENT.execution,actions:4});
@@ -132,7 +148,8 @@ export function metrics(run) {
 export function assertInvariants(run) {
  const settled=new Set(run.transactions.map(t=>t.order));
  if(run.stock<0||run.reserved<0||run.reserved>run.stock||run.reserved!==run.orders.filter(o=>o.status==='reserved').reduce((n,o)=>n+o.quantity,0))throw Error('Inventory invariant');
- if(Object.values(run.balances).some(v=>!Number.isSafeInteger(v)||v<0)||Object.values(run.balances).reduce((a,b)=>a+b,0)!==2500)throw Error('Closed balance invariant');
+ const total=Object.values(run.initial.balances).reduce((a,b)=>a+b,0);
+ if(Object.values(run.balances).some(v=>!Number.isSafeInteger(v)||v<0)||Object.values(run.balances).reduce((a,b)=>a+b,0)!==total)throw Error('Closed balance invariant');
  if(settled.size!==run.transactions.length||run.contributions.length!==run.transactions.length||run.tasks.filter(t=>t.status==='accepted').length!==run.transactions.length)throw Error('Settlement invariant');
  if(run.initial.stock-run.stock!==run.transactions.reduce((n,t)=>n+t.resourceConsumed,0)||run.transactions.some(t=>t.entries.reduce((n,e)=>n+e.delta,0)!==0))throw Error('Accounting invariant');
  for(const c of run.contributions){const t=run.tasks.find(t=>t.id===c.task),e=t?.attempts.find(e=>e.id===c.evidence);if(!e?.verified||t.status!=='accepted'||c.digest!==e.digest||c.recognitionUnits!==10)throw Error('Contribution invariant');}

@@ -1,12 +1,12 @@
 // Authored once for the renderer, contextual prompts and trusted room proximity checks.
 export const LAB = Object.freeze({ id:'economic-lab', name:'Economic Simulation Lab', x:-55, z:22, w:18, d:10, h:6, doorX:-57, doorZ:27 });
-export const LAB_LOCATION = {id:LAB.id,name:LAB.name,type:'Research & simulation',x:-57,z:29.5,icon:'grid',description:'Walk inside to explore six working stations. Campus Logistics Economy uses simulation units only.'};
+export const LAB_LOCATION = {id:LAB.id,name:LAB.name,type:'Research & simulation',x:-57,z:29.5,icon:'grid',description:'Walk inside to run economic policy experiments at six working stations: campus logistics, affordable housing and procurement. Simulated models in simulation units only.'};
 export const LAB_DOOR = {id:'economic-lab-main',label:'Economic Simulation Lab entrance',x:-57,z:27,leaves:[{hx:-58.2,hz:27,dir:1,len:1.2},{hx:-55.8,hz:27,dir:-1,len:1.2}],swing:-1,double:true,height:3.1,glass:true,locked:undefined,collider:{x:-57,z:27,w:2.4,d:.3}};
 export const LAB_STATIONS = [
  {id:'control',letter:'A',name:'Simulation Control',x:-61,z:18.8},
  {id:'market',letter:'B',name:'Market Operations',x:-55,z:18.8},
- {id:'tasks',letter:'C',name:'Tasks and Logistics',x:-49,z:18.8},
- {id:'agents',letter:'D',name:'AI Agent Operations',x:-61,z:23},
+ {id:'tasks',letter:'C',name:'Tasks and Policy Operations',x:-49,z:18.8},
+ {id:'agents',letter:'D',name:'Agent Operations',x:-61,z:23},
  {id:'verification',letter:'E',name:'Verification and Evidence',x:-49,z:23},
  {id:'research',letter:'F',name:'Research and Results',x:-49,z:25.4},
 ].map(s=>({...s,point:{x:s.x,z:s.z+1},range:1.35}));

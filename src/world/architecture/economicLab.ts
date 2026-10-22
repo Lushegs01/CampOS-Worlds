@@ -24,7 +24,7 @@ export function buildEconomicLab(c: BuildContext) {
   kit.box('paintGreen',[-57,3.6,28.15],[6.5,.3,2.8]);
   for(const x of [-60,-54]) kit.box('bronzeFrame',[x,1.7,29.3],[.12,3.4,.12]);
   c.signs.push(kit.place(sign({text:'ECONOMIC SIMULATION LAB',width:14,height:.65,kind:'letters',color:'#b88a50'}),[-55,4.5,27.17]));
-  c.signs.push(kit.place(sign({text:'Welcome · Campus Logistics Economy',lines:['WELCOME TO THE LAB','Six stations · simulation units only'],width:4.8,height:1.1,kind:'panel',background:'#233f35'}),[-52,1.9,26.81],Math.PI));
+  c.signs.push(kit.place(sign({text:'Welcome · Economic Policy Sandbox',lines:['ECONOMIC POLICY SANDBOX','Six stations · simulation units only'],width:4.8,height:1.1,kind:'panel',background:'#233f35'}),[-52,1.9,26.81],Math.PI));
   c.signs.push(kit.place(sign({text:'ORISUN / RESEARCH & OPERATIONS',width:10,height:.55,kind:'panel',background:'#233f35'}),[-55,3.7,17.18]));
   for(const s of LAB_STATIONS) {
     kit.box('wood',[s.x,.82,s.z],[2.2,.09,.75]);

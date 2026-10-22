@@ -4,28 +4,32 @@ import {player,useGame} from '../state';
 import {registerCandidates} from '../interaction/controller';
 import {moveWithCollisions} from '../../shared/campus.mjs';
 import {LAB_STATIONS,LOGISTICS_SITES,insideLab} from '../../shared/economic-lab.mjs';
-import type {LabReply,LabView} from './types';
+import type {FieldError,LabReply,LabView} from './types';
 
 type Payload={action:string;station:string;run:string|null;key:string;[key:string]:unknown};
-interface LabState {view:LabView|null;busy:boolean;error:string;message:string;retry:Payload|null}
-export const useLab=create<LabState>(()=>({view:null,busy:false,error:'',message:'',retry:null}));
+interface LabState {view:LabView|null;busy:boolean;error:string;errors:FieldError[];message:string;retry:Payload|null;action:string}
+export const useLab=create<LabState>(()=>({view:null,busy:false,error:'',errors:[],message:'',retry:null,action:''}));
+// Requests that only read authoritative state: no "saved" message and never blocked by a pending retry.
+const READS=['inspect','open','preview','export-experiment','export'];
 let ref=0;
 const pending=new Map<number,{done:(r:LabReply)=>void;timer:ReturnType<typeof setTimeout>;payload:Payload}>();
 const operationKey=()=>globalThis.crypto?.randomUUID?.()??`lab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 function dispatch(payload:Payload):Promise<LabReply> {
  if(useLab.getState().busy)return Promise.resolve({ok:false,reason:'Wait for the current operation.'});
- useLab.setState({busy:true,error:'',message:''});
+ useLab.setState({busy:true,error:'',errors:[],message:'',action:payload.action});
  if(useGame.getState().status!=='connected'||!send({type:'lab',ref:++ref,...payload})) {
   const reason='Connect to the campus room to use the lab. You can keep exploring the building.';useLab.setState({busy:false,error:reason});return Promise.resolve({ok:false,reason});
  }
  const requestRef=ref;
  return new Promise(resolve=>{
-  const timer=setTimeout(()=>{pending.delete(requestRef);const reason='The room did not answer. Retry the same operation to avoid duplicates.';useLab.setState({busy:false,error:reason,retry:payload});resolve({ok:false,reason});},10000);
+  // Experiments run for up to five seconds on the room and may queue behind another player's experiment.
+  const wait=['experiment','repeat'].includes(payload.action)?20000:10000,read=READS.includes(payload.action);
+  const timer=setTimeout(()=>{pending.delete(requestRef);const reason=read?'The room did not answer. Try again.':'The room did not answer. Retry the same operation to avoid duplicates.';useLab.setState(s=>({busy:false,error:reason,retry:read?s.retry:payload}));resolve({ok:false,reason});},wait);
   pending.set(requestRef,{done:resolve,timer,payload});
  });
 }
 export function labRequest(station:string,action:string,extra:Record<string,unknown>={}):Promise<LabReply> {
- if(useLab.getState().retry&&action!=='inspect')return Promise.resolve({ok:false,reason:'Resolve the pending operation with Retry first.'});
+ if(useLab.getState().retry&&!READS.includes(action))return Promise.resolve({ok:false,reason:'Resolve the pending operation with Retry first.'});
  return dispatch({...extra,action,station,run:useLab.getState().view?.current?.id??null,key:operationKey()});
 }
 export const retryLab=()=>{const p=useLab.getState().retry;return p?dispatch(p):Promise.resolve({ok:false});};
@@ -33,12 +37,12 @@ onRoomMessage(m=>{
  if(m.type==='labResult') {
   const p=pending.get(m.ref);if(!p)return;
   clearTimeout(p.timer);pending.delete(m.ref);
-  useLab.setState(s=>({busy:false,view:m.view??s.view,error:m.ok?'':m.reason??'Operation failed.',message:m.ok?(m.replayed?'Operation confirmed; no duplicate effects.':p.payload.action==='inspect'?'':'Saved by the campus room.'):'',retry:m.reason?.includes('could not save')?p.payload:p.payload.action==='inspect'?s.retry:null}));
+  useLab.setState(s=>({busy:false,view:m.view??s.view,error:m.ok?'':m.reason??'Operation failed.',errors:m.ok?[]:Array.isArray(m.errors)?m.errors:[],message:m.ok?(m.replayed?'Operation confirmed; no duplicate effects.':READS.includes(p.payload.action)?'':'Saved by the campus room.'):'',retry:m.reason?.includes('could not save')?p.payload:READS.includes(p.payload.action)?s.retry:null}));
   p.done(m);
  }
  if(m.type==='disconnected'||m.type==='welcome'||m.type==='auth') {
   for(const p of pending.values()){clearTimeout(p.timer);p.done({ok:false,reason:'Connection or identity changed. Reopen the workstation.'});}
-  pending.clear();useLab.setState({view:null,busy:false,error:'',message:'',retry:null});
+  pending.clear();useLab.setState({view:null,busy:false,error:'',errors:[],message:'',retry:null});
  }
 });
 function reachable(x:number,z:number,range:number) {

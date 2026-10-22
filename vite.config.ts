@@ -21,8 +21,9 @@ export default defineConfig(({ mode }) => {
   // Pre-bundled up front: these are first imported by the lazily loaded 3D scene, and discovering them
   // then made the dev server re-optimise and reload the page during a developer's (or a test's) first visit.
   optimizeDeps:{include:['three','@react-three/fiber','postprocessing','n8ao','three/examples/jsm/geometries/RoundedBoxGeometry.js','three/examples/jsm/libs/meshopt_decoder.module.js','three/examples/jsm/loaders/GLTFLoader.js','three/examples/jsm/loaders/HDRLoader.js','three/examples/jsm/loaders/KTX2Loader.js','three/examples/jsm/utils/BufferGeometryUtils.js','three/examples/jsm/utils/SkeletonUtils.js']},
-  // Preserve Vite 7's default secret denials and keep authoritative room data off the dev web root.
-  server:{port:5173,strictPort:true,proxy,fs:{deny:['.env','.env.*','*.{crt,pem}','**/.git/**','**/server/data/**',labData,`${labData}.*.tmp`]}},
+  // Preserve Vite 7's default secret denials and keep authoritative room data off the dev web root:
+  // the lab file, its temporary snapshots and schema backups, and its experiment-record directory.
+  server:{port:5173,strictPort:true,proxy,fs:{deny:['.env','.env.*','*.{crt,pem}','**/.git/**','**/server/data/**',labData,`${labData}.*`,`${labData}.*/**`]}},
   // The preview server proxies the room too, so the production bundle can be tested end to end.
   preview:{port:4173,strictPort:true,proxy},
   // three.js and the renderer get a chunk of their own (React stays with the interface), so the welcome
