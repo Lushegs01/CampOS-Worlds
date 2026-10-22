@@ -29,7 +29,8 @@ export const TREES = [
  {x:-17,z:-12,species:'terminalia',s:1.05},{x:17,z:-14,species:'flamboyant',s:1},{x:-18,z:16,species:'flamboyant',s:1.1},{x:19,z:15,species:'terminalia',s:.95},
  {x:-13,z:-24,species:'neem',s:.95},{x:10.8,z:-19.5,species:'terminalia',s:.9},
  // Lawns south of the cross walk.
- {x:-32,z:15,species:'mango',s:1.15},{x:-41,z:23,species:'terminalia',s:1},{x:-40,z:30,species:'neem',s:1.05},{x:-22,z:39,species:'flamboyant',s:.95},
+ // Two trees sit a little east of the grass track that cars take from the service lane to the football pitch.
+ {x:-32,z:15,species:'mango',s:1.15},{x:-39,z:23,species:'terminalia',s:1},{x:-38.5,z:30.5,species:'neem',s:1.05},{x:-22,z:39,species:'flamboyant',s:.95},
  {x:27,z:16,species:'mango',s:1},{x:24,z:43,species:'neem',s:1},{x:36,z:46,species:'terminalia',s:1.1},{x:50,z:46,species:'mango',s:.95},
  // Around the library, student house and the north walk.
  {x:-44,z:-2,species:'neem',s:.9},{x:-14,z:-34,species:'flamboyant',s:.9},{x:22,z:-28,species:'neem',s:.95},{x:-26,z:-33,species:'terminalia',s:1},

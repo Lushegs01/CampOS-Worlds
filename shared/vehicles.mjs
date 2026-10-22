@@ -1,5 +1,5 @@
 import { blocked } from './campus.mjs';
-import { transportSurface, DISTRICTS, COURTYARD_PARKING } from './expansion.mjs';
+import { drivable, DISTRICTS, COURTYARD_PARKING } from './expansion.mjs';
 export const VEHICLE_TYPES = {
  // Dimensions in metres. Seats are [x, z] hip points in the vehicle frame (+z forward, +x left):
  // left-hand drive, as on Nigerian roads. seatHeight is the cushion height used by the seated pose.
@@ -18,7 +18,7 @@ const blank=()=>({throttle:0,steer:0,brake:true});
 export function vehicleBlocked(v,all,players=[]){
  const t=VEHICLE_TYPES[v.type];
  // Overlapping circles cover the chassis; <=0.2 m sweep prevents tunnelling at full speed.
- const span=t.length-t.width,n=Math.ceil(span/.3);for(let j=0;j<=n;j++){const p=localPoint(v,0,-span/2+j*span/n);if(blocked(p.x,p.z,t.width/2)||!transportSurface(p.x,p.z,t.width/2))return true;}
+ const span=t.length-t.width,n=Math.ceil(span/.3);for(let j=0;j<=n;j++){const p=localPoint(v,0,-span/2+j*span/n);if(blocked(p.x,p.z,t.width/2)||!drivable(p.x,p.z,t.width/2))return true;}
  // Separating-axis rectangle test for other vehicles.
  for(const o of all){if(o.id===v.id)continue;const u=VEHICLE_TYPES[o.type];if(Math.hypot(v.x-o.x,v.z-o.z)>t.length+u.length)continue;let separated=false;
   for(const a of [v.yaw,o.yaw])for(const angle of [a,a+Math.PI/2]){const ax=Math.cos(angle),az=-Math.sin(angle);const radius=(p,k)=>Math.abs(ax*Math.cos(p.yaw)-az*Math.sin(p.yaw))*k.width/2+Math.abs(ax*Math.sin(p.yaw)+az*Math.cos(p.yaw))*k.length/2;

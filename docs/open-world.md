@@ -35,6 +35,22 @@ raised sidewalks. Vehicles are left-hand drive, as on Nigerian roads, and park
 nose-out in marked bays: the courtyard car park opens off the road outside the
 gate, and each district has bays beside its driveway.
 
+Inside the courtyard, vehicles may also drive out to the football pitch: through
+the main gateway, along the paved service lane and bus bay inside the south wall,
+up a worn grass track east of the Economic Simulation Lab and onto the pitch and
+its run-off (`FIELD_ACCESS` and `FIELD_TRACK` in `shared/expansion.mjs`). Walls,
+trees, the lab and people still block them; the avenue, its hedges, the courts and
+building interiors stay car-free. Two trees beside the track were moved about two
+metres east so a car has a clear lane. `tests/vehicles.test.mjs` drives the
+courtyard car there and back with the room's own physics.
+
+Steering sensitivity (Settings, 0.2–1, default 0.6) shapes only the steering this
+player sends (`src/vehicles/steering.mjs`): lower values turn the wheel in gradually
+(a tap is a small correction, holding still reaches full lock, centring is twice as
+quick) and reduce steering progressively up to 12 m/s, so almost full lock remains at
+parking speeds. At 1 input is applied directly, as before. The room's vehicle
+physics is unchanged and identical for every player.
+
 The fleet is modelled procedurally (`src/world/vehicleModels.ts`): a lofted
 hatchback, a Coaster-style minibus and a utility cart, with glazing occupants show
 through, wheel arches, steering front wheels, body pitch and roll, and brake and

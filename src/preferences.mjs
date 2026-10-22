@@ -1,4 +1,5 @@
 import { sanitizeAvatar, LOCATIONS, TOKENS, TOUR } from '../shared/campus.mjs';
+import { STEERING } from './vehicles/steering.mjs';
 
 // Storage can contain an older schema or incomplete values. Only persisted preferences may hydrate
 // the store: invalid quality/arrays used to crash rendering, and saved keys could replace live methods.
@@ -13,6 +14,8 @@ export function preferences(saved, current) {
     avatar: sanitizeAvatar(s.avatar ?? {}),
     quality: ['low', 'medium', 'high'].includes(s.quality) ? s.quality : current.quality,
     volume: finite(s.volume, current.volume, 0, 1),
+    ambience: finite(s.ambience, current.ambience, 0, 1),
+    steering: finite(s.steering, current.steering, STEERING.min, STEERING.max),
     reducedMotion: typeof s.reducedMotion === 'boolean' ? s.reducedMotion : current.reducedMotion,
     discovered: strings(s.discovered, current.discovered, new Set(LOCATIONS.map(l => l.id))),
     tokens: strings(s.tokens, current.tokens, new Set(TOKENS.map(t => t.id))),
