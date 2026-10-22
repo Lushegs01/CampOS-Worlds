@@ -1,4 +1,4 @@
-import { occupiedAnchor } from '../vehicles/client';
+import { occupiedAnchor, vehicleLift } from '../vehicles/client';
 import { DormFurniture } from './Dorm';
 import { mySpace } from '../dorm/client';
 import Expansion from './Expansion';
@@ -59,7 +59,7 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     if (m.sit?.phase === 'done') { m.sit = null; g.position.set(peer.x, peer.y + surfaceHeight(peer.x, peer.z), peer.z); m.last.copy(g.position); }
     const anchor=peer.vehicle?occupiedAnchor(peer.vehicle,peer.vehicleSeat??0):null;
     m.vehicleSeatHeight=anchor?.y??null;
-    if(anchor){g.position.set(anchor.x,.025,anchor.z);g.rotation.y=anchor.yaw;m.speed=0;m.y=0;m.vy=0;m.turn=0;m.last.copy(g.position);tag.current.position.y=anchor.y+1.4;tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);return;}
+    if(anchor){const lift=vehicleLift.get(peer.vehicle!)??0;g.position.set(anchor.x,.025+lift,anchor.z);g.rotation.y=anchor.yaw;m.speed=0;m.y=0;m.vy=0;m.turn=0;m.last.copy(g.position);tag.current.position.y=anchor.y+1.4;tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);return;}
     const seat = m.sit ? SEAT_BY_ID.get(m.sit.seat) : undefined;
     // Drawn slightly in the past, between the two snapshots around that moment: steady speed (./network/interpolation.mjs).
     const at = peerTracks.get(initial.id)?.sample(performance.now() - INTERP_DELAY, shown) ? shown : peer;

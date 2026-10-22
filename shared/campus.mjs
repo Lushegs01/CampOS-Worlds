@@ -29,8 +29,7 @@ export const TREES = [
  {x:-17,z:-12,species:'terminalia',s:1.05},{x:17,z:-14,species:'flamboyant',s:1},{x:-18,z:16,species:'flamboyant',s:1.1},{x:19,z:15,species:'terminalia',s:.95},
  {x:-13,z:-24,species:'neem',s:.95},{x:10.8,z:-19.5,species:'terminalia',s:.9},
  // Lawns south of the cross walk.
- // Two trees sit a little east of the grass track that cars take from the service lane to the football pitch.
- {x:-32,z:15,species:'mango',s:1.15},{x:-39,z:23,species:'terminalia',s:1},{x:-38.5,z:30.5,species:'neem',s:1.05},{x:-22,z:39,species:'flamboyant',s:.95},
+ {x:-32,z:15,species:'mango',s:1.15},{x:-41,z:23,species:'terminalia',s:1},{x:-40,z:30,species:'neem',s:1.05},{x:-22,z:39,species:'flamboyant',s:.95},
  {x:27,z:16,species:'mango',s:1},{x:24,z:43,species:'neem',s:1},{x:36,z:46,species:'terminalia',s:1.1},{x:50,z:46,species:'mango',s:.95},
  // Around the library, student house and the north walk.
  {x:-44,z:-2,species:'neem',s:.9},{x:-14,z:-34,species:'flamboyant',s:.9},{x:22,z:-28,species:'neem',s:.95},{x:-26,z:-33,species:'terminalia',s:1},
@@ -42,6 +41,12 @@ export const TREES = [
  {x:-37,z:26,species:'coconut',s:.95},{x:-52,z:28,species:'coconut',s:1.05},
 ];
 
+/** Courtyard building footprints: no lawn or vegetation inside, and no vehicles. */
+export const FOOTPRINTS = [
+ { x0:-64.8, x1:-45.2, z0:16.2, z1:27.8 },
+ { x0: -42.6, x1: -17.4, z0: -26.6, z1: -0.6 }, { x0: 17.5, x1: 42.5, z0: -20.5, z1: 5.5 }, { x0: -16.6, x1: 16.6, z0: -52, z1: -34 },
+ { x0: -63, x1: -41, z0: -54.5, z1: -35.5 }, { x0: 30, x1: 54, z0: -53, z1: -33 }, { x0: 12.6, x1: 17.4, z0: 44.4, z1: 48.6 },
+];
 /** Low shelving under the library's north windows, with a gap in front of the staff-room door. */
 export const LOW_SHELVES=Array.from({length:9},(_,k)=>({x:-40.9+k*2.4+1.1,z:-25.3,w:2.2,d:.38,h:1})).filter(s=>Math.abs(s.x+34.95)>1.7);
 // Axis-aligned boxes are shared by rendering, client movement and server validation.

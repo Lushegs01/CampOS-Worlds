@@ -39,4 +39,6 @@ export function tickVehicles(dt:number){
 /** Called for every movement substep: no allocation. */
 export function vehicleFootBlocked(x:number,z:number){for(const v of vehicleVisuals.values())if(vehicleContains(v,x,z))return true;return false;}
 export function disconnectVehicles(){const v=localFleet.find(useVehicle.getState().id);if(v){v.speed=0;localFleet.exit(me,[me]);}localFleet.release(me);setOccupancy(null,null);driving.throttle=driving.steer=0;driving.brake=true;receiveVehicles(localFleet.snapshot());}
+/** How far each drawn vehicle is raised to ride on the paving, sidewalk or kerb under its wheels (src/world/Vehicles.tsx). */
+export const vehicleLift=new Map<string,number>();
 export function occupiedAnchor(id:string,seat:number){const v=vehicleVisuals.get(id);return v?seatAnchor(v,seat):null;}

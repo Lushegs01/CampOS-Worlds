@@ -1,4 +1,4 @@
-import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked } from '../vehicles/client';
+import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked, vehicleLift } from '../vehicles/client';
 import { dormLayout } from '../dorm/client';
 import { furnitureAllows, inDormRoom, DORM_ROOM } from '../../shared/dorm.mjs';
 import { VEHICLE_TYPES } from '../../shared/vehicles.mjs';
@@ -143,7 +143,7 @@ export default function Player() {
       const steerTarget=enabled?(Number(keys.has('KeyA')||keys.has('ArrowLeft'))-Number(keys.has('KeyD')||keys.has('ArrowRight'))-input.x):0;
       wheel=steerToward(wheel,steerTarget,s.steering,Math.min(raw,.25));driving.steer=wheel*steerAuthority(s.steering,vehicle.speed);
       driving.brake=!enabled||keys.has('Space');
-      const a=occupiedAnchor(vehicle.id,occupancy.seat??0)!;player.x=a.x;player.z=a.z;player.yaw=a.yaw;root.current.position.set(a.x,.025,a.z);root.current.rotation.y=a.yaw;
+      const a=occupiedAnchor(vehicle.id,occupancy.seat??0)!;player.x=a.x;player.z=a.z;player.yaw=a.yaw;root.current.position.set(a.x,.025+(vehicleLift.get(vehicle.id)??0),a.z);root.current.rotation.y=a.yaw;
       // Chase camera settles behind the vehicle in real time (frame-rate independent); dragging looks around.
       const real=Math.min(raw,.25);if(!input.dragging){c.yaw+=Math.atan2(Math.sin(a.yaw+Math.PI-c.yaw),Math.cos(a.yaw+Math.PI-c.yaw))*(1-Math.exp(-real*3));input.yaw=c.yaw;}else c.yaw=input.yaw;
       // Framing scales with the vehicle: further back and higher for the shuttle than the cart.
