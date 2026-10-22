@@ -17,7 +17,8 @@ import { createChallenges } from './challenges.mjs';
 import { TOUR } from '../shared/campus.mjs';
 import { DEFAULT_LAYOUT, DORM_CAPACITY, DORM_INVITE_MS, DORM_INSIDE, DORM_OUTSIDE, validateLayout, furnitureAllows, furnitureBlocked, inDormRoom, nearDormDoor } from '../shared/dorm.mjs';
 // Messages stay within 2 KB except the account handshake, which carries a Supabase access token.
-const MAX_MESSAGE=2048,MAX_AUTH_MESSAGE=6144;
+// Lab experiment plans (bounded parameter objects) get a little more room than ordinary messages.
+const MAX_MESSAGE=2048,MAX_LAB_MESSAGE=4096,MAX_AUTH_MESSAGE=6144;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * Reading client values: ids and choices must be strings and numbers numbers. Never String() or Number()
@@ -310,7 +311,11 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    if(c.departed)return;
    if(!rate('all',75)){ws.close(4008,'Too many requests');return;}
    const raw=data.toString();let m;try{m=JSON.parse(raw);}catch{return;}if(!m||typeof m!=='object')return;
-   if(raw.length>MAX_MESSAGE&&m.type!=='auth'&&m.type!=='join')return;
+   if(raw.length>(m.type==='lab'?MAX_LAB_MESSAGE:MAX_MESSAGE)&&m.type!=='auth'&&m.type!=='join'){
+    // Answer an oversized lab request so its sender is not left waiting for a timeout.
+    if(m.type==='lab'&&c.joined)send(ws,{type:'labResult',ref:Number.isInteger(m.ref)?m.ref:null,ok:false,reason:'This lab request is too large. Shorten the label or reduce policies or sensitivity values.'});
+    return;
+   }
    if(m.type==='join'&&!c.joined){
     if(invite&&m.invite!==invite){ws.close(4001,'Invitation required');return;}
     const token=typeof m.token==='string'&&/^[a-f0-9]{48}$/.test(m.token)?m.token:randomBytes(24).toString('hex');

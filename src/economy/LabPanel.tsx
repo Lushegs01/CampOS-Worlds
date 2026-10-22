@@ -3,6 +3,8 @@ import {LAB_STATIONS,LOGISTICS_SITES,LAB_AGENT,POLICIES,SCENARIO} from '../../sh
 import {useGame} from '../state';
 import {labRequest,retryLab,useLab} from './client';
 import type {Metrics,Run,Task} from './types';
+import {useSandbox,type Domain} from './sandbox/store';
+import {DomainPicker,SandboxControl,InitialConditions,PolicyOperations,NoAgent,ExperimentVerification,SandboxResearch} from './sandbox/Stations';
 
 const value=(n:number|null,unit='')=>n===null?'Insufficient evidence':`${Number(n.toFixed(2))}${unit}`;
 const pct=(n:number|null)=>n===null?'Insufficient evidence':`${(n*100).toFixed(1)}%`;
@@ -62,19 +64,32 @@ function Research() {
  const {view,busy}=useLab(),[seed,setSeed]=useState('42');
  if(!view)return null;
  const exportFile=async(format:'json'|'md')=>{const r=await labRequest('research','export');if(r.ok)download(format==='json'?JSON.stringify(r.bundle,null,2):r.report??'',format==='json'?'application/json':'text/markdown',`campos-lab-report.${format}`);};
- return <><h3>Reproducible policy comparison</h3><p>Run the fixed campus circuit and demand-aware dispatch with identical seeded orders, inventory and balances. Results come from each recorded task, verification and settlement.</p><label className="field">Comparison seed<input type="number" min="0" max="4294967295" value={seed} onChange={e=>setSeed(e.target.value)}/></label><button className="primary" disabled={busy||!/^\d+$/.test(seed)} onClick={()=>void labRequest('research','compare',{seed:Number(seed)})}>Run policy comparison</button>
+ return <><h3>Live-model quick comparison · scenario 1</h3><p>Run the fixed campus circuit and demand-aware dispatch with identical seeded orders, inventory and balances, using the live lab’s exact scenario 1 rules (one courier, six orders). Results come from each recorded task, verification and settlement. For three policies, replications, groups and sensitivity, use the policy comparison above.</p><label className="field">Comparison seed<input type="number" min="0" max="4294967295" value={seed} onChange={e=>setSeed(e.target.value)}/></label><button className="primary" disabled={busy||!/^\d+$/.test(seed)} onClick={()=>void labRequest('research','compare',{seed:Number(seed)})}>Run policy comparison</button>
  {view.comparisons.map(c=><article className="lab-card" key={c.id}><h3>Comparison · seed {c.seed}</h3><div className="lab-comparison">{c.results.map(r=><section key={r.run}><b>{POLICIES.find(p=>p.id===r.policy)?.name}</b><p>Run <code>{r.run}</code></p><MetricGrid m={r.metrics}/></section>)}</div><ul>{c.assumptions.map(a=><li key={a}>{a}</li>)}</ul></article>)}
  <h3>Run archive</h3>{!view.history.length&&<p>No runs yet. Start one at Simulation Control or run a comparison here.</p>}{view.history.map(r=><details key={r.id}><summary>{r.policy} · {r.status} · seed {r.seed} · {short(r.id)}</summary><p>Run <code>{r.id}</code> · {r.mode}</p><MetricGrid m={r.metrics}/></details>)}
  <div className="lab-actions"><button className="secondary" disabled={busy} onClick={()=>void exportFile('json')}>Export JSON evidence</button><button className="secondary" disabled={busy} onClick={()=>void exportFile('md')}>Export readable report</button><button className="secondary" disabled={busy} onClick={()=>void labRequest('research','evaluate')}>Check external adapter</button></div>
  {view.external&&<p role="status">{view.external.status}: {view.external.reason}</p>}<div className="note"><b>Research limits</b><p>This route model assumes 5 m/s, one sequential worker and no traffic. Simulation success has no independent real-world validation. No WorkStream contract or funded rewards are connected.</p></div></>;
 }
+const NO_RUN=<p>No live run. Start a scenario at station A, Simulation Control, to work in the campus logistics economy.</p>;
+/** Logistics keeps the original live, in-world workflow and adds its policy-experiment sections. */
+function Logistics({station,run}:{station:string;run:Run|null}) {
+ const domain:Domain='logistics';
+ if(station==='control')return <><Control run={run}/><SandboxControl domain={domain}/></>;
+ if(station==='research')return <><SandboxResearch domain={domain}/><Research/></>;
+ const live=!run?NO_RUN:station==='market'?<Market run={run}/>:station==='tasks'?<Tasks run={run}/>:station==='agents'?<Agents run={run}/>:station==='verification'?<Verification run={run}/>:null;
+ return <>{live}{station==='market'?<InitialConditions domain={domain}/>:station==='tasks'?<PolicyOperations domain={domain}/>:station==='verification'?<ExperimentVerification domain={domain}/>:station==='agents'?<p className="note">In policy experiments, Campus Dispatch couriers use this worker’s bounded model: one task at a time, chosen by the selected policy, verified by delivery/1 and settled by the same server code. They do not navigate the campus.</p>:null}</>;
+}
+function Experiments({station,domain}:{station:string;domain:Domain}) {
+ return station==='control'?<SandboxControl domain={domain}/>:station==='market'?<InitialConditions domain={domain}/>:station==='tasks'?<PolicyOperations domain={domain}/>:station==='agents'?<NoAgent domain={domain}/>:station==='verification'?<ExperimentVerification domain={domain}/>:<SandboxResearch domain={domain}/>;
+}
 export default function LabPanel({station}:{station:string}) {
- const {view,busy,error,message,retry}=useLab(),run=view?.current,s=LAB_STATIONS.find(s=>s.id===station);
+ const {view,busy,error,message,retry}=useLab(),run=view?.current,s=LAB_STATIONS.find(s=>s.id===station),domain=useSandbox(s=>s.domain);
  useEffect(()=>{void labRequest(station,'inspect');},[station]);
  if(!s)return <p>Unknown workstation.</p>;
  return <div className="economic-lab"><div className="lab-status"><span>STATION {s.letter} / {s.name}</span><button className="text-button" disabled={busy} onClick={()=>void labRequest(station,'inspect')}>Refresh</button></div>
+ <DomainPicker/>
  {busy&&<p role="status">Working with the campus room…</p>}{error&&<div className="note" role="alert">{error}{retry&&<button className="secondary" disabled={busy} onClick={()=>void retryLab()}>Retry same operation</button>}</div>}{message&&<p role="status">{message}</p>}
- {view&&<><p className="muted">{run?`${run.status} · ${run.policy} · seed ${run.seed} · active second ${Math.round(run.elapsed)}`:'No active run'} · {view.durability}</p>{run&&<details><summary>Run identity</summary><code>{run.id}</code></details>}
- {station==='control'?<Control run={run??null}/>:station==='research'?<Research/>:!run?<p>Start a scenario at station A, Simulation Control. Close this panel and walk to that workstation.</p>:station==='market'?<Market run={run}/>:station==='tasks'?<Tasks run={run}/>:station==='agents'?<Agents run={run}/>:station==='verification'?<Verification run={run}/>:null}</>}
- <p className="small-text muted">Simulation units and recognition units have no monetary or redemption value. All records here are local prototype records.</p></div>;
+ {view&&(domain==='logistics'?<><p className="muted">{run?`${run.status} · ${run.policy} · seed ${run.seed} · active second ${Math.round(run.elapsed)}`:'No active run'} · {view.durability}</p>{run&&<details><summary>Run identity</summary><code>{run.id}</code></details>}
+  <Logistics station={station} run={run??null}/></>:<><p className="muted">Policy experiments · {view.sandbox?.usage.count??0} saved · {view.sandbox?.durability}</p><Experiments station={station} domain={domain}/></>)}
+ <p className="small-text muted">Simulation units and recognition units have no monetary or redemption value. All records here are local prototype records, separate from institutional, academic and financial records.</p></div>;
 }
