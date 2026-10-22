@@ -8,6 +8,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { SPAWN, LOCATIONS, TOKENS, moveWithCollisions, sanitizeAvatar, blocked } from '../shared/campus.mjs';
 import { createWorld, packBall } from '../shared/world.mjs';
 import { createMotionAuthority, MOTION_VERSION } from '../shared/prediction.mjs';
+import { DRIVE_VERSION } from '../shared/driving.mjs';
 import { advanceWalker, INPUT_HOLD_MS, MAX_STEP, JUMP_SPEED } from '../shared/movement.mjs';
 import { cleanText, guestName } from '../shared/text.mjs';
 import { createParties, PARTY_LIMITS } from './parties.mjs';
@@ -330,7 +331,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     const back=recent.get(token);recent.delete(token);
     if(back&&Date.now()-back.at<partyLimits.graceMs&&!blocked(back.x,back.z)&&!inDormRoom(back.x,back.z)&&!fleet.vehicles.some(v=>vehicleContains(v,back.x,back.z)))Object.assign(c,{x:back.x,z:back.z,y:0,yaw:back.yaw});
     if(m.movement===MOTION_VERSION)c.motion=createMotionAuthority(c,performance.now());
-    send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),classes:classes.snapshot(),accounts:!!accounts.enabled,room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
+    send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),drive:DRIVE_VERSION,classes:classes.snapshot(),accounts:!!accounts.enabled,room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
     // A reload or dropped connection with the same session token takes its party place back.
     parties.reconnect(c);
     c.analytics=m.analytics&&typeof m.analytics==='object'?{consent:m.analytics.consent===true,install:typeof m.analytics.install==='string'?m.analytics.install.slice(0,64):''}:null;
@@ -343,6 +344,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     economy.request(c,m).then(r=>{if(clients.get(id)===c&&c.joined&&principalOf(c)===principal)send(ws,{type:'labResult',ref:Number.isInteger(m.ref)?m.ref:null,...r});});
    }else if(m.type==='classAction'&&rate('classAction',5)){const r=classes.action(c,m);if(!r.ok)send(ws,{type:'notice',text:r.reason});broadcast({type:'classes',sessions:classes.snapshot()});
    }else if(m.type==='vehicleInput'&&rate('vehicleInput',35)){fleet.control(c,m);
+   // Sequenced driving commands (shared/driving.mjs), batched about 30 times a second by the client.
+   }else if(m.type==='vehicleDrive'&&rate('vehicleDrive',40)){fleet.drive(c,m,Date.now(),joined());
    }else if(['vehicleEnter','vehicleExit','vehicleRecover'].includes(m.type)&&rate('vehicleAction',5)){
     const r=m.type==='vehicleEnter'?fleet.enter(c,str(m.id),m.seat??0):m.type==='vehicleExit'?fleet.exit(c,joined()):fleet.recover(c,joined());
     send(ws,{type:'vehicleResult',...r,vehicle:c.vehicle,vehicleSeat:c.vehicleSeat,x:c.x,z:c.z});broadcast({type:'vehicles',vehicles:fleet.snapshot()});
@@ -463,7 +466,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  const cm=v=>Math.round(v*100)/100,mrad=v=>Math.round(v*1000)/1000;
  const packVehicle=v=>({...v,x:cm(v.x),z:cm(v.z),yaw:mrad(v.yaw),speed:cm(v.speed),steering:mrad(v.steering),wheel:mrad(v.wheel)});
  const sentVehicles=new Map();
- function changedVehicles(){const out=[];for(const v of fleet.snapshot()){const p=packVehicle(v),key=JSON.stringify(p);if(sentVehicles.get(v.id)!==key){sentVehicles.set(v.id,key);out.push(p);}}return out;}
+ // `ts`: the room time each changed vehicle's state represents (a driven one can trail the clock; shared/vehicles.mjs).
+ function changedVehicles(){const out=[],now=Date.now();for(const v of fleet.snapshot()){const p=packVehicle(v),key=JSON.stringify(p);if(sentVehicles.get(v.id)!==key){sentVehicles.set(v.id,key);out.push({...p,ts:fleet.stateTime(v.id,now)});}}return out;}
  // The last input applies for INPUT_HOLD_MS after it arrived, then the player coasts to a stop
  // (shared/movement.mjs); vehicles block walking into them, never walking out of one's footprint.
  const footAllowed=(c,x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz))&&furnitureAllows(layoutOf(c),x,z,fx,fz);
@@ -488,7 +492,9 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   // 15 Hz state: positions to the centimetre and angles to the milliradian (the client interpolates), and
   // only the vehicles that changed since the last broadcast (joining clients get the whole fleet in welcome).
   if(++tick%2===0){const data={type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm})=>({id,name,avatar,space:dorm?dorm.host.id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()};
-   const raw=JSON.stringify(data);for(const c of clients.values())if(c.joined){const motion=motionSnapshot(c);sendRaw(c.ws,motion?raw.slice(0,-1)+',"motion":'+JSON.stringify(motion)+'}':raw);}
+   // Each driver also gets what the room has applied of their driving commands, to reconcile against.
+   const raw=JSON.stringify(data);for(const c of clients.values())if(c.joined){const motion=motionSnapshot(c),drive=c.vehicle&&c.vehicleSeat===0?fleet.driveState(c.vehicle):null;
+    sendRaw(c.ws,motion||drive?raw.slice(0,-1)+(motion?',"motion":'+JSON.stringify(motion):'')+(drive?',"drive":'+JSON.stringify(drive):'')+'}':raw);}
   }
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);

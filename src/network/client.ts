@@ -1,10 +1,10 @@
 import { receiveClasses } from '../ui/Classes';
-import { receiveVehicles, vehicleResult, setOccupancy, disconnectVehicles } from '../vehicles/client';
+import { receiveVehicles, receiveDrive, driveProtocol, vehicleResult, setOccupancy, disconnectVehicles } from '../vehicles/client';
 import { useEffect } from 'react';
-import { livePeers, peerTracks, player, prediction, trail, useGame, type Peer } from '../state';
+import { livePeers, peerTracks, roomPlayback, player, prediction, trail, useGame, type Peer } from '../state';
 import { MOTION_VERSION } from '../../shared/prediction.mjs';
 import { createSession } from './session.mjs';
-import { createClock, createTrack } from './interpolation.mjs';
+import { createTrack } from './interpolation.mjs';
 import { bindNetwork, unbindNetwork, receive, loadSnapshot, releaseLocal } from '../interaction/world';
 import type { AvatarConfig } from '../state';
 import { analyticsPayload } from '../analytics/consent';
@@ -43,12 +43,13 @@ export function send(data:unknown){if(socket?.readyState===WebSocket.OPEN){if((d
 export const roomSelf={x:NaN,z:NaN};
 export function interact(id:string){if(useGame.getState().status==='connected'){send({type:'interact',id});}else openLocation(id);}
 function openLocation(id:string){useGame.getState().discover(id);useGame.getState().set({panel:id});document.exitPointerLock?.();}
-let roster='';const roomClock=createClock();
+let roster='';
 /** Update live positions every message; touch React state only when the roster itself changes. */
 function syncPeers(list:Peer[],count:number,roomAt?:number){
  const ids=new Set(list.map(p=>p.id));for(const id of livePeers.keys())if(!ids.has(id)){livePeers.delete(id);peerTracks.delete(id);}
- const at=typeof roomAt==='number'?roomClock.receive(roomAt,performance.now()):performance.now();
- for(const p of list){const live=livePeers.get(p.id);if(live){Object.assign(live,p);/* `space` is left out on campus: clear it when they come out of their room */if(p.space===undefined)delete live.space;}else livePeers.set(p.id,{...p});let track=peerTracks.get(p.id);if(!track)peerTracks.set(p.id,track=createTrack());track.push(at,p.x,p.y,p.z,p.yaw);}
+ // Tracks keep the room's own timestamps; the shared playback point maps them to our clock.
+ const at=typeof roomAt==='number'?roomAt:null;
+ for(const p of list){const live=livePeers.get(p.id);if(live){Object.assign(live,p);/* `space` is left out on campus: clear it when they come out of their room */if(p.space===undefined)delete live.space;}else livePeers.set(p.id,{...p});let track=peerTracks.get(p.id);if(!track)peerTracks.set(p.id,track=createTrack());if(at!==null)track.push(at,p.x,p.y,p.z,p.yaw);}
  const next=list.map(p=>p.id+'|'+p.name+'|'+(p.handle??'')+(p.verified?'|v':'')+'|'+(p.title??'')+'|'+JSON.stringify(p.avatar)).sort().join(';');const s=useGame.getState();
  if(next!==roster||count!==s.count){roster=next;s.set({peers:list.map(p=>({...p})),count});}
 }
@@ -64,10 +65,10 @@ export function connect(){
  ws.onopen=async()=>{if(socket!==ws)return;const access=await bridge?.access().catch(()=>null)??null;if(socket!==ws)return;const g=useGame.getState();send({type:'join',movement:MOTION_VERSION,name:g.name,avatar:g.avatar,invite:g.invite,token:session.get(),analytics:analyticsPayload(),...(access?{access}:{})});};
  ws.onmessage=event=>{if(socket!==ws)return;let m;try{m=JSON.parse(event.data);}catch{return;}const s=useGame.getState();
   if(m.classes)receiveClasses(m.classes);if(m.type==='classes')receiveClasses(m.sessions);
-  if(m.type==='welcome'){prediction.stop();roomClock.reset();ownId=m.id;retry=0;if(failures&&analyticsPayload().consent)setTimeout(()=>send({type:'telemetry',failures}),1000);failures=0;Object.assign(roomInfo,m.room??{id:'courtyard',name:'The Courtyard'});session.set(m.token);Object.assign(player,m.position,{vx:0,vz:0,vy:0,reconcile:null});trail.clear();releaseLocal(true);bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);if(m.vehicles)receiveVehicles(m.vehicles);setOccupancy(null,null);s.set({status:'connected'});}
+  if(m.type==='welcome'){prediction.stop();roomPlayback.reset();ownId=m.id;retry=0;if(failures&&analyticsPayload().consent)setTimeout(()=>send({type:'telemetry',failures}),1000);failures=0;Object.assign(roomInfo,m.room??{id:'courtyard',name:'The Courtyard'});session.set(m.token);Object.assign(player,m.position,{vx:0,vz:0,vy:0,reconcile:null});trail.clear();releaseLocal(true);bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);driveProtocol(m.drive);if(m.vehicles)receiveVehicles(m.vehicles);setOccupancy(null,null);s.set({status:'connected'});}
   if(m.type==='vehicles')receiveVehicles(m.vehicles);
   if(m.type==='vehicleResult')vehicleResult(m);
-  if(m.type==='state'){if(m.vehicles)receiveVehicles(m.vehicles);const self=m.players.find((p:{id:string})=>p.id===ownId);if(self){setOccupancy(self.vehicle??null,self.vehicleSeat??null);roomSelf.x=self.x;roomSelf.z=self.z;}const live=self&&!self.vehicle,gap=live?Math.hypot(self.x-player.x,self.z-player.z):0;
+  if(m.type==='state'){if(typeof m.at==='number')roomPlayback.receive(m.at,performance.now());if(m.vehicles)receiveVehicles(m.vehicles,typeof m.at==='number'?m.at:undefined);const self=m.players.find((p:{id:string})=>p.id===ownId);if(self){setOccupancy(self.vehicle??null,self.vehicleSeat??null);if(m.drive)receiveDrive(m.drive);roomSelf.x=self.x;roomSelf.z=self.z;}const live=self&&!self.vehicle,gap=live?Math.hypot(self.x-player.x,self.z-player.z):0;
    // The room's position trails ours by the network and tick delay: only a position away from the path we
    // just walked is real disagreement (beyond 2 m, snap to it). A lagging snapshot used to snap us back.
    if(!m.motion&&live&&gap>2&&trail.distance(self.x,self.z,performance.now())>2){Object.assign(player,{x:self.x,z:self.z,y:self.y,reconcile:null});trail.clear();}
