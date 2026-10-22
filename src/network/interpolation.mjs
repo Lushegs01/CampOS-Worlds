@@ -15,12 +15,36 @@ const EXTRAPOLATE = 250, TELEPORT = 5;
 export function createClock() {
   let offset = null;
   return {
+    /** The current estimate of (our clock − room clock), or null before the first message. */
+    get offset() { return offset; },
     reset() { offset = null; },
     /** Record a message stamped `roomMs` that arrived at `localMs`; returns its time on our clock. */
     receive(roomMs, localMs) {
       const d = localMs - roomMs;
       offset = offset == null || d < offset ? d : offset + (d - offset) * .02;
       return roomMs + offset;
+    },
+  };
+}
+
+/**
+ * The room time to draw remote players and vehicles at (`delay` ms in the past). Snapshots keep the room's
+ * own timestamps, so their spacing is exact; only this playback point follows the estimated clock offset,
+ * and it slews to a new estimate over about half a second instead of jumping (every jump of the estimate
+ * used to show as a small change of speed). Any number of reads per frame give the same result.
+ */
+export function createPlayback(delay = INTERP_DELAY) {
+  const clock = createClock(); let offset = null, last = 0;
+  return {
+    reset() { clock.reset(); offset = null; },
+    receive(roomMs, localMs) { clock.receive(roomMs, localMs); },
+    /** Room time to draw at, at local time `localMs`; null before any message. */
+    time(localMs) {
+      const target = clock.offset; if (target == null) return null;
+      if (offset == null || Math.abs(target - offset) > 500) offset = target;
+      else if (localMs > last) offset += (target - offset) * Math.min(1, (localMs - last) / 500);
+      last = Math.max(last, localMs);
+      return localMs - offset - delay;
     },
   };
 }
@@ -39,7 +63,7 @@ export function createTrack(size = 8) {
       samples.push({ t, x, y, z, yaw });
       if (samples.length > size) samples.shift();
     },
-    /** Position at time `t` (our clock) into `out`: interpolated, briefly extrapolated, or held. */
+    /** Position at room time `t` into `out`: interpolated, briefly extrapolated, or held. */
     sample(t, out) {
       const n = samples.length;
       if (!n) return false;

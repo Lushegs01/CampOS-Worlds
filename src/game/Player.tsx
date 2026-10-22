@@ -20,7 +20,7 @@ import { surfaceHeight } from '../world/layout';
 import { steerAuthority, steerToward } from '../vehicles/steering.mjs';
 
 const keys = new Set<string>();
-const target = new THREE.Vector3(), desired = new THREE.Vector3(), look = new THREE.Vector3(), lookFrom = new THREE.Vector3(), posFrom = new THREE.Vector3();
+const target = new THREE.Vector3(), desired = new THREE.Vector3(), chase = new THREE.Vector3(), look = new THREE.Vector3(), lookFrom = new THREE.Vector3(), posFrom = new THREE.Vector3();
 const ray = new THREE.Vector3(), side = new THREE.Vector3(), upv = new THREE.Vector3(0, 1, 0);
 /** Where the driver's steering wheel is, -1..1 (src/vehicles/steering.mjs). */
 let wheel = 0;
@@ -81,7 +81,7 @@ const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3)
 export default function Player() {
   const avatar = useGame(s => s.avatar), root = useRef<THREE.Group>(null!), { gl } = useThree();
   const idle = useRef({ t: 0, sent: 0 }), lastSend = useRef(0), sentStill = useRef(false), lastSense = useRef(0), collectSent = useRef<Record<string, number>>({});
-  const cam = useRef({ yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0 });
+  const cam = useRef({ yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false });
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches('input,textarea,select')) return; const s = useGame.getState();
@@ -148,8 +148,12 @@ export default function Player() {
       const real=Math.min(raw,.25);if(!input.dragging){c.yaw+=Math.atan2(Math.sin(a.yaw+Math.PI-c.yaw),Math.cos(a.yaw+Math.PI-c.yaw))*(1-Math.exp(-real*3));input.yaw=c.yaw;}else c.yaw=input.yaw;
       // Framing scales with the vehicle: further back and higher for the shuttle than the cart.
       const size=VEHICLE_TYPES[vehicle.type],back=4+size.length*1.2;target.set(vehicle.x,size.height*.85,vehicle.z);desired.set(vehicle.x+Math.sin(c.yaw)*back,2.6+size.height*1.3+input.pitch*3,vehicle.z+Math.cos(c.yaw)*back);
-      const f=armFraction(target,desired);desired.lerp(target,1-f);camera.position.lerp(desired,1-Math.exp(-real*7));camera.lookAt(target);return;
+      // The camera moves rigidly with the vehicle and only its offset (swinging round behind, clearing walls) is eased:
+      // easing its position made how far it trailed depend on each frame's length, so the car shook on screen.
+      const f=armFraction(target,desired);desired.lerp(target,1-f);if(!c.chasing){c.chasing=true;chase.subVectors(camera.position,target);}
+      chase.lerp(desired.sub(target),1-Math.exp(-real*7));camera.position.addVectors(target,chase);camera.lookAt(target);return;
     }
+    c.chasing=false;
     driving.throttle=driving.steer=wheel=0;
     // Finished standing: step onto the spot the stand-up motion ended on.
     if (player.sit?.phase === 'done') { const exit = player.sit.exit; if (exit) { player.x = exit.x; player.z = exit.z; } player.sit = null; player.vx = player.vz = 0; }

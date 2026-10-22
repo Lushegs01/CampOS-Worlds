@@ -2,7 +2,7 @@ import { player } from '../state';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { VEHICLE_SPAWNS, VEHICLE_TYPES, localPoint } from '../../shared/vehicles.mjs';
+import { VEHICLE_SPAWNS, VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { vehicleVisuals, vehicleLift, tickVehicles } from '../vehicles/client';
 import { surfaceHeight } from './layout';
 import { buildVehicleModel, type VehicleType } from './vehicleModels';
@@ -14,7 +14,7 @@ function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
   // Every part is static until it moves: a parked vehicle's forty-odd parts were re-composed every frame
   // (fourteen vehicles, over half the scene). Moving parts are updated below only when they change.
   const model = useMemo(() => { const m = buildVehicleModel(id, type); freeze(m.root); return m; }, [id, type]), group = useRef<THREE.Group>(null!);
-  const motion = useRef({ speed: 0, accel: 0, yaw: 0, yawRate: 0, pitch: 0, roll: 0, brake: 0, x: NaN, z: NaN, placedYaw: NaN, lift: 0, placedLift: NaN });
+  const motion = useRef({ speed: 0, accel: 0, yaw: 0, yawRate: 0, pitch: 0, roll: 0, brake: 0, x: NaN, z: NaN, placedYaw: NaN, lift: 0, placedLift: NaN, under: 0, liftX: NaN, liftZ: NaN, liftYaw: NaN });
   useEffect(() => () => model.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && !m.geometry.name) m.geometry.dispose(); }), [model]);
   useEffect(() => registerMovingCaster(model.root), [model]);
   useEffect(() => () => silenceVehicle(id), [id]);
@@ -23,7 +23,15 @@ function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
     const dt = Math.min(Math.max(raw, 1e-3), .1), m = motion.current;
     const visible = Math.hypot(v.x - player.x, v.z - player.z) < 320, g = group.current; g.visible = visible;
     // Off the road a vehicle crosses paving, sidewalks and kerbs: it rides on the highest surface under its wheels.
-    if (visible) { const t = VEHICLE_TYPES[type], under = Math.max(...[-1, 1].flatMap(s => [-1, 1].map(f => { const p = localPoint(v, s * t.width * .4, f * t.wheelbase / 2); return surfaceHeight(p.x, p.z); }))); m.lift = THREE.MathUtils.damp(m.lift, under, 14, dt); vehicleLift.set(id, m.lift); }
+    // Measured again only when the vehicle has moved, without allocating: fourteen vehicles, every frame.
+    if (visible) {
+      if (v.x !== m.liftX || v.z !== m.liftZ || v.yaw !== m.liftYaw) {
+        const t = VEHICLE_TYPES[type], c = Math.cos(v.yaw), sn = Math.sin(v.yaw); let under = -Infinity;
+        for (let s = -1; s <= 1; s += 2) for (let f = -1; f <= 1; f += 2) { const x = s * t.width * .4, z = f * t.wheelbase / 2; under = Math.max(under, surfaceHeight(v.x + x * c + z * sn, v.z - x * sn + z * c)); }
+        m.under = under; m.liftX = v.x; m.liftZ = v.z; m.liftYaw = v.yaw;
+      }
+      if (m.lift !== m.under) { m.lift = Math.abs(m.under - m.lift) < 1e-4 ? m.under : THREE.MathUtils.damp(m.lift, m.under, 14, dt); vehicleLift.set(id, m.lift); }
+    }
     if (v.x !== m.x || v.z !== m.z || v.yaw !== m.placedYaw || Math.abs(m.lift - m.placedLift) > 1e-3) { m.x = v.x; m.z = v.z; m.placedYaw = v.yaw; m.placedLift = m.lift; g.position.set(v.x, m.lift, v.z); g.rotation.y = v.yaw; g.updateMatrix(); }
     vehicleSound(id, type, v, m.accel * Math.sign(v.speed || 1), v.occupants);
     if (!visible) { m.speed = v.speed; m.yaw = v.yaw; return; }

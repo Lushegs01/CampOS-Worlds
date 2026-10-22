@@ -21,6 +21,15 @@ These features are optional. Without configuration the app builds and runs guest
 
 The room calls Supabase over HTTPS with a 5-second timeout. If Supabase is unreachable, signed-in players continue as guests and are told why; nobody is disconnected.
 
+## Campus store (Bachs)
+
+Optional, and only with accounts. Follow [STORE.md](STORE.md):
+
+1. Apply `supabase/migrations/20261022120000_campus_store.sql`.
+2. In Bachs, add a webhook endpoint at `https://<room host>/shop/webhook` for `collection.succeeded` and `checkout.completed`. If a proxy fronts the room, route `/shop/webhook` to it as well as `/ws`. Keep `/admin/kick` private as before.
+3. On the room server, set `BACHS_SECRET_KEY`, `BACHS_WEBHOOK_SECRET` and `PUBLIC_APP_URL` as secrets. Optionally set `SHOP_PRICE_CHARACTER` / `SHOP_PRICE_ITEM` in naira. Restart the room.
+4. The frontend needs no new settings. `shop-return.html` is part of the build.
+
 ## Same-origin deployment (recommended for a private demo)
 
 1. Run `npm ci && npm run build` in CI with Node 22.12+.
@@ -40,6 +49,10 @@ location /assets/ {
     root /srv/campos-worlds/dist;
     expires 1y;
     add_header Cache-Control "public, immutable";
+}
+# Campus store payment events from Bachs (only if the store is set up; docs/STORE.md).
+location = /shop/webhook {
+    proxy_pass http://127.0.0.1:3001;
 }
 location /ws {
     proxy_pass http://127.0.0.1:3001;

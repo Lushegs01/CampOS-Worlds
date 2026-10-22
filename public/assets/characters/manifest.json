@@ -126,6 +126,48 @@
       ],
       "height": 1.736,
       "hip": 0.9233
+    },
+    {
+      "id": "emeka",
+      "name": "Emeka",
+      "body": "m",
+      "style": "Tailored suit",
+      "source": "https://github.com/microsoft/Microsoft-Rocketbox/tree/master/Assets/Avatars/Professions/Business_Male_05",
+      "skinRef": [
+        0.3005,
+        0.1274,
+        0.0595
+      ],
+      "height": 1.801,
+      "hip": 0.8952
+    },
+    {
+      "id": "folake",
+      "name": "Folake",
+      "body": "f",
+      "style": "Evening outfit",
+      "source": "https://github.com/microsoft/Microsoft-Rocketbox/tree/master/Assets/Avatars/Adults/Female_Party_02",
+      "skinRef": [
+        0.491,
+        0.2016,
+        0.0704
+      ],
+      "height": 1.788,
+      "hip": 0.9233
+    },
+    {
+      "id": "seun",
+      "name": "Seun",
+      "body": "m",
+      "style": "Football kit",
+      "source": "https://github.com/microsoft/Microsoft-Rocketbox/tree/master/Assets/Avatars/Professions/Sports_Male_03",
+      "skinRef": [
+        0.3864,
+        0.1529,
+        0.0666
+      ],
+      "height": 1.826,
+      "hip": 0.8952
     }
   ],
   "animations": {

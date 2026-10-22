@@ -21,6 +21,7 @@ import TouchControls from './ui/TouchControls';
 import { MapGraphic } from './ui/CampusMap';
 import { InteractionPrompt, BasketballHUD } from './ui/Interaction';
 import { initAccount, useAccount, useKeepsakes } from './account/store';
+import { initShop } from './account/shop';
 import { Portrait } from './ui/Account';
 import { CommunityDrawer } from './ui/Community';
 import { useCommunity } from './community/store';
@@ -50,7 +51,7 @@ const locate=()=>({heart:Math.abs(player.x)<14&&Math.abs(player.z)<15,district:d
 export default function App(){
  // Only what this component shows: the frame-rate readout and other frequent store writes must not
  // re-render the whole interface (and reconcile the 3D scene's React tree) every time.
- const s=useGame(useShallow(g=>({phase:g.phase,panel:g.panel,ready:g.ready,status:g.status,count:g.count,tour:g.tour,tourStep:g.tourStep,destination:g.destination,toast:g.toast,reducedMotion:g.reducedMotion,set:g.set,notify:g.notify})));useNetwork();useEffect(()=>{void initAccount();initSocial();initDuels();initChallenges();initActivities();},[]);const keepsakes=useKeepsakes(),accountStatus=useAccount(a=>a.status),communityOpen=useCommunity(c=>c.open),socialOpen=useSocial(c=>c.open),socialUnread=useSocial(c=>c.unread.requests+c.unread.messages),partySize=useSocial(c=>c.party?.members.length??0),duelLive=useDuel(d=>!!d.duel&&(d.duel.state==='ready'||d.duel.state==='playing'));const next=LOCATIONS.find(l=>l.id===(s.destination||TOUR[s.tourStep]));
+ const s=useGame(useShallow(g=>({phase:g.phase,panel:g.panel,ready:g.ready,status:g.status,count:g.count,tour:g.tour,tourStep:g.tourStep,destination:g.destination,toast:g.toast,reducedMotion:g.reducedMotion,set:g.set,notify:g.notify})));useNetwork();useEffect(()=>{void initAccount();initShop();initSocial();initDuels();initChallenges();initActivities();},[]);const keepsakes=useKeepsakes(),accountStatus=useAccount(a=>a.status),communityOpen=useCommunity(c=>c.open),socialOpen=useSocial(c=>c.open),socialUnread=useSocial(c=>c.unread.requests+c.unread.messages),partySize=useSocial(c=>c.party?.members.length??0),duelLive=useDuel(d=>!!d.duel&&(d.duel.state==='ready'||d.duel.state==='playing'));const next=LOCATIONS.find(l=>l.id===(s.destination||TOUR[s.tourStep]));
  useEffect(()=>{const visibility=()=>{if(document.hidden)send({type:'input',dx:0,dz:0,yaw:player.yaw,sprint:false,jump:false});};document.addEventListener('visibilitychange',visibility);return()=>document.removeEventListener('visibilitychange',visibility);},[]);
  return <main className={`app${s.reducedMotion?' reduced-motion':''}${duelLive?' has-duel':''}`}><div className="world"><WorldBoundary><Suspense fallback={<div className="loading-screen"><Compass size={38}/><span className="eyebrow">GOOD THINGS TAKE A MOMENT</span><h2>A world is taking shape.</h2><div className="loading-bar"/><p>Opening your campus…</p></div>}><World/></Suspense></WorldBoundary></div>
  <div className={`vignette ${s.phase==='welcome'?'welcome-vignette':''}`}/>

@@ -10,8 +10,7 @@ import * as THREE from 'three';
 import Player from '../game/Player';
 import Avatar, { type AvatarMotion } from '../avatar/Avatar';
 import { AvatarBoundary } from '../avatar/AvatarBoundary';
-import { input, livePeers, peerTracks, player, useGame, type Peer, type SitState } from '../state';
-import { INTERP_DELAY } from '../network/interpolation.mjs';
+import { input, livePeers, peerTracks, roomPlayback, player, useGame, type Peer, type SitState } from '../state';
 import { SEAT_BY_ID } from '../../shared/interactions.mjs';
 import { peerRelease } from '../interaction/controller';
 import { Doors, Chairs, Balls, Computers } from './Interactive';
@@ -62,7 +61,7 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
     if(anchor){const lift=vehicleLift.get(peer.vehicle!)??0;g.position.set(anchor.x,.025+lift,anchor.z);g.rotation.y=anchor.yaw;m.speed=0;m.y=0;m.vy=0;m.turn=0;m.last.copy(g.position);tag.current.position.y=anchor.y+1.4;tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);return;}
     const seat = m.sit ? SEAT_BY_ID.get(m.sit.seat) : undefined;
     // Drawn slightly in the past, between the two snapshots around that moment: steady speed (./network/interpolation.mjs).
-    const at = peerTracks.get(initial.id)?.sample(performance.now() - INTERP_DELAY, shown) ? shown : peer;
+    const t = roomPlayback.time(performance.now()), at = t !== null && peerTracks.get(initial.id)?.sample(t, shown) ? shown : peer;
     if (seat) { g.position.set(seat.x, surfaceHeight(seat.x, seat.z), seat.z); g.rotation.y = seat.yaw; }
     else g.position.set(at.x, at.y + surfaceHeight(at.x, at.z), at.z);
     let d = at.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); if (!seat) g.rotation.y += d * (1 - Math.exp(-dt * 14));

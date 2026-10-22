@@ -5,7 +5,7 @@ import { suggestedQuality } from './world/quality';
 import { preferences } from './preferences.mjs';
 import { createTrail } from '../shared/movement.mjs';
 import { createPrediction } from '../shared/prediction.mjs';
-import { createTrack } from './network/interpolation.mjs';
+import { createTrack, createPlayback } from './network/interpolation.mjs';
 import { STEERING } from './vehicles/steering.mjs';
 /** Sound is on from the start (Settings → Sound); browsers only let it play after the first tap or key press. */
 const DEFAULT_VOLUME=.7;
@@ -33,8 +33,10 @@ export const prediction = createPrediction(player);
 // Latest remote positions arrive at 15 Hz; they live outside React so the scene reads them per frame
 // and React only re-renders when someone joins, leaves or changes their name or appearance.
 export const livePeers = new Map<string,Peer>();
-/** Each remote player's recent positions on our clock, drawn slightly in the past (network/interpolation.mjs). */
+/** Each remote player's recent positions by the room's clock, drawn slightly in the past (network/interpolation.mjs). */
 export const peerTracks = new Map<string,ReturnType<typeof createTrack>>();
+/** The room time remote players and vehicles are drawn at: one playback point for both, so riders stay in their seats. */
+export const roomPlayback = createPlayback();
 export const useGame = create<Game>()(persist((set,get)=>({
  phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,volume:DEFAULT_VOLUME,ambience:1,steering:STEERING.default,
  discovered:[],tokens:[],tour:false,tourStep:0,bestScore:0,nearby:null,toast:'',destination:null,

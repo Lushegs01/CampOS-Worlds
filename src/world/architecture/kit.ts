@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MaterialKey, Materials } from '../materials';
 
 export type V3 = [number, number, number];
@@ -31,8 +30,16 @@ export interface AddOptions { matrix?: THREE.Matrix4; keepUV?: boolean; color?: 
  * Authoring happens in a stack of local frames (push/pop) so a facade can be written as
  * "runs along +X, faces +Z" and then placed anywhere on a building.
  */
+/** Copies a shaped part's attribute into merged arrays at vertex `at` (plain arrays directly, anything else per element). */
+function copyInto(target: Float32Array, a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, at: number) {
+  const size = a.itemSize;
+  if (!(a as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute && a.array instanceof Float32Array && a.array.length === a.count * size) { target.set(a.array, at * size); return; }
+  for (let i = 0; i < a.count; i++) for (let c = 0; c < size; c++) target[(at + i) * size + c] = a.getComponent(i, c);
+}
+interface Part { geometry: THREE.BufferGeometry; matrix: THREE.Matrix4 | null; frame: THREE.Matrix4; keepUV: boolean; color: THREE.ColorRepresentation }
 export class Kit {
-  private buckets = new Map<string, { mat: MaterialKey; shadow: boolean; parts: THREE.BufferGeometry[] }>();
+  // Parts are recorded as they are added and only shaped when built, so `buildSteps` can spread that work over frames.
+  private buckets = new Map<string, { mat: MaterialKey; shadow: boolean; parts: Part[] }>();
   private stack: THREE.Matrix4[] = [new THREE.Matrix4()];
   private color = new THREE.Color();
 
@@ -50,22 +57,28 @@ export class Kit {
     object.matrixAutoUpdate = false; object.matrix.copy(this.matrixAt(local, rotationY)); object.matrix.decompose(object.position, object.quaternion, object.scale); return object;
   }
 
+  /** Takes ownership of `geometry` (it may be added again unchanged, as breeze screens do; never changed after). */
   add(mat: MaterialKey, geometry: THREE.BufferGeometry, o: AddOptions = {}) {
-    let g = geometry.index ? geometry.toNonIndexed() : geometry.clone();
-    for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
-    if (o.matrix) g.applyMatrix4(o.matrix);
-    if (!g.getAttribute('normal')) g.computeVertexNormals();
-    if (!o.keepUV || !g.getAttribute('uv')) projectUV(g);
-    const count = g.getAttribute('position').count, col = new Float32Array(count * 3);
-    this.color.set(o.color ?? '#ffffff');
-    for (let i = 0; i < count; i++) { col[i * 3] = this.color.r; col[i * 3 + 1] = this.color.g; col[i * 3 + 2] = this.color.b; }
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    g.applyMatrix4(this.stack[this.stack.length - 1]);
     const shadow = o.shadow ?? true, key = `${mat}|${shadow}`;
     let b = this.buckets.get(key); if (!b) { b = { mat, shadow, parts: [] }; this.buckets.set(key, b); }
-    b.parts.push(g);
-    if (g !== geometry) geometry.dispose();
+    // The frame matrices on the stack are never changed in place; a caller's matrix may be (breezeScreen reuses one).
+    const color = o.color instanceof THREE.Color ? o.color.clone() : o.color ?? '#ffffff';
+    b.parts.push({ geometry, matrix: o.matrix ? o.matrix.clone() : null, frame: this.stack[this.stack.length - 1], keepUV: !!o.keepUV, color });
     return this;
+  }
+  private shape(p: Part) {
+    const geometry = p.geometry;
+    const g = geometry.index ? geometry.toNonIndexed() : geometry.clone();
+    for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
+    if (p.matrix) g.applyMatrix4(p.matrix);
+    if (!g.getAttribute('normal')) g.computeVertexNormals();
+    if (!p.keepUV || !g.getAttribute('uv')) projectUV(g);
+    const count = g.getAttribute('position').count, col = new Float32Array(count * 3);
+    this.color.set(p.color);
+    for (let i = 0; i < count; i++) { col[i * 3] = this.color.r; col[i * 3 + 1] = this.color.g; col[i * 3 + 2] = this.color.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.applyMatrix4(p.frame);
+    return g;
   }
 
   box(mat: MaterialKey, center: V3, size: V3, o: AddOptions & { rotY?: number; rotX?: number; rotZ?: number } = {}) {
@@ -93,17 +106,34 @@ export class Kit {
   }
 
   build(lib: Materials, name = 'architecture') {
+    const steps = this.buildSteps(lib, name);
+    for (;;) { const r = steps.next(); if (r.done) return r.value; }
+  }
+  /** `build` in small steps (a few dozen parts each): callers that spread the work over frames step it (src/world/Expansion.tsx). */
+  *buildSteps(lib: Materials, name = 'architecture'): Generator<void, THREE.Group> {
     const group = new THREE.Group(); group.name = name;
     for (const b of this.buckets.values()) {
-      const geometry = mergeGeometries(b.parts, false); b.parts.forEach(p => p.dispose());
-      if (!geometry) continue;
+      // Every shaped part has the same four attributes: each is copied straight into the merged arrays.
+      const total = b.parts.reduce((n, p) => n + (p.geometry.index ?? p.geometry.getAttribute('position')).count, 0);
+      if (!total) continue;
+      const merged = { position: new Float32Array(total * 3), normal: new Float32Array(total * 3), uv: new Float32Array(total * 2), color: new Float32Array(total * 3) };
+      let at = 0;
+      for (let i = 0; i < b.parts.length; i++) {
+        const g = this.shape(b.parts[i]), n = g.getAttribute('position').count;
+        for (const k of ['position', 'normal', 'uv', 'color'] as const) copyInto(merged[k], g.getAttribute(k), at);
+        at += n; g.dispose(); b.parts[i].geometry.dispose();
+        if (i % 24 === 23) yield;
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(merged.position, 3)); geometry.setAttribute('normal', new THREE.BufferAttribute(merged.normal, 3));
+      geometry.setAttribute('uv', new THREE.BufferAttribute(merged.uv, 2)); geometry.setAttribute('color', new THREE.BufferAttribute(merged.color, 3));
       geometry.computeBoundingSphere();
       const mesh = new THREE.Mesh(geometry, lib[b.mat]);
       mesh.name = `${name}:${b.mat}`; mesh.castShadow = b.shadow; mesh.receiveShadow = true;
       const m = lib[b.mat] as THREE.MeshStandardMaterial;
       if (m.alphaTest > 0) mesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaMap: m.alphaMap, map: m.map, alphaTest: m.alphaTest });
       mesh.matrixAutoUpdate = false; mesh.updateMatrix();
-      group.add(mesh);
+      group.add(mesh); yield;
     }
     this.buckets.clear();
     return group;

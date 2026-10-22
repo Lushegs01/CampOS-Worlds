@@ -119,7 +119,9 @@ function patchMaterial(material: THREE.MeshStandardMaterial, uniforms: { uSkinTi
  * Where accessories meet one character, measured on its own rest-pose mesh in rig space (+Z is the wearer's
  * front). Hair, hoods and headscarves are part of the mesh, so headphones sit over them and straps over collars.
  */
-interface HeadFit { eye: THREE.Vector3; lensZ: number; temple: number; side: number; ear: THREE.Vector3; earWidth: number; band: THREE.Vector3[] }
+interface HeadFit { eye: THREE.Vector3; lensZ: number; temple: number; side: number; ear: THREE.Vector3; earWidth: number; band: THREE.Vector3[]; dome: Dome }
+/** Caps and beanies: the head's outline over the top, from a line just above the brow (see domeFit). */
+interface Dome { y: number; z: number; radii: number[][] }
 interface BackFit { pack: THREE.Vector3; strap: THREE.Vector3[]; webbing: THREE.Vector3[] }
 const fits = new Map<string, HeadFit | BackFit>();
 
@@ -128,10 +130,11 @@ const fits = new Map<string, HeadFit | BackFit>();
  * head (face, hair, headwear), or the clothed upper body without the arms, folded onto one side (+X) so both
  * shoulder straps follow the same outline. The bodies are low-poly: their vertices alone are too sparse to find
  * a chest or a shoulder. `face` is the vertices of the head material alone: the face is finely modelled, and a
- * headscarf's large triangles in the same material would otherwise reach in beside the eyes.
+ * headscarf's large triangles in the same material would otherwise reach in beside the eyes. `solid` leaves out
+ * the alpha-tested hair cards (the `opacity` material): the skull, a headscarf or modelled hair.
  */
 function surface(rig: Rig, toRig: THREE.Matrix4, part: 'head' | 'body') {
-  const points: THREE.Vector3[] = [], face: THREE.Vector3[] = [], index = new THREE.Vector4(), weight = new THREE.Vector4(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+  const points: THREE.Vector3[] = [], face: THREE.Vector3[] = [], solid: THREE.Vector3[] = [], index = new THREE.Vector4(), weight = new THREE.Vector4(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
   const at = (name: string) => rig.bones[name].getWorldPosition(new THREE.Vector3()).applyMatrix4(toRig), waist = at('Bip01_Pelvis').y, arm = Math.abs(at('Bip01_L_UpperArm').x);
   rig.root.traverse(o => {
     const mesh = o as THREE.SkinnedMesh, material = (mesh.material as THREE.Material | undefined)?.name;
@@ -155,11 +158,11 @@ function surface(rig: Rig, toRig: THREE.Matrix4, part: 'head' | 'body') {
       for (let u = 0; u <= steps; u++) for (let v = 0; v <= steps - u; v++) {
         const p = a.clone().addScaledVector(ab, u).addScaledVector(ac, v);
         if (part === 'body') p.x = Math.abs(p.x);
-        points.push(p);
+        points.push(p); if (material !== 'opacity') solid.push(p);
       }
     }
   });
-  return { points, face };
+  return { points, face, solid };
 }
 
 /**
@@ -185,7 +188,7 @@ const highest = (points: THREE.Vector3[], keep: (p: THREE.Vector3) => boolean, v
 /** Glasses and headphones, measured on a rig posed at rest (bones at their glTF transforms, matrices up to date). */
 function headFit(rig: Rig): HeadFit {
   const toRig = rig.root.matrixWorld.clone().invert(), at = (name: string) => rig.bones[name].getWorldPosition(new THREE.Vector3()).applyMatrix4(toRig);
-  const { points: head, face } = surface(rig, toRig, 'head');
+  const { points: head, face, solid } = surface(rig, toRig, 'head');
   // Glasses: lenses in front of the eyes, clear of the lids and resting on the bridge of the nose; arms past
   // the temples to the tops of the ears.
   const left = at('Bip01_LEye'), right = at('Bip01_REye'), eye = new THREE.Vector3(Math.abs(left.x - right.x) / 2, (left.y + right.y) / 2, (left.z + right.z) / 2);
@@ -198,8 +201,55 @@ function headFit(rig: Rig): HeadFit {
   const earWidth = highest(head, p => Math.abs(p.y - ear.y) < .035 && Math.abs(p.z - ear.z) < .04, p => Math.abs(p.x));
   const crown = outline(head, ear, AXIS_X, AXIS_Y, .03, 0, Math.PI, 24).map((r, i, all) => Math.max(r, all[all.length - 1 - i]));
   const band = crown.map((r, i) => onArc(ear, AXIS_X, AXIS_Y, (i + .5) / crown.length * Math.PI, r + .012)).filter(p => p.y > ear.y + .05);
-  return { eye, lensZ: Math.max(lid + .012, nose + .003), temple, side, ear, earWidth, band };
+  return { eye, lensZ: Math.max(lid + .012, nose + .003), temple, side, ear, earWidth, band, dome: domeFit(head, solid, eye) };
 }
+
+const DOME_AZ = 48, DOME_EL = 12, DOME_LOW = 4;
+/**
+ * The crown a cap or beanie needs, wrapped round this character from a centre on a line just above the
+ * eyebrows: `radii[e][a]` is its distance in elevation band e (0 at that line, up to the crown) and azimuth a
+ * (0 straight ahead, turning towards +X). Low down, a hat sits on the skull or headscarf and hair cards come
+ * out from under it; higher up it covers the hair as well (all but its wispiest strands), smoothly.
+ */
+function domeFit(head: THREE.Vector3[], solid: THREE.Vector3[], eye: THREE.Vector3): Dome {
+  const y = eye.y + .03, middle = (p: THREE.Vector3) => Math.abs(p.y - y) < .012 && Math.abs(p.x) < .03;
+  const z = (highest(solid, middle, p => p.z) - highest(solid, middle, p => -p.z)) / 2;
+  const cells = () => Array.from({ length: DOME_EL }, () => Array.from({ length: DOME_AZ }, () => [] as number[])), d = new THREE.Vector3();
+  const bin = (list: THREE.Vector3[], into: number[][][]) => { for (const p of list) {
+    if (p.y < y) continue;
+    d.set(p.x, p.y - y, p.z - z); const len = d.length(); if (len < 1e-4) continue;
+    const a = Math.round((Math.atan2(d.x, d.z) + Math.PI * 2) / (Math.PI * 2) * DOME_AZ) % DOME_AZ, e = Math.min(DOME_EL - 1, Math.floor(Math.asin(Math.min(1, d.y / len)) / (Math.PI / 2) * DOME_EL));
+    into[e][a].push(len);
+  } };
+  const skull = cells(), all = cells(); bin(solid, skull); bin(head, all);
+  const most = (v: number[]) => { if (!v.length) return 0; v.sort((p, q) => p - q); return v[Math.floor((v.length - 1) * .95)]; };
+  const firm = skull.map(row => row.map(v => v.length ? Math.max(...v) : 0)), raw = all.map((row, e) => row.map((v, a) => Math.max(firm[e][a], e < DOME_LOW ? 0 : most(v))));
+  // Directions nothing fell into take the nearest radius found around the same band (or the band below).
+  for (const g of [firm, raw]) for (let e = 0; e < DOME_EL; e++) for (let a = 0; a < DOME_AZ; a++) if (!g[e][a]) {
+    let found = 0; for (let k = 1; k < DOME_AZ / 2 && !found; k++) found = Math.max(g[e][(a + k) % DOME_AZ], g[e][(a - k + DOME_AZ) % DOME_AZ]);
+    g[e][a] = found || (e ? g[e - 1][a] : .09);
+  }
+  // Smoothed twice over each direction's neighbours; never inside the skull or headscarf.
+  const at = (g: number[][], e: number, a: number) => g[Math.max(0, Math.min(DOME_EL - 1, e))][(a + DOME_AZ) % DOME_AZ];
+  const blur = (g: number[][]) => g.map((row, e) => row.map((_, a) => [-1, 0, 1].reduce((sum, de) => sum + [-2, -1, 0, 1, 2].reduce((s2, da) => s2 + at(g, e + de, a + da), 0), 0) / 15));
+  const radii = blur(blur(raw)).map((row, e) => row.map((r, a) => Math.max(r, firm[e][a] + .004)));
+  return { y, z, radii };
+}
+
+/** The wrapped crown as a surface, `out` metres outside it: a ring per band from the brow line, closed at the top. */
+function domeGeometry(dome: Dome, out: number, stretch = 1) {
+  const radius = (e: number, a: number) => { const g = dome.radii, eb = Math.max(0, Math.min(DOME_EL - 1, e)); return Math.max(g[eb][(a + DOME_AZ) % DOME_AZ], g[Math.max(0, eb - 1)][(a + DOME_AZ) % DOME_AZ]) + out; };
+  const position: number[] = [], index: number[] = [], ring = DOME_AZ + 1;
+  for (let e = 0; e <= DOME_EL; e++) for (let a = 0; a <= DOME_AZ; a++) {
+    const el = e / DOME_EL * Math.PI / 2, az = a / DOME_AZ * Math.PI * 2, r = e === DOME_EL ? Math.max(...dome.radii[DOME_EL - 1]) + out : radius(e, a % DOME_AZ);
+    position.push(Math.sin(az) * Math.cos(el) * r, Math.sin(el) * r * stretch, Math.cos(az) * Math.cos(el) * r);
+  }
+  for (let e = 0; e < DOME_EL; e++) for (let a = 0; a < DOME_AZ; a++) { const i = e * ring + a; index.push(i, i + 1, i + ring, i + 1, i + ring + 1, i + ring); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(position, 3)); g.setIndex(index); g.computeVertexNormals();
+  return g;
+}
+/** The crown's radius at the brow line straight ahead, and all the way round (for a peak and a cuff). */
+const domeBase = (dome: Dome, out: number) => Array.from({ length: DOME_AZ }, (_, a) => dome.radii[0][a] + out);
 
 /** The backpack, measured on a rig posed at rest. */
 function backFit(rig: Rig): BackFit {
@@ -259,20 +309,45 @@ function accessoryMeshes(kind: string, accent: string, fit: HeadFit | BackFit) {
       const shell = new THREE.Mesh(new THREE.CylinderGeometry(.035, .042, .024, 24).rotateZ(-s * Math.PI / 2).scale(1, 1.15, 1), fabric); shell.position.set(s * (cupX + .026), ear.y, ear.z);
       group.add(cushion, shell);
     }
-  } else if (kind === 'glasses') {
+  } else if (kind === 'glasses' || kind === 'shades') {
     // Rims a little wider than the eyes, a bridge over the nose, and arms that clear the temples and hook
-    // over the ears.
-    const { eye, lensZ, temple, side, ear } = fit as HeadFit, cx = eye.x + .004, rx = .0235 * 1.1, y = eye.y + .003, edge = cx + rx;
-    const lens = new THREE.MeshStandardMaterial({ color: '#9bb', roughness: .05, transparent: true, opacity: .18 });
+    // over the ears. Aviators (a store item): larger tinted lenses in gold frames, with a brow bar.
+    const aviator = kind === 'shades', r = aviator ? .026 : .0235, sx = aviator ? 1.18 : 1.1, sy = aviator ? 1.02 : 1;
+    const { eye, lensZ, temple, side, ear } = fit as HeadFit, cx = eye.x + (aviator ? .006 : .004), rx = r * sx, y = eye.y + (aviator ? .001 : .003), edge = cx + rx;
+    const frame = aviator ? new THREE.MeshStandardMaterial({ color: '#c9a24a', roughness: .28, metalness: 1 }) : dark;
+    const lens = aviator ? new THREE.MeshStandardMaterial({ color: '#3b3a2c', roughness: .08, metalness: .5, transparent: true, opacity: .82 }) : new THREE.MeshStandardMaterial({ color: '#9bb', roughness: .05, transparent: true, opacity: .18 });
     for (const s of [1, -1]) {
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(.0235, .0026, 6, 28).scale(1.1, 1, 1), dark); rim.position.set(s * cx, y, lensZ);
-      const glass = new THREE.Mesh(new THREE.CircleGeometry(.0235, 24).scale(1.1, 1, 1), lens); glass.position.set(s * cx, y, lensZ - .001);
-      const piece = new THREE.Mesh(new THREE.BoxGeometry(.008, .006, .005), dark); piece.position.set(s * (edge + .002), y + .004, lensZ - .002);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(r, aviator ? .0018 : .0026, 6, 28).scale(sx, sy, 1), frame); rim.position.set(s * cx, y, lensZ);
+      const glass = new THREE.Mesh(new THREE.CircleGeometry(r, 24).scale(sx, sy, 1), lens); glass.position.set(s * cx, y, lensZ - .001);
+      const piece = new THREE.Mesh(new THREE.BoxGeometry(.008, .006, .005), frame); piece.position.set(s * (edge + .002), y + .004, lensZ - .002);
       const arm = new THREE.CatmullRomCurve3([[edge + .005, y + .004, lensZ - .004], [Math.max(temple, edge) + .004, y + .005, eye.z - .025], [side + .004, y + .004, ear.z + .02], [side - .002, y - .022, ear.z - .018]].map(([x, py, z]) => new THREE.Vector3(s * x, py, z)));
-      group.add(rim, glass, piece, new THREE.Mesh(new THREE.TubeGeometry(arm, 20, .0022, 5), dark));
+      group.add(rim, glass, piece, new THREE.Mesh(new THREE.TubeGeometry(arm, 20, aviator ? .0018 : .0022, 5), frame));
     }
-    const bridge = new THREE.Mesh(new THREE.TorusGeometry(cx - rx + .001, .0022, 5, 12, Math.PI), dark); bridge.position.set(0, y + .003, lensZ);
+    const bridge = new THREE.Mesh(new THREE.TorusGeometry(cx - rx + .001, aviator ? .0018 : .0022, 5, 12, Math.PI), frame); bridge.position.set(0, y + .003, lensZ);
     group.add(bridge);
+    if (aviator) { const bar = new THREE.Mesh(new THREE.CylinderGeometry(.0016, .0016, 2 * (cx - rx * .55), 6).rotateZ(Math.PI / 2), frame); bar.position.set(0, y + r * sy * .82, lensZ + .001); group.add(bar); }
+  } else if (kind === 'cap' || kind === 'beanie') {
+    // Store items, both over the wrapped crown. A snapback: a firm crown with a button on top and a peak in
+    // front. A beanie: knitted, a little looser and taller, with a turned-up cuff and a pompom.
+    const { dome } = fit as HeadFit, knit = kind === 'beanie', cloth = new THREE.MeshStandardMaterial({ color, roughness: knit ? .97 : .8, side: THREE.DoubleSide });
+    const out = knit ? .014 : .009, crown = new THREE.Mesh(domeGeometry(dome, out, knit ? 1.1 : 1), cloth), top = (Math.max(...dome.radii[DOME_EL - 1]) + out) * (knit ? 1.1 : 1);
+    crown.position.set(0, dome.y, dome.z); group.add(crown);
+    if (knit) {
+      // The cuff: a double layer of knit, a little proud of the crown.
+      const base = domeBase(dome, out - .002);
+      const rim = base.map((r, a) => new THREE.Vector3(Math.sin(a / DOME_AZ * Math.PI * 2) * r, 0, Math.cos(a / DOME_AZ * Math.PI * 2) * r));
+      const cuff = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rim, true), 96, .01, 8, true).scale(1, 2.6, 1), cloth); cuff.position.set(0, dome.y + .02, dome.z);
+      const pompom = new THREE.Mesh(new THREE.IcosahedronGeometry(.03, 2), cloth); pompom.position.set(0, dome.y + top + .02, dome.z);
+      group.add(cuff, pompom);
+    } else {
+      // The peak: a gently curved half-oval from the front of the crown, tipped a little down.
+      const base = domeBase(dome, out + .004), front = base[0], half = Math.max(base[DOME_AZ / 4], base[DOME_AZ * 3 / 4]) * .9, shape = new THREE.Shape();
+      shape.absarc(0, 0, 1, 0, Math.PI, false);
+      const peak = new THREE.Mesh(new THREE.ShapeGeometry(shape, 24).rotateX(Math.PI / 2).scale(half, 1, front + .07), cloth);
+      peak.geometry.rotateX(.14); peak.position.set(0, dome.y + .006, dome.z);
+      const button = new THREE.Mesh(new THREE.SphereGeometry(.009, 10, 6), cloth); button.position.set(0, dome.y + top, dome.z);
+      group.add(peak, button);
+    }
   }
   group.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
   return group;

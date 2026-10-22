@@ -32,14 +32,14 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
   return {
     enabled: true,
     /**
-     * Resolve an access token to `{ id, email }`, or `{ error }` when it is malformed, expired,
+     * Resolve an access token to `{ id, email }` (the email only pre-fills a store checkout), or `{ error }` when it is malformed, expired,
      * revoked or the service is unreachable. Supabase Auth makes the decision.
      */
     async verify(token) {
       if (typeof token !== 'string' || token.length > 4096 || !JWT.test(token)) return { error: 'invalid' };
       try {
         const r = await call('/auth/v1/user', { method: 'GET', headers: { apikey: anonKey || serviceKey, Authorization: `Bearer ${token}` } });
-        if (r.ok && typeof r.body?.id === 'string') return { id: r.body.id };
+        if (r.ok && typeof r.body?.id === 'string') return { id: r.body.id, email: typeof r.body.email === 'string' ? r.body.email : '' };
         return { error: r.status >= 500 ? 'unavailable' : 'invalid' };
       } catch (e) {
         log.warn?.(`Account check unavailable: ${e.name === 'TimeoutError' ? 'timed out' : 'network error'}`);
@@ -58,6 +58,10 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     recordChallenge: (id, challenge, ms, run) => service('record_challenge', { p_user: id, p_challenge: challenge, p_ms: ms, p_run: run }),
     /** An achievement the room measured itself (time in a party of three or more). */
     recordRoomAchievement: (id, achievement) => service('record_room_achievement', { p_user: id, p_achievement: achievement }),
+    /** The store (server/shop.mjs): open an order, record its Bachs checkout, fulfil it from a verified webhook. */
+    createOrder: (id, item, amount, currency) => service('shop_create_order', { p_user: id, p_item: item, p_amount: amount, p_currency: currency }),
+    openOrder: (order, checkout) => service('shop_open_order', { p_order: order, p_checkout: checkout }),
+    fulfilOrder: f => service('shop_fulfil', { p_event: f.event, p_type: f.type, p_order: f.order, p_checkout: f.checkout, p_amount: f.amount, p_currency: f.currency, p_charge: f.charge }),
     /** The saved layout of the player's room in Palm House (null until they first arrange it). */
     dormLayout: id => service('dorm_layout', { p_user: id }),
     /** Save a room layout the room server has validated (shared/dorm.mjs). */

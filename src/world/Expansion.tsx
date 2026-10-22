@@ -26,7 +26,7 @@ function storeys(b: Building) { const top = b.h - 1, ground = b.h >= 9 ? 4.2 : 3
  * floor slab, sunshades and fins, rooftop tanks, and a lit ground-floor interior seen through the
  * storefront. Walls follow the shared colliders exactly (0.4 m thick, a 4 m entrance in front).
  */
-function detailedBuilding(kit: Kit, b: Building) {
+function* detailedBuilding(kit: Kit, b: Building): Generator<void, void> {
   const { top, ground } = storeys(b), hw = b.w / 2 + T / 2, hd = b.d / 2 + T / 2, accent = ACCENT[b.district], seed = b.x * .37 + b.z;
   // Evenly spaced openings centred on the facade.
   const row = (x0: number, x1: number, pitch: number, width: number, y0: number, y1: number) => { const n = Math.floor((x1 - x0 - 1.6) / pitch), start = (x0 + x1) / 2 - ((n - 1) * pitch + width) / 2; return Array.from({ length: n }, (_, k) => ({ x0: start + k * pitch, x1: start + k * pitch + width, y0, y1 })); };
@@ -50,10 +50,10 @@ function detailedBuilding(kit: Kit, b: Building) {
     if (kind === 'side') { acUnit(kit, x0 + 3.2, ground + 1.2); acUnit(kit, x1 - 4.2, 1.9); downpipe(kit, x1 - .5, top); }
     if (kind === 'back') downpipe(kit, x0 + .5, top);
   });
-  facade([b.x, 0, b.z + hd], 0, -hw, hw, 'front');
-  facade([b.x, 0, b.z - hd], Math.PI, -hw, hw, 'back');
-  facade([b.x + hw, 0, b.z], Math.PI / 2, -b.d / 2 + T / 2, b.d / 2 - T / 2, 'side');
-  facade([b.x - hw, 0, b.z], -Math.PI / 2, -b.d / 2 + T / 2, b.d / 2 - T / 2, 'side');
+  facade([b.x, 0, b.z + hd], 0, -hw, hw, 'front'); yield;
+  facade([b.x, 0, b.z - hd], Math.PI, -hw, hw, 'back'); yield;
+  facade([b.x + hw, 0, b.z], Math.PI / 2, -b.d / 2 + T / 2, b.d / 2 - T / 2, 'side'); yield;
+  facade([b.x - hw, 0, b.z], -Math.PI / 2, -b.d / 2 + T / 2, b.d / 2 - T / 2, 'side'); yield;
   // Floors, ceiling and roof.
   kit.box('terrazzo', [b.x, .01, b.z], [b.w - T, .02, b.d - T]);
   kit.box('concrete', [b.x, ground + .1, b.z], [b.w - T, .2, b.d - T]);
@@ -82,15 +82,17 @@ function shellBuilding(kit: Kit, b: Building) {
   kit.box('concrete', [b.x, 3.55, b.z + hd + 2.2], [7.5, .22, 4.4]);
 }
 
-function districtDetail(id: string, lib: Materials) {
+/** A district's full detail, a building at a time: see `District` for how the steps are spread over frames. */
+function* districtDetail(id: string, lib: Materials): Generator<void, THREE.Group> {
   const kit = new Kit(), g = new THREE.Group(), district = DISTRICTS.find(d => d.id === id)!;
   for (const b of BUILDINGS.filter(b => b.district === id)) {
-    tintedKit(kit, tint(b), () => detailedBuilding(kit, b));
+    yield* tinted(kit, tint(b), detailedBuilding(kit, b));
     g.add(place(sign({ text: b.name, kind: 'panel', width: 7, height: .7, background: '#233e34', color: '#f7ead2' }), [b.x, 3.1, b.z + b.d / 2 + T + 4.42]));
     g.add(place(sign({ text: id === 'academic' || id === 'learning' ? 'SHARED LEARNING · DEMONSTRATION' : 'WELCOME · COMMON ROOM', kind: 'panel', width: 7, height: .5, background: '#233e34', color: '#f7ead2' }), [b.x, 2.3, b.z - b.d / 2 + .3]));
+    yield;
   }
   // Palm House: the residents' wing with everyone's own room (src/world/Dorm.tsx, shared/dorm.mjs).
-  if (id === 'residential') for (const s of residentsWing(kit)) g.add(s);
+  if (id === 'residential') { for (const s of residentsWing(kit)) g.add(s); yield; }
   // Shuttle stop: steel frame, translucent roof, back screen, bench and timetable.
   const stop = STOPS.find(s => s.id === id)!;
   kit.within([stop.x, 0, stop.z], 0, () => {
@@ -110,13 +112,14 @@ function districtDetail(id: string, lib: Materials) {
     for (const s of [-1, 1]) { kit.box('lineWhite', [x, .03, z + s * (52.5 - 16.5)], [40.3, .02, .12]); for (const dx of [-20.15, 20.15]) kit.box('lineWhite', [x + dx, .03, z + s * (52.5 - 8.25)], [.12, .02, 16.5]); }
     for (const dz of [-52.5, 52.5]) { for (const dx of [-3.66, 3.66]) kit.box('paintWhite', [x + dx, 1.22, z + dz], [.12, 2.44, .12]); kit.box('paintWhite', [x, 2.44, z + dz], [7.44, .12, .12]); }
   }
-  g.add(kit.build(lib, `district:${id}`)); return freeze(g);
+  yield;
+  g.add(yield* kit.buildSteps(lib, `district:${id}`)); return freeze(g);
 }
-/** Wraps Kit.add so every part added inside `fn` that uses the tinted stucco gets the given vertex colour. */
-function tintedKit(kit: Kit, color: string, fn: () => void) {
+/** Wraps Kit.add so every part added by `steps` that uses the tinted stucco gets the given vertex colour. */
+function* tinted(kit: Kit, color: string, steps: Generator<void, void>) {
   const add = kit.add.bind(kit);
   kit.add = (mat, geometry, o = {}) => add(mat, geometry, mat === 'stuccoTint' && !o.color ? { ...o, color } : o);
-  try { fn(); } finally { kit.add = add; }
+  try { yield* steps; } finally { kit.add = add; }
 }
 function districtShells(id: string, lib: Materials) {
   const kit = new Kit();
@@ -125,14 +128,66 @@ function districtShells(id: string, lib: Materials) {
   return freeze(kit.build(lib, `district-far:${id}`));
 }
 
+/**
+ * District detail is prepared ahead of the player, in slices of a few milliseconds between frames, and kept
+ * once built. Building a district all at once on arrival froze the game for 0.1–0.5 s, mid-drive.
+ */
+interface Prepared { lib: Materials; steps: Generator<void, THREE.Group> | null; group: THREE.Group | null; used: number; shown: boolean }
+const prepared = new Map<string, Prepared>();
+function preparation(id: string, lib: Materials) {
+  let p = prepared.get(id);
+  if (p && p.lib !== lib) { if (p.group && !p.shown) disposeGeometry(p.group); p = undefined; } // another material detail
+  if (!p) prepared.set(id, p = { lib, steps: null, group: null, used: 0, shown: false });
+  return p;
+}
+const distanceTo = (d: typeof DISTRICTS[number]) => Math.hypot(player.x - d.x - 96, player.z - d.z + 30);
+const detailRange = (quality: string) => quality === 'low' ? 230 : 360;
+/** Each frame advances the nearest unfinished district for a slice of time: longer when the player is nearly there. */
+function usePreparation(lib: Materials) {
+  const quality = useGame(s => s.quality);
+  useFrame((_, dt) => {
+    let next: typeof DISTRICTS[number] | null = null, nearest = Infinity;
+    for (const d of DISTRICTS) { const distance = distanceTo(d); if (distance < nearest && !preparation(d.id, lib).group) { next = d; nearest = distance; } }
+    if (!next) return;
+    const range = detailRange(quality), p = preparation(next.id, lib);
+    // From over ten seconds out at a car's top speed. Low quality prepares only what is coming up; the others
+    // also prepare the rest of the campus in the background while frames are quick.
+    const budget = nearest < range + 70 ? 12 : nearest < range + 300 ? 5 : quality !== 'low' && dt < .02 ? 2 : 0;
+    if (!budget) return;
+    p.steps ??= districtDetail(next.id, lib);
+    const end = performance.now() + budget;
+    for (;;) {
+      const r = p.steps.next();
+      if (r.done) { p.group = r.value; p.steps = null; break; }
+      if (performance.now() >= end) break;
+    }
+  }, -1);
+}
+/** Low quality keeps only the few most recently seen districts in memory; the others are rebuilt on approach. */
+function evict(keep: number) {
+  const idle = [...prepared.entries()].filter(([, p]) => p.group && !p.shown).sort((a, b) => b[1].used - a[1].used);
+  for (const [id, p] of idle.slice(keep)) { disposeGeometry(p.group!); prepared.delete(id); }
+}
+
 function District({ id, lib }: { id: string; lib: Materials }) {
-  const [near, setNear] = useState(false), elapsed = useRef(0), quality = useGame(s => s.quality), d = DISTRICTS.find(d => d.id === id)!;
+  const [detail, setDetail] = useState<THREE.Group | null>(null), elapsed = useRef(0), quality = useGame(s => s.quality), d = DISTRICTS.find(d => d.id === id)!;
   const shells = useMemo(() => districtShells(id, lib), [id, lib]);
   useEffect(() => () => disposeGeometry(shells), [shells]);
-  useFrame((_, dt) => { elapsed.current += dt; if (elapsed.current < .5) return; elapsed.current = 0; const range = quality === 'low' ? 230 : 360; const distance = Math.hypot(player.x - d.x - 96, player.z - d.z + 30); setNear(old => distance < (old ? range + 70 : range)); });
-  return near ? <Detail id={id} lib={lib} /> : <primitive object={shells} />;
+  useFrame((_, dt) => {
+    elapsed.current += dt; if (elapsed.current < .5) return; elapsed.current = 0;
+    // Shells until the detail is ready: never a stall waiting for it.
+    const p = preparation(id, lib), range = detailRange(quality), show = p.group && distanceTo(d) < (detail ? range + 70 : range) ? p.group : null;
+    if (show === detail) return;
+    p.used = performance.now(); p.shown = !!show; setDetail(show);
+  });
+  // Once the switch is on screen: free what is no longer drawn or cached (detail built with the previous
+  // material detail, after a quality change), and on low quality all but the most recently seen districts.
+  useEffect(() => {
+    if (quality === 'low') evict(3);
+    return () => { if (detail && prepared.get(id)?.group !== detail) disposeGeometry(detail); };
+  }, [detail, id, quality]);
+  return <primitive object={detail ?? shells} />;
 }
-function Detail({ id, lib }: { id: string; lib: Materials }) { const g = useMemo(() => districtDetail(id, lib), [id, lib]); useEffect(() => () => disposeGeometry(g), [g]); return <primitive object={g} />; }
 
 // ------------------------------------------------------------------ roads
 function quarterFillet(kit: Kit, f: typeof FILLETS[number]) {
@@ -192,6 +247,7 @@ function StreetLights({ lib }: { lib: Materials }) {
 }
 
 export default function Expansion({ lib }: { lib: Materials }) {
+  usePreparation(lib);
   const network = useMemo(() => buildNetwork(lib), [lib]);
   useEffect(() => () => disposeGeometry(network), [network]);
   return <group name="open-world" matrixAutoUpdate={false}><primitive object={network} /><StreetLights lib={lib} />{DISTRICTS.map(d => <District key={d.id} id={d.id} lib={lib} />)}</group>;

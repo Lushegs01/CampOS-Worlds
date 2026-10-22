@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CampOS Worlds · Campus store</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<!-- Where Bachs sends the checkout tab back to (server/shop.mjs). Deliberately not the game itself: that
+     would open campus a second time with the same account. The payment is confirmed by Bachs' webhook to
+     the room, which unlocks the item in the game tab; this page only says what happens next. -->
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #263d34; color: #2f4b40; font: 15px/1.6 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  main { width: min(440px, calc(100vw - 32px)); background: #f4f0e6; border-radius: 14px; padding: 28px 26px; box-shadow: 0 18px 48px #0004; }
+  .eyebrow { margin: 0 0 6px; font-size: 11px; letter-spacing: 2px; color: #96763f; font-weight: 700; }
+  h1 { margin: 0 0 10px; font: 400 26px/1.25 Georgia, 'Times New Roman', serif; }
+  p { margin: 0 0 18px; }
+  button { font: inherit; font-weight: 650; border: 0; border-radius: 8px; padding: 12px 18px; background: #efc57b; color: #263b2f; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #dba553; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">CAMPUS STORE</p>
+  <h1 id="title">Thank you</h1>
+  <p id="text">Your payment is being confirmed. Go back to campus: your new item unlocks there as soon as the payment is confirmed, usually within a minute.</p>
+  <button id="back" type="button">Back to campus</button>
+</main>
+<script>
+  // Bachs adds ?checkout_id=… to these addresses; only `status` matters here.
+  const status = (new URLSearchParams(location.search).get('status') || '').split('?')[0];
+  if (status === 'cancelled') {
+    document.getElementById('title').textContent = 'Checkout cancelled';
+    document.getElementById('text').textContent = 'You have not been charged. You can try again from Appearance whenever you like.';
+  }
+  // This tab was opened by the game: close it to return there. Opened directly (or the game tab was
+  // replaced), go to campus instead.
+  document.getElementById('back').addEventListener('click', () => { window.close(); setTimeout(() => location.assign('/'), 200); });
+</script>
+</body>
+</html>

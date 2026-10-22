@@ -32,7 +32,7 @@ The lockfile is included. Rollup uses its official WASM distribution so the buil
 
 ## Play
 
-Enter immediately, or select **Make it you** to choose a name, skin tone, outfit, hair and accessory. These change the rendered avatar and are saved on the device.
+Enter immediately, or select **Make it you** to choose a name, skin tone, outfit, hair and accessory. These change the rendered avatar and are saved on the device. The **campus store** sells three premium characters (₦3,000 each) and three premium accessories (₦1,000 each) to signed-in players: tap one in Appearance to try it on, then buy it through Bachs checkout ([store](docs/STORE.md)).
 
 | Control | Action |
 |---|---|
@@ -76,6 +76,8 @@ Copy `.env.example` to `.env` if changing defaults. Keep server secrets out of `
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Frontend build | Optional; public values that enable accounts, clubs and events ([setup](docs/ACCOUNTS.md)) |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Room | Optional; the room verifies signed-in players and records verified badges. The service key is a **server secret** |
 | `SUPABASE_ANON_KEY` | Room | Optional; public key used for token checks |
+| `BACHS_SECRET_KEY`, `BACHS_WEBHOOK_SECRET`, `PUBLIC_APP_URL` | Room | Optional; open the campus store (Bachs checkout and its webhook at `/shop/webhook`). **Server secrets** ([store](docs/STORE.md)) |
+| `SHOP_PRICE_CHARACTER`, `SHOP_PRICE_ITEM` | Room | `3000`, `1000`: store prices in whole naira |
 
 Brand, campus name, locations, collectibles and collision geometry are in `shared/campus.mjs`. Visual colours and interface typography are in `src/styles.css`. The original logo and avatar are procedural. Fonts are bundled with Fontsource, with system fallbacks.
 

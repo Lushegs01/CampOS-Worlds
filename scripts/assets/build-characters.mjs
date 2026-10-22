@@ -30,6 +30,10 @@ export const CAST = [
   { id: 'ada', name: 'Ada', src: 'Adults/Female_Adult_08', body: 'f', style: 'Graphic tee' },
   // Female_Adult_11 stands left of centre in Rocketbox's preview render: `portrait` moves the picker crop (default .41).
   { id: 'mel', name: 'Mel', src: 'Adults/Female_Adult_11', body: 'f', style: 'Sweater dress & boots', portrait: .383 },
+  // Premium characters, bought in the store (shared/store.mjs).
+  { id: 'emeka', name: 'Emeka', src: 'Professions/Business_Male_05', body: 'm', style: 'Tailored suit' },
+  { id: 'folake', name: 'Folake', src: 'Adults/Female_Party_02', body: 'f', style: 'Evening outfit' },
+  { id: 'seun', name: 'Seun', src: 'Professions/Sports_Male_03', body: 'm', style: 'Football kit' },
 ];
 
 // Motion-captured clips. `xy` clips have horizontal root motion we measure, then remove.

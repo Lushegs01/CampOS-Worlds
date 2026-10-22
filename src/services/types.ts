@@ -26,7 +26,7 @@ export interface ProfileCard extends ProfileBrief {
   challenges?: { id: string; best_ms: number; completions: number }[];
   events_attended?: number;
 }
-export interface MyProfile extends ProfileCard { progress: { keepsakes: string[]; landmarks: string[] } }
+export interface MyProfile extends ProfileCard { progress: { keepsakes: string[]; landmarks: string[] }; /** Store items this account has bought (shared/shop.mjs). */ owned?: string[] }
 export interface ProfileInput { handle: string; display_name: string; bio: string; avatar: AvatarConfig; title: string | null; interests: string[] }
 
 export const CLUB_CATEGORIES = ['academic', 'arts', 'culture', 'community', 'sports', 'technology', 'wellbeing'] as const;
