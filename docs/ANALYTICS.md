@@ -35,6 +35,7 @@ data yet.
 | `achievement_earned` | `achievement` | |
 | `challenge_completed` | `challenge` | |
 | `connection_failures` | `count` | Failed attempts before this session connected |
+| `shop_checkout` | `item` | A store checkout was opened (purchases themselves are recorded in the database, [store](STORE.md)) |
 
 ## Metrics (`node scripts/analytics/report.mjs [dir]`)
 

@@ -26,11 +26,13 @@ export const useAccount = create<AccountState>(set => ({
 }));
 
 const GUEST_KEY = 'campos-guest-identity';
+/** What this profile may wear beyond the free choices: earned accents and bought store items. */
+export const unlockedBy = (profile: MyProfile | null) => profile ? [...profile.achievements.map(a => a.id), ...(profile.owned ?? [])] : [];
 /** Show the saved profile in the world; remember the guest identity so signing out restores it. */
 function applyProfile(profile: MyProfile) {
   const game = useGame.getState();
   try { if (!localStorage.getItem(GUEST_KEY)) localStorage.setItem(GUEST_KEY, JSON.stringify({ name: game.name, avatar: game.avatar })); } catch { /* storage unavailable */ }
-  game.set({ name: profile.display_name, avatar: sanitizeAvatar(profile.avatar, profile.achievements.map(a => a.id)) });
+  game.set({ name: profile.display_name, avatar: sanitizeAvatar(profile.avatar, unlockedBy(profile)) });
 }
 function restoreGuest() {
   try {
@@ -138,7 +140,7 @@ export async function saveProfile(input: ProfileInput): Promise<MyProfile> {
   useAccount.getState().set({ profile, profileState: 'ready' });
   applyProfile(profile);
   // The room re-reads the saved profile (it never takes names from the client for accounts).
-  if (first) syncRoom(); else sendAccountIdentity('refresh', profile.display_name, sanitizeAvatar(profile.avatar, profile.achievements.map(a => a.id)));
+  if (first) syncRoom(); else sendAccountIdentity('refresh', profile.display_name, sanitizeAvatar(profile.avatar, unlockedBy(profile)));
   return profile;
 }
 export function reloadProfile() { return loadProfile(); }

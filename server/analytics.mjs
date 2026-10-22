@@ -28,6 +28,7 @@ export const EVENTS = {
   event_checkin: {},
   achievement_earned: { achievement: 'string' },
   challenge_completed: { challenge: 'string' },
+  shop_checkout: { item: 'string' },
   connection_failures: { count: 'number' },
 };
 const ID = /^[a-z0-9][a-z0-9-]{0,40}$/;

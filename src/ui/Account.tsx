@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Award, CalendarCheck, Car, Check, Footprints, Gem, HeartHandshake, LogOut, Mail, PencilLine, ShieldCheck, Swords, Trophy, UserRound, type LucideIcon } from 'lucide-react';
 import { displayAvatar, sanitizeAvatar } from '../../shared/campus.mjs';
 import { useGame, type AvatarConfig } from '../state';
-import { useAccount, signIn, signUp, signOut, saveProfile, checkHandle, reloadProfile } from '../account/store';
+import { useAccount, signIn, signUp, signOut, saveProfile, checkHandle, reloadProfile, unlockedBy } from '../account/store';
 import { getCommunityService, NOT_CONFIGURED } from '../services/community';
 import { ACHIEVEMENTS, type ProfileBrief, type ProfileCard } from '../services/types';
 import { INTERESTS, MAX_INTERESTS } from '../../shared/profile.mjs';
@@ -86,8 +86,8 @@ const suggestHandle = (name: string) => name.toLowerCase().normalize('NFKD').rep
 export function ProfileEditor({ onDone }: { onDone?: () => void }) {
   const existing = useAccount(s => s.profile), game = useGame.getState();
   const [handle, setHandle] = useState(existing?.handle ?? suggestHandle(game.name)), [name, setName] = useState(existing?.display_name ?? game.name.slice(0, 32));
-  const earned = (existing?.achievements ?? []).map(a => a.id);
-  const [bio, setBio] = useState(existing?.bio ?? ''), [avatar, setAvatar] = useState<AvatarConfig>(sanitizeAvatar(existing?.avatar ?? game.avatar, earned));
+  const earned = (existing?.achievements ?? []).map(a => a.id), owned = existing?.owned ?? [];
+  const [bio, setBio] = useState(existing?.bio ?? ''), [avatar, setAvatar] = useState<AvatarConfig>(sanitizeAvatar(existing?.avatar ?? game.avatar, unlockedBy(existing)));
   const [title, setTitle] = useState<string | null>(existing?.title ?? null), [interests, setInterests] = useState<string[]>(existing?.interests ?? []);
   const [availability, setAvailability] = useState<{ checking: boolean; available?: boolean; reason?: string }>({ checking: false });
   const { pending, error, act } = useAction(), [touched, setTouched] = useState(false);
@@ -115,7 +115,7 @@ export function ProfileEditor({ onDone }: { onDone?: () => void }) {
     <label className="field">Bio <small className="muted">{bio.length} / 280</small><textarea value={bio} maxLength={280} rows={3} onChange={e => setBio(e.target.value)} placeholder="Studying architecture. Always up for a game of hoops." /></label>
     <fieldset className="interest-picker"><legend>Interests <small className="muted">{interests.length} / {MAX_INTERESTS}</small></legend><div className="chip-row">{INTERESTS.map(i => { const on = interests.includes(i); return <button type="button" key={i} aria-pressed={on} className={`chip${on ? ' selected' : ''}`} disabled={!on && interests.length >= MAX_INTERESTS} onClick={() => setInterests(on ? interests.filter(x => x !== i) : [...interests, i])}>{i}</button>; })}</div></fieldset>
     <label className="field">Title under your name<select value={title ?? ''} onChange={e => setTitle(e.target.value || null)}><option value="">No title</option>{earned.filter(id => ACHIEVEMENTS[id]).map(id => <option key={id} value={id}>{ACHIEVEMENTS[id].title}</option>)}</select><small className="muted">{earned.length ? 'Titles come from badges you’ve earned.' : 'Earn a badge to unlock a title.'}</small></label>
-    <Suspense fallback={<Loading />}><AvatarEditor value={avatar} onChange={setAvatar} earned={earned} /></Suspense>
+    <Suspense fallback={<Loading />}><AvatarEditor value={avatar} onChange={setAvatar} earned={earned} owned={owned} /></Suspense>
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="form-actions">{existing && <button type="button" className="secondary" onClick={onDone}>Cancel</button>}<button className="primary" disabled={pending}>{pending ? 'Saving…' : existing ? 'Save profile' : 'Create profile'}<ArrowRight size={16} /></button></div>
   </form>;

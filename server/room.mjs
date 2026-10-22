@@ -9,6 +9,7 @@ import { SPAWN, LOCATIONS, TOKENS, moveWithCollisions, sanitizeAvatar, blocked }
 import { createWorld, packBall } from '../shared/world.mjs';
 import { createMotionAuthority, MOTION_VERSION } from '../shared/prediction.mjs';
 import { DRIVE_VERSION } from '../shared/driving.mjs';
+import { createShop, WEBHOOK_PATH } from './shop.mjs';
 import { advanceWalker, INPUT_HOLD_MS, MAX_STEP, JUMP_SPEED } from '../shared/movement.mjs';
 import { cleanText, guestName } from '../shared/text.mjs';
 import { createParties, PARTY_LIMITS } from './parties.mjs';
@@ -28,7 +29,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const str=v=>typeof v==='string'?v:'',num=v=>typeof v==='number'?v:NaN;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
-export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null}={}){
+export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={}}={}){
  const clients=new Map(),bySocket=new WeakMap(),bans=new Set();let reportQueue=Promise.resolve();
  // ---- social: what others may know about a player, account-level blocks, and parties
  // A player who chose "appear offline" keeps their name and avatar (they are visibly here) but their
@@ -67,6 +68,9 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   attempt(0);
  }
  const joined=()=>[...clients.values()].filter(c=>c.joined);
+ // The campus store (server/shop.mjs): a paid item is granted only from a verified Bachs webhook; a player
+ // who is here when that happens can wear it at once.
+ const shop=createShop({...shopSettings,accounts,granted:(account,item)=>{for(const c of clients.values())if(c.account?.id===account){if(!c.owned.includes(item))c.owned=[...c.owned,item];send(c.ws,{type:'shopGranted',item});}}});
  const worldState=()=>{const w=world.snapshot();return {type:'world',doors:w.doors,seats:w.seats};};
  const sendRaw=(ws,raw)=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<65536)ws.send(raw);};
  const motionContext=c=>`${c.seat??''}|${c.vehicle??''}|${c.dorm?.host.id??''}`;
@@ -76,6 +80,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  const broadcast=data=>{const raw=JSON.stringify(data);clients.forEach(c=>{if(c.joined)sendRaw(c.ws,raw);});};
  const http=createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');
+  // Bachs payment events for the campus store (server/shop.mjs verifies each signature).
+  if(req.url?.split('?')[0]===WEBHOOK_PATH){await shop.handle(req,res);return;}
   if(req.url==='/health'){res.end(JSON.stringify({ok:true,players:[...clients.values()].filter(c=>c.joined).length,capacity}));return;}
   if(req.url==='/admin/kick'&&req.method==='POST'){
    const expected=Buffer.from('Bearer '+adminToken),actual=Buffer.from(req.headers.authorization??'');
@@ -99,16 +105,19 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   // One account appears once: the newest verified window takes over (a reload or a second tab);
   // the older connection carries on as a guest and is told why.
   const prior=[...clients.values()].find(o=>o!==c&&o.account?.id===who.id);
-  if(prior){if(prior.dorm)leaveDorm(prior,'Your account opened in another window, so you’re back in the common room.');prior.authSeq++;prior.account=null;prior.social=null;prior.hoops=[];prior.name='Explorer';parties.touch(prior);send(prior.ws,{type:'auth',ok:false,code:'replaced',reason:'You opened campus with this account in another window, so this one continues as a guest.'});}
+  if(prior){if(prior.dorm)leaveDorm(prior,'Your account opened in another window, so you’re back in the common room.');prior.authSeq++;prior.account=null;prior.social=null;prior.hoops=[];prior.earned=[];prior.owned=[];prior.name='Explorer';parties.touch(prior);send(prior.ws,{type:'auth',ok:false,code:'replaced',reason:'You opened campus with this account in another window, so this one continues as a guest.'});}
   if(c.dorm)leaveDorm(c,'You signed in, so you’re back in the common room. Go to your room again to open it.');
-  bindAccount(c,who.id,snap);reply({ok:true,account:{handle:snap.handle,display_name:snap.display_name}});
+  bindAccount(c,who.id,snap,who.email);reply({ok:true,account:{handle:snap.handle,display_name:snap.display_name}});
  }
  // Earned accents and titles are only ever taken from the saved, verified profile.
  const earned=snap=>Array.isArray(snap?.achievements)?snap.achievements.map(a=>a.id):[];
+ const ownedOf=snap=>Array.isArray(snap?.owned)?snap.owned.filter(i=>typeof i==='string'):[];
+ /** What a signed-in player may wear beyond the free choices: earned accents and store items they own. */
+ const unlockedOf=c=>[...c.earned,...c.owned];
  const titleOf=snap=>typeof snap?.title==='string'&&earned(snap).includes(snap.title)?snap.title:null;
  // Analytics sessions start once we know who the player is (after any sign-in check), so a player keeps one pseudonym.
  function startSession(c){if(c.sessionStarted)return;c.sessionStarted=true;analytics.track(c,'session_start',{guest:!c.account});}
- function bindAccount(c,id,snap){c.account={id,handle:snap.handle,hidden:false,title:titleOf(snap)};c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{},earned(snap));for(const k of snap.progress?.keepsakes??[])c.collected.add(k);c.visited=new Set(snap.progress?.landmarks??[]);c.hoops=[];applySocial(c,snap.social);parties.touch(c);}
+ function bindAccount(c,id,snap,email=''){c.account={id,email,handle:snap.handle,hidden:false,title:titleOf(snap)};c.earned=earned(snap);c.owned=ownedOf(snap);c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{},unlockedOf(c));for(const k of snap.progress?.keepsakes??[])c.collected.add(k);c.visited=new Set(snap.progress?.landmarks??[]);c.hoops=[];applySocial(c,snap.social);parties.touch(c);}
  function applySocial(c,s){queueMicrotask(()=>{if(c.dorm){checkRoomBlocks(c);for(const o of clients.values())if(o!==c&&o.dorm&&(o.dorm.host===c||c.dorm?.host===o))checkRoomBlocks(o);}});const before=c.social?.friends.size;c.social={friends:new Set(Array.isArray(s?.friends)?s.friends:[]),blocked:new Set(Array.isArray(s?.blocked)?s.blocked:[]),settings:{party_invites:'friends',appear_offline:false,...(s?.settings??{})}};if(c.account)c.account.hidden=c.social.settings.appear_offline===true;if(before!==undefined&&c.social.friends.size>before)analytics.track(c,'friend_connected');}
  /** Re-read friends, blocks and privacy after a change (debounced, so bursts collapse into one read). */
  function refreshSocial(c){
@@ -117,7 +126,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  }
  async function refreshAccount(c){
   if(!c.account||Date.now()-c.profileAt<2000)return;c.profileAt=Date.now();const id=c.account.id;
-  try{const snap=await accounts.snapshot(id);if(c.account?.id!==id||!snap)return;c.account.handle=snap.handle;c.account.title=titleOf(snap);c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{},earned(snap));applySocial(c,snap.social);parties.touch(c);}catch{}
+  try{const snap=await accounts.snapshot(id);if(c.account?.id!==id||!snap)return;c.account.handle=snap.handle;c.account.title=titleOf(snap);c.earned=earned(snap);c.owned=ownedOf(snap);c.name=clean(snap.display_name,32)||'Explorer';c.avatar=sanitizeAvatar(snap.avatar??{},unlockedOf(c));applySocial(c,snap.social);parties.touch(c);}catch{}
  }
  function record(c,kind,item){
   if(!c.account||!accounts.enabled)return;const id=c.account.id;
@@ -305,7 +314,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));
  });
  wss.on('connection',ws=>{
-  const id=randomUUID(),now=Date.now();const c={id,ws,joined:false,token:'',name:'',avatar:sanitizeAvatar(),account:null,social:null,guestInvites:'everyone',party:null,meetAt:0,recentChat:[],authSeq:0,profileAt:0,visited:new Set(),hoops:[],...SPAWN,yaw:Math.PI,moving:false,sprinting:false,emote:'',emoteAt:0,vy:0,vx:0,vz:0,seat:null,ball:null,dorm:null,dormSeq:0,input:{dx:0,dz:0,sprint:false,jump:false},lastInput:now,alive:true,joinedAt:now,limits:{},collected:new Set()};clients.set(id,c);bySocket.set(ws,c);
+  const id=randomUUID(),now=Date.now();const c={id,ws,joined:false,token:'',name:'',avatar:sanitizeAvatar(),account:null,earned:[],owned:[],social:null,guestInvites:'everyone',party:null,meetAt:0,recentChat:[],authSeq:0,profileAt:0,visited:new Set(),hoops:[],...SPAWN,yaw:Math.PI,moving:false,sprinting:false,emote:'',emoteAt:0,vy:0,vx:0,vz:0,seat:null,ball:null,dorm:null,dormSeq:0,input:{dx:0,dz:0,sprint:false,jump:false},lastInput:now,alive:true,joinedAt:now,limits:{},collected:new Set()};clients.set(id,c);bySocket.set(ws,c);
   ws.on('pong',()=>{c.alive=true;});
   const rate=(key,max,window=1000)=>{const t=Date.now();const r=c.limits[key]??{at:t,n:0};if(t-r.at>=window){r.at=t;r.n=0;}c.limits[key]=r;return ++r.n<=max;};
   ws.on('message',data=>{
@@ -331,7 +340,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     const back=recent.get(token);recent.delete(token);
     if(back&&Date.now()-back.at<partyLimits.graceMs&&!blocked(back.x,back.z)&&!inDormRoom(back.x,back.z)&&!fleet.vehicles.some(v=>vehicleContains(v,back.x,back.z)))Object.assign(c,{x:back.x,z:back.z,y:0,yaw:back.yaw});
     if(m.movement===MOTION_VERSION)c.motion=createMotionAuthority(c,performance.now());
-    send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),drive:DRIVE_VERSION,classes:classes.snapshot(),accounts:!!accounts.enabled,room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
+    send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),drive:DRIVE_VERSION,classes:classes.snapshot(),accounts:!!accounts.enabled,shop:shop.catalogue(),room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
     // A reload or dropped connection with the same session token takes its party place back.
     parties.reconnect(c);
     c.analytics=m.analytics&&typeof m.analytics==='object'?{consent:m.analytics.consent===true,install:typeof m.analytics.install==='string'?m.analytics.install.slice(0,64):''}:null;
@@ -369,7 +378,14 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     const q=moveWithCollisions(c.x,c.z,x-c.x,z-c.z);Object.assign(c,Math.hypot(q.x-x,q.z-z)<.05?{x,z}:q);
    }else if(m.type==='auth'&&rate('auth',4,60000)){
     if(typeof m.token==='string')authenticate(c,m.token);
-    else{c.authSeq++;if(c.account){if(c.dorm)leaveDorm(c,'You signed out, so you’re back in the common room.');c.account=null;c.social=null;c.hoops=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
+    else{c.authSeq++;if(c.account){if(c.dorm)leaveDorm(c,'You signed out, so you’re back in the common room.');c.account=null;c.social=null;c.hoops=[];c.earned=[];c.owned=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
+   }else if(m.type==='shopCheckout'&&rate('shopCheckout',3,10000)){
+    // A Bachs checkout for one store item, for a signed-in player who does not own it yet.
+    const ref=Number.isInteger(m.ref)?m.ref:null,reply=data=>send(ws,{type:'shopCheckout',ref,item:str(m.item),...data});
+    if(!c.account){reply({ok:false,reason:'Sign in to buy from the store.'});return;}
+    if(c.owned.includes(str(m.item))){reply({ok:false,reason:'You already own this.'});return;}
+    const account=c.account.id;
+    shop.checkout(account,str(m.item),{email:c.account.email,name:c.name}).then(r=>{if(c.account?.id===account){reply({ok:true,url:r.url,amount:r.amount,currency:r.currency});analytics.track(c,'shop_checkout',{item:str(m.item)});}},e=>reply({ok:false,reason:e?.reason??'The store is unavailable right now.'}));
    }else if(m.type==='profile'&&rate('profile',4,1000)){
     // Signed-in names and appearance come from the saved profile, never from the message.
     if(c.account)refreshAccount(c);else{c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}

@@ -27,6 +27,8 @@ Every table has RLS enabled. Direct table writes through the API are revoked, ex
 1. `20261013120000_profiles_and_progress.sql`: `campus_locations` (stable ids mirrored from `LOCATIONS` in `shared/campus.mjs`), `profiles`, `player_progress`, `achievements`, `player_stats`, plus RLS, grants and the profile and progression functions.
 2. `20261013120100_clubs_and_events.sql`: `clubs`, `club_members`, `events`, `event_rsvps`, plus RLS, grants, the status guard trigger, the club and event functions, and `account_snapshot()` for the room server.
 
+Later migrations add social features, duels and achievements, dorm rooms and the lab location. `20261022120000_campus_store.sql` adds the campus store: `shop_items`, `shop_orders`, `shop_ownership` and `shop_webhook_events`, and the room-only order and fulfilment functions. It also extends `profiles_guard` so premium characters and accessories must be bought first, and makes `my_profile()` and `account_snapshot()` list what the player owns ([store](STORE.md)).
+
 Foreign keys cascade from `auth.users` → `profiles` → everything a player owns, except an event's `created_by`, which is set to null so a club's events survive an organizer deleting their account. Timestamps are `timestamptz`, stored in UTC and shown in each player's local time zone. Text lengths, categories, colours, event duration (at most 12 hours), schedule window (up to a year ahead), capacity (1–500) and page sizes (at most 50) are all bounded in the database.
 
 ## Set up a Supabase project

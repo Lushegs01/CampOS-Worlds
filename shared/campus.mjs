@@ -2,6 +2,7 @@ import { LAB_LOCATION, LAB_WALLS, LOGISTICS_SITES } from './economic-lab.mjs';
 import { WORLD_LIMIT, EXPANSION_LOCATIONS, EXPANSION_WALLS, ROADSIDE_TREES, BELT_TREES } from './expansion.mjs';
 import { DOORS, TABLES } from './interactions.mjs';
 import { LOCKED_ACCENTS } from './achievements.mjs';
+import { SHOP_ITEMS, PREMIUM_MODELS, PREMIUM_ACCESSORIES } from './shop.mjs';
 import { DORM_WALLS } from './dorm.mjs';
 export const BRAND = { name: 'CampOS', product: 'Worlds', campus: 'Òrìṣun Campus', subtitle: 'A new world. Your people.', room: 'The Courtyard' };
 // Spawn on the main avenue, facing north towards The Confluence and Horizon Auditorium.
@@ -115,14 +116,22 @@ export function moveWithCollisions(x,z,dx,dz){
 }
 
 // Avatars: a realistic base character, an optional skin-tone shift, an accent colour
-// (bag, headphones, frames and name tag) and one accessory.
-export const MODELS=['tunde','amara','chidi','ngozi','kelechi','zainab','ibrahim','ada','mel'];
+// (bag, headphones, frames and name tag) and one accessory. Premium characters and accessories are bought
+// in the store (shared/shop.mjs) and listed last.
+export const FREE_MODELS=['tunde','amara','chidi','ngozi','kelechi','zainab','ibrahim','ada','mel'];
+export const MODELS=[...FREE_MODELS,...PREMIUM_MODELS];
 export const SKINS=['natural','#3a2219','#5b3424','#7a4a31','#a66b46','#cb9168'];
 export const ACCENTS=['#353c4c','#537d70','#b05f49','#506b96','#e8b95e','#eee9df'];
-export const ACCESSORIES=['none','backpack','headphones','glasses'];
+export const FREE_ACCESSORIES=['none','backpack','headphones','glasses'];
+export const ACCESSORIES=[...FREE_ACCESSORIES,...PREMIUM_ACCESSORIES];
 /** Accent colours earned with an achievement (shared/achievements.mjs): usable only once unlocked. */
 export const EARNED_ACCENTS=Object.keys(LOCKED_ACCENTS);
-/** For showing an avatar the server has already validated (profile cards, other players): any known colour. */
-export function displayAvatar(a={}){return sanitizeAvatar(a,Object.values(LOCKED_ACCENTS));}
-/** Keep only known appearance choices; an earned accent needs its achievement id in `unlocked`. */
-export function sanitizeAvatar(a={},unlocked=[]){const earned=LOCKED_ACCENTS[a.accent];return {model:MODELS.includes(a.model)?a.model:MODELS[0],skin:SKINS.includes(a.skin)?a.skin:SKINS[0],accent:ACCENTS.includes(a.accent)||(earned&&unlocked.includes(earned))?a.accent:ACCENTS[0],accessory:ACCESSORIES.includes(a.accessory)?a.accessory:'backpack'};}
+/** For showing an avatar the server has already validated (profile cards, other players): anything known. */
+export function displayAvatar(a={}){return sanitizeAvatar(a,[...Object.values(LOCKED_ACCENTS),...SHOP_ITEMS.map(i=>i.id)]);}
+/**
+ * Keep only known appearance choices. `unlocked` lists what this player may wear beyond the free choices:
+ * achievement ids (earned accents) and store item ids they own. Anything else falls back to a free choice.
+ */
+export function sanitizeAvatar(a={},unlocked=[]){const earned=LOCKED_ACCENTS[a.accent],has=id=>unlocked.includes(id);
+ return {model:FREE_MODELS.includes(a.model)||PREMIUM_MODELS.includes(a.model)&&has(a.model)?a.model:MODELS[0],skin:SKINS.includes(a.skin)?a.skin:SKINS[0],
+  accent:ACCENTS.includes(a.accent)||(earned&&has(earned))?a.accent:ACCENTS[0],accessory:FREE_ACCESSORIES.includes(a.accessory)||PREMIUM_ACCESSORIES.includes(a.accessory)&&has(a.accessory)?a.accessory:'backpack'};}

@@ -9,7 +9,9 @@ Every runtime asset is stored in `public/assets/` and served by the app itself: 
 | `characters/*.glb` (Tunde, Chidi, Ibrahim, Ada, Amara, Mel and the other selectable students) | [Microsoft Rocketbox Avatar Library](https://github.com/microsoft/Microsoft-Rocketbox), adult avatars (each character's exact source folder is listed in `characters/manifest.json`) | MIT, © 2020 Microsoft |
 | `characters/anim-m.glb`, `anim-f.glb` | Rocketbox motion-capture clips: idle, look, walk, jog, run, wave, dance, cheer, sit down / stand up (chair and table), seated idle, seated look, seated at table, door push / pull, crouch, holding (used as an arm-only layer) | MIT, © 2020 Microsoft |
 
-Skin-tone variation is a shader tint driven by a skin mask baked by `scripts/assets/build-characters.mjs`; the backpack, headphones and glasses accessories are procedural geometry.
+The store's premium characters are Rocketbox avatars too: Emeka (`Professions/Business_Male_05`), Folake (`Adults/Female_Party_02`) and Seun (`Professions/Sports_Male_03`). They were built with `node scripts/assets/build-characters.mjs <id>` like the rest of the cast.
+
+Skin-tone variation is a shader tint driven by a skin mask baked by `scripts/assets/build-characters.mjs`. The accessories are procedural geometry: the backpack, headphones and glasses, plus the store's cap, beanie and gold aviators. These are fitted to each character's head and hair at runtime (`src/avatar/Avatar.tsx`).
 
 ## Environment — CC0 (Poly Haven)
 
