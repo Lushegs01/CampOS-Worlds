@@ -6,6 +6,7 @@ import { preferences } from './preferences.mjs';
 import { createTrail } from '../shared/movement.mjs';
 import { createPrediction } from '../shared/prediction.mjs';
 import { createTrack } from './network/interpolation.mjs';
+import { STEERING } from './vehicles/steering.mjs';
 /** Sound is on from the start (Settings → Sound); browsers only let it play after the first tap or key press. */
 const DEFAULT_VOLUME=.7;
 let toastSequence=0;
@@ -35,7 +36,7 @@ export const livePeers = new Map<string,Peer>();
 /** Each remote player's recent positions on our clock, drawn slightly in the past (network/interpolation.mjs). */
 export const peerTracks = new Map<string,ReturnType<typeof createTrack>>();
 export const useGame = create<Game>()(persist((set,get)=>({
- phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,volume:DEFAULT_VOLUME,
+ phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,volume:DEFAULT_VOLUME,ambience:1,steering:STEERING.default,
  discovered:[],tokens:[],tour:false,tourStep:0,bestScore:0,nearby:null,toast:'',destination:null,
  status:'offline',count:1,peers:[],messages:[],muted:[],invite:'',fps:0,
  set:(value)=>set(value),
@@ -46,9 +47,11 @@ export const useGame = create<Game>()(persist((set,get)=>({
  // Version 1 brought footsteps, doors, vehicles and ambience. Sound used to start off (volume 0) and almost
  // nobody had changed it, so a saved 0 from before is turned up once; anyone can turn it down again.
  version:1,migrate:(saved,version)=>{const s=(saved&&typeof saved==='object'?{...saved}:{}) as Partial<Game>;if(version<1&&!s.volume)s.volume=DEFAULT_VOLUME;return s as Game;},
- partialize:s=>({name:s.name,avatar:s.avatar,quality:s.quality,reducedMotion:s.reducedMotion,volume:s.volume,discovered:s.discovered,tokens:s.tokens,tour:s.tour,tourStep:s.tourStep,bestScore:s.bestScore,muted:s.muted}),merge:(saved,current)=>({...current,...preferences(saved,current),phase:'welcome',panel:null})}));
+ partialize:s=>({name:s.name,avatar:s.avatar,quality:s.quality,reducedMotion:s.reducedMotion,volume:s.volume,ambience:s.ambience,steering:s.steering,discovered:s.discovered,tokens:s.tokens,tour:s.tour,tourStep:s.tourStep,bestScore:s.bestScore,muted:s.muted}),merge:(saved,current)=>({...current,...preferences(saved,current),phase:'welcome',panel:null})}));
 interface Game {
  phase:'welcome'|'playing'; panel:Panel;ready:boolean;name:string;avatar:AvatarConfig;quality:'low'|'medium'|'high';reducedMotion:boolean;volume:number;
+ /** Environment sound level (birdsong, breeze, fountain), under the master volume. */ambience:number;
+ /** Steering sensitivity for driving, 0.2–1 (src/vehicles/steering.mjs). */steering:number;
  discovered:string[];tokens:string[];tour:boolean;tourStep:number;bestScore:number;nearby:string|null;toast:string;destination:string|null;
  status:string;count:number;peers:Peer[];messages:ChatMessage[];muted:string[];invite:string;fps:number;
  set:(value:Partial<Game>)=>void; notify:(toast:string)=>void;discover:(id:string)=>void;collect:(id:string)=>void;

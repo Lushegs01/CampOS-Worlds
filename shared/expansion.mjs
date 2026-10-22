@@ -43,7 +43,8 @@ export const EXPANSION_WALLS=BUILDINGS.flatMap(b=>[
  // Entrance canopy columns.
  ...[-1,1].map(s=>({x:b.x+s*3.4,z:b.z+b.d/2+4.3,w:.2,d:.2,h:3.5})),
 ]);
-// Roads have sidewalks. Cars stay on transport surfaces, keeping courts, fields and classrooms safe.
+// Roads have sidewalks. Cars stay on transport surfaces (and the way out to the football pitch, below),
+// keeping courts and classrooms safe.
 const rect=(x,z,c,pad=0)=>Math.abs(x-c.x)<=c.w/2-pad&&Math.abs(z-c.z)<=c.d/2-pad;
 /** Dead ends finish in a turning circle. */
 export const TURNAROUNDS=ROAD_NODES.filter(n=>ROADS.filter(r=>r.a===n||r.b===n).length===1).map(n=>({id:n.id,x:n.x,z:n.z,r:10}));
@@ -53,6 +54,24 @@ export const DRIVEWAYS=DISTRICTS.map(d=>({id:d.id,x:d.x+30,z:d.z+12,w:12,d:26}))
 const JUNCTION_PADS=JUNCTIONS.map(j=>({x:j.x,z:j.z,w:ROAD_WIDTH+2*JUNCTION_RADIUS,d:ROAD_WIDTH+2*JUNCTION_RADIUS}));
 const COURTYARD_DRIVE={x:COURTYARD_PARKING.x,z:(COURTYARD_ROAD.z0+COURTYARD_PARKING.z+COURTYARD_PARKING.d/2)/2,w:COURTYARD_PARKING.w,d:COURTYARD_PARKING.z+COURTYARD_PARKING.d/2-COURTYARD_ROAD.z0};
 export function transportSurface(x,z,pad=0){return ROADS.some(r=>rect(x,z,roadRect(r),pad))||JUNCTION_PADS.some(j=>rect(x,z,j,pad))||PARKING.some(p=>rect(x,z,p,pad))||DRIVEWAYS.some(d=>rect(x,z,d,pad))||rect(x,z,COURTYARD_DRIVE,pad)||TURNAROUNDS.some(t=>Math.hypot(x-t.x,z-t.z)<=t.r-pad);}
+/**
+ * Inside the courtyard, cars may also drive out to the football pitch: through the main gateway, along the
+ * paved service lane and bus bay inside the south wall, up the grass track east of the Economic Simulation
+ * Lab and onto the pitch and its run-off. Zones overlap so a whole car can pass from one to the next. Walls,
+ * trees, the lab and people still block vehicles. The avenue, its hedges, courts and interiors stay car-free.
+ */
+export const FIELD_ACCESS=[
+ {id:'gateway',x:0,z:48.75,w:12.8,d:10.5},
+ {id:'service-lane',x:-28,z:45.75,w:64,d:4.5},
+ {id:'bus-bay',x:-48,z:43,w:24,d:10},
+ {id:'field-track',x:-40,z:27,w:10,d:30},
+ {id:'pitch-apron',x:-42,z:10.5,w:12,d:11},
+ {id:'pitch',x:-56.5,z:-2.5,w:25,d:37},
+];
+/** Centre line of the worn grass track from the bus bay to the pitch (drawn on the ground). */
+export const FIELD_TRACK=[[-41.5,40],[-41.5,15],[-46,10],[-50,8.5]];
+/** Where a vehicle may drive: the transport network, plus the way out to the football pitch. */
+export function drivable(x,z,pad=0){return transportSurface(x,z,pad)||FIELD_ACCESS.some(a=>rect(x,z,a,pad));}
 // Shade trees line every road behind its sidewalk (royal palms on the gateway avenue). Shared, so
 // their trunks collide identically on clients and the room server.
 const near=(x,z,list,pad)=>list.some(c=>Math.abs(x-c.x)<c.w/2+pad&&Math.abs(z-c.z)<c.d/2+pad);

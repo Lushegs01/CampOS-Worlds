@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-18T01:34:44.065Z",
+  "date": "2026-10-22T10:39:18.604Z",
   "results": [
     "sound is on by default and 20 recorded sounds load after entering",
     "birdsong, breeze and the fountain play around you",
@@ -13,6 +13,8 @@
     "getting in: the door, then the engine starting and idling",
     "driving away",
     "getting out: the engine shuts off and the door opens and closes",
+    "environment sounds have their own saved level: 0 stops the ambience loops, raising it restarts them",
+    "steering sensitivity is adjustable and saved",
     "volume 0 suspends all sound",
     "no browser errors"
   ],
@@ -48,9 +50,6 @@
       "step-hard",
       "step-hard",
       "step-hard",
-      "step-hard",
-      "step-grass",
-      "step-grass",
       "step-grass",
       "step-grass",
       "step-grass",
@@ -63,7 +62,6 @@
       "door-open",
       "door-close",
       "glass",
-      "step-hard",
       "cloth",
       "seat-soft",
       "seat-wood",
@@ -76,8 +74,11 @@
       "loop:engine",
       "car-door-open",
       "car-door-close",
-      "engine-stop"
+      "engine-stop",
+      "loop:birds",
+      "loop:wind"
     ],
-    "voices": 0
+    "voices": 0,
+    "environment": 0.4000000059604645
   }
 }

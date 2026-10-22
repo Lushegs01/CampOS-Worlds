@@ -1,9 +1,11 @@
 import { PLAZA } from '../world/layout';
 import { audio, loadSounds, loop, type Loop } from './mixer';
 import { indoors } from './surface';
+import { useGame } from '../state';
 
 // The campus around you: birdsong and a light breeze outdoors, the fountain's water in the courtyard, all
 // muffled (quieter and duller, as through walls) when you step inside a building or your room.
+// Settings → Environment sounds sets their level; at zero none of them play.
 
 let birds: Loop | null = null, wind: Loop | null = null, water: Loop | null = null, inside = false;
 const FOUNTAIN = { x: PLAZA.x, y: .6, z: PLAZA.z };
@@ -11,7 +13,7 @@ const FOUNTAIN = { x: PLAZA.x, y: .6, z: PLAZA.z };
 /** Each frame while on campus, with where you are. */
 export function tickAmbience(x: number, z: number) {
   const m = audio();
-  if (!m) { stopAmbience(); return; }
+  if (!m || !useGame.getState().ambience) { stopAmbience(); return; }
   loadSounds();
   birds ??= loop('birds', { gain: .5, bus: 'ambience' });
   wind ??= loop('wind', { gain: .3, bus: 'ambience' });

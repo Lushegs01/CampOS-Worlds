@@ -17,10 +17,13 @@ import { activate, activity, beginSit, cancelApproach, cancelCharge, chargeStart
 import { useInteraction, world } from '../interaction/world';
 import { currentKeepsakes } from '../account/store';
 import { surfaceHeight } from '../world/layout';
+import { steerAuthority, steerToward } from '../vehicles/steering.mjs';
 
 const keys = new Set<string>();
 const target = new THREE.Vector3(), desired = new THREE.Vector3(), look = new THREE.Vector3(), lookFrom = new THREE.Vector3(), posFrom = new THREE.Vector3();
 const ray = new THREE.Vector3(), side = new THREE.Vector3(), upv = new THREE.Vector3(0, 1, 0);
+/** Where the driver's steering wheel is, -1..1 (src/vehicles/steering.mjs). */
+let wheel = 0;
 // QA only: steer towards a point through the normal input path, so the server follows as it would a player.
 let qaTarget: { x: number; z: number; until: number } | null = null;
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
@@ -136,7 +139,9 @@ export default function Player() {
     if(vehicle){
       player.vx=player.vz=0;input.jump=false;player.y=player.vy=player.speed=0;player.moving=false;
       driving.throttle=enabled?(Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-input.z):0;
-      driving.steer=enabled?(Number(keys.has('KeyA')||keys.has('ArrowLeft'))-Number(keys.has('KeyD')||keys.has('ArrowRight'))-input.x):0;
+      // Settings → Steering sensitivity shapes what is sent; the room's vehicle physics is the same for everyone.
+      const steerTarget=enabled?(Number(keys.has('KeyA')||keys.has('ArrowLeft'))-Number(keys.has('KeyD')||keys.has('ArrowRight'))-input.x):0;
+      wheel=steerToward(wheel,steerTarget,s.steering,Math.min(raw,.25));driving.steer=wheel*steerAuthority(s.steering,vehicle.speed);
       driving.brake=!enabled||keys.has('Space');
       const a=occupiedAnchor(vehicle.id,occupancy.seat??0)!;player.x=a.x;player.z=a.z;player.yaw=a.yaw;root.current.position.set(a.x,.025,a.z);root.current.rotation.y=a.yaw;
       // Chase camera settles behind the vehicle in real time (frame-rate independent); dragging looks around.
@@ -145,7 +150,7 @@ export default function Player() {
       const size=VEHICLE_TYPES[vehicle.type],back=4+size.length*1.2;target.set(vehicle.x,size.height*.85,vehicle.z);desired.set(vehicle.x+Math.sin(c.yaw)*back,2.6+size.height*1.3+input.pitch*3,vehicle.z+Math.cos(c.yaw)*back);
       const f=armFraction(target,desired);desired.lerp(target,1-f);camera.position.lerp(desired,1-Math.exp(-real*7));camera.lookAt(target);return;
     }
-    driving.throttle=driving.steer=0;
+    driving.throttle=driving.steer=wheel=0;
     // Finished standing: step onto the spot the stand-up motion ended on.
     if (player.sit?.phase === 'done') { const exit = player.sit.exit; if (exit) { player.x = exit.x; player.z = exit.z; } player.sit = null; player.vx = player.vz = 0; }
     const act = activity(), sit = player.sit, seat = sit ? SEAT_BY_ID.get(sit.seat) : undefined;

@@ -64,8 +64,20 @@ try {
   pass('driving away');
   await page.waitForFunction(async () => { const { useVehicle, vehicleVisuals } = await import('/src/vehicles/client.ts'); return Math.abs(vehicleVisuals.get(useVehicle.getState().id)?.speed ?? 9) < .3; }, null, { timeout: 60000 });
   m = await mark(); await page.evaluate(() => window.__campusDebug.activate()); await heard('engine-stop', m); await heard('car-door-open', m); pass('getting out: the engine shuts off and the door opens and closes');
-  // Volume 0 silences everything (the context is suspended).
+  // Environment sounds have their own level: 0 stops the birdsong and breeze loops; turning it up restarts them.
   await page.getByRole('button', { name: 'Pause and settings', exact: true }).click();
+  await page.getByRole('slider', { name: 'Environment sounds', exact: true }).fill('0');
+  await page.waitForFunction(() => window.__campusSounds().environment < .02, null, { timeout: 10000 });
+  await page.getByRole('button', { name: 'Close panel' }).click(); await page.waitForTimeout(1500);
+  m = await mark(); await page.getByRole('button', { name: 'Pause and settings', exact: true }).click();
+  await page.getByRole('slider', { name: 'Environment sounds', exact: true }).fill('0.4'); await page.getByRole('button', { name: 'Close panel' }).click();
+  await heard('loop:birds', m, 20000); await page.waitForFunction(() => Math.abs(window.__campusSounds().environment - .4) < .02, null, { timeout: 10000 });
+  assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem('campos-worlds-v1'))).state.ambience, .4);
+  pass('environment sounds have their own saved level: 0 stops the ambience loops, raising it restarts them');
+  await page.getByRole('button', { name: 'Pause and settings', exact: true }).click();
+  await page.getByRole('slider', { name: 'Steering sensitivity' }).fill('0.3');
+  assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem('campos-worlds-v1'))).state.steering, .3); pass('steering sensitivity is adjustable and saved');
+  // Volume 0 silences everything (the context is suspended).
   await page.getByRole('slider', { name: 'Sound volume' }).fill('0');
   await page.waitForFunction(() => window.__campusSounds().state === 'suspended', null, { timeout: 10000 }); pass('volume 0 suspends all sound');
   assert.deepEqual(errors, []); pass('no browser errors');

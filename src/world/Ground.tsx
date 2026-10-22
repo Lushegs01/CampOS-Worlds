@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { COLLIDERS, TREES } from '../../shared/campus.mjs';
+import { FIELD_TRACK } from '../../shared/expansion.mjs';
 import { NOISE_GLSL, type SurfaceSets } from './materials';
 import { PATHS, PLAZA, PITCH, COURT, FOOTPRINTS, BEDS, HEDGES, inRect } from './layout';
 import type { QualityProfile } from './quality';
@@ -45,6 +46,14 @@ export function layoutMask() {
   for (const [ax, az, bx, bz] of DESIRE_LINES) stamp(Math.min(ax, bx) - .8, Math.max(ax, bx) + .8, Math.min(az, bz) - .8, Math.max(az, bz) + .8, (o, x, z) => {
     const d = segmentDistance(x, z, ax, az, bx, bz); if (d < .7) wear[o] = Math.max(wear[o], (1 - d / .7) * (.55 + .5 * vnoise(x * 2.3, z * 2.3)));
   });
+  // Wheel ruts along the grass track cars take out to the pitch (shared/expansion.mjs).
+  for (let k = 0; k < FIELD_TRACK.length - 1; k++) {
+    const [ax, az] = FIELD_TRACK[k], [bx, bz] = FIELD_TRACK[k + 1];
+    stamp(Math.min(ax, bx) - 1.5, Math.max(ax, bx) + 1.5, Math.min(az, bz) - 1.5, Math.max(az, bz) + 1.5, (o, x, z) => {
+      const d = segmentDistance(x, z, ax, az, bx, bz), rut = Math.max(0, 1 - Math.abs(d - .78) / .32), verge = Math.max(0, 1 - d / 1.4) * .25;
+      wear[o] = Math.max(wear[o], Math.max(rut * (.45 + .3 * vnoise(x * 2.1, z * 2.1)), verge));
+    });
+  }
   const gx = (PITCH.x0 + PITCH.x1) / 2;
   for (const gz of [PITCH.z0, PITCH.z1]) stamp(gx - 5, gx + 5, gz - 3.6, gz + 3.6, (o, x, z) => { const d = Math.hypot((x - gx) * .7, z - gz); if (d < 3.5) wear[o] = Math.max(wear[o], (1 - d / 3.5) * .8 * vnoise(x * .9, z * .9)); });
   for (let o = 0; o < N; o++) { const x = wx(o % res), z = wz(Math.floor(o / res)); wear[o] = Math.max(wear[o], Math.max(0, vnoise(x * .11, z * .11) - .78) * 1.6); }
