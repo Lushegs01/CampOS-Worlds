@@ -3,10 +3,13 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { launch, account } from './support/browser.mjs';
+import { firefox, webkit } from '@playwright/test';
 import { startStack } from './support/stack.mjs';
 
 const stack=await startStack({name:'accountrecovery',webPort:5185,roomPort:3206,supabasePort:54336});
-const browser=await launch(),ctx=await browser.newContext(),results=[],errors=[];
+const engine=process.env.BROWSER_ENGINE||'chromium';
+assert.ok(['chromium','firefox','webkit'].includes(engine),'Unsupported BROWSER_ENGINE');
+const browser=await(engine==='chromium'?launch():({firefox,webkit}[engine]).launch()),ctx=await browser.newContext(),results=[],errors=[];
 let completed=false;
 const pass=label=>{results.push(label);console.log('PASS',label);};
 const stamp=Date.now().toString(36),alpha=await account(stack,`ar${stamp}`.slice(0,20),'Recovery Alpha'),beta=await account(stack,`br${stamp}`.slice(0,20),'Recovery Beta');
@@ -65,6 +68,6 @@ try {
  console.log('ACCOUNT STATE',await snapshot(),await page.evaluate(()=>{const s=window.recoveryQA?.account.useAccount.getState();return {profileState:s?.profileState,error:s?.error};}).catch(()=>null));
  throw error;
 } finally {
- await mkdir('docs/release',{recursive:true});await writeFile('docs/release/account-recovery.json',JSON.stringify({date:new Date().toISOString(),result:completed?'pass':'fail',results,errors,method:'Actual browser SDK, local Supabase stand-in, PostgreSQL 17 and room; no 3D scene'},null,2)+'\n');
+ await mkdir('docs/release',{recursive:true});await writeFile(`docs/release/account-recovery${engine==='chromium'?'':'-'+engine}.json`,JSON.stringify({date:new Date().toISOString(),engine,browser:browser.version(),result:completed?'pass':'fail',results,errors,method:'Actual browser SDK, local Supabase stand-in, PostgreSQL 17 and room; no 3D scene'},null,2)+'\n');
  await browser.close();await stack.stop();
 }

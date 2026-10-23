@@ -52,7 +52,7 @@ jobs:
           path: docs/release/container.json
   capacity:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -61,8 +61,35 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:capacity
+        env:
+          CAPACITY_SECONDS: 300
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: capacity-evidence
           path: docs/release/capacity.json
+  account-engines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install browser engine
+        timeout-minutes: 5
+        run: npx playwright install --with-deps ${{ matrix.engine }}
+      - run: node tests/browser-account-recovery.mjs
+        env:
+          BROWSER_ENGINE: ${{ matrix.engine }}
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: account-${{ matrix.engine }}-evidence
+          path: docs/release/account-recovery-${{ matrix.engine }}.json
