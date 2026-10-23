@@ -15,8 +15,11 @@ export async function startProduction() {
     if (!/^\s/.test(line)) rules.push({ pattern: line.trim(), values: {} });
     else { const colon = line.indexOf(':'); rules.at(-1).values[line.slice(0, colon).trim()] = line.slice(colon + 1).trim(); }
   }
-  let room, workerRevision = '';
+  let room, workerRevision = '', unavailable = false;
   const server = createServer(async (req, res) => {
+    // An actual host outage affects every request, including service-worker targets;
+    // keep the recovery check independent of page-level DevTools network emulation.
+    if(unavailable){req.socket.destroy();return;}
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
       if (/^\/(?:health|shop|admin)(?:\/|$)/.test(path)) { room.http.emit('request', req, res); return; }
@@ -38,6 +41,7 @@ export async function startProduction() {
   server.on('upgrade', (req, socket, head) => room.http.emit('upgrade', req, socket, head));
   return { url, room,
     changeWorker() { workerRevision += '\n// release update test\n'; },
+    setUnavailable(value) { unavailable=!!value; },
     async stop() { await room.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); },
   };
 }

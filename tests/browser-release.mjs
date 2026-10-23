@@ -102,6 +102,7 @@ try {
     await cdp.send('PWA.changeAppUserSettings',{manifestId:host.url+'/',displayMode:'standalone'});
     const launched = await cdp.send('PWA.launch',{manifestId:host.url+'/'});
     const appPage=await appTarget(launched.targetId,browserCdp);
+    watch(appPage);
     await appPage.waitForLoadState('domcontentloaded');await ready(appPage);
     const standalone=await appPage.evaluate(()=>matchMedia('(display-mode: standalone)').matches);
     assert.equal(standalone,true);await appPage.screenshot({path:'docs/release/installed.png'});
@@ -143,13 +144,13 @@ try {
   pass('cache contains the launch shell, with no world models, textures, audio, API or account responses');
   // Network failures below are deliberate and kept separate from the normal-flow console audit.
   page.removeAllListeners('requestfailed'); page.removeAllListeners('console');
-  await ctx.setOffline(true); await page.reload({waitUntil:'domcontentloaded'});
+  host.setUnavailable(true);await ctx.setOffline(true); await page.reload({waitUntil:'domcontentloaded'});
   await page.getByRole('heading',{name:'Let’s get you back to campus.'}).waitFor();
   assert.equal(await page.locator('img').evaluate(image=>image.complete&&image.naturalWidth===192),true);
   await page.screenshot({path:'docs/release/offline.png'});
   await page.reload({waitUntil:'domcontentloaded'});
   await page.getByRole('link',{name:'Try campus again'}).waitFor();
-  await ctx.setOffline(false); await page.getByRole('link',{name:'Try campus again'}).click(); await ready(page);
+  host.setUnavailable(false);await ctx.setOffline(false); await page.getByRole('link',{name:'Try campus again'}).click(); await ready(page);
   pass('offline cold navigation and refresh show branded recovery; reconnect returns to the playable campus');
   await page.close();
 
@@ -193,6 +194,19 @@ try {
   assert.deepEqual(errors,[],'no unexpected page or console errors in normal production flows');
   assert.deepEqual(failed,[],'no failed requests in normal production flows');
   completed=true;
+} catch(error) {
+  const pages=browser.contexts().flatMap(context=>context.pages()).filter(page=>!page.isClosed());
+  const diagnostics=await Promise.all(pages.map(async(page,index)=>{
+    await page.screenshot({path:`docs/release/failure-${index}.png`}).catch(()=>{});
+    return {url:page.url(),state:await page.evaluate(async()=>({
+      title:document.title,text:document.body?.innerText.slice(0,2000),online:navigator.onLine,
+      controller:navigator.serviceWorker?.controller?.scriptURL,
+      registrations:(await navigator.serviceWorker?.getRegistrations()??[]).map(r=>({scope:r.scope,active:r.active?.state,waiting:r.waiting?.state})),
+      caches:await caches.keys(),
+    })).catch(e=>({unavailable:e.message}))};
+  }));
+  await writeFile('docs/release/failure.json',JSON.stringify({error:error.message,pages:diagnostics},null,2)+'\n');
+  throw error;
 } finally {
   await writeFile('docs/release/browser.json',JSON.stringify({date:new Date().toISOString(),result:completed?'pass':'fail',results,errors,failed,timings,installability,install},null,2)+'\n');
   await browser.close();await host.stop();await rm(profile,{recursive:true,force:true});
