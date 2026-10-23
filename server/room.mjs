@@ -376,8 +376,9 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     if(Math.hypot(x-c.x,z-c.z)>.9||blocked(x,z)||furnitureBlocked(layoutOf(c),x,z))return;
     // Only as far as the player could walk there: never through a wall, a fence or a closed door.
     const q=moveWithCollisions(c.x,c.z,x-c.x,z-c.z);Object.assign(c,Math.hypot(q.x-x,q.z-z)<.05?{x,z}:q);
-   }else if(m.type==='auth'&&rate('auth',4,60000)){
-    if(typeof m.token==='string')authenticate(c,m.token);
+   }else if(m.type==='auth'){
+    // Verification is expensive; revoking our own identity must always remain possible.
+    if(typeof m.token==='string'){if(rate('auth',4,60000))authenticate(c,m.token);}
     else{c.authSeq++;if(c.account){if(c.dorm)leaveDorm(c,'You signed out, so you’re back in the common room.');c.account=null;c.social=null;c.hoops=[];c.earned=[];c.owned=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
    }else if(m.type==='shopCheckout'&&rate('shopCheckout',3,10000)){
     // A Bachs checkout for one store item, for a signed-in player who does not own it yet.

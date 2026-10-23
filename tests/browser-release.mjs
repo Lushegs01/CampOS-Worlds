@@ -27,15 +27,22 @@ function watch(page) {
   page.on('console', message => { if (message.type() === 'error') { errors.push(message.text());console.log('CONSOLE ERROR',message.text().slice(0,350)); } });
   page.on('requestfailed', request => failed.push({ url:request.url(),error:request.failure()?.errorText }));
 }
-async function appTarget(targetId) {
+async function appTarget(targetId, browserCdp) {
   // Installation may also open an ordinary browser tab. The first page event is not
-  // necessarily the application; use the exact target returned by PWA.launch.
+  // necessarily the application. Newer Chrome returns a tab target whose child page has
+  // a different target id; match its native window as well as supporting page target ids.
+  const appWindow=await browserCdp.send('Browser.getWindowForTarget',{targetId});
   const deadline=Date.now()+15000;
   while(Date.now()<deadline) {
     for(const candidate of browser.contexts().flatMap(context=>context.pages())) {
       if(candidate.isClosed())continue;
       const session=await candidate.context().newCDPSession(candidate);
-      try { if((await session.send('Target.getTargetInfo')).targetInfo.targetId===targetId)return candidate; }
+      try {
+        const pageId=(await session.send('Target.getTargetInfo')).targetInfo.targetId;
+        if(pageId===targetId)return candidate;
+        const window=await browserCdp.send('Browser.getWindowForTarget',{targetId:pageId});
+        if(window.windowId===appWindow.windowId)return candidate;
+      }
       finally { await session.detach(); }
     }
     await new Promise(resolve=>setTimeout(resolve,100));
@@ -86,6 +93,7 @@ try {
   pass('Chromium reports a valid manifest and no installability errors; service worker activates and controls the page');
   // Exercise a real install/standalone launch when this Chromium build exposes the PWA CDP domain.
   const browserCdp = await browser.newBrowserCDPSession();
+  const originalPages=new Set(ctx.pages());
   try {
     await cdp.send('PWA.install',{manifestId:host.url+'/',installUrlOrBundleUrl:host.url+'/'});
     const state = await cdp.send('PWA.getOsAppState',{manifestId:host.url+'/'});
@@ -93,7 +101,7 @@ try {
     // preference can be "browser" independently of the manifest's standalone display mode.
     await cdp.send('PWA.changeAppUserSettings',{manifestId:host.url+'/',displayMode:'standalone'});
     const launched = await cdp.send('PWA.launch',{manifestId:host.url+'/'});
-    const appPage=await appTarget(launched.targetId);
+    const appPage=await appTarget(launched.targetId,browserCdp);
     await appPage.waitForLoadState('domcontentloaded');await ready(appPage);
     const standalone=await appPage.evaluate(()=>matchMedia('(display-mode: standalone)').matches);
     assert.equal(standalone,true);await appPage.screenshot({path:'docs/release/installed.png'});
@@ -105,6 +113,10 @@ try {
     install={tested:false,reason:error.message};
     if(!/Method not found|wasn't found|not supported|not implemented|headless|OS integration|kWebAppDisabled/i.test(error.message))throw error;
     console.log('INSTALL LIMITATION',error.message);
+  } finally {
+    // Chrome's install path can create ordinary campus tabs as well as the app window.
+    // Do not leave extra room clients alive for the single-player mobile-input checks.
+    for(const extra of ctx.pages())if(!originalPages.has(extra)&&!extra.isClosed())await extra.close();
   }
   await browserCdp.detach();
 

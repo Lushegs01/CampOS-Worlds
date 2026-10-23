@@ -23,7 +23,7 @@ enabled. The existing scene, assets, mechanics and architecture were preserved.
 | PWA | `vite.config.ts`, `src/sw.ts`, `src/pwa/`, `src/main.tsx`: manifest, install UI, explicit update handshake, bounded shell caching and truthful offline recovery. |
 | Branding | `index.html`, `public/icons/`, `public/brand/`, `scripts/assets/build-brand.mjs`: logo-derived application icons and a dedicated social image with initial-HTML sharing tags. |
 | Loading failures | `src/App.tsx`: scene and optional-panel error boundaries, slow/offline loading feedback and low-quality reload. Failed downloads no longer leave only an indefinite loading screen. |
-| Account identity | `src/account/store.ts`: reject stale profile/token results after sign-out or account changes; clear the old identity while loading a replacement; restore a valid guest across tabs, expired sessions, reloads and denied/corrupt storage. |
+| Account identity | `src/account/store.ts`, `server/room.mjs`: reject stale profile/token results after sign-out or account changes; clear the old identity while loading a replacement; restore a valid guest across tabs, expired sessions, reloads and denied/corrupt storage. Room sign-out revokes identity even after the token-verification budget is exhausted. |
 | Initialization | `src/network/messages.ts` and feature subscribers: move the message bus into an independent module, fixing an actual circular-import initialization exception. |
 | Service recovery | `src/services/fetch.mjs`, `community.ts`, `network/client.ts`: bounded cancellable private requests, no-store API fetches, retryable SDK initialization and usable feedback for an invalid socket configuration. |
 | Security | `public/_headers`, external `shop-return.js`, production telemetry guard, `server/shop.mjs`: browser headers, no inline checkout script, no production QA scene exposure, strict paid-status and finite nonnegative amount validation. |
@@ -120,7 +120,7 @@ hooks are absent from the compiled game. These settings establish behaviour, not
 | `node tests/browser-account-recovery.mjs` | Passed: 7/7 real browser account recovery cases, zero page errors. |
 | `npm run test:release` | Passed: 10 production browser checks, zero unexpected normal-flow console/page errors or failed requests. Native OS install remains unavailable, reported separately. |
 | `npm --cache /tmp/campos-npm-cache audit --json` | Passed: zero known vulnerabilities at assessment time. |
-| `node --check <each changed/new JS or MJS module>` | Passed for 16 modules. |
+| `node --check <each changed/new JS or MJS module>` | Passed for 17 modules. |
 | `git diff --check` | Passed. |
 | `node tests/browser-accounts.mjs` | Attempted; did not complete successfully. Two software-rendered campuses made browser actions time out. The focused recovery suite above provides account race coverage. |
 | Lint | No lint script/configuration exists in the repository. A lint pass is not claimed. |
@@ -150,7 +150,7 @@ Remaining release steps, using the existing supported workflow:
 2. Publish the entire `dist/`, preserving the headers, worker, manifest, icons, brand image
    and offline files. Apply equivalent headers if a custom Worker/server bypasses `_headers`.
    Missing assets must return a real 404, and `sw.js` must revalidate.
-3. Deploy the changed room-side shop validation through the current room workflow. Preserve
+3. Deploy the changed room-side shop validation and sign-out handling through the current room workflow. Preserve
    its existing origins, secrets and persistent volumes; no migration is introduced here.
 4. On the actual HTTPS site, verify entry, room connection, configured accounts, manifest,
    worker update, public image/metadata, payment return and native install/standalone launch.
