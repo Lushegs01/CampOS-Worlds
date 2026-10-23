@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-23T16:35:48.218Z",
+  "sourceCommit": "6ef4e02ea958e34a69ef0c5d794e1ff0bd447b1b",
+  "workflow": "https://github.com/Lushegs01/CampOS-Worlds/actions/runs/39986023948",
+  "result": "pass",
+  "jobs": [
+    {
+      "id": 120531054659,
+      "name": "account-engines (firefox)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 120531055830,
+      "name": "account-ui",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 120531056384,
+      "name": "verify",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 120531056868,
+      "name": "container",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 120531057043,
+      "name": "account-engines (webkit)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 120531100402,
+      "name": "capacity",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "workflowResult": {
+    "id": 39986023948,
+    "name": "Release checks",
+    "status": "completed",
+    "conclusion": "success",
+    "run_number": 17,
+    "jobs_url": "https://api.github.com/repos/Lushegs01/CampOS-Worlds/actions/runs/39986023948/jobs",
+    "logs_url": "https://api.github.com/repos/Lushegs01/CampOS-Worlds/actions/runs/39986023948/logs",
+    "workflow_id": 393852358
+  },
+  "artifacts": [
+    {
+      "id": 12516451350,
+      "name": "account-firefox-evidence",
+      "digest": "sha256:cf27cd378e6808a189958a295c0617308f4a929d574a21fff5ab3077ad8f19be"
+    },
+    {
+      "id": 12515966970,
+      "name": "capacity-evidence",
+      "digest": "sha256:c07cba0307d869917efd9d22992f85eaf1ff4e60a794f89e3d5b80a0082e9e63"
+    },
+    {
+      "id": 12515452734,
+      "name": "account-webkit-evidence",
+      "digest": "sha256:ef64133e6bc9efc9d9541a6f5eca5f7bd4a9a74bbc5aac4fdea0b1abcee385a0"
+    },
+    {
+      "id": 12515427608,
+      "name": "container-evidence",
+      "digest": "sha256:e97ee84943689fdceb9d7467ce1706213e17ea85f07a599f0b31760f22c94da4"
+    },
+    {
+      "id": 12515403112,
+      "name": "release-evidence",
+      "digest": "sha256:ac6ac5d670b8adb41e27ffbd347548b47bc9eaff2421eccb32268dd7ccc3d177"
+    },
+    {
+      "id": 12515379363,
+      "name": "account-ui-evidence",
+      "digest": "sha256:96aa4c66b099d1bf171bec995f821aaca30aeffe7d8dd3309889d7b4443ef77c"
+    }
+  ],
+  "notes": [
+    "206 Node tests; 8 account recovery cases each in Chromium, Firefox and WebKit; 11 production browser cases; 10 two-campus UI cases; production container and 300-second 48-player capacity exercise.",
+    "Firefox system-package installation initially timed out; its isolated retry passed.",
+    "Browser UI checks use software WebGL; no physical phone, real Safari installation, hosted provider or live deployment validation."
+  ]
+}

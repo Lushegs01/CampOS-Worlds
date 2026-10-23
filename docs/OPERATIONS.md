@@ -53,7 +53,8 @@ This repository does not provision an external monitor or send alerts to anyone.
 server and synthetic clients run in separate processes. Evidence records hardware,
 input rate, per-client state counts, RTT, stalls, CPU, memory, overflow and six reconnects.
 Acceptance requires no disconnects, at least 8 state updates/sec for every client,
-p95 local RTT/state gaps below 250ms and no state stall above 1.5 seconds. These are
+p95 local RTT/state gaps below 250ms, no state stall above 1.5 seconds and room RSS
+growth below 256MiB. These are
 local transport limits, not physical-device FPS, global latency or database capacity.
 Do not run a production load test against a shared/public host without a planned window.
 

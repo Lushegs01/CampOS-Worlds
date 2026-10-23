@@ -30,6 +30,7 @@ enabled. The existing scene, assets, mechanics and architecture were preserved.
 | Security | `public/_headers`, external `shop-return.js`, production telemetry guard, `server/shop.mjs`: browser headers, no inline checkout script, no production QA scene exposure, strict paid-status and finite nonnegative amount validation. |
 | Release checks | `.github/workflows/quality.yml`, new browser/artifact/account tests and scripts: reproducible checks, CI and retained evidence. Several existing socket tests now wait for acknowledgements or observed state instead of timing assumptions. |
 | Room operations | `server/config.mjs`, `server/moderation.mjs`, room lifecycle and `scripts/ops/`: production config validation, persistent expiring session/account bans, private diagnostics, bounded report queue, acknowledgement-preserving backpressure and shutdown flushing. Container and 48-client capacity checks are now explicit CI gates. See [OPERATIONS.md](OPERATIONS.md). |
+| Browser account identity | `src/services/community.ts`, `src/account/store.ts`: use session credentials delivered by SDK auth events when another tab's storage visibility lags, and verify profile ownership against the session's user UUID. This fixes a Firefox cross-tab case that associated the new email with the previous profile. A mismatched successful profile response is rejected. |
 
 No new credentials were added. Public build configuration remains separate from server-only
 service-role, webhook and administration secrets. Existing database role checks, RLS,
@@ -53,12 +54,12 @@ explicit source allowances. Inline JavaScript remains forbidden. See [PWA.md](PW
 | Basketball and Court Duels | Ball physics, scoring, ownership, disconnect cleanup, match and database progression tests. | Automated rules/network verification. |
 | Classes and challenges | Shared demo host/vote permissions, ordered checkpoints, timing rules, driving challenges and saved results. | Automated rules/network verification. Classroom content remains a demo. |
 | Profiles and sessions | Browser SDK + PostgreSQL + room: seven account recovery cases, including delayed responses after sign-out and a genuine cross-tab account switch. | Recovery verified. The separate full two-campus account UI suite timed out under software rendering and did not pass here. |
-| Friends, parties, messages, clubs/events | Real database/RLS and room tests for friendship, privacy, blocking, messages, invitations, RSVP/check-in and badges. | Automated rules/network verification; all multi-campus browser UI scripts were not rerun. |
+| Friends, parties, messages, clubs/events | Real database/RLS and room tests for friendship, privacy, blocking, messages, invitations, RSVP/check-in and badges. | Automated rules/network verification. Account/profile UI passed; separate social/community 3D UI suites were not rerun. |
 | Personal rooms | Account/session layout persistence, furniture validation/collision, invitations, visitors, privacy and reconnect tests. | Automated rules/network verification. One intermittent persistence-test timeout is disclosed below. |
 | Economic lab | Existing scenario, worker, persistence, authority, privacy, reproducibility and hosting tests. | Automated rules/network verification; WorkStream remains unconnected. |
 | Network and rendering recovery | Reconnect/session tests; production offline navigation/reconnect, essential-texture failure, optional-panel failure and WebGL context-loss checks. | See current production browser evidence in `release/browser.json`. |
 
-The Node suite contains 198 passing tests. This is coverage of implemented systems, not a
+The Node suite contains 206 passing tests. This is coverage of implemented systems, not a
 claim that every visual interaction or every hardware/browser combination was exercised.
 Guest progress remains device-local; account progress is server-backed where configured.
 No gameplay features were removed or disabled by this candidate.
@@ -70,7 +71,7 @@ No gameplay features were removed or disabled by this candidate.
 - Icons: 192 and 512 pixels, opaque padded 512 maskable icon, 180 Apple touch icon and
   favicon variants, derived from the repository's existing gold three-bar CampOS mark.
 - Worker: maintained Workbox injectManifest implementation. This build has 30 precache
-  entries totalling 2,405,411 bytes (about 2.3 MiB). The roughly 34 MB world asset library,
+  entries totalling 2,405,766 bytes (about 2.3 MiB). The roughly 34 MB world asset library,
   API responses, accounts, payments and multiplayer state are excluded. No runtime data
   caching routes were added.
 - Updates: a waiting worker is offered in Settings. It activates and reloads only after
@@ -127,23 +128,57 @@ requests. The native install uses CDP; manual installation/home-screen-icon test
 | `node --test --test-timeout=60000 tests/dorm-accounts.test.mjs` | Passed: 3/3 targeted persistence/permissions tests after an intermittent full-run timeout. |
 | `npm run build` | Passed, including TypeScript and the injected service worker. |
 | `npm run verify:release` | Passed: metadata, image/icon dimensions, opacity, cache budget and absence of production QA hooks. |
-| `node tests/browser-account-recovery.mjs` | Passed: 7/7 real browser account recovery cases, zero page errors. |
+| `node tests/browser-account-recovery.mjs` | Follow-up passed: 8/8 cases in Chromium locally and Chromium/Firefox/WebKit in CI, including a successfully delivered wrong-user profile. No page errors. These browser engines do not establish physical iOS/Safari behaviour. |
 | `npm run test:release` | Passed: 10 local production browser checks; 11 in CI including native installation and standalone launch. Zero unexpected normal-flow console/page errors or failed requests in both runs. |
 | CI: `npm ci`, `npm audit --audit-level=high`, `npm run typecheck`, `npm test`, `npm run build`, `npm run verify:release`, `npx playwright install chromium`, `node tests/browser-account-recovery.mjs`, `npm run test:release` | All passed in the linked full workflow run. |
 | `npm --cache /tmp/campos-npm-cache audit --json` | Passed: zero known vulnerabilities at assessment time. |
 | `node --check <each changed/new JS or MJS module>` | Passed for 18 modules. |
 | `git diff --check` | Passed. |
-| `node tests/browser-accounts.mjs` | Attempted; did not complete successfully. Two software-rendered campuses made browser actions time out. The focused recovery suite above provides account race coverage. |
+| `node tests/browser-accounts.mjs` | Passed in CI: 10/10 full two-campus UI cases with zero unexpected browser errors. Earlier software-rendered runs exceeded their job budget; the final workflow retains the assertions/per-action deadlines and allows 16 minutes for the full sequence and teardown. This is functional coverage, not a phone FPS measurement. |
+| `BROWSER_ENGINE=firefox node tests/browser-account-recovery.mjs` / `BROWSER_ENGINE=webkit node tests/browser-account-recovery.mjs` | Passed in CI: 8 cases each, no page errors. |
+| `docker build -f server/Dockerfile -t campos-worlds-room:release .` / `node tests/container-release.mjs` | Passed locally and in CI. CI first makes source permissions private, then verifies non-root/read-only startup, protected administration and persistence across SIGTERM/restart. Local builds use the managed proxy CA mount with TLS validation. |
+| `CAPACITY_SECONDS=300 npm run test:capacity` | Passed in CI: 48 moving compressed clients for five minutes; overflow rejection, six reconnects, latency/state-delivery and memory-growth thresholds all passed. Local measurements remain separately disclosed. |
 | Lint | No lint script/configuration exists in the repository. A lint pass is not claimed. |
 
-The operations follow-up adds eight regression cases covering invalid production config,
-durable ban expiry/restart/unban, moderation storage failure, graceful shutdown, queued
-reports/account work and congested output. The production image builds locally. Its
-container runtime and 48-player capacity gates are being verified separately from the
-earlier linked PWA workflow. Local capacity runs retained all 48 clients but exceeded the
+The operations follow-up adds eight Node regression cases covering invalid production
+config, durable ban expiry/restart/unban, moderation storage failure, graceful shutdown,
+queued reports/account work and congested output. Its first complete
+[CI workflow](https://github.com/Lushegs01/CampOS-Worlds/actions/runs/39982168781)
+passed the 206-test suite, production/browser checks, container and 60-second capacity
+exercise. The extended five-minute workload also passed in
+[the final follow-up workflow](https://github.com/Lushegs01/CampOS-Worlds/actions/runs/39986023948).
+On its AMD EPYC 9V45 runner (4 logical CPUs, 16GB RAM), all 48 compressed clients
+stayed connected at 25 movement messages/sec each; p95 RTT was 6.31ms and p95 state gap
+69.99ms. The 49th socket was refused and six reconnects succeeded. Server CPU averaged
+10% of one core; RSS increased from 99,647,488 to 261,136,384 bytes, within the 256MiB
+growth budget. These are local room transport measurements without a renderer, account
+traffic or WAN latency, and five minutes is not a long-duration production soak.
+
+Local capacity runs on this shared environment retained all 48 clients but exceeded the
 250ms p95 latency target; [the failing measurement](release/capacity-local.json) is
-retained rather than interpreted as a pass. This remains a release blocker until a
-representative host meets the acceptance criteria. See [OPERATIONS.md](OPERATIONS.md).
+retained alongside [the passing CI reference](release/capacity-ci.json). Do not infer
+that either result certifies a different production host. CI now exercises a five-minute
+soak with the same workload and an additional 256MiB RSS-growth budget.
+
+The production image builds locally. A local runtime check exposed 0600 checkout files
+copied as root-owned source, which the non-root process could not read. The image now
+normalizes source readability while keeping root ownership, and CI builds from a
+deliberately private-permission checkout to cover that failure. The independent hosted
+image exercise passed with a non-root user, read-only root filesystem and persistent volume.
+It verified readiness, protected admin access, real players, clean SIGTERM and ban
+enforcement after a restart. [Container evidence](release/container-ci.json) is retained.
+See [OPERATIONS.md](OPERATIONS.md) for commands, supported limits and operational gates.
+
+All six jobs in the final follow-up workflow passed for code commit
+`6ef4e02ea958e34a69ef0c5d794e1ff0bd447b1b`; its Firefox OS-package download initially
+timed out, and the isolated job retry passed. The final account suites cover eight
+recovery cases in each of Chromium 145, Firefox 146 and WebKit 26, plus ten two-campus UI
+cases. The production browser suite passed all 11 cases, including native PWA/standalone
+launch. [CI summary](release/operations-ci.json), [unit log](release/operations-unit-tests.txt),
+[build log](release/operations-build.txt), [production browser](release/operations-browser-ci.json),
+[account UI](release/account-ui-ci.json), [Firefox](release/account-recovery-firefox-ci.json)
+and [WebKit](release/account-recovery-webkit-ci.json) evidence is retained. Later commits
+only record documentation/evidence; this source hash identifies the tested implementation.
 
 Evidence: [unit tests](release/unit-tests.txt), [build](release/build.txt),
 [typecheck](release/typecheck.txt), [clean install](release/clean-install.txt),
@@ -169,9 +204,11 @@ those notices do not establish that all dependencies are actively maintained.
 
 ## 6. Deployment status
 
-**Undeployed.** No production service, DNS, configuration or data was changed. No usable
-existing hosting deployment credential/workflow was available here. The checked candidate
-is prepared for the project's existing static frontend and persistent room architecture.
+**Production deployment unverified.** PR #24 was merged; any external hosting automation
+tracking main is not observable here. This task has not performed a hosting deployment
+or changed production DNS, secrets or data. No usable existing hosting deployment
+credential/workflow was available here. The additional operations changes are in PR #25
+for the existing static frontend and persistent room architecture.
 
 Remaining release steps, using the existing supported workflow:
 
@@ -180,8 +217,9 @@ Remaining release steps, using the existing supported workflow:
 2. Publish the entire `dist/`, preserving the headers, worker, manifest, icons, brand image
    and offline files. Apply equivalent headers if a custom Worker/server bypasses `_headers`.
    Missing assets must return a real 404, and `sw.js` must revalidate.
-3. Deploy the changed room-side shop validation and sign-out handling through the current room workflow. Preserve
-   its existing origins, secrets and persistent volumes; no migration is introduced here.
+3. Deploy the changed room through the current hosting workflow, with production config
+   validation and a persistent moderation/report/lab volume. Preserve account/payment
+   secrets and review the new admin-token requirement. No SQL migration is introduced here.
 4. On the actual HTTPS site, verify entry, room connection, configured accounts, manifest,
    worker update, public image/metadata, payment return and native install/standalone launch.
 5. Complete the physical-device, hosted-service and load/operations gates below before a
@@ -191,9 +229,9 @@ Remaining release steps, using the existing supported workflow:
 
 **Release gates still open:** live HTTPS/domain and deployment verification; physical
 installation/home-screen launch, Safari/iOS and ordinary-phone checks; hosted
-Supabase policies/session delivery and live Bachs confirmation; measured capacity, latency
-and operational monitoring for the intended public population. None can be established
-from a local software-rendered browser or a configured 48-player ceiling.
+Supabase policies/session delivery and live Bachs confirmation; production-host capacity,
+regional latency and operational monitoring for the intended public population. Passing
+local/CI room load tests do not establish global service capacity or phone performance.
 
 The current backend remains one in-memory room. It has no worldwide matchmaking or
 cross-process presence. Guest moderation removal can be bypassed with a fresh browser
@@ -203,8 +241,8 @@ Institutional authentication is unavailable. Do not raise room limits or promise
 capacity on the basis of these functional tests.
 
 **Lower-priority follow-up:** the large renderer chunk, deprecated build-tool transitives,
-decoder CSP exception, full two-campus UI regression coverage on a GPU machine and device
-thermal/memory/soak profiling. One full run returned 197/198 because a dorm account test
+decoder CSP exception and physical-device thermal/memory/soak profiling. One earlier full
+run returned 197/198 because a dorm account test
 timed out; its isolated run and subsequent full run passed. Timeout diagnostics were
 improved, but the intermittent failure was not conclusively reproduced or attributed to
 a product defect. Track it rather than treating one green rerun as proof it cannot recur.

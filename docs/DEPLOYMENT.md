@@ -11,7 +11,7 @@ The build-only `SITE_URL` defaults to the supplied expected `https://camposworld
 Verify the public domain, HTML, image and room after publishing; a local build cannot establish
 that the live domain has been updated. Do not use `VITE_QA=1` for a public release.
 
-Build with `npm ci && npm run build` and publish `dist/` through the existing Worker Static Assets deployment. Keep the deployment's existing `VITE_WS_URL` setting. No room-server settings need to change for the mobile rendering update. Do not set `VITE_QA=1` on the public build.
+Build with `npm ci && npm run build` and publish `dist/` through the existing Worker Static Assets deployment. Keep the deployment's existing `VITE_WS_URL` and public Supabase settings. Do not set `VITE_QA=1` on the public build. The operations follow-up enforces production room configuration: review the 32+ character admin token, HTTPS origin list and persistent data volume before replacing the room image.
 
 Vite copies `public/_headers` into `dist/_headers`. Cloudflare Workers Static Assets [reads that file](https://developers.cloudflare.com/workers/static-assets/headers/) to apply the one-day asset cache. Runtime URLs include a content-derived asset revision; HTML is revalidated so a new release loads new bundles. Deploy the entire `dist/` directory, including `_headers`, rather than just `index.html`. Custom Worker responses need equivalent headers in that Worker if they bypass static asset serving.
 
