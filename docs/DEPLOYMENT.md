@@ -11,7 +11,7 @@ The build-only `SITE_URL` defaults to the supplied expected `https://camposworld
 Verify the public domain, HTML, image and room after publishing; a local build cannot establish
 that the live domain has been updated. Do not use `VITE_QA=1` for a public release.
 
-Build with `npm ci && npm run build` and publish `dist/` through the existing Worker Static Assets deployment. Keep the deployment's existing `VITE_WS_URL` setting. No room-server settings need to change for the mobile rendering update. Do not set `VITE_QA=1` on the public build.
+Build with `npm ci && npm run build` and publish `dist/` through the existing Worker Static Assets deployment. Keep the deployment's existing `VITE_WS_URL` and public Supabase settings. Do not set `VITE_QA=1` on the public build. The operations follow-up enforces production room configuration: review the 32+ character admin token, HTTPS origin list and persistent data volume before replacing the room image.
 
 Vite copies `public/_headers` into `dist/_headers`. Cloudflare Workers Static Assets [reads that file](https://developers.cloudflare.com/workers/static-assets/headers/) to apply the one-day asset cache. Runtime URLs include a content-derived asset revision; HTML is revalidated so a new release loads new bundles. Deploy the entire `dist/` directory, including `_headers`, rather than just `index.html`. Custom Worker responses need equivalent headers in that Worker if they bypass static asset serving.
 
@@ -41,8 +41,8 @@ Optional, and only with accounts. Follow [STORE.md](STORE.md):
 
 1. Run `npm ci && npm run build` in CI with Node 22.12+.
 2. Serve `dist/` over HTTPS with immutable caching for hashed assets. Return `index.html` for frontend routes and a real 404 for missing assets. Apply the security and cache headers in `public/_headers` through your server configuration; Nginx does not read that file.
-3. Run `npm run server` as a supervised process. Set `HOST=127.0.0.1`, `PORT=3001`, `ALLOWED_ORIGINS=https://worlds.example.edu`, a room invitation for a private demonstration, and a strong server-only `ADMIN_TOKEN` if moderation removal is enabled.
-4. Proxy `/ws` to that process, preserving the origin and WebSocket upgrade headers. Keep `/admin/kick` private to the operator (not through the public frontend proxy). Persist `server/data/` if retaining reports across restarts.
+3. Run `npm run server` as a supervised process. Set `NODE_ENV=production`, `HOST=127.0.0.1`, `PORT=3001`, `ALLOWED_ORIGINS=https://worlds.example.edu`, a room invitation for a private demonstration, and a random server-only `ADMIN_TOKEN` of at least 32 characters. Run `npm run verify:production-config` in that environment first.
+4. Proxy `/ws` to that process, preserving the origin and WebSocket upgrade headers. Keep all `/admin/*` private to the operator. Persist `server/data/` for moderation, reports and lab storage. Route `/ready` and `/health` directly to the room for monitoring. See [the operations runbook](OPERATIONS.md).
 5. Confirm two independent browsers can join, chat, leave, reconnect, and receive useful feedback for an incorrect invitation. Test using the public HTTPS origin, not localhost.
 
 Example Nginx configuration, with the actual domain and TLS configured by the operator:
@@ -87,6 +87,12 @@ location /ws {
     proxy_set_header Origin $http_origin;
     proxy_read_timeout 45s;
 }
+location = /ready {
+    proxy_pass http://127.0.0.1:3001;
+}
+location = /health {
+    proxy_pass http://127.0.0.1:3001;
+}
 ```
 
 ## Separate frontend and room domains
@@ -98,21 +104,29 @@ Build with `VITE_WS_URL=wss://room.example.edu/ws`, host the `dist/` files on a 
 ```sh
 docker build -f server/Dockerfile -t campos-worlds-room .
 docker run --rm -p 3001:3001 \
+  --env-file /secure/path/campos-room.env \
   -e ALLOWED_ORIGINS=https://worlds.example.edu \
   -e ROOM_INVITE=your-private-demo-invitation \
   -v campos-reports:/app/server/data campos-worlds-room
 ```
 
-The container recipe is provided but not executed in this environment. Use your deployment platform's secret store for the admin token and invitation. Protect the container behind HTTPS and network controls; an origin check is not authentication.
+The image enforces production configuration, including an admin token. The env file must
+be private and contain the real server settings; use the platform secret manager where
+available. Protect the container behind HTTPS and network controls; an origin check is
+not authentication. A repeatable image/restart exercise is `node tests/container-release.mjs`
+after building the `campos-worlds-room:release` image. The test uses disposable data and
+does not deploy production.
 
 ## Scaling boundary
 
 Live room state is in memory, with no cross-process presence or matchmaking. Optional accounts
 and community records use Supabase; the economic lab has its own persistent file store.
-The default 48-player cap is a safeguard, not a load-test result. For a pilot, add verified Core
-identity, institution partitioning, durable moderation, operational report handling and measured
-load tests before increasing room size. Cross-region rollout also needs latency-aware room
-placement and more complete prediction/reconciliation.
+The 48-player ceiling is exercised by `npm run test:capacity`; its actual measured result
+and environment are in the release evidence. A successful local exercise does not establish
+worldwide capacity. Production should use a measured admission limit on its real hardware.
+Durable session/account moderation is implemented; staffed report handling, verified Core
+identity and institution partitioning still need operator/product decisions. Cross-region
+rollout also needs latency-aware room placement and matchmaking.
 
 Keep institution records and production credentials out of the frontend. Store transactions,
 account records and reports require the server-side access controls described above.

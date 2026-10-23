@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-23T16:18:59.406Z",
+  "passed": true,
+  "checks": [
+    "production config, readiness, non-root read-only image, protected admin",
+    "real two-player join and moderator removal",
+    "SIGTERM exits cleanly; persisted ban is enforced after container restart; fresh guests can join",
+    "Docker HEALTHCHECK becomes healthy"
+  ]
+}

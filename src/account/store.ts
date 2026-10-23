@@ -12,6 +12,7 @@ export type AccountStatus = 'unconfigured' | 'loading' | 'guest' | 'signed-in';
 interface AccountState {
   status: AccountStatus;
   email: string | null;
+  userId: string | null;
   /** The saved profile; null while signed in means the player still needs to create one. */
   profile: MyProfile | null;
   profileState: 'idle' | 'loading' | 'ready' | 'error';
@@ -21,7 +22,7 @@ interface AccountState {
   set: (v: Partial<AccountState>) => void;
 }
 export const useAccount = create<AccountState>(set => ({
-  status: communityConfigured ? 'loading' : 'unconfigured', email: null, profile: null, profileState: 'idle', error: '',
+  status: communityConfigured ? 'loading' : 'unconfigured', email: null, userId: null, profile: null, profileState: 'idle', error: '',
   room: { bound: false, message: '' }, set: v => set(v),
 }));
 
@@ -58,7 +59,7 @@ function restoreGuest() {
   readGuestIdentity();
   useGame.getState().set({ name: guestIdentity.name, avatar: sanitizeAvatar(guestIdentity.avatar) });
 }
-const signedInWithProfile = () => { const s = useAccount.getState(); return s.status === 'signed-in' && !!s.profile; };
+const signedInWithProfile = () => { const s = useAccount.getState(); return s.status === 'signed-in' && !!s.profile && s.profile.id === s.userId; };
 let profileRequest = 0;
 async function token(): Promise<string | null> { return signedInWithProfile() ? (await getCommunityService()).accessToken() : null; }
 /** Tell the room who we are now (verified account, or guest). */
@@ -73,14 +74,15 @@ function syncRoom() {
 }
 
 async function loadProfile() {
-  const request = ++profileRequest, email = useAccount.getState().email;
-  const current = () => request === profileRequest && useAccount.getState().status === 'signed-in' && useAccount.getState().email === email;
+  const request = ++profileRequest, userId = useAccount.getState().userId;
+  const current = () => request === profileRequest && useAccount.getState().status === 'signed-in' && useAccount.getState().userId === userId;
   useAccount.getState().set({ profileState: 'loading' });
   try {
     const service = await getCommunityService();
     const before = useAccount.getState().profile;
     const profile = await service.myProfile();
     if (!current()) return;
+    if (profile && profile.id !== userId) throw new ServiceError('auth', 'Your account session changed. Please sign in again.');
     useAccount.getState().set({ profile, profileState: 'ready', error: '' });
     // Badges awarded by the database itself (a first friendship, event check-ins) show up on reload.
     if (before && profile && before.id === profile.id) for (const a of profile.achievements) if (!before.achievements.some(b => b.id === a.id) && ACHIEVEMENTS[a.id]) useGame.getState().notify(`Badge earned: ${ACHIEVEMENTS[a.id].name}. Saved to your profile.`);
@@ -95,7 +97,7 @@ async function loadProfile() {
 }
 async function endSession(message = '') {
   ++profileRequest;
-  useAccount.getState().set({ status: 'guest', email: null, profile: null, profileState: 'idle', error: message, room: { bound: false, message: '' } });
+  useAccount.getState().set({ status: 'guest', email: null, userId: null, profile: null, profileState: 'idle', error: message, room: { bound: false, message: '' } });
   restoreGuest(); syncRoom();
   if (message) useGame.getState().notify(message);
 }
@@ -138,19 +140,19 @@ export async function initAccount() {
       return;
     }
     const state = useAccount.getState();
-    if (state.status !== 'signed-in' || state.email !== session.email) {
+    if (state.status !== 'signed-in' || state.userId !== session.userId || state.email !== session.email) {
       ++profileRequest;
-      if (state.status === 'signed-in' && state.email !== session.email) {
+      if (state.status === 'signed-in' && state.userId !== session.userId) {
         restoreGuest();
         const guest = useGame.getState(); sendAccountIdentity(null, guest.name, guest.avatar);
       }
-      state.set({ status: 'signed-in', email: session.email, profile: null, profileState: 'idle', error: '', room: { bound: false, message: '' } });
+      state.set({ status: 'signed-in', email: session.email, userId: session.userId, profile: null, profileState: 'idle', error: '', room: { bound: false, message: '' } });
       void loadProfile();
     }
   });
     const request = profileRequest, session = await service.session();
     if (request !== profileRequest) return;
-    if (session) { useAccount.getState().set({ status: 'signed-in', email: session.email }); await loadProfile(); }
+    if (session) { useAccount.getState().set({ status: 'signed-in', email: session.email, userId: session.userId }); await loadProfile(); }
     else await endSession();
   } catch (error) {
     console.warn('Campus account initialization unavailable.', error);
@@ -161,7 +163,12 @@ export async function initAccount() {
 export async function signIn(email: string, password: string) {
   const service = await getCommunityService();
   const session = await service.signIn(email.trim(), password);
-  useAccount.getState().set({ status: 'signed-in', email: session.email, error: '' });
+  const previous = useAccount.getState();
+  if (previous.userId !== session.userId) {
+    ++profileRequest; restoreGuest(); const guest = useGame.getState(); sendAccountIdentity(null, guest.name, guest.avatar);
+    previous.set({ profile: null, profileState: 'idle', room: { bound: false, message: '' } });
+  }
+  useAccount.getState().set({ status: 'signed-in', email: session.email, userId: session.userId, error: '' });
   await loadProfile();
 }
 /** Returns true when the account needs its email confirmed before signing in. */
@@ -169,7 +176,7 @@ export async function signUp(email: string, password: string): Promise<boolean> 
   const service = await getCommunityService();
   const result = await service.signUp(email.trim(), password);
   if (!result.session) return true;
-  useAccount.getState().set({ status: 'signed-in', email: result.session.email, profile: null, profileState: 'ready', error: '' });
+  useAccount.getState().set({ status: 'signed-in', email: result.session.email, userId: result.session.userId, profile: null, profileState: 'ready', error: '' });
   return false;
 }
 export async function signOut() {
@@ -177,11 +184,11 @@ export async function signOut() {
   try { await service.signOut(); } finally { await endSession(); }
 }
 export async function saveProfile(input: ProfileInput): Promise<MyProfile> {
-  const email = useAccount.getState().email;
+  const userId = useAccount.getState().userId;
   const service = await getCommunityService();
   const first = !useAccount.getState().profile;
   const profile = await service.saveProfile(input);
-  if (useAccount.getState().status !== 'signed-in' || useAccount.getState().email !== email)
+  if (useAccount.getState().status !== 'signed-in' || useAccount.getState().userId !== userId || profile.id !== userId)
     throw new ServiceError('auth', 'Your session changed. Sign in again before editing your profile.');
   useAccount.getState().set({ profile, profileState: 'ready' });
   applyProfile(profile);

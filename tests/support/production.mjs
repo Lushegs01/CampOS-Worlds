@@ -22,7 +22,7 @@ export async function startProduction() {
     if(unavailable){req.socket.destroy();return;}
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
-      if (/^\/(?:health|shop|admin)(?:\/|$)/.test(path)) { room.http.emit('request', req, res); return; }
+      if (/^\/(?:health|ready|shop|admin)(?:\/|$)/.test(path)) { room.http.emit('request', req, res); return; }
       for (const rule of rules) if (rule.pattern.endsWith('*') ? path.startsWith(rule.pattern.slice(0, -1)) : path === rule.pattern)
         for (const [name, value] of Object.entries(rule.values)) res.setHeader(name, value);
       let target = resolve(root, '.' + decodeURIComponent(path));

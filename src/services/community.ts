@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient, Session } from '@supabase/supabase-js';
 import { fetchWithTimeout } from './fetch.mjs';
 import type { AuthSession, CampusEvent, Club, ClubDetail, ClubFilter, ClubInput, ClubRole, Conversation, DirectMessage, EventDetail, EventFilter, EventInput, FriendState, MessagePage, MyProfile, PlayerResult, ProfileCard, ProfileInput, ReportContext, ReportReason, SocialOverview, SocialSettings, UnreadSummary } from './types';
 
@@ -124,13 +124,21 @@ function matches(data: unknown, shape: Shape) {
 }
 
 // ---------------------------------------------------------------- Supabase implementation
-function supabaseService(client: SupabaseClient): CommunityService {
+function supabaseService(client: SupabaseClient, publicKey: string): CommunityService {
+  // A BroadcastChannel auth event can precede another tab's localStorage visibility (Firefox).
+  // Use the credentials from that event for RPCs and room identity instead of rereading an old
+  // storage snapshot. Never log or persist this additional in-memory reference.
+  let observed: Session | null | undefined;
   const toSession = (s: { user: { id: string; email?: string } } | null): AuthSession | null => (s ? { userId: s.user.id, email: s.user.email ?? '' } : null);
   /** Call an RPC function; on an expired token, refresh once and retry. */
   async function call<T>(fn: string, args: Record<string, unknown>, shape: Shape): Promise<T> {
     for (let attempt = 0; attempt < 2; attempt++) {
       let result;
-      try { result = await client.rpc(fn, args); } catch (e) { throw toServiceError(e); }
+      try {
+        const request = client.rpc(fn, args);
+        if (observed !== undefined) request.setHeader('Authorization', `Bearer ${observed?.access_token ?? publicKey}`);
+        result = await request;
+      } catch (e) { throw toServiceError(e); }
       if (!result.error) {
         if (!matches(result.data, shape)) throw new ServiceError('unknown', 'The campus service sent an unexpected response. Please try again later.');
         return result.data as T;
@@ -148,16 +156,17 @@ function supabaseService(client: SupabaseClient): CommunityService {
   let explicit = false;
   return {
     configured: true,
-    async session() { const { data } = await client.auth.getSession(); return toSession(data.session); },
+    async session() { const { data } = await client.auth.getSession(); return toSession(observed === undefined ? data.session : observed); },
     onSessionChange(listener) {
       const { data } = client.auth.onAuthStateChange((event, session) => {
+        if (event !== 'INITIAL_SESSION' || observed === undefined) observed = session;
         if (explicit) return; // sign-in/out initiated here reports through its own promise
         if (event === 'SIGNED_OUT') listener(null, 'expired');
         else if (event === 'SIGNED_IN') listener(toSession(session), 'signed-in');
       });
       return () => data.subscription.unsubscribe();
     },
-    async accessToken() { const { data } = await client.auth.getSession(); return data.session?.access_token ?? null; },
+    async accessToken() { const { data } = await client.auth.getSession(); return (observed === undefined ? data.session : observed)?.access_token ?? null; },
     async signUp(email, password) {
       explicit = true;
       try {
@@ -235,7 +244,7 @@ export function getCommunityService(): Promise<CommunityService> {
     const pending = import('@supabase/supabase-js').then(({ createClient }) => supabaseService(createClient(url, key, {
       global: { fetch: fetchWithTimeout },
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'campos-worlds-auth' },
-    })));
+    }), key));
     instance = pending;
     void pending.catch(() => { if (instance === pending) instance = null; });
   }

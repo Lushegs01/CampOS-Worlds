@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-23T09:01:44.982Z",
+  "date": "2026-10-23T16:07:41.192Z",
   "canonical": "https://camposworlds.click/",
   "image": "https://camposworlds.click/brand/campos-worlds-social.png",
   "social": {
@@ -7,7 +7,7 @@
     "height": 630
   },
   "precacheEntries": 30,
-  "precacheBytes": 2405411,
+  "precacheBytes": 2405766,
   "productionDebugHooks": false,
   "result": "pass"
 }

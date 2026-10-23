@@ -3,10 +3,13 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { launch, account } from './support/browser.mjs';
+import { firefox, webkit } from '@playwright/test';
 import { startStack } from './support/stack.mjs';
 
 const stack=await startStack({name:'accountrecovery',webPort:5185,roomPort:3206,supabasePort:54336});
-const browser=await launch(),ctx=await browser.newContext(),results=[],errors=[];
+const engine=process.env.BROWSER_ENGINE||'chromium';
+assert.ok(['chromium','firefox','webkit'].includes(engine),'Unsupported BROWSER_ENGINE');
+const browser=await(engine==='chromium'?launch():({firefox,webkit}[engine]).launch()),ctx=await browser.newContext(),results=[],errors=[];
 let completed=false;
 const pass=label=>{results.push(label);console.log('PASS',label);};
 const stamp=Date.now().toString(36),alpha=await account(stack,`ar${stamp}`.slice(0,20),'Recovery Alpha'),beta=await account(stack,`br${stamp}`.slice(0,20),'Recovery Beta');
@@ -45,6 +48,14 @@ try {
  releaseSwitch();await page.waitForFunction(()=>window.recoveryQA.account.useAccount.getState().profile?.display_name==='Recovery Beta');await roomIs('Recovery Beta');
  await page.unroute('**/rest/v1/rpc/my_profile');await other.close();
  pass('a cross-tab account switch clears the previous identity while loading and then binds the new account');
+ // Even a valid response for the wrong signed-in user must never be applied to this account.
+ const wrongProfile=await alpha.sb.rpc('my_profile');assert.equal(wrongProfile.error,null);
+ await page.route('**/rest/v1/rpc/my_profile',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(wrongProfile.data)}));
+ await page.evaluate(()=>window.recoveryQA.account.reloadProfile());
+ assert.deepEqual(await snapshot(),{status:'guest',email:null,profile:null,name:'Recovery Guest',avatar:'tunde'});await roomIs('Recovery Guest');
+ await page.unroute('**/rest/v1/rpc/my_profile');
+ await page.evaluate(async email=>window.recoveryQA.account.signIn(email,'correct horse battery'),beta.email);await roomIs('Recovery Beta');
+ pass('a profile for a different user is refused even when delivered successfully for the current request');
  await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('campos-worlds-auth'));s.expires_at=1;s.access_token=s.access_token.slice(0,-6)+'AAAAAA';s.refresh_token='revoked';localStorage.setItem('campos-worlds-auth',JSON.stringify(s));});
  await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>!!window.recoveryQA);
  assert.deepEqual(await snapshot(),{status:'guest',email:null,profile:null,name:'Recovery Guest',avatar:'tunde'});
@@ -65,6 +76,6 @@ try {
  console.log('ACCOUNT STATE',await snapshot(),await page.evaluate(()=>{const s=window.recoveryQA?.account.useAccount.getState();return {profileState:s?.profileState,error:s?.error};}).catch(()=>null));
  throw error;
 } finally {
- await mkdir('docs/release',{recursive:true});await writeFile('docs/release/account-recovery.json',JSON.stringify({date:new Date().toISOString(),result:completed?'pass':'fail',results,errors,method:'Actual browser SDK, local Supabase stand-in, PostgreSQL 17 and room; no 3D scene'},null,2)+'\n');
+ await mkdir('docs/release',{recursive:true});await writeFile(`docs/release/account-recovery${engine==='chromium'?'':'-'+engine}.json`,JSON.stringify({date:new Date().toISOString(),engine,browser:browser.version(),result:completed?'pass':'fail',results,errors,method:'Actual browser SDK, local Supabase stand-in, PostgreSQL 17 and room; no 3D scene'},null,2)+'\n');
  await browser.close();await stack.stop();
 }

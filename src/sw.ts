@@ -17,7 +17,7 @@ registerRoute(new NavigationRoute(async ({ request }) => {
   } catch {
     return (await matchPrecache('/offline.html')) ?? Response.error();
   } finally { clearTimeout(timer); }
-}, { denylist: [/^\/(?:api|auth|admin|shop|ws|health)(?:\/|$)/, /^\/shop-return\.html$/] }));
+}, { denylist: [/^\/(?:api|auth|admin|shop|ws|health|ready)(?:\/|$)/, /^\/shop-return\.html$/] }));
 precacheAndRoute(self.__WB_MANIFEST, { cleanURLs: false, directoryIndex: '', ignoreURLParametersMatching: [] });
 cleanupOutdatedCaches();
 // No runtime caching: accounts, payments, APIs, socket state and the large world assets stay network-only.
