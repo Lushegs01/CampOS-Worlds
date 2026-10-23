@@ -43,6 +43,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Exercise private checkout permissions
+        run: |
+          chmod -R go-rwx server shared
+          chmod go-rwx package.json package-lock.json
       - run: docker build -f server/Dockerfile -t campos-worlds-room:release .
       - run: node tests/container-release.mjs
       - uses: actions/upload-artifact@v7.0.2
