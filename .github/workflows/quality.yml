@@ -21,7 +21,11 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run verify:release
-      - run: npx playwright install --with-deps chromium
+      # The hosted Ubuntu image already supplies Chrome's runtime libraries. Avoid an
+      # unrelated apt upgrade blocking the game checks; the browser launch verifies them.
+      - name: Install Chromium
+        timeout-minutes: 5
+        run: npx playwright install chromium
       - run: node tests/browser-account-recovery.mjs
       - run: npm run test:release
       - uses: actions/upload-artifact@v7.0.2
