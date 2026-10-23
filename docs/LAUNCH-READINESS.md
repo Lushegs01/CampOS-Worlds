@@ -28,6 +28,7 @@ enabled. The existing scene, assets, mechanics and architecture were preserved.
 | Service recovery | `src/services/fetch.mjs`, `community.ts`, `network/client.ts`: bounded cancellable private requests, no-store API fetches, retryable SDK initialization and usable feedback for an invalid socket configuration. |
 | Security | `public/_headers`, external `shop-return.js`, production telemetry guard, `server/shop.mjs`: browser headers, no inline checkout script, no production QA scene exposure, strict paid-status and finite nonnegative amount validation. |
 | Release checks | `.github/workflows/quality.yml`, new browser/artifact/account tests and scripts: reproducible checks, CI and retained evidence. Several existing socket tests now wait for acknowledgements or observed state instead of timing assumptions. |
+| Room operations | `server/config.mjs`, `server/moderation.mjs`, room lifecycle and `scripts/ops/`: production config validation, persistent expiring session/account bans, private diagnostics, bounded report queue, acknowledgement-preserving backpressure and shutdown flushing. Container and 48-client capacity checks are now explicit CI gates. See [OPERATIONS.md](OPERATIONS.md). |
 
 No new credentials were added. Public build configuration remains separate from server-only
 service-role, webhook and administration secrets. Existing database role checks, RLS,
@@ -186,7 +187,8 @@ from a local software-rendered browser or a configured 48-player ceiling.
 
 The current backend remains one in-memory room. It has no worldwide matchmaking or
 cross-process presence. Guest moderation removal can be bypassed with a fresh browser
-session; durable account bans and staffed report handling remain operational/product work.
+session; durable verified-account bans are now implemented and regression-tested, while
+staffed report handling and verified guest admission remain operational/product work.
 Institutional authentication is unavailable. Do not raise room limits or promise global
 capacity on the basis of these functional tests.
 
