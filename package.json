@@ -14,7 +14,9 @@
     "typecheck": "tsc -b",
     "assets:brand": "node scripts/assets/build-brand.mjs",
     "test:release": "node tests/browser-release.mjs",
-    "verify:release": "node scripts/qa/release-artifacts.mjs"
+    "verify:release": "node scripts/qa/release-artifacts.mjs",
+    "test:capacity": "node scripts/qa/room-capacity.mjs",
+    "verify:production-config": "node scripts/ops/check-config.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",

@@ -15,6 +15,7 @@ import { cleanText, guestName } from '../shared/text.mjs';
 import { createParties, PARTY_LIMITS } from './parties.mjs';
 import { createDuels, DUEL_RULES } from './duels.mjs';
 import { createAnalytics } from './analytics.mjs';
+import { createModeration, validAccount } from './moderation.mjs';
 import { createChallenges } from './challenges.mjs';
 import { TOUR } from '../shared/campus.mjs';
 import { DEFAULT_LAYOUT, DORM_CAPACITY, DORM_INVITE_MS, DORM_INSIDE, DORM_OUTSIDE, validateLayout, furnitureAllows, furnitureBlocked, inDormRoom, nearDormDoor } from '../shared/dorm.mjs';
@@ -29,8 +30,17 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const str=v=>typeof v==='string'?v:'',num=v=>typeof v==='number'?v:NaN;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
-export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={}}={}){
- const clients=new Map(),bySocket=new WeakMap(),bans=new Set();let reportQueue=Promise.resolve();
+export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',moderationFile=null,accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={}}={}){
+ const clients=new Map(),bySocket=new WeakMap(),moderation=createModeration({file:moderationFile});let reportQueue=Promise.resolve(),closing=false,closePromise,ready=false,pendingReports=0;
+ const retries=new Set(),startedAt=Date.now(),metrics={slowConnections:0,rejectedUpgrades:0,reportsSaved:0,reportFailures:0,ticks:0,maxTickGapMs:0};
+ // Flush already accepted account writes before the process exits; network calls have their own
+ // five-second timeout in createAccounts. Retry timers are cancelled separately while draining.
+ const accountJobs=new Set();
+ accounts=new Proxy(accounts,{get(target,key){const value=Reflect.get(target,key);if(typeof value!=='function')return value;
+  return (...args)=>{const job=Promise.resolve().then(()=>value.apply(target,args));accountJobs.add(job);
+   job.then(()=>accountJobs.delete(job),()=>accountJobs.delete(job));return job;};
+ }});
+ function later(call,ms){if(closing)return;const timer=setTimeout(()=>{retries.delete(timer);if(!closing)call();},ms);retries.add(timer);}
  // ---- social: what others may know about a player, account-level blocks, and parties
  // A player who chose "appear offline" keeps their name and avatar (they are visibly here) but their
  // handle is withheld, so they do not show as online in anyone's friends list.
@@ -55,7 +65,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    ()=>{if(c.account?.id===id)send(c.ws,{type:'notice',text:'Your challenge time could not be saved right now.'});});
  }});
  /** Retry a recording a few times with backoff; the ids passed make repeats harmless in the database. */
- function retry(call,done,failed,n=0){call().then(done).catch(e=>{if(n<3&&!e?.reason)setTimeout(()=>retry(call,done,failed,n+1),1500*2**n);else failed(e);});}
+ function retry(call,done,failed,n=0){if(closing)return;call().then(done).catch(e=>{if(n<3&&!e?.reason)later(()=>retry(call,done,failed,n+1),1500*2**n);else failed(e);});}
  /** Persist a duel between two signed-in players, retrying a few times; the match id makes retries safe. */
  function recordDuel(match){
   if(!accounts.enabled)return;
@@ -64,7 +74,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    for(const c of match.clients){if(clients.get(c.id)!==c||!c.account)continue;const side=c.account.id===match.a?'a':c.account.id===match.b?'b':null;if(!side)continue;
     send(c.ws,{type:'duelRecorded',id:match.id,rated:!!r?.rated,rating:r?.[side]?.rating??null,change:r?.[side]?.change??0});
     const awarded=Array.isArray(r?.['awarded_'+side])?r['awarded_'+side]:[];if(awarded.length)send(c.ws,{type:'progress',kind:'duel',item:match.id,awarded});awarded.forEach(a=>analytics.track(c,'achievement_earned',{achievement:a}));}
-  }).catch(()=>{if(n<3)setTimeout(()=>attempt(n+1),1500*2**n);else duels.recorded(match.id,{ok:false});});
+  }).catch(()=>{if(n<3)later(()=>attempt(n+1),1500*2**n);else duels.recorded(match.id,{ok:false});});
   attempt(0);
  }
  const joined=()=>[...clients.values()].filter(c=>c.joined);
@@ -72,23 +82,57 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // who is here when that happens can wear it at once.
  const shop=createShop({...shopSettings,accounts,granted:(account,item)=>{for(const c of clients.values())if(c.account?.id===account){if(!c.owned.includes(item))c.owned=[...c.owned,item];send(c.ws,{type:'shopGranted',item});}}});
  const worldState=()=>{const w=world.snapshot();return {type:'world',doors:w.doors,seats:w.seats};};
- const sendRaw=(ws,raw)=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<65536)ws.send(raw);};
+ // State snapshots can be superseded, but auth/result acknowledgements must not be dropped.
+ // Tolerate a short burst, then reconnect a persistently slow consumer with a bounded queue.
+ const slowSince=new WeakMap();
+ const sendRaw=(ws,raw,transient=false)=>{
+  if(ws.readyState!==WebSocket.OPEN)return;
+  if(ws.bufferedAmount>=65536){
+   const since=slowSince.get(ws)??Date.now();slowSince.set(ws,since);
+   if(ws.bufferedAmount>=262144||Date.now()-since>5000){metrics.slowConnections++;ws.close(1013,'Connection too slow; reconnect');return;}
+   if(transient)return;
+  }else slowSince.delete(ws);
+  // ws otherwise compresses even small messages with context takeover. A simultaneous chat
+  // burst then queues thousands of tiny zlib jobs ahead of movement acknowledgements.
+  ws.send(raw,{compress:raw.length>=512});
+ };
  const motionContext=c=>`${c.seat??''}|${c.vehicle??''}|${c.dorm?.host.id??''}`;
  const motionSnapshot=c=>c.motion?.snapshot(motionContext(c),performance.now());
  const send=(ws,data)=>{const c=bySocket.get(ws);const motion=c?.motion&&['welcome','result','dormResult','vehicleResult','meetUpResult','motion'].includes(data.type)?motionSnapshot(c):undefined;sendRaw(ws,JSON.stringify(motion?{...data,motion}:data));};
  // Serialised once for everyone (it used to be stringified again for every recipient).
  const broadcast=data=>{const raw=JSON.stringify(data);clients.forEach(c=>{if(c.joined)sendRaw(c.ws,raw);});};
- const http=createServer(async(req,res)=>{
+ const http=createServer({maxHeaderSize:8192,requestTimeout:10000,headersTimeout:10000,keepAliveTimeout:5000},async(req,res)=>{
+  try{
   res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');
+  res.setHeader('X-Content-Type-Options','nosniff');
+  if(closing){res.writeHead(503,{'Retry-After':'5'});res.end(JSON.stringify({ok:false,ready:false}));return;}
   // Bachs payment events for the campus store (server/shop.mjs verifies each signature).
   if(req.url?.split('?')[0]===WEBHOOK_PATH){await shop.handle(req,res);return;}
-  if(req.url==='/health'){res.end(JSON.stringify({ok:true,players:[...clients.values()].filter(c=>c.joined).length,capacity}));return;}
-  if(req.url==='/admin/kick'&&req.method==='POST'){
+  if((req.url==='/health'||req.url==='/ready')&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(ready?200:503);res.end(JSON.stringify({ok:ready,ready,players:joined().length,capacity}));return;}
+  if(req.url?.startsWith('/admin/')){
    const expected=Buffer.from('Bearer '+adminToken),actual=Buffer.from(req.headers.authorization??'');
    if(!adminToken||expected.length!==actual.length||!timingSafeEqual(expected,actual)){res.writeHead(403);res.end('{}');return;}
-   let body='';try{for await(const chunk of req){body+=chunk;if(body.length>1024)throw Error('size');}const {id}=JSON.parse(body);const c=clients.get(id);if(c){bans.add(c.token);c.ws.close(4003,'Removed by room moderator');}res.end(JSON.stringify({removed:!!c}));}catch{res.writeHead(400);res.end('{}');}return;
+   if(req.url==='/admin/status'&&req.method==='GET'){res.end(JSON.stringify({ready,room:roomId,uptimeSeconds:Math.floor((Date.now()-startedAt)/1000),players:joined().length,connections:clients.size,capacity,pendingReports,pendingAccountCalls:accountJobs.size,bans:moderation.list().length,...metrics,memory:process.memoryUsage(),cpu:process.cpuUsage()}));return;}
+   if(req.url==='/admin/bans'&&req.method==='GET'){res.end(JSON.stringify({bans:moderation.list()}));return;}
+   if(['/admin/kick','/admin/ban','/admin/unban'].includes(req.url)&&req.method==='POST'){
+    let body='';try{for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>2048)throw Error('size');}
+     let m;try{m=JSON.parse(body);}catch{throw Error('body');}
+     if(!m||typeof m!=='object'||Array.isArray(m))throw Error('body');
+     if(closing){res.writeHead(503);res.end('{}');return;}
+     if(req.url==='/admin/unban'){const result=await moderation.unban(m.key);res.end(JSON.stringify(result));return;}
+     const c=typeof m.id==='string'?clients.get(m.id):null;
+     if(!c?.joined&&!(req.url==='/admin/ban'&&validAccount(m.account))){res.writeHead(404);res.end(JSON.stringify({removed:false}));return;}
+     if(m.reason!==undefined&&(typeof m.reason!=='string'||m.reason.length>300)||m.hours!==undefined&&(typeof m.hours!=='number'||!Number.isFinite(m.hours)||m.hours<=0||m.hours>720)){res.writeHead(400);res.end('{}');return;}
+     const account=req.url==='/admin/ban'?(c?.account?.id??m.account):undefined;
+     const result=await moderation.ban({token:c?.token,account,reason:m.reason??'Room moderator removal',hours:m.hours??24});
+     for(const player of clients.values())if(player===c||account&&player.account?.id===account){depart(player,4003);player.ws.close(4003,'Removed by room moderator');}
+     res.end(JSON.stringify({removed:!!c,accountBanned:validAccount(account),...result}));
+    }catch(error){res.writeHead(error.message==='body'||error.message==='size'?400:503);res.end(JSON.stringify({ok:false}));}return;
+   }
   }res.writeHead(404);res.end('{}');
+  }catch{if(!res.headersSent)res.writeHead(503);res.end(JSON.stringify({ok:false}));}
  });
+ http.maxRequestsPerSocket=100;
  // Room messages are repetitive JSON (15 state messages a second): compressed, a phone receives a fraction
  // of the bytes (mobile data costs money). Small messages (inputs, chat) are sent as they are; the browser
  // decompresses natively. maxPayload still bounds the decompressed size of what a client sends.
@@ -99,8 +143,10 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(!accounts.enabled){reply({ok:false,code:'unavailable',reason:'Accounts are not set up on this room. You are exploring as a guest.'});return;}
   const who=await accounts.verify(token);if(!live())return;
   if(who.error){reply({ok:false,code:who.error==='unavailable'?'unavailable':'expired',reason:who.error==='unavailable'?'Your account could not be checked right now. You are exploring as a guest.':'Your session has expired. Please sign in again.'});return;}
+  if(moderation.banned({account:who.id})){depart(c,4003);c.ws.close(4003,'Removed by room moderator');return;}
   let snap;try{snap=await accounts.snapshot(who.id);}catch{reply({ok:false,code:'unavailable',reason:'Your profile could not be loaded right now. You are exploring as a guest.'});return;}
   if(!live())return;
+  if(moderation.banned({account:who.id})){depart(c,4003);c.ws.close(4003,'Removed by room moderator');return;}
   if(!snap){reply({ok:false,code:'no-profile',reason:'Create your profile to appear on campus with it.'});return;}
   // One account appears once: the newest verified window takes over (a reload or a second tab);
   // the older connection carries on as a guest and is told why.
@@ -310,7 +356,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   clients.delete(c.id);if(was)broadcast({type:'left',id:c.id});
  }
  http.on('upgrade',(req,socket,head)=>{
-  if(req.url!=='/ws'||!origins.includes(req.headers.origin)||clients.size>=capacity){socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');return;}
+  if(closing||!ready||clients.size>=capacity){metrics.rejectedUpgrades++;socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nRetry-After: 5\r\nContent-Length: 0\r\n\r\n');return;}
+  if(req.url!=='/ws'||!origins.includes(req.headers.origin)){metrics.rejectedUpgrades++;socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');return;}
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));
  });
  wss.on('connection',ws=>{
@@ -318,7 +365,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   ws.on('pong',()=>{c.alive=true;});
   const rate=(key,max,window=1000)=>{const t=Date.now();const r=c.limits[key]??{at:t,n:0};if(t-r.at>=window){r.at=t;r.n=0;}c.limits[key]=r;return ++r.n<=max;};
   ws.on('message',data=>{
-   if(c.departed)return;
+   if(c.departed||closing)return;
    if(!rate('all',75)){ws.close(4008,'Too many requests');return;}
    const raw=data.toString();let m;try{m=JSON.parse(raw);}catch{return;}if(!m||typeof m!=='object')return;
    if(raw.length>(m.type==='lab'?MAX_LAB_MESSAGE:MAX_MESSAGE)&&m.type!=='auth'&&m.type!=='join'){
@@ -329,7 +376,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    if(m.type==='join'&&!c.joined){
     if(invite&&m.invite!==invite){ws.close(4001,'Invitation required');return;}
     const token=typeof m.token==='string'&&/^[a-f0-9]{48}$/.test(m.token)?m.token:randomBytes(24).toString('hex');
-    if(bans.has(token)){ws.close(4003,'Removed by room moderator');return;}
+    if(moderation.banned({token})){ws.close(4003,'Removed by room moderator');return;}
     // The same session joining again while the room still holds its old connection: a phone that changed
     // networks reconnects before the room notices the old socket is dead (up to 20 s), or a duplicated tab.
     // The newest connection takes over; the older one is told why and does not reconnect.
@@ -475,7 +522,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     // the report as context. Private messages are reported through the account service instead.
     const t=clients.get(m.id),context=['player-list','room-chat','party'].includes(m.context)?m.context:'player-list';
     const record={at:new Date().toISOString(),room:roomId,context,reporter:id,reporterAccount:c.account?.id??null,target:m.id,targetName:t.name,targetAccount:t.account?.id??null,targetHandle:t.account?.handle??null,reason:clean(m.reason,300)||'Inappropriate behaviour',recentChat:t.recentChat};
-    reportQueue=reportQueue.then(async()=>{await mkdir(reportDir,{recursive:true});await appendFile(reportDir+'/reports.jsonl',JSON.stringify(record)+'\n');send(ws,{type:'notice',text:'Report saved for the room operator. You can also mute this player.'});}).catch(()=>send(ws,{type:'notice',text:'Report could not be saved. Please contact the room operator.'}));
+    if(pendingReports>=100){send(ws,{type:'notice',text:'The report queue is busy. Please try again shortly.'});return;}pendingReports++;
+    reportQueue=reportQueue.then(async()=>{await mkdir(reportDir,{recursive:true});await appendFile(reportDir+'/reports.jsonl',JSON.stringify(record)+'\n',{mode:0o600});metrics.reportsSaved++;send(ws,{type:'notice',text:'Report saved for the room operator. You can also mute this player.'});}).catch(()=>{metrics.reportFailures++;send(ws,{type:'notice',text:'Report could not be saved. Please contact the room operator.'});}).finally(()=>{pendingReports--;});
    }
   });
   ws.on('close',code=>depart(c,code));ws.on('error',()=>ws.close());
@@ -490,7 +538,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  const footAllowed=(c,x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz))&&furnitureAllows(layoutOf(c),x,z,fx,fz);
  const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>footAllowed(c,x,z,fx,fz));
  let last=performance.now(),tick=0;
- const simulation=setInterval(()=>{const now=performance.now(),dt=Math.min((now-last)/1000,MAX_STEP),wall=Date.now();last=now;
+ const simulation=setInterval(()=>{const now=performance.now(),gap=now-last,dt=Math.min(gap/1000,MAX_STEP),wall=Date.now();last=now;metrics.ticks++;metrics.maxTickGapMs=Math.max(metrics.maxTickGapMs,Math.round(gap));
   for(const c of clients.values()){if(!c.joined){if(Date.now()-c.joinedAt>10000)c.ws.close();continue;}
    if(c.motion){if(wall-c.lastInput>INPUT_HOLD_MS)c.moving=false;if(wall-c.emoteAt>3000)c.emote='';continue;}
    if(c.seat||c.vehicle){c.vx=c.vz=0;c.moving=false;c.input.jump=false;c.simAt=wall;continue;}
@@ -511,10 +559,33 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(++tick%2===0){const data={type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm})=>({id,name,avatar,space:dorm?dorm.host.id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()};
    // Each driver also gets what the room has applied of their driving commands, to reconcile against.
    const raw=JSON.stringify(data);for(const c of clients.values())if(c.joined){const motion=motionSnapshot(c),drive=c.vehicle&&c.vehicleSeat===0?fleet.driveState(c.vehicle):null;
-    sendRaw(c.ws,motion||drive?raw.slice(0,-1)+(motion?',"motion":'+JSON.stringify(motion):'')+(drive?',"drive":'+JSON.stringify(drive):'')+'}':raw);}
+    sendRaw(c.ws,motion||drive?raw.slice(0,-1)+(motion?',"motion":'+JSON.stringify(motion):'')+(drive?',"drive":'+JSON.stringify(drive):'')+'}':raw,true);}
   }
  },1000/30);
  const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
- return {http,wss,clients,fleet,parties,duels,challenges,world,economy,start:()=>new Promise(resolve=>http.listen(port,host,()=>resolve(http.address()))),close:async()=>{await economy.close();return new Promise(resolve=>{clearInterval(simulation);clearInterval(heartbeat);clients.forEach(c=>c.ws.terminate());wss.close();http.close(resolve);});}};
+ function close(){
+  if(closePromise)return closePromise;
+  closing=true;ready=false;clearInterval(simulation);clearInterval(heartbeat);retries.forEach(clearTimeout);retries.clear();
+  // Revoke room membership synchronously, then allow the close frame to reach browsers.
+  for(const c of [...clients.values()]){depart(c,1001);c.ws.close(1001,'Room restarting; reconnect shortly');}
+  closePromise=(async()=>{
+   const sockets=[...wss.clients];
+   const socketDeadline=setTimeout(()=>sockets.forEach(ws=>ws.terminate()),1000);
+   const httpDeadline=setTimeout(()=>http.closeAllConnections(),10000);
+   try{await Promise.all([
+    new Promise(resolve=>wss.close(()=>resolve())),
+    new Promise(resolve=>http.close(()=>resolve())),
+    economy.close(),reportQueue,moderation.flush(),analytics.flush?.(),Promise.allSettled([...accountJobs]),
+   ]);}finally{clearTimeout(socketDeadline);clearTimeout(httpDeadline);}
+  })();return closePromise;
+ }
+ async function start(){
+  try{
+   await moderation.load();
+   await new Promise((resolve,reject)=>{http.once('error',reject);http.listen(port,host,()=>{http.off('error',reject);ready=true;resolve();});});
+   return http.address();
+  }catch(error){await close();throw error;}
+ }
+ return {http,wss,clients,fleet,parties,duels,challenges,world,economy,moderation,start,close};
 }
 function clean(value,max){return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,max):'';}

@@ -33,3 +33,36 @@ jobs:
         with:
           name: release-evidence
           path: docs/release/
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: docker build -f server/Dockerfile -t campos-worlds-room:release .
+      - run: node tests/container-release.mjs
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: container-evidence
+          path: docs/release/container.json
+  capacity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:capacity
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: capacity-evidence
+          path: docs/release/capacity.json
