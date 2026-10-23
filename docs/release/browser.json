@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-23T09:13:10.227Z",
+  "result": "pass",
+  "results": [
+    "production page, branded metadata, manifest and icons resolve with security headers",
+    "production game enters, connects, moves with real input and opens/closes the map",
+    "Chromium reports a valid manifest and no installability errors; service worker activates and controls the page",
+    "new worker waits; Settings applies the update only on explicit reload",
+    "cache contains the launch shell, with no world models, textures, audio, API or account responses",
+    "offline cold navigation and refresh show branded recovery; reconnect returns to the playable campus",
+    "production phone viewport supports real joystick movement, portrait/landscape and no horizontal overflow",
+    "a failed essential texture offers recovery; retry downloads it and opens the campus",
+    "WebGL context loss offers a low-quality reload and the campus opens again",
+    "a failed optional panel download stays inside its boundary and leaves the campus usable"
+  ],
+  "errors": [],
+  "failed": [],
+  "timings": {
+    "coldReadyMs": 19504,
+    "browser": "154.0.8037.57",
+    "renderer": "Chromium headless / SwiftShader; no physical GPU or phone",
+    "viewport": "1280 × 800 CSS pixels, Low, DPR 0.25; unmodified production code"
+  },
+  "installability": {
+    "installabilityErrors": []
+  },
+  "install": {
+    "tested": false,
+    "reason": "cdpSession.send: Protocol error (PWA.install): Failed to install http://127.0.0.1:36525/: kWebAppDisabled"
+  }
+}

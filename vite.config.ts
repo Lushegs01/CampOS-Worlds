@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, normalizePath } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -13,10 +14,33 @@ function assetRevision(dir = 'public/assets') {
 // so automated tests can run against their own room without touching anyone's live session.
 export default defineConfig(({ mode }) => {
  const env=loadEnv(mode,'.',''),room=env.ROOM_URL||'127.0.0.1:3001';
+ const site=new URL(env.SITE_URL||'https://camposworlds.click');
+ if(site.protocol!=='https:'||site.username||site.password||site.pathname!=='/'||site.search||site.hash)throw new Error('SITE_URL must be an HTTPS origin, without a path, credentials, query or fragment.');
  const labData=normalizePath(resolve(env.LAB_DATA_FILE||'server/data/economic-lab.json'));
  const proxy={'/ws':{target:`ws://${room}`,ws:true},'/health':{target:`http://${room}`}};
  return {
-  plugins:[react()],
+  plugins:[react(),{
+   name:'campus-public-metadata',
+   transformIndexHtml:html=>html.replaceAll('https://camposworlds.click',site.origin),
+  },VitePWA({
+   strategies:'injectManifest',srcDir:'src',filename:'sw.ts',injectRegister:false,registerType:'prompt',
+   manifest:{
+    id:'/',name:'CampOS Worlds',short_name:'CampOS Worlds',lang:'en',
+    description:'Explore a shared 3D university campus, meet friends and join campus activities.',
+    start_url:'/',scope:'/',display:'standalone',background_color:'#19382f',theme_color:'#19382f',
+    categories:['games','social','education'],
+    icons:[
+     {src:'/icons/icon-192.png',sizes:'192x192',type:'image/png',purpose:'any'},
+     {src:'/icons/icon-512.png',sizes:'512x512',type:'image/png',purpose:'any'},
+     {src:'/icons/maskable-512.png',sizes:'512x512',type:'image/png',purpose:'maskable'},
+    ],
+   },
+   injectManifest:{
+    // Only the bounded launch shell. Never glob the 34 MB of models/textures/audio or any API data.
+    globPatterns:['index.html','offline.html','offline.css','favicon.svg','icons/*.png','assets/*.{js,css,woff2}'],
+    maximumFileSizeToCacheInBytes:2*1024*1024,
+   },
+  })],
   define:{__CAMPUS_ASSET_VERSION__:JSON.stringify(assetRevision())},
   // Pre-bundled up front: these are first imported by the lazily loaded 3D scene, and discovering them
   // then made the dev server re-optimise and reload the page during a developer's (or a test's) first visit.

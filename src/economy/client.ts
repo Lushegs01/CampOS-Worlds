@@ -1,5 +1,6 @@
+import { onRoomMessage } from '../network/messages';
 import {create} from 'zustand';
-import {onRoomMessage,send} from '../network/client';
+import {send} from '../network/client';
 import {player,useGame} from '../state';
 import {registerCandidates} from '../interaction/controller';
 import {moveWithCollisions} from '../../shared/campus.mjs';

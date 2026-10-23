@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-23T09:04:25.230Z",
+  "result": "pass",
+  "results": [
+    "real SDK sign-in loads a profile and binds the verified identity to the room",
+    "a profile response arriving after sign-out cannot restore the old name, appearance or room identity",
+    "account session and profile restore after a browser reload",
+    "a cross-tab account switch clears the previous identity while loading and then binds the new account",
+    "an expired, unrefreshable session restores guest identity instead of leaving the previous profile visible",
+    "a corrupt guest backup recovers to a valid guest identity",
+    "denied browser storage still allows sign-in and safe guest restoration through memory"
+  ],
+  "errors": [],
+  "method": "Actual browser SDK, local Supabase stand-in, PostgreSQL 17 and room; no 3D scene"
+}

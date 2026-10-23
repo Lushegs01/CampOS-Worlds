@@ -1,6 +1,7 @@
+import { onRoomMessage } from '../network/messages';
 import { create } from 'zustand';
 import { DEFAULT_PRICES, SHOP_BY_ID, priceOf, shopPrices } from '../../shared/shop.mjs';
-import { onRoomMessage, send } from '../network/client';
+import {  send } from '../network/client';
 import { useGame } from '../state';
 import { reloadProfile } from './store';
 

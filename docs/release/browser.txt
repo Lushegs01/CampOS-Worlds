@@ -1,0 +1,20 @@
+
+> campos-worlds@0.1.0 test:release
+> node tests/browser-release.mjs
+
+PASS production page, branded metadata, manifest and icons resolve with security headers
+PASS production game enters, connects, moves with real input and opens/closes the map
+PASS Chromium reports a valid manifest and no installability errors; service worker activates and controls the page
+INSTALL LIMITATION cdpSession.send: Protocol error (PWA.install): Failed to install http://127.0.0.1:36525/: kWebAppDisabled
+PASS new worker waits; Settings applies the update only on explicit reload
+PASS cache contains the launch shell, with no world models, textures, audio, API or account responses
+PASS offline cold navigation and refresh show branded recovery; reconnect returns to the playable campus
+PASS production phone viewport supports real joystick movement, portrait/landscape and no horizontal overflow
+PASS a failed essential texture offers recovery; retry downloads it and opens the campus
+PASS WebGL context loss offers a low-quality reload and the campus opens again
+PASS a failed optional panel download stays inside its boundary and leaves the campus usable
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

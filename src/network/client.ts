@@ -1,3 +1,5 @@
+import { emitRoomMessage } from './messages';
+export { onRoomMessage } from './messages';
 import { receiveClasses } from '../ui/Classes';
 import { receiveVehicles, receiveDrive, driveProtocol, vehicleResult, setOccupancy, disconnectVehicles } from '../vehicles/client';
 import { useEffect } from 'react';
@@ -17,10 +19,6 @@ let bridge:AccountBridge|null=null;
 export function registerAccountBridge(b:AccountBridge){bridge=b;}
 // Other layers (social, matches) subscribe to room messages here rather than being imported, which
 // keeps the network layer free of feature code. A synthetic {type:'disconnected'} marks a lost room.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RoomListener=(m:any)=>void;
-const roomListeners=new Set<RoomListener>();
-export function onRoomMessage(fn:RoomListener){roomListeners.add(fn);return()=>{roomListeners.delete(fn);};}
 /** Our connection id in the room ('' when not connected). */
 export const selfConnection=()=>ownId;
 /** The room instance we are in (parties and presence are scoped to it). */
@@ -59,7 +57,15 @@ export function connect(){
  const url=import.meta.env.VITE_WS_URL||`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws`;
  // Handlers capture their own socket so a late close from a replaced connection can't clobber
  // the current one (React StrictMode reconnects once in development; real reconnects race too).
- const ws=new WebSocket(url);socket=ws;
+ let ws:WebSocket;
+ try { ws=new WebSocket(url); }
+ catch (error) {
+  console.error('Room connection could not start.',error);
+  state.set({status:'unavailable'});
+  state.notify('The room connection is unavailable. You can keep exploring locally.');
+  return;
+ }
+ socket=ws;
  // Signed-in players include their access token in the join message (never in the URL); the room
  // verifies it with the account service and upgrades the guest identity.
  ws.onopen=async()=>{if(socket!==ws)return;const access=await bridge?.access().catch(()=>null)??null;if(socket!==ws)return;const g=useGame.getState();send({type:'join',movement:MOTION_VERSION,name:g.name,avatar:g.avatar,invite:g.invite,token:session.get(),analytics:analyticsPayload(),...(access?{access}:{})});};
@@ -83,12 +89,12 @@ export function connect(){
   if(m.type==='result'||m.type==='world'||m.type==='events')receive(m);
   if(m.type==='auth')bridge?.onAuth(m);
   if(m.type==='progress')bridge?.onProgress(m);
-  for(const fn of roomListeners)fn(m);
+  emitRoomMessage(m);
   if(m.motion){prediction.receive(m.motion);player.reconcile=null;}
  };
  // Only a session that actually joined has room state to tear down: failed reconnect attempts while
  // exploring offline must not eject the player from the local vehicle or reset local interactions.
- ws.onclose=e=>{if(socket!==ws)return;socket=null;if(prediction.active)prediction.stop();const joined=useGame.getState().status==='connected';if(!joined)failures++;livePeers.clear();peerTracks.clear();if(joined){disconnectVehicles();unbindNetwork();ownId='';for(const fn of roomListeners)fn({type:'disconnected'});}useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
+ ws.onclose=e=>{if(socket!==ws)return;socket=null;if(prediction.active)prediction.stop();const joined=useGame.getState().status==='connected';if(!joined)failures++;livePeers.clear();peerTracks.clear();if(joined){disconnectVehicles();unbindNetwork();ownId='';emitRoomMessage({type:'disconnected'});}useGame.getState().set({status:e.code===4003?'removed':e.code===4001?'invitation required':e.code===4004?'session in use':'offline',peers:[],count:1});if(!stopped&&![4001,4003,4004].includes(e.code)){reconnect=setTimeout(connect,Math.min(15000,1000*2**retry++));}};
  ws.onerror=()=>{};
 }
 // QA builds only: lose the connection the way a phone does when it changes networks (the room still holds

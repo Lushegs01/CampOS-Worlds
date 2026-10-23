@@ -12,6 +12,13 @@ import { createAccounts } from '../server/accounts.mjs';
 import { blocked } from '../shared/campus.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function until(predicate, label) {
+  const deadline = Date.now() + 5000;
+  while (!predicate()) {
+    assert.ok(Date.now() < deadline, label);
+    await sleep(20);
+  }
+}
 function next(ws, predicate, timeout = 4000) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => { ws.off('message', h); reject(new Error('Message timeout')); }, timeout);
@@ -167,7 +174,7 @@ async function account(prefix) {
 }
 async function online(acct) {
   const c = await join(aurl, 'claimed name', { access: acct.token });
-  const auth = await next(c.ws, m => m.type === 'auth'); assert.equal(auth.ok, true, auth.reason);
+  const auth = c.log.find(m => m.type === 'auth') ?? await next(c.ws, m => m.type === 'auth'); assert.equal(auth.ok, true, auth.reason);
   return c;
 }
 async function befriend(a, b) {
@@ -210,7 +217,8 @@ test('blocks are enforced by the room: no chat either way, no invitations, no nu
   const a = await online(ada), b = await online(bad), o = await online(other);
   try {
     const { error } = await ada.sb.rpc('block_player', { p_user: bad.id }); assert.equal(error, null);
-    a.send({ type: 'socialRefresh' }); await sleep(500);
+    a.send({ type: 'socialRefresh' });
+    await until(() => aroom.clients.get(a.id)?.social?.blocked.has(bad.id), 'the room received the new block');
     const toAda = arrives(a.ws, m => m.type === 'chat' && m.id === b.id), toOther = next(o.ws, m => m.type === 'chat' && m.id === b.id);
     b.send({ type: 'chat', text: 'can anyone hear me' });
     assert.equal((await toOther).text, 'can anyone hear me', 'other players still hear them');
@@ -225,7 +233,7 @@ test('blocks are enforced by the room: no chat either way, no invitations, no nu
     // A block that arrives after an invitation still stops the join.
     for (const acct of [ada, bad, other]) await acct.sb.rpc('save_social_settings', { p_friend_requests: 'everyone', p_direct_messages: 'friends', p_party_invites: 'everyone', p_appear_offline: false });
     for (const p of [a, b, o]) p.send({ type: 'socialRefresh' });
-    await sleep(500);
+    await until(() => [a,b,o].every(p => aroom.clients.get(p.id)?.social?.settings.party_invites === 'everyone'), 'the room received invitation settings');
     const inviteAda = next(a.ws, m => m.type === 'partyInvite'); await o.party('invite', { id: a.id });
     await a.party('respond', { party: (await inviteAda).invite.party, accept: true });
     const inviteBad = next(b.ws, m => m.type === 'partyInvite');

@@ -1,0 +1,31 @@
+name: Release checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run verify:release
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/browser-account-recovery.mjs
+      - run: npm run test:release
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: release-evidence
+          path: docs/release/

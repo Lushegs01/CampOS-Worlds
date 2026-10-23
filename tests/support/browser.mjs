@@ -2,16 +2,20 @@
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
 import { createClient } from '@supabase/supabase-js';
+import { existsSync } from 'node:fs';
 
 // Without a GPU (Linux CI, containers) Chromium falls back to software WebGL; `qa-scale` renders the
 // 3D view at low resolution there so the interface stays responsive (QA builds only).
 export const gpu = process.platform === 'win32';
 export const QUERY = gpu ? '' : '/?qa-scale=0.2';
-export async function launch() {
-  const exe = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || (gpu ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : '/opt/pw-browsers/chromium');
-  const args = gpu ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader'];
-  return chromium.launch({ headless: true, executablePath: exe, args });
+function launchOptions() {
+  const exe = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || (gpu ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' :
+    [chromium.executablePath(), '/opt/pw-browsers/chromium', '/usr/bin/chromium'].find(path => existsSync(path)));
+  const args = gpu ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader', '--no-sandbox', '--disable-dev-shm-usage'];
+  return { headless: true, executablePath: exe, args };
 }
+export const launch = () => chromium.launch(launchOptions());
+export const launchPersistent = (directory, options = {}) => chromium.launchPersistentContext(directory, { ...launchOptions(), ...options });
 /** A signed-up account with a saved profile, plus its own supabase-js client. */
 export async function account(stack, handle, name, model = 'ada') {
   const sb = createClient(stack.supa.url, stack.supa.anonKey, { auth: { persistSession: false } });

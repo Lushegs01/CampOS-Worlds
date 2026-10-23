@@ -141,6 +141,25 @@ try {
   assert.ok(Math.hypot(after.p.x - before.x, after.p.z - before.z) < .6, `signing in kept the player in place (moved ${Math.hypot(after.p.x - before.x, after.p.z - before.z).toFixed(2)} m)`);
   pass('sign-out restores the guest identity; wrong passwords are refused; sign-in restores the profile in place, without reloading the world');
 
+  // A profile request already in flight must never restore the old identity after sign-out.
+  let releaseProfile, profileReached;
+  const heldProfile = new Promise(resolve => { releaseProfile = resolve; });
+  const reachedProfile = new Promise(resolve => { profileReached = resolve; });
+  await A.route('**/rest/v1/rpc/my_profile', async route => {
+    const response = await route.fetch(); profileReached(); await heldProfile; await route.fulfill({ response });
+  });
+  await A.evaluate(async () => { const account = await import('/src/account/store.ts'); window.__pendingProfile = account.reloadProfile(); });
+  await reachedProfile;
+  await A.evaluate(async () => { await (await import('/src/account/store.ts')).signOut(); });
+  releaseProfile(); await A.evaluate(() => window.__pendingProfile);
+  assert.deepEqual(await A.evaluate(async () => { const s=(await import('/src/account/store.ts')).useAccount.getState(); return {status:s.status,profile:s.profile,name:window.__campusInspect().avatar.model&&document.querySelector('.account-chip')?.textContent}; }),
+    {status:'guest',profile:null,name:'Sign in'});
+  assert.equal(await A.evaluate(async () => (await import('/src/state.ts')).useGame.getState().name),'Guest Ada');
+  await A.unroute('**/rest/v1/rpc/my_profile');
+  await A.evaluate(async ({email}) => { await (await import('/src/account/store.ts')).signIn(email,'correct horse battery'); }, {email});
+  await A.getByRole('button', { name: `Your profile, @${handle}` }).waitFor();
+  pass('a delayed profile response after sign-out cannot restore the old account identity');
+
   // An expired, unrefreshable session is handled safely: back to guest, with an explanation.
   await A.evaluate(() => { const raw = localStorage.getItem('campos-worlds-auth'); const s = JSON.parse(raw); s.expires_at = 1; s.access_token = s.access_token.slice(0, -6) + 'AAAAAA'; s.refresh_token = 'revoked'; localStorage.setItem('campos-worlds-auth', JSON.stringify(s)); });
   await A.reload({ waitUntil: 'domcontentloaded' });

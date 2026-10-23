@@ -1,9 +1,10 @@
+import { onRoomMessage } from '../network/messages';
 // Rooms in Palm House (shared/dorm.mjs): your own room, and friends' rooms you visit. Entering, leaving,
 // visiting, inviting and saving all go through the room server, which decides everything; this keeps the
 // client's view of it: whose room we are in, its layout (shown and collided with), visitors, invitations.
 import { create } from 'zustand';
 import { input, player, trail, useGame } from '../state';
-import { onRoomMessage, send, selfConnection } from '../network/client';
+import {  send, selfConnection } from '../network/client';
 import { registerCandidates } from '../interaction/controller';
 import { DORM_DOOR, nearDormDoor } from '../../shared/dorm.mjs';
 

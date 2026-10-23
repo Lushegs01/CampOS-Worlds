@@ -1,0 +1,51 @@
+
+> campos-worlds@0.1.0 build
+> tsc -b && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 1938 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/manifest.webmanifest                                      0.59 kB
+dist/index.html                                                2.92 kB │ gzip:   0.89 kB
+dist/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2      8.52 kB
+dist/assets/manrope-greek-wght-normal-DL7QRZyv.woff2           9.44 kB
+dist/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2       14.50 kB
+dist/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2      15.12 kB
+dist/assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2      18.23 kB
+dist/assets/manrope-latin-wght-normal-DHIcAJRg.woff2          24.84 kB
+dist/assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2          36.93 kB
+dist/assets/index-DDHtHJHE.css                                84.76 kB │ gzip:  21.23 kB
+dist/assets/workbox-window.prod.es5-BBnX5xw4.js                5.75 kB │ gzip:   2.36 kB
+dist/assets/AvatarEditor-CpzgI3N6.js                           7.12 kB │ gzip:   2.94 kB
+dist/assets/AvatarBoundary-CDWDy_1S.js                        37.13 kB │ gzip:  15.48 kB
+dist/assets/LabPanel-Bm75OrmO.js                             111.35 kB │ gzip:  31.69 kB
+dist/assets/World-B3ZnWbdd.js                                154.81 kB │ gzip:  58.53 kB
+dist/assets/react-BdtylicS.js                                201.99 kB │ gzip:  64.13 kB
+dist/assets/PostFX-B2lnhAkK.js                               286.20 kB │ gzip: 148.16 kB
+dist/assets/index-DDw7vAzh.js                                300.32 kB │ gzip:  99.67 kB
+dist/assets/three-CLCVYEPu.js                              1,041.42 kB │ gzip: 290.69 kB
+
+(!) Some chunks are larger than 1000 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 25.49s
+
+PWA v2.0.0
+Building src/sw.ts service worker ("es" format)...
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 70 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/sw.mjs  17.21 kB │ gzip: 5.84 kB
+✓ built in 642ms
+
+PWA v2.0.0
+mode      injectManifest
+format:   es
+precache  30 entries (2329.34 KiB)
+files generated
+  dist/sw.js

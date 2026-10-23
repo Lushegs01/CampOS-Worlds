@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fetchWithTimeout } from './fetch.mjs';
 import type { AuthSession, CampusEvent, Club, ClubDetail, ClubFilter, ClubInput, ClubRole, Conversation, DirectMessage, EventDetail, EventFilter, EventInput, FriendState, MessagePage, MyProfile, PlayerResult, ProfileCard, ProfileInput, ReportContext, ReportReason, SocialOverview, SocialSettings, UnreadSummary } from './types';
 
 // The single boundary between the interface and the account/community backend. Components call
@@ -230,5 +231,13 @@ let instance: Promise<CommunityService> | null = null;
 /** The community service, loading the Supabase client on first use (guests who never sign in skip it). */
 export function getCommunityService(): Promise<CommunityService> {
   if (!communityConfigured) return Promise.resolve(unconfigured);
-  return instance ??= import('@supabase/supabase-js').then(({ createClient }) => supabaseService(createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'campos-worlds-auth' } })));
+  if (!instance) {
+    const pending = import('@supabase/supabase-js').then(({ createClient }) => supabaseService(createClient(url, key, {
+      global: { fetch: fetchWithTimeout },
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'campos-worlds-auth' },
+    })));
+    instance = pending;
+    void pending.catch(() => { if (instance === pending) instance = null; });
+  }
+  return instance;
 }
