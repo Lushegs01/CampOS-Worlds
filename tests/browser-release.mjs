@@ -72,12 +72,18 @@ try {
   // Exercise a real install/standalone launch when this Chromium build exposes the PWA CDP domain.
   const browserCdp = await browser.newBrowserCDPSession();
   try {
-    await cdp.send('PWA.install',{manifestId:host.url+'/',installUrl:host.url+'/'});
+    await cdp.send('PWA.install',{manifestId:host.url+'/',installUrlOrBundleUrl:host.url+'/'});
     const state = await cdp.send('PWA.getOsAppState',{manifestId:host.url+'/'});
+    // The CDP install API does not run Chrome's end-user install dialog. Its default user
+    // preference can be "browser" independently of the manifest's standalone display mode.
+    await cdp.send('PWA.changeAppUserSettings',{manifestId:host.url+'/',displayMode:'standalone'});
     const newPage=ctx.waitForEvent('page',{timeout:15000}).catch(()=>null);
     const launched = await cdp.send('PWA.launch',{manifestId:host.url+'/'});
     const appPage=await newPage;
     assert.ok(appPage,'installed application opens a testable standalone window');
+    const appCdp=await ctx.newCDPSession(appPage);
+    assert.equal((await appCdp.send('Target.getTargetInfo')).targetInfo.targetId,launched.targetId,'inspect the actual app target');
+    await appCdp.detach();
     await appPage.waitForLoadState('domcontentloaded');await ready(appPage);
     const standalone=await appPage.evaluate(()=>matchMedia('(display-mode: standalone)').matches);
     assert.equal(standalone,true);await appPage.screenshot({path:'docs/release/installed.png'});
