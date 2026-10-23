@@ -27,6 +27,21 @@ function watch(page) {
   page.on('console', message => { if (message.type() === 'error') { errors.push(message.text());console.log('CONSOLE ERROR',message.text().slice(0,350)); } });
   page.on('requestfailed', request => failed.push({ url:request.url(),error:request.failure()?.errorText }));
 }
+async function appTarget(targetId) {
+  // Installation may also open an ordinary browser tab. The first page event is not
+  // necessarily the application; use the exact target returned by PWA.launch.
+  const deadline=Date.now()+15000;
+  while(Date.now()<deadline) {
+    for(const candidate of browser.contexts().flatMap(context=>context.pages())) {
+      if(candidate.isClosed())continue;
+      const session=await candidate.context().newCDPSession(candidate);
+      try { if((await session.send('Target.getTargetInfo')).targetInfo.targetId===targetId)return candidate; }
+      finally { await session.detach(); }
+    }
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  throw new Error('The installed application target was not exposed to the browser test');
+}
 let completed=false, installability, install = { tested:false, reason:'Not attempted' }, timings;
 try {
   const ctx = persistent;
@@ -77,13 +92,8 @@ try {
     // The CDP install API does not run Chrome's end-user install dialog. Its default user
     // preference can be "browser" independently of the manifest's standalone display mode.
     await cdp.send('PWA.changeAppUserSettings',{manifestId:host.url+'/',displayMode:'standalone'});
-    const newPage=ctx.waitForEvent('page',{timeout:15000}).catch(()=>null);
     const launched = await cdp.send('PWA.launch',{manifestId:host.url+'/'});
-    const appPage=await newPage;
-    assert.ok(appPage,'installed application opens a testable standalone window');
-    const appCdp=await ctx.newCDPSession(appPage);
-    assert.equal((await appCdp.send('Target.getTargetInfo')).targetInfo.targetId,launched.targetId,'inspect the actual app target');
-    await appCdp.detach();
+    const appPage=await appTarget(launched.targetId);
     await appPage.waitForLoadState('domcontentloaded');await ready(appPage);
     const standalone=await appPage.evaluate(()=>matchMedia('(display-mode: standalone)').matches);
     assert.equal(standalone,true);await appPage.screenshot({path:'docs/release/installed.png'});
