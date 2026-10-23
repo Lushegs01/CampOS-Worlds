@@ -55,6 +55,11 @@ try{
  do{health=await docker('inspect','--format','{{.State.Health.Status}}',name);if(health==='healthy')break;await wait(1000);}while(Date.now()<deadline);
  assert.equal(health,'healthy');checks.push('Docker HEALTHCHECK becomes healthy');passed=true;
  console.log(JSON.stringify({passed,checks},null,2));
+}catch(error){
+ console.error('CONTAINER LOGS',await docker('logs',name).catch(()=>'(unavailable)'));
+ console.error('CONTAINER STATE',await docker('inspect','--format','{{json .State}}',name).catch(()=>'(unavailable)'));
+ console.error('PORT MAPPING',await docker('port',name,'3001/tcp').catch(()=>'(unavailable)'));
+ throw error;
 }finally{
  sockets.forEach(ws=>ws.terminate());
  await docker('rm','--force',name).catch(()=>{});await docker('volume','rm',volume).catch(()=>{});

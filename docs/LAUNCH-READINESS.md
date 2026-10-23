@@ -2,7 +2,8 @@
 
 Assessment date: 23 October 2026. Repository: `Lushegs01/CampOS-Worlds`.
 Base commit: `4516f8802829f64907354d0f836aee291131eb36`.
-Candidate branch: `codex/production-launch-readiness`.
+The PWA/recovery candidate was merged as PR #24 (`713a86b`). The operations follow-up
+is on `codex/worldwide-launch-operations`, based on that merge.
 
 CampOS Worlds is a playable browser-based 3D social campus game. Its fictional Òrìṣun
 Campus combines exploration, avatars, multiplayer presence, social activities, vehicles,
@@ -122,7 +123,7 @@ requests. The native install uses CDP; manual installation/home-screen-icon test
 | --- | --- |
 | `npm --cache /tmp/campos-npm-cache --prefix /tmp/campos-release-install ci` | Passed using an isolated copy of the exact package.json and lockfile; 464 packages installed. |
 | `npm run typecheck` | Passed. |
-| `npm test` | Final run passed: 198 tests, zero failures/skips/cancellations. |
+| `npm test` | Operations follow-up passed locally: 206 tests, zero failures/skips/cancellations (198 before the follow-up). |
 | `node --test --test-timeout=60000 tests/dorm-accounts.test.mjs` | Passed: 3/3 targeted persistence/permissions tests after an intermittent full-run timeout. |
 | `npm run build` | Passed, including TypeScript and the injected service worker. |
 | `npm run verify:release` | Passed: metadata, image/icon dimensions, opacity, cache budget and absence of production QA hooks. |
@@ -134,6 +135,15 @@ requests. The native install uses CDP; manual installation/home-screen-icon test
 | `git diff --check` | Passed. |
 | `node tests/browser-accounts.mjs` | Attempted; did not complete successfully. Two software-rendered campuses made browser actions time out. The focused recovery suite above provides account race coverage. |
 | Lint | No lint script/configuration exists in the repository. A lint pass is not claimed. |
+
+The operations follow-up adds eight regression cases covering invalid production config,
+durable ban expiry/restart/unban, moderation storage failure, graceful shutdown, queued
+reports/account work and congested output. The production image builds locally. Its
+container runtime and 48-player capacity gates are being verified separately from the
+earlier linked PWA workflow. Local capacity runs retained all 48 clients but exceeded the
+250ms p95 latency target; [the failing measurement](release/capacity-local.json) is
+retained rather than interpreted as a pass. This remains a release blocker until a
+representative host meets the acceptance criteria. See [OPERATIONS.md](OPERATIONS.md).
 
 Evidence: [unit tests](release/unit-tests.txt), [build](release/build.txt),
 [typecheck](release/typecheck.txt), [clean install](release/clean-install.txt),
