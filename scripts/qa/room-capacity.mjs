@@ -86,8 +86,9 @@ try{
  assert.ok(result.roundTripMs.p95<250,'local p95 round-trip must remain below 250ms');
  assert.ok(result.stateGapMs.p95<250,'p95 state delivery gap must remain below 250ms');
  assert.ok(result.stateGapMs.max<1500,'no state-delivery stall may exceed 1.5 seconds');
- assert.equal(statusBody.slowConnections,0);result.passed=true;
+ assert.equal(statusBody.slowConnections,0);
  assert.ok(memoryAfter.rss-memoryBefore.rss<256*1024*1024,'room RSS growth must remain below 256MiB');
+ result.passed=true;
  console.log(JSON.stringify(result,null,2));
 }catch(error){result??={date:new Date().toISOString(),passed:false,error:error.message,unexpectedDisconnects:unexpected,states};throw error;
 }finally{
