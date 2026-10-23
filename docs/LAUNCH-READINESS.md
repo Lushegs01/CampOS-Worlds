@@ -78,10 +78,12 @@ No gameplay features were removed or disabled by this candidate.
   and reconnect are tested. Already-loaded local areas may remain usable, but offline
   startup does not claim an available multiplayer world or account service.
 - Installation: a real persistent Chromium profile reports a valid manifest and zero
-  installability errors. An actual native-install attempt returns `kWebAppDisabled` in the
-  supplied Chromium. OS installation, launch from an installed icon and standalone startup
-  therefore remain **unverified**. Safari home-screen instructions are implemented but
-  were not tested on an iPhone/iPad. Browser install UI is offered only when supported.
+  installability errors. The local Chromium 154 build disables native installation
+  (`kWebAppDisabled`). On the GitHub Actions Ubuntu runner, Chrome for Testing 145
+  successfully installed the app through CDP and launched its native window with
+  `(display-mode: standalone)` verified. Manual install prompts, launch from a physical
+  home-screen icon and Safari/iOS installation remain unverified. Safari instructions are
+  implemented, and browser install UI is offered only when supported.
 
 ## 4. Link preview branding
 
@@ -109,6 +111,12 @@ PostgreSQL 17. Browser checks use SwiftShader without a physical GPU. Production
 checks use Low quality and DPR 0.25 to keep software rendering responsive; source QA
 hooks are absent from the compiled game. These settings establish behaviour, not phone FPS.
 
+The full [GitHub Actions run](https://github.com/Lushegs01/CampOS-Worlds/actions/runs/39974303436)
+also passed on hosted Ubuntu with Node 24.21.0, npm 11.19.0 and Chrome for Testing 145.0.7632.6.
+It verified native PWA installation and a standalone app window, in addition to the local
+coverage below. Its 11 production browser checks reported zero unexpected errors or failed
+requests. The native install uses CDP; manual installation/home-screen-icon tests remain open.
+
 | Exact command | Outcome |
 | --- | --- |
 | `npm --cache /tmp/campos-npm-cache --prefix /tmp/campos-release-install ci` | Passed using an isolated copy of the exact package.json and lockfile; 464 packages installed. |
@@ -118,9 +126,10 @@ hooks are absent from the compiled game. These settings establish behaviour, not
 | `npm run build` | Passed, including TypeScript and the injected service worker. |
 | `npm run verify:release` | Passed: metadata, image/icon dimensions, opacity, cache budget and absence of production QA hooks. |
 | `node tests/browser-account-recovery.mjs` | Passed: 7/7 real browser account recovery cases, zero page errors. |
-| `npm run test:release` | Passed: 10 production browser checks, zero unexpected normal-flow console/page errors or failed requests. Native OS install remains unavailable, reported separately. |
+| `npm run test:release` | Passed: 10 local production browser checks; 11 in CI including native installation and standalone launch. Zero unexpected normal-flow console/page errors or failed requests in both runs. |
+| CI: `npm ci`, `npm audit --audit-level=high`, `npm run typecheck`, `npm test`, `npm run build`, `npm run verify:release`, `npx playwright install chromium`, `node tests/browser-account-recovery.mjs`, `npm run test:release` | All passed in the linked full workflow run. |
 | `npm --cache /tmp/campos-npm-cache audit --json` | Passed: zero known vulnerabilities at assessment time. |
-| `node --check <each changed/new JS or MJS module>` | Passed for 17 modules. |
+| `node --check <each changed/new JS or MJS module>` | Passed for 18 modules. |
 | `git diff --check` | Passed. |
 | `node tests/browser-accounts.mjs` | Attempted; did not complete successfully. Two software-rendered campuses made browser actions time out. The focused recovery suite above provides account race coverage. |
 | Lint | No lint script/configuration exists in the repository. A lint pass is not claimed. |
@@ -128,8 +137,18 @@ hooks are absent from the compiled game. These settings establish behaviour, not
 Evidence: [unit tests](release/unit-tests.txt), [build](release/build.txt),
 [typecheck](release/typecheck.txt), [clean install](release/clean-install.txt),
 [dependency audit](release/dependency-audit.json), [artifacts](release/artifacts.json),
-[production browser](release/browser.json) and [account recovery](release/account-recovery.json).
-Production desktop, phone-viewport and offline screenshots are in the same directory.
+[local production browser](release/browser.json), [account recovery](release/account-recovery.json),
+[CI summary](release/ci.json) and [CI production browser](release/ci-browser.json).
+Production desktop, phone-viewport, offline and [standalone app](release/ci-installed.png)
+screenshots are in the same directory. A focused inline `node --input-type=module` browser
+probe also passed five consecutive offline navigations during an actual host socket outage,
+retained the controlling worker and logo, and restored HTTP 200 after reconnecting;
+[its record](release/offline-focused.json) isolates the recovery shell from 3D rendering.
+
+Earlier CI attempts exposed automation differences in native tab/page target identities and
+page-level offline emulation. The final test matches the native app window and interrupts
+the host to affect worker requests too. One CI system-package installation stalled; the
+successful workflow uses a bounded browser-only install on the hosted Ubuntu runtime.
 
 Warnings retained: the Three.js chunk is 1,041.42 kB minified / 290.69 kB gzip, slightly
 above the existing 1,000 kB warning threshold. The renderer is already separately loaded;
@@ -159,8 +178,8 @@ Remaining release steps, using the existing supported workflow:
 
 ## 7. Remaining issues
 
-**Release gates still open:** live HTTPS/domain and deployment verification; native PWA
-installation/standalone launch; Safari/iOS and physical ordinary-phone checks; hosted
+**Release gates still open:** live HTTPS/domain and deployment verification; physical
+installation/home-screen launch, Safari/iOS and ordinary-phone checks; hosted
 Supabase policies/session delivery and live Bachs confirmation; measured capacity, latency
 and operational monitoring for the intended public population. None can be established
 from a local software-rendered browser or a configured 48-player ceiling.
@@ -184,7 +203,7 @@ a product defect. Track it rather than treating one green rerun as proof it cann
 
 The local candidate substantially improves release readiness and passes the implemented
 build, data/authority and recovery checks. No known critical runtime error remains in the
-tested normal flows. However, mandatory live-site, native-install and representative-device
+tested normal flows. However, mandatory live-site and representative-device
 checks remain open, and global capacity/moderation readiness has not been established.
 Those are release gates, so this report does not label worldwide launch as verified.
 The candidate is ready for deployment review and completion of those specific checks.
