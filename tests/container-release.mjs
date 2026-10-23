@@ -9,7 +9,10 @@ import { WebSocket } from 'ws';
 const run=promisify(execFile),name='campos-release-'+randomBytes(5).toString('hex'),volume=name+'-data',origin='https://campus.example';
 const env={...process.env,ADMIN_TOKEN:randomBytes(32).toString('hex')};
 for(const key of ['DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH'])delete env[key];
-const docker=async(...args)=>(await run('docker',['--host=unix:///var/run/docker.sock',...args],{env,timeout:120000,maxBuffer:1024*1024})).stdout.trim();
+const docker=async(...args)=>{
+ const {stdout,stderr}=await run('docker',['--host=unix:///var/run/docker.sock',...args],{env,timeout:120000,maxBuffer:1024*1024});
+ return (stdout+(args[0]==='logs'?stderr:'')).trim();
+};
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const checks=[],sockets=[];let base,token;
 const request=(path,body,auth=env.ADMIN_TOKEN)=>fetch(base+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+auth},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(5000)});
