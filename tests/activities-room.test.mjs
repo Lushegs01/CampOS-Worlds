@@ -13,6 +13,10 @@ import { LOCATIONS } from '../shared/campus.mjs';
 import { localPoint } from '../shared/vehicles.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function until(predicate, label) {
+  const deadline = Date.now() + 5000;
+  while (!predicate()) { assert.ok(Date.now() < deadline, label); await sleep(20); }
+}
 function next(ws, predicate, timeout = 5000) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => { ws.off('message', h); reject(new Error('Message timeout waiting for: ' + predicate.toString().slice(0, 120))); }, timeout);
@@ -68,7 +72,10 @@ test('an on-foot challenge: checkpoints in order, mode and time rules, and impla
     await p.challenge('start', 'courtyard-circuit');
     p.me().run.started -= 60000;
     const done = next(p.ws, m => m.type === 'notice' && /Sign in to keep your challenge/.test(m.text)), completed = next(p.ws, m => m.type === 'challenge' && m.ended?.ok);
-    for (const cp of ch.checkpoints) { p.place(cp.x, cp.z); await sleep(140); }
+    for (const [i, cp] of ch.checkpoints.entries()) {
+      const reached = i < ch.checkpoints.length - 1 ? next(p.ws, m => m.type === 'challenge' && m.reached === cp.name) : completed;
+      p.place(cp.x, cp.z); await reached;
+    }
     assert.match((await completed).ended.message, /Courtyard Circuit complete in 6\d\.\d s/);
     assert.ok(await done, 'guests complete it but are told it is not saved');
     // Getting into a vehicle ends an on-foot run; the clock ends any run.
@@ -108,7 +115,10 @@ test('signed-in players: challenge times and badges are saved; in-game check-in 
   try {
     await p.challenge('start', ch.id); p.me().run.started -= 45000;
     const saved = next(p.ws, m => m.type === 'progress' && m.kind === 'challenge', 8000);
-    for (const cp of ch.checkpoints) { p.place(cp.x, cp.z); await sleep(140); }
+    for (const [i, cp] of ch.checkpoints.entries()) {
+      const reached = i < ch.checkpoints.length - 1 ? next(p.ws, m => m.type === 'challenge' && m.reached === cp.name) : saved;
+      p.place(cp.x, cp.z); await reached;
+    }
     const s = await saved;
     assert.ok(s.best >= 45000 && s.best < 60000, `the room's own time is recorded (${s.best})`);
     const row = (await db.pool.query('select * from public.challenge_results where user_id = $1', [runner.id])).rows[0];
@@ -140,7 +150,7 @@ test('Better Together is measured by the room: time in a party of three or more'
     // Party invitations default to friends only, so let anyone in the room invite these three.
     for (const acct of [a, b, c]) await acct.sb.rpc('save_social_settings', { p_friend_requests: 'everyone', p_direct_messages: 'friends', p_party_invites: 'everyone', p_appear_offline: false });
     for (const p of [pa, pb, pc]) p.send({ type: 'socialRefresh' });
-    await sleep(500);
+    await until(() => [pa,pb,pc].every(p => room.clients.get(p.id)?.social?.settings.party_invites === 'everyone'), 'the room received party invitation settings');
     for (const p of [pb, pc]) {
       const inv = next(p.ws, m => m.type === 'partyInvite'); pa.send({ type: 'party', action: 'invite', id: p.id });
       const { invite } = await inv; p.send({ type: 'party', action: 'respond', party: invite.party, accept: true });

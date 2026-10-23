@@ -1,4 +1,27 @@
-# Cloudflare Workers Static Assets / Pages. Runtime URLs have a content revision query.
-# HTML keeps the platform's must-revalidate default, so deployments are discoverable.
+# Cloudflare Workers Static Assets / Pages. Custom proxy responses need equivalent headers.
+# Basis/Embind's worker generates JS bindings (unsafe-eval); GLB textures use blob fetches.
+# Fontsource's small subsets are inlined data fonts. Inline scripts remain forbidden.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: https: wss:; worker-src 'self' blob:; media-src 'self' blob: https:; frame-src https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+# Runtime world URLs have content revision queries; the worker never caches these large assets.
 /assets/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+/manifest.webmanifest
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json
+/index.html
+  Cache-Control: no-cache
+/
+  Cache-Control: no-cache
+/offline.html
+  Cache-Control: no-cache
+/shop-return.html
+  Cache-Control: no-store

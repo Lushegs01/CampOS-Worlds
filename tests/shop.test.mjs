@@ -113,7 +113,8 @@ test('fulfilment: only paid collections and completed checkouts for our orders g
   assert.deepEqual(accounts.calls.at(-1)[1], { event: accounts.calls.at(-1)[1].event, type: 'collection.succeeded', order: ORDER, checkout: 'chk_1', amount: '3000.00', currency: 'NGN', charge: 'ch_1' });
   assert.deepEqual(granted, [['user-1', 'emeka']]);
   const before = accounts.calls.length;
-  for (const status of ['PENDING', 'FAILED', 'UNDERPAID']) assert.equal(await shop.fulfil(event('collection.succeeded', { reference: ORDER, status, amount: '3000.00', currency: 'NGN' })), 200);
+  for (const status of ['PENDING', 'FAILED', 'UNDERPAID', null, 1, ['SUCCEEDED'], {}, { toString: 1 }]) assert.equal(await shop.fulfil(event('collection.succeeded', { reference: ORDER, status, amount: '3000.00', currency: 'NGN' })), 200);
+  for (const amount of [null, {}, ['3000'], -1, Infinity, NaN, 'Infinity', '-3000']) assert.equal(await shop.fulfil(event('collection.succeeded', { reference: ORDER, status: 'SUCCEEDED', amount, currency: 'NGN' })), 200);
   assert.equal(await shop.fulfil(event('charge.refunded', { reference: ORDER })), 200);
   assert.equal(await shop.fulfil(event('checkout.completed', { reference: 'someone-elses-order', checkout_id: 'chk_9' })), 200, 'not ours');
   assert.equal(accounts.calls.length, before, 'none of these reach the database');

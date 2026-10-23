@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-23",
+  "sourceCommit": "294640490084821bf7d16083ec9d2bd043cb28e4",
+  "workflow": "Release checks",
+  "workflowRun": 39974303436,
+  "url": "https://github.com/Lushegs01/CampOS-Worlds/actions/runs/39974303436",
+  "result": "pass",
+  "environment": {
+    "runner": "Ubuntu hosted GitHub Actions",
+    "node": "24.21.0",
+    "npm": "11.19.0",
+    "chromium": "145.0.7632.6",
+    "rendering": "SwiftShader, Low, DPR 0.25"
+  },
+  "checks": {
+    "nodeTests": 198,
+    "accountRecoveryCases": 7,
+    "productionBrowserChecks": 11,
+    "nativeInstallation": true,
+    "standaloneDisplayMode": true,
+    "unexpectedPageOrConsoleErrors": 0,
+    "unexpectedFailedRequests": 0
+  },
+  "artifact": "https://github.com/Lushegs01/CampOS-Worlds/actions/runs/39974303436/artifacts/12510228245",
+  "limitations": [
+    "No physical device or manual home-screen-icon test",
+    "No live production deployment or worldwide load verification"
+  ]
+}

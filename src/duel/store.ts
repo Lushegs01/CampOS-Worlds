@@ -1,5 +1,6 @@
+import { onRoomMessage } from '../network/messages';
 import { create } from 'zustand';
-import { onRoomMessage, send, selfConnection } from '../network/client';
+import {  send, selfConnection } from '../network/client';
 import { useGame } from '../state';
 import { getCommunityService } from '../services/community';
 

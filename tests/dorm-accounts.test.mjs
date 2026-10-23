@@ -28,7 +28,7 @@ async function account(handle) {
 }
 function next(ws, predicate, timeout = 5000) {
   return new Promise((resolve, reject) => {
-    const t = setTimeout(() => { ws.off('message', h); reject(Error('Message timeout')); }, timeout);
+    const t = setTimeout(() => { ws.off('message', h); reject(Error('Message timeout: ' + predicate.toString())); }, timeout);
     const h = raw => { const m = JSON.parse(raw); if (predicate(m)) { clearTimeout(t); ws.off('message', h); resolve(m); } };
     ws.on('message', h);
   });

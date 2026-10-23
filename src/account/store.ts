@@ -26,48 +26,75 @@ export const useAccount = create<AccountState>(set => ({
 }));
 
 const GUEST_KEY = 'campos-guest-identity';
+const initialGuest = useGame.getState();
+let guestIdentity = { name: initialGuest.name, avatar: initialGuest.avatar };
+function readGuestIdentity() {
+  let raw: string | null;
+  try { raw = localStorage.getItem(GUEST_KEY); } catch { return; }
+  if (raw === null) return;
+  try {
+    const saved = JSON.parse(raw) as { name?: unknown; avatar?: unknown } | null;
+    if (!saved || typeof saved.name !== 'string' || !saved.name.trim()) throw new Error('Invalid guest identity');
+    guestIdentity = { name: saved.name.trim().slice(0, 32), avatar: sanitizeAvatar(saved.avatar ?? {}) };
+  } catch { guestIdentity = { name: 'New explorer', avatar: sanitizeAvatar() }; }
+}
+readGuestIdentity();
+// Keep the guest backup current without ever saving an account's appearance as a guest.
+// It stays available for every tab: one tab signing out must not delete another tab's backup.
+useGame.subscribe((now, before) => {
+  if (!['guest', 'unconfigured'].includes(useAccount.getState().status) || now.name === before.name && now.avatar === before.avatar) return;
+  guestIdentity = { name: now.name, avatar: now.avatar };
+  try { localStorage.setItem(GUEST_KEY, JSON.stringify(guestIdentity)); } catch { /* memory fallback */ }
+});
 /** What this profile may wear beyond the free choices: earned accents and bought store items. */
 export const unlockedBy = (profile: MyProfile | null) => profile ? [...profile.achievements.map(a => a.id), ...(profile.owned ?? [])] : [];
 /** Show the saved profile in the world; remember the guest identity so signing out restores it. */
 function applyProfile(profile: MyProfile) {
   const game = useGame.getState();
-  try { if (!localStorage.getItem(GUEST_KEY)) localStorage.setItem(GUEST_KEY, JSON.stringify({ name: game.name, avatar: game.avatar })); } catch { /* storage unavailable */ }
+  try { if (!localStorage.getItem(GUEST_KEY)) localStorage.setItem(GUEST_KEY, JSON.stringify(guestIdentity)); } catch { /* storage unavailable */ }
   game.set({ name: profile.display_name, avatar: sanitizeAvatar(profile.avatar, unlockedBy(profile)) });
 }
 function restoreGuest() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(GUEST_KEY) ?? 'null') as { name?: unknown; avatar?: unknown } | null;
-    localStorage.removeItem(GUEST_KEY);
-    if (saved) useGame.getState().set({ name: typeof saved.name === 'string' ? saved.name.slice(0, 24) : 'New explorer', avatar: sanitizeAvatar(saved.avatar ?? {}) });
-  } catch { /* storage unavailable */ }
+  readGuestIdentity();
+  useGame.getState().set({ name: guestIdentity.name, avatar: sanitizeAvatar(guestIdentity.avatar) });
 }
 const signedInWithProfile = () => { const s = useAccount.getState(); return s.status === 'signed-in' && !!s.profile; };
+let profileRequest = 0;
 async function token(): Promise<string | null> { return signedInWithProfile() ? (await getCommunityService()).accessToken() : null; }
 /** Tell the room who we are now (verified account, or guest). */
 function syncRoom() {
   const s = useAccount.getState();
-  if (signedInWithProfile()) void token().then(t => { if (t) sendAccountIdentity(t); });
+  const request = profileRequest, email = s.email;
+  const current = () => request === profileRequest && signedInWithProfile() && useAccount.getState().email === email;
+  if (signedInWithProfile()) void token().then(t => { if (t && current()) sendAccountIdentity(t); }).catch(() => {
+    if (current()) useAccount.getState().set({ room: { bound: false, message: 'Your account could not be verified. Reconnect to try again.' } });
+  });
   else { const g = useGame.getState(); sendAccountIdentity(null, g.name, g.avatar); if (s.room.bound) s.set({ room: { bound: false, message: '' } }); }
 }
 
 async function loadProfile() {
-  const service = await getCommunityService();
+  const request = ++profileRequest, email = useAccount.getState().email;
+  const current = () => request === profileRequest && useAccount.getState().status === 'signed-in' && useAccount.getState().email === email;
   useAccount.getState().set({ profileState: 'loading' });
   try {
+    const service = await getCommunityService();
     const before = useAccount.getState().profile;
     const profile = await service.myProfile();
+    if (!current()) return;
     useAccount.getState().set({ profile, profileState: 'ready', error: '' });
     // Badges awarded by the database itself (a first friendship, event check-ins) show up on reload.
     if (before && profile && before.id === profile.id) for (const a of profile.achievements) if (!before.achievements.some(b => b.id === a.id) && ACHIEVEMENTS[a.id]) useGame.getState().notify(`Badge earned: ${ACHIEVEMENTS[a.id].name}. Saved to your profile.`);
     if (profile) applyProfile(profile);
     syncRoom();
   } catch (e) {
+    if (!current()) return;
     const err = toServiceError(e);
     if (err.kind === 'auth') { await endSession('Your session has expired. Please sign in again.'); return; }
     useAccount.getState().set({ profileState: 'error', error: err.message });
   }
 }
 async function endSession(message = '') {
+  ++profileRequest;
   useAccount.getState().set({ status: 'guest', email: null, profile: null, profileState: 'idle', error: message, room: { bound: false, message: '' } });
   restoreGuest(); syncRoom();
   if (message) useGame.getState().notify(message);
@@ -102,17 +129,33 @@ export async function initAccount() {
       for (const a of awarded) useGame.getState().notify(`Badge earned: ${ACHIEVEMENTS[a].name}. Saved to your profile.`);
     },
   });
-  if (!communityConfigured) return;
-  const service = await getCommunityService();
-  service.onSessionChange((session, reason) => {
-    if (!session) { if (useAccount.getState().status === 'signed-in') void endSession(reason === 'expired' ? 'You were signed out. Sign in again to keep your profile with you.' : ''); return; }
-    if (useAccount.getState().status !== 'signed-in') { useAccount.getState().set({ status: 'signed-in', email: session.email, error: '' }); void loadProfile(); }
-  });
+  if (!communityConfigured) { restoreGuest(); return; }
   try {
-    const session = await service.session();
+   const service = await getCommunityService();
+   service.onSessionChange((session, reason) => {
+    if (!session) {
+      void endSession(reason === 'expired' ? 'You were signed out. Sign in again to keep your profile with you.' : '');
+      return;
+    }
+    const state = useAccount.getState();
+    if (state.status !== 'signed-in' || state.email !== session.email) {
+      ++profileRequest;
+      if (state.status === 'signed-in' && state.email !== session.email) {
+        restoreGuest();
+        const guest = useGame.getState(); sendAccountIdentity(null, guest.name, guest.avatar);
+      }
+      state.set({ status: 'signed-in', email: session.email, profile: null, profileState: 'idle', error: '', room: { bound: false, message: '' } });
+      void loadProfile();
+    }
+  });
+    const request = profileRequest, session = await service.session();
+    if (request !== profileRequest) return;
     if (session) { useAccount.getState().set({ status: 'signed-in', email: session.email }); await loadProfile(); }
-    else useAccount.getState().set({ status: 'guest' });
-  } catch { useAccount.getState().set({ status: 'guest' }); }
+    else await endSession();
+  } catch (error) {
+    console.warn('Campus account initialization unavailable.', error);
+    await endSession('Accounts could not be reached. You can explore as a guest and try sign-in again later.');
+  }
 }
 
 export async function signIn(email: string, password: string) {
@@ -134,9 +177,12 @@ export async function signOut() {
   try { await service.signOut(); } finally { await endSession(); }
 }
 export async function saveProfile(input: ProfileInput): Promise<MyProfile> {
+  const email = useAccount.getState().email;
   const service = await getCommunityService();
   const first = !useAccount.getState().profile;
   const profile = await service.saveProfile(input);
+  if (useAccount.getState().status !== 'signed-in' || useAccount.getState().email !== email)
+    throw new ServiceError('auth', 'Your session changed. Sign in again before editing your profile.');
   useAccount.getState().set({ profile, profileState: 'ready' });
   applyProfile(profile);
   // The room re-reads the saved profile (it never takes names from the client for accounts).

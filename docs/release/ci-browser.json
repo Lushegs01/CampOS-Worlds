@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-23T15:03:46.982Z",
+  "result": "pass",
+  "results": [
+    "production page, branded metadata, manifest and icons resolve with security headers",
+    "production game enters, connects, moves with real input and opens/closes the map",
+    "Chromium reports a valid manifest and no installability errors; service worker activates and controls the page",
+    "Chromium installs the PWA and launches a standalone app target",
+    "new worker waits; Settings applies the update only on explicit reload",
+    "cache contains the launch shell, with no world models, textures, audio, API or account responses",
+    "offline cold navigation and refresh show branded recovery; reconnect returns to the playable campus",
+    "production phone viewport supports real joystick movement, portrait/landscape and no horizontal overflow",
+    "a failed essential texture offers recovery; retry downloads it and opens the campus",
+    "WebGL context loss offers a low-quality reload and the campus opens again",
+    "a failed optional panel download stays inside its boundary and leaves the campus usable"
+  ],
+  "errors": [],
+  "failed": [],
+  "timings": {
+    "coldReadyMs": 5990,
+    "browser": "145.0.7632.6",
+    "renderer": "Chromium headless / SwiftShader; no physical GPU or phone",
+    "viewport": "1280 × 800 CSS pixels, Low, DPR 0.25; unmodified production code"
+  },
+  "installability": {
+    "installabilityErrors": []
+  },
+  "install": {
+    "tested": true,
+    "state": {
+      "badgeCount": 0,
+      "fileHandlers": []
+    },
+    "launched": {
+      "targetId": "4E73EE963896FE9E02173D378501C5A4"
+    },
+    "standalone": true
+  }
+}

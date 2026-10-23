@@ -9,8 +9,12 @@
     "server": "node server/index.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/*.test.mjs",
-    "dev:local": "node scripts/dev/local-stack.mjs"
+    "test": "node --test --test-concurrency=2 --test-timeout=60000 tests/*.test.mjs",
+    "dev:local": "node scripts/dev/local-stack.mjs",
+    "typecheck": "tsc -b",
+    "assets:brand": "node scripts/assets/build-brand.mjs",
+    "test:release": "node tests/browser-release.mjs",
+    "verify:release": "node scripts/qa/release-artifacts.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
@@ -45,9 +49,16 @@
     "rollup": "npm:@rollup/wasm-node@4.64.5",
     "sharp": "^0.35.5",
     "typescript": "5.9.3",
-    "vite": "7.3.7"
+    "vite": "7.3.7",
+    "vite-plugin-pwa": "2.0.0",
+    "workbox-core": "7.4.1",
+    "workbox-precaching": "7.4.1",
+    "workbox-routing": "7.4.1"
   },
   "overrides": {
     "rollup": "npm:@rollup/wasm-node@4.64.5"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

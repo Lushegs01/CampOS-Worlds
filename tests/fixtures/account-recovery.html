@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><title>Account recovery test fixture</title></head>
+<body>Starting account recovery check
+<script type="module">
+  import * as account from '/src/account/store.ts';
+  import { getCommunityService } from '/src/services/community.ts';
+  import { useGame } from '/src/state.ts';
+  import { connect } from '/src/network/client.ts';
+  await account.initAccount();
+  window.recoveryQA = { account, useGame, getCommunityService };
+  if (!new URLSearchParams(location.search).has('no-room')) connect();
+  document.body.firstChild.textContent = 'Account recovery ready';
+</script></body></html>

@@ -178,7 +178,7 @@ function Telemetry() {
     frames.current++; elapsed.current += dt;
     if (elapsed.current >= 2) {
       const fps = Math.round(frames.current / elapsed.current); useGame.getState().set({ fps });
-      (window as unknown as Record<string, unknown>).__campus = { position: { x: player.x, y: player.y, z: player.z }, fps, drawCalls: sample.current.calls, triangles: sample.current.triangles, textures: gl.info.memory.textures, geometries: gl.info.memory.geometries, quality: useGame.getState().quality, peers: [...livePeers.values()].map(p => ({ id: p.id, x: p.x, z: p.z })), tokens: useGame.getState().tokens };
+      if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campus = { position: { x: player.x, y: player.y, z: player.z }, fps, drawCalls: sample.current.calls, triangles: sample.current.triangles, textures: gl.info.memory.textures, geometries: gl.info.memory.geometries, quality: useGame.getState().quality, peers: [...livePeers.values()].map(p => ({ id: p.id, x: p.x, z: p.z })), tokens: useGame.getState().tokens };
       frames.current = 0; elapsed.current = 0;
     }
   });

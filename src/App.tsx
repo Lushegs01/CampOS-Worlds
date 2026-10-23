@@ -28,8 +28,29 @@ import { useCommunity } from './community/store';
 import { CalendarDays } from 'lucide-react';
 import { chime } from './interaction/sound';
 import { LabHud } from './economy/LabHud';
+import { usePwa } from './pwa/store';
 const World=lazy(()=>import('./world/World'));
-class WorldBoundary extends Component<{children:ReactNode},{error:boolean}>{state={error:false};static getDerivedStateFromError(){return {error:true};}render(){if(this.state.error)return <div className="graphics-error"><h2>The campus couldn’t open.</h2><p>A WebGL-capable browser is needed. Try reloading with fewer tabs open.</p><button className="primary" onClick={()=>{useGame.getState().set({quality:'low'});location.reload();}}>Reload on low quality</button></div>;return this.props.children;}}
+function CampusRecovery({ slow = false }: { slow?: boolean }) {
+ const online=usePwa(s=>s.online);
+ return <div className="graphics-error" role="alert"><h2>{slow?'Campus is taking longer to open.':'The campus couldn’t open.'}</h2><p>{online?'A slow download or a graphics problem may have interrupted loading. Check your connection and try low quality.':'You’re offline. Reconnect to download the campus; multiplayer and accounts also need a connection.'}</p><button autoFocus className="primary" onClick={()=>{useGame.getState().set({quality:'low'});location.reload();}}>Reload campus on low quality</button></div>;
+}
+class WorldBoundary extends Component<{children:ReactNode;onFailure:()=>void},{error:boolean}> {
+ state={error:false};
+ static getDerivedStateFromError(){return {error:true};}
+ componentDidCatch(error:Error){console.error('Campus scene could not load.',error);this.props.onFailure();}
+ render(){return this.state.error?null:this.props.children;}
+}
+class PanelBoundary extends Component<{children:ReactNode},{error:boolean}> {
+ state={error:false};
+ static getDerivedStateFromError(){return {error:true};}
+ componentDidCatch(error:Error){console.error('Campus panel could not load.',error);}
+ render(){return this.state.error?<div className="modal-backdrop"><section className="modal" role="alertdialog" aria-labelledby="panel-error-title"><div className="modal-body"><h2 id="panel-error-title">This panel couldn’t open.</h2><p>Check your connection. You can return to campus, or reload to fetch the latest app files.</p><div className="welcome-actions"><button className="secondary" onClick={()=>useGame.getState().set({panel:null})}>Back to campus</button><button className="primary" onClick={()=>location.reload()}>Reload campus</button></div></div></section></div>:this.props.children;}
+}
+function LoadingRecovery({failed=false}:{failed?:boolean}){
+ const ready=useGame(s=>s.ready),online=usePwa(s=>s.online),[slow,setSlow]=useState(false);
+ useEffect(()=>{if(ready||failed)return;const timer=setTimeout(()=>setSlow(true),45000);return()=>clearTimeout(timer);},[ready,failed]);
+ return failed||!ready&&(slow||!online)?<div className="loading-recovery"><CampusRecovery slow={!failed&&online}/></div>:null;
+}
 function SoundFeedback(){const toast=useGame(s=>s.toast);useEffect(()=>{if(toast)chime();},[toast]);return null;}
 /** Account entry in the top bar: your portrait and handle when signed in, a sign-in button for guests. */
 function AccountChip(){const status=useAccount(a=>a.status),profile=useAccount(a=>a.profile),set=useGame(g=>g.set);
@@ -49,11 +70,12 @@ function toggleFullscreen(){const d=document as Document&{webkitFullscreenElemen
  if(el.requestFullscreen)el.requestFullscreen().catch(unavailable);else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();else unavailable();}
 const locate=()=>({heart:Math.abs(player.x)<14&&Math.abs(player.z)<15,district:districtAt(player.x,player.z)??null});
 export default function App(){
+ const [sceneFailed,setSceneFailed]=useState(false);
  // Only what this component shows: the frame-rate readout and other frequent store writes must not
  // re-render the whole interface (and reconcile the 3D scene's React tree) every time.
  const s=useGame(useShallow(g=>({phase:g.phase,panel:g.panel,ready:g.ready,status:g.status,count:g.count,tour:g.tour,tourStep:g.tourStep,destination:g.destination,toast:g.toast,reducedMotion:g.reducedMotion,set:g.set,notify:g.notify})));useNetwork();useEffect(()=>{void initAccount();initShop();initSocial();initDuels();initChallenges();initActivities();},[]);const keepsakes=useKeepsakes(),accountStatus=useAccount(a=>a.status),communityOpen=useCommunity(c=>c.open),socialOpen=useSocial(c=>c.open),socialUnread=useSocial(c=>c.unread.requests+c.unread.messages),partySize=useSocial(c=>c.party?.members.length??0),duelLive=useDuel(d=>!!d.duel&&(d.duel.state==='ready'||d.duel.state==='playing'));const next=LOCATIONS.find(l=>l.id===(s.destination||TOUR[s.tourStep]));
  useEffect(()=>{const visibility=()=>{if(document.hidden)send({type:'input',dx:0,dz:0,yaw:player.yaw,sprint:false,jump:false});};document.addEventListener('visibilitychange',visibility);return()=>document.removeEventListener('visibilitychange',visibility);},[]);
- return <main className={`app${s.reducedMotion?' reduced-motion':''}${duelLive?' has-duel':''}`}><div className="world"><WorldBoundary><Suspense fallback={<div className="loading-screen"><Compass size={38}/><span className="eyebrow">GOOD THINGS TAKE A MOMENT</span><h2>A world is taking shape.</h2><div className="loading-bar"/><p>Opening your campus…</p></div>}><World/></Suspense></WorldBoundary></div>
+ return <main className={`app${s.reducedMotion?' reduced-motion':''}${duelLive?' has-duel':''}`}><div className="world"><WorldBoundary onFailure={()=>setSceneFailed(true)}><Suspense fallback={<div className="loading-screen"><Compass size={38}/><span className="eyebrow">GOOD THINGS TAKE A MOMENT</span><h2>A world is taking shape.</h2><div className="loading-bar"/><p>Opening your campus…</p></div>}><World/></Suspense></WorldBoundary></div>
  <div className={`vignette ${s.phase==='welcome'?'welcome-vignette':''}`}/>
  <header className="topbar"><button className="brand" aria-label="CampOS Worlds home" onClick={()=>s.set({panel:s.phase==='playing'?'settings':null})}><span className="brand-symbol"><i/><i/><i/></span><span>{BRAND.name}<span className="brand-worlds">{BRAND.product}</span></span></button><div className="campus-name"><span className="live-dot"/>{BRAND.campus}<span className="separator">/</span><span>DEMO WORLD</span></div><div className="top-actions">{s.phase==='playing'?<><button className="connection-pill" onClick={()=>s.set({panel:s.status==='connected'?'players':'settings'})}><Radio size={14}/><span>{s.status==='connected'?`${s.count} online`:'Exploring locally'}</span></button><AccountChip/>{accountStatus==='unconfigured'&&<button className="icon-button glass" aria-label="Open profile" onClick={()=>s.set({panel:'profile'})}><UserRound size={18}/></button>}<button className="icon-button glass" aria-label="Pause and settings" onClick={()=>s.set({panel:'settings'})}><Settings2 size={18}/></button></>:<button className="about-button" onClick={()=>s.set({panel:'settings'})}>Make yourself comfortable<Settings2 size={16}/></button>}</div></header>
  {s.phase==='welcome'?<><div className="world-caption"><span className="live-dot"/> A LITTLE DISCOVERY. A WORLD OF BELONGING.</div><section className="welcome"><div className="welcome-kicker"><span/>WELCOME TO YOUR NEXT CHAPTER</div><h1>Find your people.<br/>Find your <em>place.</em></h1><p>Follow your curiosity. Cross a new path.<br/>A whole campus of possibilities is waiting.</p><div className="welcome-actions"><button className="primary enter-button" disabled={!s.ready} onClick={()=>{s.set({phase:'playing',panel:null});}}>{s.ready?'Enter campus':'Preparing campus…'}<ArrowUpRight size={21}/></button><button className="customize-button" onClick={()=>s.set({panel:'avatar'})}><UserRound size={19}/>Make it you</button></div>{accountStatus==='guest'&&<button className="welcome-signin" onClick={()=>s.set({panel:'account'})}>Have an account? <b>Sign in</b> to bring your profile with you.</button>}<div className="welcome-details"><span><Footprints size={14}/>Explore at your own pace</span><span><Users size={14}/>Better together</span></div></section><aside className="destination-card"><div className="destination-icon"><Compass size={24}/></div><div><span className="eyebrow">YOUR FIRST STOP</span><h3>Somewhere to belong.</h3><p>Òrìṣun Campus · A fictional Nigerian university</p></div><button aria-label="Explore campus map" onClick={()=>s.set({panel:'map'})}><ArrowUpRight size={22}/></button></aside><footer className="welcome-footer"><span><Sun size={15}/> Golden hour, all day.</span><span>BUILT FOR CONNECTION. OPEN TO POSSIBILITY.</span><button onClick={()=>s.set({panel:'settings'})}>Controls & accessibility <ChevronRight size={14}/></button></footer></>:<>
@@ -64,6 +86,6 @@ export default function App(){
  {!s.panel&&<InteractionPrompt/>}<BasketballHUD/><DuelHud/><ChallengeHud/><LabHud/><PartyHud/><DormHud/><VehicleHUD/><ClassPrompt/>
  <div className="control-hint"><kbd>W A S D</kbd> Move <span className="opt">· Drag to look</span> <span>·</span><kbd>E</kbd> Interact <span>·</span><kbd>V</kbd> Events <span>·</span><kbd>F</kbd> Friends <span className="opt">· <kbd>Space</kbd> Jump</span><button aria-label="Full screen" onClick={toggleFullscreen}><Maximize2 size={14}/></button></div>
  </>}
- <CommunityDrawer/><SocialDrawer/><PartyInvites/><DormInvites/><DuelChallenges/><TouchControls/><Panels/><SoundFeedback/>{s.toast&&<div className="toast" role="status"><Compass size={20}/><span>{s.toast}</span><button aria-label="Dismiss notification" onClick={()=>s.set({toast:''})}><X size={16}/></button></div>}
+ <LoadingRecovery failed={sceneFailed}/><CommunityDrawer/><SocialDrawer/><PartyInvites/><DormInvites/><DuelChallenges/><TouchControls/><PanelBoundary key={s.panel||"closed"}><Panels/></PanelBoundary><SoundFeedback/>{s.toast&&<div className="toast" role="status"><Compass size={20}/><span>{s.toast}</span><button aria-label="Dismiss notification" onClick={()=>s.set({toast:''})}><X size={16}/></button></div>}
  </main>;
 }

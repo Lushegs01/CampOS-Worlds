@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-23T14:54:30.638Z",
+  "result": "pass",
+  "method": "Actual production worker; host socket failures plus browser offline emulation; 2D recovery page without the 3D scene",
+  "offlineNavigations": 5,
+  "states": [
+    {
+      "controller": true,
+      "online": false,
+      "logo": 192
+    },
+    {
+      "controller": true,
+      "online": false,
+      "logo": 192
+    },
+    {
+      "controller": true,
+      "online": false,
+      "logo": 192
+    },
+    {
+      "controller": true,
+      "online": false,
+      "logo": 192
+    },
+    {
+      "controller": true,
+      "online": false,
+      "logo": 192
+    }
+  ],
+  "reconnectStatus": 200
+}

@@ -1,9 +1,10 @@
+import { onRoomMessage } from '../network/messages';
 import { create } from 'zustand';
 import { getCommunityService, toServiceError, type CommunityService } from '../services/community';
 import type { Conversation, DirectMessage, FriendState, ReportContext, ReportReason, SocialOverview, SocialSettings, UnreadSummary } from '../services/types';
 import { useAccount, reloadProfile } from '../account/store';
 import { useCommunity } from '../community/store';
-import { onRoomMessage, send } from '../network/client';
+import {  send } from '../network/client';
 import { useGame, type Peer } from '../state';
 
 // Friends, private messages and parties, outside the 3D scene.

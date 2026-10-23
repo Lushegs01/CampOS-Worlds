@@ -89,6 +89,12 @@ test('guests join exactly as before; a verified account replaces the client’s 
   player.send({ type: 'profile' });
   const renamed = await next(guest.ws, m => m.type === 'state' && self(m, player.welcome.id)?.name === 'Ada Renamed');
   assert.equal(self(renamed, player.welcome.id).avatar.model, 'amara');
+  // Exhaust token-verification attempts: signing out must still revoke the room identity.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const verified = next(player.ws, m => m.type === 'auth');
+    player.send({ type: 'auth', token: acct.token });
+    assert.equal((await verified).ok, true);
+  }
   // Signing out reverts to a temporary guest identity without reconnecting.
   player.send({ type: 'auth', token: null, name: 'Back to guest', avatar: {} });
   const out = await next(guest.ws, m => m.type === 'state' && self(m, player.welcome.id)?.handle === null);

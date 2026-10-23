@@ -1,0 +1,20 @@
+##[group]Run npm run test:release
+2026-10-23T15:00:54.9293737Z npm run test:release
+2026-10-23T15:00:54.9355477Z shell: /usr/bin/bash -e {0}
+2026-10-23T15:00:54.9355966Z ##[endgroup]
+2026-10-23T15:00:55.0396041Z
+2026-10-23T15:00:55.0396808Z > campos-worlds@0.1.0 test:release
+2026-10-23T15:00:55.0397537Z > node tests/browser-release.mjs
+2026-10-23T15:00:55.0397943Z
+2026-10-23T15:01:07.1344756Z PASS production page, branded metadata, manifest and icons resolve with security headers
+2026-10-23T15:01:26.8928531Z PASS production game enters, connects, moves with real input and opens/closes the map
+2026-10-23T15:01:34.6730495Z PASS Chromium reports a valid manifest and no installability errors; service worker activates and controls the page
+2026-10-23T15:02:28.1924344Z PASS Chromium installs the PWA and launches a standalone app target
+2026-10-23T15:02:51.4086889Z PASS new worker waits; Settings applies the update only on explicit reload
+2026-10-23T15:02:57.3512166Z PASS cache contains the launch shell, with no world models, textures, audio, API or account responses
+2026-10-23T15:03:03.0822714Z PASS offline cold navigation and refresh show branded recovery; reconnect returns to the playable campus
+2026-10-23T15:03:25.0024830Z PASS production phone viewport supports real joystick movement, portrait/landscape and no horizontal overflow
+2026-10-23T15:03:31.5809754Z PASS a failed essential texture offers recovery; retry downloads it and opens the campus
+2026-10-23T15:03:39.2232589Z PASS WebGL context loss offers a low-quality reload and the campus opens again
+2026-10-23T15:03:46.4734307Z PASS a failed optional panel download stays inside its boundary and leaves the campus usable
+2026-10-23T15:03:47.1151419Z

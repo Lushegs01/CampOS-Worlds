@@ -4,6 +4,13 @@ The frontend is static. The room requires a continuously running Node process th
 
 ## Existing Cloudflare frontend
 
+The PWA and sharing metadata require the complete build output, including `sw.js`,
+`manifest.webmanifest`, `icons/`, `brand/` and offline recovery files. Preserve `_headers`;
+custom Worker proxy responses must apply equivalent headers. See [PWA hosting and checks](PWA.md).
+The build-only `SITE_URL` defaults to the supplied expected `https://camposworlds.click` origin.
+Verify the public domain, HTML, image and room after publishing; a local build cannot establish
+that the live domain has been updated. Do not use `VITE_QA=1` for a public release.
+
 Build with `npm ci && npm run build` and publish `dist/` through the existing Worker Static Assets deployment. Keep the deployment's existing `VITE_WS_URL` setting. No room-server settings need to change for the mobile rendering update. Do not set `VITE_QA=1` on the public build.
 
 Vite copies `public/_headers` into `dist/_headers`. Cloudflare Workers Static Assets [reads that file](https://developers.cloudflare.com/workers/static-assets/headers/) to apply the one-day asset cache. Runtime URLs include a content-derived asset revision; HTML is revalidated so a new release loads new bundles. Deploy the entire `dist/` directory, including `_headers`, rather than just `index.html`. Custom Worker responses need equivalent headers in that Worker if they bypass static asset serving.
@@ -33,7 +40,7 @@ Optional, and only with accounts. Follow [STORE.md](STORE.md):
 ## Same-origin deployment (recommended for a private demo)
 
 1. Run `npm ci && npm run build` in CI with Node 22.12+.
-2. Serve `dist/` over HTTPS with immutable caching for hashed assets. Return `index.html` for frontend routes.
+2. Serve `dist/` over HTTPS with immutable caching for hashed assets. Return `index.html` for frontend routes and a real 404 for missing assets. Apply the security and cache headers in `public/_headers` through your server configuration; Nginx does not read that file.
 3. Run `npm run server` as a supervised process. Set `HOST=127.0.0.1`, `PORT=3001`, `ALLOWED_ORIGINS=https://worlds.example.edu`, a room invitation for a private demonstration, and a strong server-only `ADMIN_TOKEN` if moderation removal is enabled.
 4. Proxy `/ws` to that process, preserving the origin and WebSocket upgrade headers. Keep `/admin/kick` private to the operator (not through the public frontend proxy). Persist `server/data/` if retaining reports across restarts.
 5. Confirm two independent browsers can join, chat, leave, reconnect, and receive useful feedback for an incorrect invitation. Test using the public HTTPS origin, not localhost.
@@ -45,10 +52,27 @@ location / {
     root /srv/campos-worlds/dist;
     try_files $uri $uri/ /index.html;
 }
-location /assets/ {
+location ^~ /assets/ {
     root /srv/campos-worlds/dist;
+    try_files $uri =404;
     expires 1y;
     add_header Cache-Control "public, immutable";
+}
+location = /sw.js {
+    root /srv/campos-worlds/dist;
+    try_files $uri =404;
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+    add_header Service-Worker-Allowed "/";
+}
+location = /manifest.webmanifest {
+    root /srv/campos-worlds/dist;
+    try_files $uri =404;
+    default_type application/manifest+json;
+    add_header Cache-Control "no-cache";
+}
+location ~* \.(?:js|css|png|svg|jpg|jpeg|webp|woff2?|glb|ktx2|hdr|wasm|ogg|mp3|wav)$ {
+    root /srv/campos-worlds/dist;
+    try_files $uri =404;
 }
 # Campus store payment events from Bachs (only if the store is set up; docs/STORE.md).
 location = /shop/webhook {
@@ -83,6 +107,12 @@ The container recipe is provided but not executed in this environment. Use your 
 
 ## Scaling boundary
 
-The room is in memory, with no cross-process state, durable identity, shared persistence or matchmaking. The default 24-player cap is a safeguard, not a load-test result. For a pilot, add verified Core identity, institution partitioning, durable moderation, telemetry, operational report handling and measured load tests before increasing room size. Cross-region rollout also needs latency-aware room placement and more complete prediction/reconciliation.
+Live room state is in memory, with no cross-process presence or matchmaking. Optional accounts
+and community records use Supabase; the economic lab has its own persistent file store.
+The default 48-player cap is a safeguard, not a load-test result. For a pilot, add verified Core
+identity, institution partitioning, durable moderation, operational report handling and measured
+load tests before increasing room size. Cross-region rollout also needs latency-aware room
+placement and more complete prediction/reconciliation.
 
-The app has no institution records, financial data or production credentials. Preserve that separation when introducing live services.
+Keep institution records and production credentials out of the frontend. Store transactions,
+account records and reports require the server-side access controls described above.

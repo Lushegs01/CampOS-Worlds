@@ -108,8 +108,8 @@ export function createShop({ secretKey = '', webhookSecret = '', appUrl = '', ap
     if (!order && meta.app !== 'campos-worlds') return 200;
     let amount = null, currency = null, charge = null;
     if (type === 'collection.succeeded') {
-      if (!PAID.has(String(data.status ?? '').toUpperCase())) return 200;
-      amount = typeof data.amount === 'string' && /^\d+(\.\d+)?$/.test(data.amount) ? data.amount : typeof data.amount === 'number' ? String(data.amount) : null;
+      if (typeof data.status !== 'string' || !PAID.has(data.status.toUpperCase())) return 200;
+      amount = typeof data.amount === 'string' && /^\d+(\.\d+)?$/.test(data.amount) ? data.amount : typeof data.amount === 'number' && Number.isFinite(data.amount) && data.amount >= 0 ? String(data.amount) : null;
       if (amount === null) return 200;
       currency = typeof data.currency === 'string' ? data.currency : null; charge = typeof data.charge_id === 'string' ? data.charge_id.slice(0, 128) : null;
     }

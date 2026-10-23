@@ -1,5 +1,8 @@
 # CampOS Worlds
 
+Installation, offline recovery, updates and branded link previews: [PWA guide](docs/PWA.md).
+Current release assessment and test evidence: [Launch readiness](docs/LAUNCH-READINESS.md).
+
 Mobile rendering improvements, benchmark results, and the itel S24 test checklist: [Mobile performance](docs/MOBILE-PERFORMANCE.md).
 
 A playable, standalone 3D campus for exploring, meeting people and making small discoveries. The fictional **Òrìṣun Campus** is modelled locally with procedural architecture, vegetation, a walk-in library and a bronze courtyard landmark. No production institutional account is needed.
@@ -155,7 +158,7 @@ $env:PLAYWRIGHT_CHROMIUM_EXECUTABLE='C:/Program Files/Google/Chrome/Application/
 node tests/browser-verify.mjs
 ```
 
-Voice chat, tournament brackets, team basketball, multi-room presence and parties, and a moderator dashboard are designed but not built ([status](docs/IMPLEMENTATION-STATUS.md)). Production Core (institutional) authentication, tenant feature settings, migrating guest progress into an account, account-backed moderation and durable bans, multi-room scaling, licensed realistic character assets, full accessible building interiors, advanced terrain physics, audio ambience, and physical mid-range phone profiling are follow-up work. The current art is bespoke procedural game art, not a photorealistic scan of a real university. The library, café, Studio D1 and your own room in Palm House are enterable. In the other blocks, only the ground-floor common rooms are open. High quality adds screen-space AO and SMAA; there is no WebGPU dependency.
+Voice chat, tournament brackets, team basketball, multi-room presence and parties, and a moderator dashboard are designed but not built ([status](docs/IMPLEMENTATION-STATUS.md)). Production Core (institutional) authentication, tenant feature settings, migrating guest progress into an account, account-backed moderation and durable bans, multi-room scaling, full accessible building interiors, advanced terrain physics, and physical mid-range phone profiling are follow-up work. Licensed Rocketbox characters and CC0 recorded ambience are already implemented. The campus architecture is bespoke procedural game art, not a photorealistic scan of a real university. The library, café, Studio D1 and your own room in Palm House are enterable. In the other blocks, only the ground-floor common rooms are open. High quality adds screen-space AO and SMAA; there is no WebGPU dependency.
 
 ## Economic Simulation Lab
 
