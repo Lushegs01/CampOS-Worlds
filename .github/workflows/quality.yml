@@ -93,3 +93,26 @@ jobs:
         with:
           name: account-${{ matrix.engine }}-evidence
           path: docs/release/account-recovery-${{ matrix.engine }}.json
+  account-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        timeout-minutes: 5
+        run: npx playwright install chromium
+      - name: Two-campus account interface
+        timeout-minutes: 8
+        run: node tests/browser-accounts.mjs
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: account-ui-evidence
+          path: |
+            docs/accounts-results.json
+            docs/screenshots/accounts/

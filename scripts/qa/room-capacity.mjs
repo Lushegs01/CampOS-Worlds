@@ -87,6 +87,7 @@ try{
  assert.ok(result.stateGapMs.p95<250,'p95 state delivery gap must remain below 250ms');
  assert.ok(result.stateGapMs.max<1500,'no state-delivery stall may exceed 1.5 seconds');
  assert.equal(statusBody.slowConnections,0);result.passed=true;
+ assert.ok(memoryAfter.rss-memoryBefore.rss<256*1024*1024,'room RSS growth must remain below 256MiB');
  console.log(JSON.stringify(result,null,2));
 }catch(error){result??={date:new Date().toISOString(),passed:false,error:error.message,unexpectedDisconnects:unexpected,states};throw error;
 }finally{
