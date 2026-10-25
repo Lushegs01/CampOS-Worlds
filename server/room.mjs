@@ -17,6 +17,7 @@ import { createDuels, DUEL_RULES } from './duels.mjs';
 import { createAnalytics } from './analytics.mjs';
 import { createModeration, validAccount } from './moderation.mjs';
 import { createChallenges } from './challenges.mjs';
+import { createNpcService } from './npcs.mjs';
 import { TOUR } from '../shared/campus.mjs';
 import { DEFAULT_LAYOUT, DORM_CAPACITY, DORM_INVITE_MS, DORM_INSIDE, DORM_OUTSIDE, validateLayout, furnitureAllows, furnitureBlocked, inDormRoom, nearDormDoor } from '../shared/dorm.mjs';
 // Messages stay within 2 KB except the account handshake, which carries a Supabase access token.
@@ -30,7 +31,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const str=v=>typeof v==='string'?v:'',num=v=>typeof v==='number'?v:NaN;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
-export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',moderationFile=null,accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={}}={}){
+export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',moderationFile=null,accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={},buildings={}}={}){
  const clients=new Map(),bySocket=new WeakMap(),moderation=createModeration({file:moderationFile});let reportQueue=Promise.resolve(),closing=false,closePromise,ready=false,pendingReports=0;
  const retries=new Set(),startedAt=Date.now(),metrics={slowConnections:0,rejectedUpgrades:0,reportsSaved:0,reportFailures:0,ticks:0,maxTickGapMs:0};
  // Flush already accepted account writes before the process exits; network calls have their own
@@ -64,6 +65,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   retry(()=>accounts.recordChallenge(id,ch.id,ms,run),r=>{if(c.account?.id!==id)return;const awarded=Array.isArray(r?.awarded)?r.awarded:[];send(c.ws,{type:'progress',kind:'challenge',item:ch.id,awarded,best:r?.best_ms??ms});awarded.forEach(a=>analytics.track(c,'achievement_earned',{achievement:a}));},
    ()=>{if(c.account?.id===id)send(c.ws,{type:'notice',text:'Your challenge time could not be saved right now.'});});
  }});
+ // Campus characters (server/npcs.mjs): one authoritative cast, never counted or listed as players.
+ const npcs=createNpcService({overrides:buildings,send:(c,m)=>send(c.ws,m),broadcast:m=>broadcast(m),later,session:token=>[...clients.values()].find(o=>o.joined&&o.token===token)??null,log:m=>console.warn(m)});
  /** Retry a recording a few times with backoff; the ids passed make repeats harmless in the database. */
  function retry(call,done,failed,n=0){if(closing)return;call().then(done).catch(e=>{if(n<3&&!e?.reason)later(()=>retry(call,done,failed,n+1),1500*2**n);else failed(e);});}
  /** Persist a duel between two signed-in players, retrying a few times; the match id makes retries safe. */
@@ -112,8 +115,19 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(req.url?.startsWith('/admin/')){
    const expected=Buffer.from('Bearer '+adminToken),actual=Buffer.from(req.headers.authorization??'');
    if(!adminToken||expected.length!==actual.length||!timingSafeEqual(expected,actual)){res.writeHead(403);res.end('{}');return;}
-   if(req.url==='/admin/status'&&req.method==='GET'){res.end(JSON.stringify({ready,room:roomId,uptimeSeconds:Math.floor((Date.now()-startedAt)/1000),players:joined().length,connections:clients.size,capacity,pendingReports,pendingAccountCalls:accountJobs.size,bans:moderation.list().length,...metrics,memory:process.memoryUsage(),cpu:process.cpuUsage()}));return;}
+   if(req.url==='/admin/status'&&req.method==='GET'){res.end(JSON.stringify({ready,room:roomId,uptimeSeconds:Math.floor((Date.now()-startedAt)/1000),players:joined().length,connections:clients.size,capacity,pendingReports,pendingAccountCalls:accountJobs.size,bans:moderation.list().length,npcsOnDuty:npcs.director.npcs.size,npc:npcs.metrics,...metrics,memory:process.memoryUsage(),cpu:process.cpuUsage()}));return;}
    if(req.url==='/admin/bans'&&req.method==='GET'){res.end(JSON.stringify({bans:moderation.list()}));return;}
+   // Building completion (shared/buildings.mjs) and the campus characters on duty because of it. A change
+   // applies to the live room until it restarts; set BUILDING_COMPLETION (or the defaults) to keep it.
+   if(req.url==='/admin/buildings'&&req.method==='GET'){const snap=npcs.snapshot();res.end(JSON.stringify({version:snap.version,buildings:snap.buildings,onDuty:snap.npcs.map(n=>n.id)}));return;}
+   if(req.url==='/admin/buildings'&&req.method==='POST'){
+    let body='';try{for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>2048)throw Error('size');}}catch{res.writeHead(400);res.end('{}');return;}
+    let m;try{m=JSON.parse(body);}catch{m=null;}
+    if(!m||typeof m!=='object'||Array.isArray(m)||typeof m.building!=='string'||m.completion===undefined&&m.available===undefined){res.writeHead(400);res.end(JSON.stringify({ok:false,reason:'Send { building, completion?, available? }.'}));return;}
+    const r=npcs.setBuilding(m.building,{completion:m.completion,available:m.available});
+    if(!r.ok){res.writeHead(400);res.end(JSON.stringify(r));return;}
+    const snap=npcs.snapshot();res.end(JSON.stringify({...r,buildings:snap.buildings,onDuty:snap.npcs.map(n=>n.id)}));return;
+   }
    if(['/admin/kick','/admin/ban','/admin/unban'].includes(req.url)&&req.method==='POST'){
     let body='';try{for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>2048)throw Error('size');}
      let m;try{m=JSON.parse(body);}catch{throw Error('body');}
@@ -349,7 +363,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   clearTimeout(c.socialTimer);challenges.release(c);
   if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});
   const driving=!!c.vehicle;
-  duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);
+  duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);npcs.release(c);
   // A resident reconnects outside their room's door: the room is entered (and its layout loaded) only on request.
   const at=c.dorm||inDormRoom(c.x,c.z)?DORM_OUTSIDE:c;vacate(c);
   if(was&&c.token&&!driving)recent.set(c.token,{x:at.x,z:at.z,yaw:at.yaw,at:Date.now()});
@@ -387,7 +401,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     const back=recent.get(token);recent.delete(token);
     if(back&&Date.now()-back.at<partyLimits.graceMs&&!blocked(back.x,back.z)&&!inDormRoom(back.x,back.z)&&!fleet.vehicles.some(v=>vehicleContains(v,back.x,back.z)))Object.assign(c,{x:back.x,z:back.z,y:0,yaw:back.yaw});
     if(m.movement===MOTION_VERSION)c.motion=createMotionAuthority(c,performance.now());
-    send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),drive:DRIVE_VERSION,classes:classes.snapshot(),accounts:!!accounts.enabled,shop:shop.catalogue(),room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view()});
+    send(ws,{type:'welcome',id,token,position:{x:c.x,y:c.y,z:c.z},yaw:c.yaw,world:world.snapshot(),vehicles:fleet.snapshot(),drive:DRIVE_VERSION,classes:classes.snapshot(),accounts:!!accounts.enabled,shop:shop.catalogue(),room:{id:roomId,name:'The Courtyard'},party:{size:partyLimits.size},duel:duels.view(),npcs:npcs.snapshot()});
     // A reload or dropped connection with the same session token takes its party place back.
     parties.reconnect(c);
     c.analytics=m.analytics&&typeof m.analytics==='object'?{consent:m.analytics.consent===true,install:typeof m.analytics.install==='string'?m.analytics.install.slice(0,64):''}:null;
@@ -508,6 +522,13 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     if(m.kind==='friend')refreshSocial(c);
    }else if(m.type==='socialRefresh'&&rate('socialRefresh',4,10000)){refreshSocial(c);
    }else if(m.type==='emote'&&rate('emote',2,3000)&&['wave','dance','cheer'].includes(m.emote)){c.emote=m.emote;c.emoteAt=Date.now();
+   }else if(m.type==='npc'){
+    // Talking to a campus character: the room checks the character is on duty, near and in sight.
+    if(!rate('npc',8,2000)){send(ws,{type:'npcResult',ref:Number.isSafeInteger(m.ref)?m.ref:null,action:str(m.action).slice(0,8),id:str(m.id).slice(0,40),ok:false,reason:'Wait a moment and try again.'});return;}
+    npcs.handle(c,m);
+   }else if(m.type==='cafeOrder'){
+    if(!rate('cafeOrder',4,10000)){send(ws,{type:'cafeOrderResult',ref:Number.isSafeInteger(m.ref)?m.ref:null,ok:false,reason:'Wait a moment before ordering again.'});return;}
+    npcs.order(c,m);
    }else if(m.type==='interact'&&rate('interact',4,1000)){const loc=LOCATIONS.find(l=>l.id===m.id);if(loc&&Math.hypot(c.x-loc.x,c.z-loc.z)<6){send(ws,{type:'interaction',id:loc.id});
      if(TOUR.includes(loc.id)&&!c.toured?.has(loc.id)){(c.toured??=new Set()).add(loc.id);if(TOUR.every(t=>c.toured.has(t)))analytics.track(c,'tutorial_completed');}if(c.account&&!c.visited.has(loc.id)){c.visited.add(loc.id);record(c,'landmark',loc.id);}}
    }else if(m.type==='collect'&&rate('collect',6,1000)){const token=TOKENS.find(t=>t.id===m.id);if(token&&!c.collected.has(token.id)&&Math.hypot(c.x-token.x,c.z-token.z)<2.2){c.collected.add(token.id);send(ws,{type:'collected',id:token.id});record(c,'keepsake',token.id);}
@@ -548,11 +569,11 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   }
   fleet.step(dt,joined());classes.step(joined());
   const events=world.step(dt,joined());
-  if(events.length)broadcast({type:'events',list:events});
+  if(events.length){broadcast({type:'events',list:events});npcs.react(events);}
   duels.step(events);
   for(const e of events)if(e.type==='score'){const shot=clients.get(e.by)?.hoops.find(s=>s.id===e.shot);if(shot){shot.points=e.points;shot.done=true;}}
   if(tick%3===0)challenges.step(joined());
-  if(tick%15===0){const t=Date.now();for(const c of clients.values())settleHoops(c,t);parties.step();partyTime(t);for(const [k,r] of recent)if(t-r.at>partyLimits.graceMs)recent.delete(k);}
+  if(tick%15===0){const t=Date.now();npcs.step(joined());for(const c of clients.values())settleHoops(c,t);parties.step();partyTime(t);for(const [k,r] of recent)if(t-r.at>partyLimits.graceMs)recent.delete(k);}
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
   // 15 Hz state: positions to the centimetre and angles to the milliradian (the client interpolates), and
   // only the vehicles that changed since the last broadcast (joining clients get the whole fleet in welcome).
@@ -586,6 +607,6 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    return http.address();
   }catch(error){await close();throw error;}
  }
- return {http,wss,clients,fleet,parties,duels,challenges,world,economy,moderation,start,close};
+ return {http,wss,clients,fleet,parties,duels,challenges,world,economy,moderation,npcs,start,close};
 }
 function clean(value,max){return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,max):'';}

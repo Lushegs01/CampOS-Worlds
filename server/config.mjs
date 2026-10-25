@@ -1,4 +1,5 @@
 import { resolve, sep } from 'node:path';
+import { parseCompletionOverrides } from '../shared/buildings.mjs';
 
 // Validate operator configuration before binding a port. Never include values in errors.
 export function roomConfig(env = process.env) {
@@ -37,5 +38,7 @@ export function roomConfig(env = process.env) {
     capacity: number('ROOM_CAPACITY', 48, 2, 48), adminToken, invite: env.ROOM_INVITE || '', id: env.ROOM_ID || 'courtyard',
     reportDir: privatePath('REPORT_DIR', 'server/data'), moderationFile: privatePath('MODERATION_FILE', 'server/data/moderation.json'),
     labFile: privatePath('LAB_DATA_FILE', 'server/data/economic-lab.json'),
-    analyticsDir: privatePath('ANALYTICS_DIR', 'server/data/analytics'), retentionDays: number('ANALYTICS_RETENTION_DAYS', 90, 1, 90) };
+    analyticsDir: privatePath('ANALYTICS_DIR', 'server/data/analytics'), retentionDays: number('ANALYTICS_RETENTION_DAYS', 90, 1, 90),
+    // Building completion overrides ("studio-d1=70,courtyard-cafe=35"; shared/buildings.mjs). Invalid values stop start-up.
+    buildings: parseCompletionOverrides(env.BUILDING_COMPLETION || '') };
 }

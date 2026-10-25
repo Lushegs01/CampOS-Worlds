@@ -25,6 +25,8 @@ export const loadCharacterManifest = (): Promise<Manifest> => manifest ??= fetch
 export interface AvatarMotion {
   speed: number; y: number; vy: number; emote?: string; emoteUntil?: number; turn?: number;
   vehicleSeatHeight?:number|null; sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
+  /** Head turn towards someone, radians from straight ahead (campus characters looking at a player; src/npc). */
+  gaze?: number;
 }
 
 const LOCO = ['walk', 'jog', 'run'] as const;
@@ -654,6 +656,8 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     if (pump > .01) { const c = Math.cos(s.dribble * Math.PI * 2); rotate(b.Bip01_R_UpperArm, AXIS_Z, -pump * (.35 + .12 * c)); rotate(b.Bip01_R_Forearm, AXIS_Z, pump * (.25 - .3 * c)); rotate(b.Bip01_R_Hand, AXIS_Z, -pump * .5 * c); }
     rotate(b.Bip01_Spine, AXIS_Z, -(tuck * .12 + comp * .2));
     rotate(b.Bip01_Spine1, AXIS_X, s.lean * (1 - sitW)); rotate(b.Bip01_Pelvis, AXIS_X, -s.lean * .4 * (1 - sitW));
+    // Looking at someone: the neck and head twist about their own long axis (Biped X, vertical when standing).
+    if (m.gaze) { const g = THREE.MathUtils.clamp(m.gaze, -1.1, 1.1); rotate(b.Bip01_Neck, AXIS_X, g * .4); rotate(b.Bip01_Head, AXIS_X, g * .6); }
     rig.root.position.set(rx, ry - comp * .09, rz);
     if (preview) rig.root.rotation.y = Math.sin(clock.elapsedTime * .4) * .35;
     if (contact.current) { const lift = Math.max(0, m.y); contact.current.position.set(rx, -lift + .012, rz); contact.current.scale.setScalar(1 - Math.min(.45, lift * .35)); contactMat.opacity = .3 * (1 - Math.min(.7, lift * .6)) * (1 - sitW * .6); }
