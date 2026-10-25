@@ -100,6 +100,7 @@ No character performs an action its rig cannot: there is no writing, pouring or 
 - **Idempotency.** Asking again in a conversation you are already in changes nothing. Each order attempt carries the client's own id; the same attempt sent again (after a timeout, or after reconnecting with the same session) returns the same order instead of a second one. A failed order is shown as failed; "is being prepared" appears only for an order the room (or, offline, the local rules) actually numbered.
 - **Replication.** The room sends the whole cast in `welcome`, a full `npcs` snapshot when a building changes, and otherwise `npcState` deltas for the characters that changed (a conversation, a gesture). There is no per-frame or position traffic. Cosmetic timing (gaze, easing the turn, the props) is computed by each client.
 - **Restarts.** A restarted room starts every routine again at home; reconnecting clients take the room's snapshot. Characters never depend on any one player's browser.
+- **Older rooms.** The room says it runs the cast by including it in `welcome`. Connected to a room from before campus characters (a front end deployed ahead of its room), the client runs conversations and café orders with the same rules locally, as when offline, instead of waiting for replies that never come. Checked with the new front end against the previous room release: a conversation opened and closed and a counter order was placed.
 
 ## Performance
 

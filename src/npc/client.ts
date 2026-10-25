@@ -27,10 +27,16 @@ export const npcNow = () => roomPlayback.time(performance.now()) ?? Date.now();
 /** One director for the cast: loaded from the room while connected, run here while exploring offline. */
 const director = createNpcDirector({ now: npcNow });
 const online = () => useGame.getState().status === 'connected';
+/**
+ * The room runs the cast only if its welcome said so: a room from before campus characters ignores their
+ * messages, so with one of those (a front end deployed ahead of its room) the rules run here, as offline.
+ */
+let roomCast = false;
+const authoritative = () => online() && roomCast;
 export const npcState = (id: string) => director.npcs.get(id) as NpcState | undefined;
 export const npcDef = (id: string) => NPC_BY_ID.get(id) as NpcDef | undefined;
 /** Who we are in conversations: our room connection, or 'local' offline. */
-const myId = () => online() ? selfConnection() : me.id;
+const myId = () => authoritative() ? selfConnection() : me.id;
 /** The local player as the director sees them. */
 const meView = () => ({ id: myId(), key: 'local', x: player.x, z: player.z, y: player.y, seat: me.seat, ball: me.ball, vehicle: me.vehicle, space: mySpace() || undefined });
 
@@ -65,6 +71,7 @@ function call(type: 'npc' | 'cafeOrder', payload: Record<string, unknown>): Prom
   });
 }
 onRoomMessage(m => {
+  if (m.type === 'welcome') roomCast = !!m.npcs;
   if (m.type === 'npcs' || (m.type === 'welcome' && m.npcs)) { director.load(m.type === 'npcs' ? m : m.npcs); refresh(); }
   else if (m.type === 'npcState') { director.apply(m.changes); refresh(); }
   else if (m.type === 'npcResult' || m.type === 'cafeOrderResult') { const done = pending.get(m.ref); pending.delete(m.ref); done?.(m as Result); }
@@ -89,7 +96,7 @@ function local(type: 'talk' | 'leave' | 'order', id: string, args: Record<string
 export async function talkTo(id: string, topic: string | null = null, fallback: string | null = null) {
   const s = useNpcs.getState(); if (s.busy) return;
   useNpcs.setState({ busy: id });
-  const r = online() ? await call('npc', { action: 'talk', id }) : local('talk', id);
+  const r = authoritative() ? await call('npc', { action: 'talk', id }) : local('talk', id);
   useNpcs.setState({ busy: null });
   if (!r.ok && fallback) { useGame.getState().set({ panel: fallback }); document.exitPointerLock?.(); return; }
   if (!r.ok) { useGame.getState().notify(r.reason ?? 'They can’t talk right now.'); sfx('deny'); return; }
@@ -99,11 +106,11 @@ export async function talkTo(id: string, topic: string | null = null, fallback: 
   useGame.getState().set({ panel: `npc:${id}` }); document.exitPointerLock?.();
 }
 /** End our conversation (the dialogue closed). */
-function leave(id: string) { if (online()) void call('npc', { action: 'leave', id }); else local('leave', id); }
-// Offline the local rules score baskets here; online the room makes the coach cheer.
-onWorldEvent(e => { if (!online() && e.type === 'score' && director.react(e)) refresh(); });
-// Offline the local director also keeps time: greetings, the end of conversations, working hours.
-setInterval(() => { if (!online() && useGame.getState().phase === 'playing' && director.step([meView()])) refresh(); }, 500);
+function leave(id: string) { if (authoritative()) void call('npc', { action: 'leave', id }); else local('leave', id); }
+// Offline (or with a room that predates the cast) the local rules score baskets here; otherwise the room makes the coach cheer.
+onWorldEvent(e => { if (!authoritative() && e.type === 'score' && director.react(e)) refresh(); });
+// Without the room's cast the local director also keeps time: greetings, the end of conversations, working hours.
+setInterval(() => { if (!authoritative() && useGame.getState().phase === 'playing' && director.step([meView()])) refresh(); }, 500);
 // Closing the dialogue, by any route (Escape, the close button, another panel), ends the conversation.
 useGame.subscribe((s, prev) => {
   const was = prev.panel?.startsWith('npc:') ? prev.panel.slice(4) : null;
@@ -115,7 +122,7 @@ useGame.subscribe((s, prev) => {
  * again (after a timeout) returns the same order instead of placing a second.
  */
 export function placeOrder(items: string[], via: 'counter' | 'vendor', req: string): Promise<Result> {
-  return online() ? call('cafeOrder', { items, via, req }) : Promise.resolve(local('order', '', { items, via, req }));
+  return authoritative() ? call('cafeOrder', { items, via, req }) : Promise.resolve(local('order', '', { items, via, req }));
 }
 
 // ------------------------------------------------------------------ prompts
@@ -149,7 +156,7 @@ if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusNpcs = {
   list: () => [...director.npcs.keys()].map(id => ({ id, ...npcPose(npcDef(id)!, npcState(id), npcNow()), mode: npcState(id)!.mode, by: npcState(id)!.by?.map(b => b.id) ?? [] })),
   pose: (id: string) => ({ ...npcPose(npcDef(id)!, npcState(id), npcNow()) }),
   buildings: () => director.buildings.snapshot(),
-  setBuilding: (id: string, completion: number) => { if (online()) return { ok: false, reason: 'Online the room decides: use the admin endpoint.' }; const r = director.setBuilding(id, { completion }); refresh(); return r; },
+  setBuilding: (id: string, completion: number) => { if (authoritative()) return { ok: false, reason: 'Online the room decides: use the admin endpoint.' }; const r = director.setBuilding(id, { completion }); refresh(); return r; },
   talk: (id: string) => talkTo(id), talking: () => useNpcs.getState().talking, spawns: () => Object.fromEntries(director.spawns),
   building: (id: string) => BUILDING_BY_ID.get(id),
 };
