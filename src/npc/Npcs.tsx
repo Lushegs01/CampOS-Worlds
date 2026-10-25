@@ -19,7 +19,7 @@ import { QA_HOOKS } from '../qa';
 // head looks, the name tag. Characters reuse the players' rigs, clips and level of detail (../avatar).
 
 /** A character's model loads within this distance of you and is released beyond 1.4 times it. */
-const LOAD: Record<Quality, number> = { low: 45, medium: 70, high: 100 };
+const LOAD: Record<Quality, number> = { low: 30, medium: 55, high: 85 };
 // QA builds: `?qa-npcs=0` leaves the cast out of the scene (performance comparisons with and without it).
 const HIDDEN = QA_HOOKS && new URLSearchParams(location.search).get('qa-npcs') === '0';
 

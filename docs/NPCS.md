@@ -104,7 +104,7 @@ No character performs an action its rig cannot: there is no writing, pouring or 
 
 ## Performance
 
-- **Lazy loading.** A character's model is loaded and its rig built only once you come within 45 m (Low), 70 m (Medium) or 100 m (High), and released beyond 1.4 times that. Nothing is drawn or loaded on the welcome screen.
+- **Lazy loading.** A character's model is loaded and its rig built only once you come within 30 m (Low), 55 m (Medium) or 85 m (High), and released beyond 1.4 times that. Nothing is drawn or loaded on the welcome screen. (These were 45 / 70 / 100 m until the measurement below showed what they cost in downloads on Low.)
 - **Reuse.** Characters use the same cached character files, clip libraries and materials as players. Of the ten characters, the groundskeeper uses the default player model, the orientation guide and the officer are male so the spawn area needs no second clip library for the default player, and the props share ten geometries and eight materials across all characters.
 - **Per frame.** Pose arithmetic and, four times a second, a nearest-person check for gaze. No React state changes per frame; the cast list re-renders only when a character comes or goes. The avatar's own level of detail applies: off screen a character is neither posed nor drawn, beyond 30 m it is posed every 2nd frame and beyond 60 m every 4th.
 - **Network.** About 1.8 KB per player when joining; afterwards small deltas only when something changes (a greeting at most every 20 s per character).
