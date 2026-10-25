@@ -134,7 +134,21 @@ Measured in a Linux cloud container (4 CPU cores, no GPU; Chromium renders WebGL
 - **After:** `npm run typecheck` clean; `npm run build` passed; `npm test` **231 / 231 passed** (the 206 existing tests, 20 in `tests/npcs.test.mjs`, 5 in `tests/npcs-room.test.mjs`; the fuzz test now also sends malformed `npc` and `cafeOrder` messages). One earlier full run had three dorm-account tests fail because the embedded PostgreSQL did not start; the file passed alone and the whole suite passed on the next run.
 - **Real browsers** (`tests/browser-npcs.mjs` against the production QA bundle, `VITE_QA=1 vite build` served by `vite preview`, with its own room): **19 / 19 checks passed**, no page errors or unhandled rejections (`docs/screenshots/npcs/results.json`). GPU resources read after each of six teacher arrivals were identical every time (227 geometries, 122 textures, 42 shader programs): nothing accumulates. An earlier run against the development server passed the 14 checks it had then. Two intermediate failures were races in the test itself (a key press after a character had walked on, so it reached the next prompt, correctly) and were fixed in the test.
 
-Regression runs of the existing browser suites and the performance comparison follow below once complete.
+- **Existing browser suites with the whole cast on duty** (same machine; the production QA bundle unless noted), all passed:
+
+  | Suite | Checks | Notes |
+  |---|---:|---|
+  | `browser-interactions.mjs` | 27 / 27 | Benches, doors, library, café counter order (now served by the vendor) and tables, Studio D1 desks and whiteboard, basketball round, phone controls |
+  | `browser-economic-lab.mjs` | 10 / 10 | Its own development stack |
+  | `browser-mobile.mjs` | 12 / 12 | |
+  | `browser-open-world.mjs` | 11 / 11 | Vehicles; development server (the suite imports source modules) |
+  | `browser-dorm.mjs` | 7 / 7 | Rooms, privacy, phone; development server (same reason) |
+  | `browser-social.mjs` | 4 / 4 | The peer list held only the other human player |
+  | `browser-smoke.mjs` | 1 / 1 | |
+  | `npm run test:release` | 11 / 11 | The production host, service worker, installation, offline recovery |
+
+- **CI on the merged head** (`Release checks`): `verify` (audit, typecheck, `npm test`, build, `verify:release`, account recovery, `test:release`), `container`, `capacity`, `account-ui` and `account-engines (firefox)` passed. `account-engines (webkit)` failed while installing the browser engine (the Ubuntu mirror timed out the 5-minute step before any test ran). The Cloudflare *Workers Builds* check fails instantly on this repository and failed the same way on the previous release.
+- **A front end ahead of its room:** the new client against the previous room release (no cast in its welcome) opened and closed a conversation and placed a café counter order with the local rules.
 
 ### Measured effect
 
