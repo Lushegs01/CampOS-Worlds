@@ -1,0 +1,97 @@
+{
+  "at": "2026-10-25T16:30:45.979Z",
+  "base": "http://localhost:5173",
+  "passed": [
+    "teacher: prompt, conversation, turns to the player, design brief",
+    "closing the dialogue restores movement",
+    "teacher appears at exactly 80% and not at 79%, once, without leaking GPU resources over 6 cycles",
+    "a character leaving duty closes its dialogue with an explanation",
+    "classroom desks still work with the teacher on duty",
+    "vendor: serves the counter’s own demo ordering, and talks about the menu",
+    "vendor absent at 39%, present at exactly 40%; the counter keeps working without her",
+    "librarian: catalogue search (labelled fictional) and directions with the map marker",
+    "the New Arrivals display still works",
+    "coach: no prompt while holding a ball; afterwards a conversation about shooting",
+    "after switching graphics quality, characters are drawn and talk as before",
+    "phone: touch Interact opens conversations; dialogues fit a 390 px screen without sideways scrolling",
+    "two browsers: same cast, same places; characters are not in the People list or the online count",
+    "online: the room starts and ends the conversation; the other browser sees both"
+  ],
+  "errors": [],
+  "metrics": {
+    "teacherCycles": [
+      {
+        "geometries": 224,
+        "textures": 123,
+        "programs": 42
+      },
+      {
+        "geometries": 224,
+        "textures": 123,
+        "programs": 42
+      },
+      {
+        "geometries": 224,
+        "textures": 123,
+        "programs": 42
+      },
+      {
+        "geometries": 224,
+        "textures": 123,
+        "programs": 42
+      },
+      {
+        "geometries": 224,
+        "textures": 123,
+        "programs": 42
+      },
+      {
+        "geometries": 224,
+        "textures": 123,
+        "programs": 42
+      },
+      {
+        "geometries": 224,
+        "textures": 123,
+        "programs": 42
+      }
+    ],
+    "offline": {
+      "spawns": {
+        "teacher": 8,
+        "vendor": 2,
+        "librarian": 1,
+        "services-officer": 1,
+        "event-host": 1,
+        "coach": 1,
+        "residence-assistant": 1,
+        "research-assistant": 1,
+        "orientation-guide": 1,
+        "groundskeeper": 1
+      },
+      "drawCalls": 332
+    },
+    "online": {
+      "position": {
+        "x": -19.87124130546029,
+        "y": 0,
+        "z": 25.611213319781967
+      },
+      "fps": 1,
+      "drawCalls": 260,
+      "triangles": 389736,
+      "textures": 154,
+      "geometries": 286,
+      "quality": "low",
+      "peers": [
+        {
+          "id": "4ee76605-5242-4924-ad04-c34841b8b58f",
+          "x": 0,
+          "z": 36
+        }
+      ],
+      "tokens": []
+    }
+  },
+  "failed": false
+}

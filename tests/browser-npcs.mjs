@@ -1,6 +1,6 @@
 // Real-browser test of the campus characters (shared/npcs.mjs, src/npc) against the running app and room.
 // Usage: node tests/browser-npcs.mjs   (requires `npm run dev`, or TEST_URL for another web + room pair;
-// ONLY=offline,phone,online to select). Screenshots and results go to docs/screenshots/npcs/.
+// ONLY=offline,roles,phone,online to select). Screenshots and results go to docs/screenshots/npcs/.
 //
 // Offline parts keep the page away from the room (the same rules then run in the browser), so the QA hook
 // may place the player and change a building's completion; online parts use the room and normal movement.
@@ -148,6 +148,32 @@ try {
     await A.keyboard.press('KeyE'); await A.getByRole('heading', { name: 'Mrs Hauwa Musa' }).waitFor(); await closeDialog(A);
     pass('after switching graphics quality, characters are drawn and talk as before');
     metrics.offline = await A.evaluate(() => ({ spawns: window.__campusNpcs.spawns(), drawCalls: window.__campus?.drawCalls }));
+    await A.context().close(); A = null;
+  }
+
+  if (want('roles')) {
+    // Every other character's conversation once, offline: each leads somewhere real or says plainly what it can't do.
+    A = await open('Ada QA', { offline: true });
+    const talk = async (id, x, z, label, name) => { await approach(A, id, x, z, 0, label); await drawn(A, id); await A.keyboard.press('KeyE'); await A.getByRole('heading', { name }).waitFor(); };
+    await talk('event-host', 3.3, -28.4, 'Ask about campus events', 'Kemi');
+    await A.getByRole('button', { name: 'What’s on?' }).click();
+    await A.getByText(/accounts aren’t set up on this deployment, so there are no events to list/).waitFor();
+    await A.getByRole('button', { name: 'How do I find events?' }).click(); await A.getByRole('button', { name: 'Show me the noticeboard' }).click();
+    await A.getByText('Follow the gold marker to Campus Noticeboard.').waitFor(); pass('event host: a truthful “not set up” state instead of invented events; directions to the noticeboard');
+    await talk('residence-assistant', 650, 3.6, 'Ask about student rooms', 'Amaka');
+    await A.getByRole('button', { name: 'Who can come into my room?' }).click(); await A.getByText(/holds up to 6 people/).waitFor();
+    await A.getByRole('button', { name: 'How do I visit a friend?' }).click(); await A.getByText('I can’t open anyone’s room or let you in.').waitFor();
+    await shot(A, 'residence-assistant'); await closeDialog(A); pass('residence assistant: room privacy and visiting rules');
+    await talk('research-assistant', -54.2, 25, 'Ask about the Economic Simulation Lab', 'Tobi');
+    await A.getByRole('button', { name: 'Show me the stations' }).click(); await A.getByRole('button', { name: /Simulation Control/ }).click();
+    await A.getByText('Follow the gold marker to Station A, Simulation Control.').waitFor();
+    await place(A, -55, 19.8, 0); await until(A, () => window.__campusDebug.focus()?.label === 'Use Market Operations'); pass('research assistant: guides to the lab stations, which still work');
+    await talk('orientation-guide', -15.4, 27.2, 'Talk to orientation guide', 'Zara');
+    await A.getByRole('button', { name: 'Start the campus tour' }).click(); await A.getByRole('button', { name: /Let’s go|Restart the campus tour/ }).click();
+    await A.getByText(/Tour started/).waitFor(); pass('orientation guide: starts the five-stop tour');
+    await talk('groundskeeper', -14.6, 20.2, 'Ask about the gardens', 'Mr Femi');
+    await A.getByRole('button', { name: 'What trees grow here?' }).click(); await A.getByText('Royal palms line the avenue from the gate').waitFor(); await closeDialog(A);
+    pass('groundskeeper: the campus trees, counted from the campus data');
     await A.context().close(); A = null;
   }
 

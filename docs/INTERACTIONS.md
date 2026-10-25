@@ -59,6 +59,10 @@ Three hinged doors open: the double glass doors of the library and the café, an
 
 Decorative objects (shelves, plants, signs, lamps) offer no actions.
 
+## Campus characters
+
+Ten scripted characters work in these places ([campus characters](NPCS.md)). Their prompts (**Talk to teacher**, **Ask librarian**, **Talk to coach**, …) join the same single prompt, ranked like any fixture by distance and facing, within each character's talk range and in plain sight (you can talk across the café counter or the issue desk, not through a wall or a closed door). They are not offered while holding a ball, seated or airborne. A conversation is a panel: movement pauses while it is open and resumes when it closes, and closing it ends the conversation. While the vendor is on duty she answers the counter's own **Order at the counter** prompt with the same order form; below her threshold (40 % café completion) the counter works on its own as before. Orders from either are numbered by the room, once per attempt.
+
 ## Basketball
 
 1. **E — Pick up basketball** near a ball (two balls rest by the court entrance). The server grants possession to one player at a time.
