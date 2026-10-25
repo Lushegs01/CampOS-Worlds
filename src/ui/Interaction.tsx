@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, BookOpen, CircleDot, Coffee, LogOut, Monitor, RotateCcw, Search } from 'lucide-react';
 import { POINTS } from '../../shared/interactions.mjs';
+import { CAFE_MENU, MENU_BY_ID } from '../../shared/cafe.mjs';
+import { placeOrder } from '../npc/client';
 import { player, useGame } from '../state';
 import { activate, cancelCharge, drop, releaseShot, startCharge } from '../interaction/controller';
 import { request, useInteraction, world } from '../interaction/world';
@@ -57,21 +59,39 @@ export function TouchInteract() {
 }
 
 // ------------------------------------------------------------------ fixture panels
-const MENU = [['Jollof rice bowl', 'Smoky party-style jollof, plantain, coleslaw', 2500], ['Plantain bites', 'Sweet dodo with pepper sauce', 1200], ['Moi moi', 'Steamed bean pudding, egg', 900], ['Puff-puff (6)', 'Warm and dusted with sugar', 600], ['Zobo', 'Chilled hibiscus with ginger and pineapple', 700], ['Chapman', 'Citrus, cucumber and bitters', 900], ['Coffee', 'Single origin from the Mambilla Plateau', 1000]] as const;
 const naira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
-const BOOKS = [['Design for Everyday Belonging', 'A. Oyelaran', 'How small choices in shared places help newcomers feel at home.'], ['The Patient Builder', 'K. Eze', 'Notes on making things slowly and well, from furniture to software.'], ['Rivers of the Delta', 'T. Briggs', 'A field guide to the creeks, mangroves and the people who know them.'], ['Questions Worth Asking', 'F. Bello', 'A short book about curiosity, method and changing your mind.'], ['Lagos After Rain', 'M. Adeyemi', 'Photographs of a city washed clean, one morning at a time.']] as const;
+export const BOOKS = [['Design for Everyday Belonging', 'A. Oyelaran', 'How small choices in shared places help newcomers feel at home.'], ['The Patient Builder', 'K. Eze', 'Notes on making things slowly and well, from furniture to software.'], ['Rivers of the Delta', 'T. Briggs', 'A field guide to the creeks, mangroves and the people who know them.'], ['Questions Worth Asking', 'F. Bello', 'A short book about curiosity, method and changing your mind.'], ['Lagos After Rain', 'M. Adeyemi', 'Photographs of a city washed clean, one morning at a time.']] as const;
 
-function Counter() {
-  const [order, setOrder] = useState<string[]>([]), [placed, setPlaced] = useState<number | null>(null), s = useGame();
-  const total = order.reduce((sum, name) => sum + (MENU.find(m => m[0] === name)?.[2] ?? 0), 0);
-  if (placed) return <div className="fixture-order"><Coffee size={30} /><h3>Order #{placed} is being prepared.</h3><p>{order.join(' · ')}</p><p className="muted small-text">Demo order only: nothing is charged and no payment details are ever requested.</p><button className="secondary" onClick={() => { setOrder([]); setPlaced(null); }}>Order something else</button></div>;
+/** A fresh id for one order attempt (the room keeps the order it placed for it, so a retry cannot place a second). */
+const orderAttempt = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+/**
+ * The café's demo ordering, at the counter fixture or from the vendor (`via`). Online, the room numbers the
+ * order and calls it when ready; offline, the same rules run on this device. A failure is shown as one: the
+ * order is only "being prepared" once it has actually been placed.
+ */
+export function Counter({ via = 'counter' }: { via?: 'counter' | 'vendor' }) {
+  const [order, setOrder] = useState<string[]>([]), [placed, setPlaced] = useState<{ number: number; items: string[]; served: boolean } | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const attempt = useRef('');
+  const total = order.reduce((sum, id) => sum + (MENU_BY_ID.get(id)?.price ?? 0), 0);
+  const change = (next: string[]) => { setOrder(next); attempt.current = ''; setError(''); };
+  async function submit() {
+    attempt.current ||= orderAttempt(); setBusy(true); setError('');
+    const r = await placeOrder(order, via, attempt.current);
+    setBusy(false);
+    if (!r.ok || r.number == null) { setError(r.reason ?? 'The order could not be placed. Nothing was ordered.'); return; }
+    attempt.current = ''; setPlaced({ number: r.number, items: r.items ?? order, served: !!r.served });
+    useGame.getState().notify(`Order #${r.number} placed (demo, no payment).`);
+  }
+  if (placed) return <div className="fixture-order"><Coffee size={30} /><h3>Order #{placed.number} is being prepared.</h3><p>{placed.items.map(id => MENU_BY_ID.get(id)?.name).join(' · ')}</p>{placed.served && <p className="small-text">Tolu is getting it ready at the counter. Your number is called when it’s done.</p>}<p className="muted small-text">Demo order only: nothing is charged and no payment details are ever requested.</p><button className="secondary" onClick={() => { change([]); setPlaced(null); }}>Order something else</button></div>;
   return <div><p>Choose a few things and the counter will call your number. This is a demonstration: there is no payment and nothing is charged.</p>
-    <div className="list-cards">{MENU.map(([name, text, price]) => { const n = order.filter(o => o === name).length; return <button key={name} onClick={() => setOrder([...order, name])}><span className="club-mark">{n || '+'}</span><span><b>{name}</b><small>{text}</small></span><span className="price">{naira(price)}</span></button>; })}</div>
-    <div className="fixture-total"><span>{order.length ? `${order.length} item${order.length > 1 ? 's' : ''} · ${naira(total)}` : 'Nothing chosen yet'}</span>{order.length > 0 && <button className="text-button" onClick={() => setOrder([])}>Clear</button>}
-      <button className="primary" disabled={!order.length} onClick={() => { const n = 10 + Math.floor(Math.random() * 80); setPlaced(n); setTimeout(() => useGame.getState().notify(`Order #${n} is ready at the café counter. Enjoy!`), 9000); s.notify(`Order #${n} placed (demo, no payment).`); }}>Place demo order<ArrowRight size={16} /></button></div></div>;
+    <div className="list-cards">{CAFE_MENU.map(({ id, name, detail, price }) => { const n = order.filter(o => o === id).length; return <button key={id} disabled={busy} onClick={() => change([...order, id])}><span className="club-mark">{n || '+'}</span><span><b>{name}</b><small>{detail}</small></span><span className="price">{naira(price)}</span></button>; })}</div>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <div className="fixture-total"><span>{order.length ? `${order.length} item${order.length > 1 ? 's' : ''} · ${naira(total)}` : 'Nothing chosen yet'}</span>{order.length > 0 && <button className="text-button" disabled={busy} onClick={() => change([])}>Clear</button>}
+      <button className="primary" disabled={!order.length || busy} onClick={() => void submit()}>{busy ? 'Placing order…' : 'Place demo order'}<ArrowRight size={16} /></button></div></div>;
 }
 
-function Computer() {
+/** The library's catalogue search (a fictional catalogue; holds are demo only). */
+export function Catalogue() {
   const [q, setQ] = useState(''), [held, setHeld] = useState('');
   const results = BOOKS.filter(([t, a, d]) => !q || `${t} ${a} ${d}`.toLowerCase().includes(q.toLowerCase()));
   return <div><label className="field"><span><Search size={14} /> Search the catalogue</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Title, author or subject" autoFocus /></label>
@@ -79,11 +99,14 @@ function Computer() {
     <p className="muted small-text">A fictional catalogue. No library account is connected and no records are kept.</p></div>;
 }
 
+/** The café's menu board. */
+export function MenuBoard() { return <div className="fixture-menu">{CAFE_MENU.map(({ id, name, detail, price }) => <div key={id} className="menu-row"><span><b>{name}</b><small>{detail}</small></span><i /><span>{naira(price)}</span></div>)}<p className="muted small-text">Sample menu. Order at the counter; demo only, no payments.</p></div>; }
+
 export function FixturePanel({ id }: { id: string }) {
   const p = POINTS.find(x => x.id === id); if (!p) return null;
-  if (p.kind === 'MENU') return <div className="fixture-menu">{MENU.map(([name, text, price]) => <div key={name} className="menu-row"><span><b>{name}</b><small>{text}</small></span><i /><span>{naira(price)}</span></div>)}<p className="muted small-text">Sample menu. Order at the counter; demo only, no payments.</p></div>;
+  if (p.kind === 'MENU') return <MenuBoard />;
   if (p.kind === 'COUNTER') return <Counter />;
-  if (p.kind === 'COMPUTER') return <Computer />;
+  if (p.kind === 'COMPUTER') return <Catalogue />;
   if (p.kind === 'BOOKS') return <div className="list-cards">{BOOKS.map(([t, a, d]) => <div key={t} className="book-card"><BookOpen size={20} /><span><b>{t}</b><small>{a}</small><p>{d}</p></span></div>)}</div>;
   if (p.kind === 'BOARD') return <div className="reading"><span className="eyebrow">STUDIO D1 · TODAY</span><h3>Make one corner of campus more welcoming.</h3><p>Pick a place you pass every day. Spend ten minutes watching how people use it, sketch one small change, then test it with a friend. Bring your sketch to the next studio.</p><p className="muted small-text">Demo classroom content. No attendance or credit is recorded.</p></div>;
   return null;

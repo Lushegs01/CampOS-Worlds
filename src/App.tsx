@@ -29,6 +29,8 @@ import { CalendarDays } from 'lucide-react';
 import { chime } from './interaction/sound';
 import { LabHud } from './economy/LabHud';
 import { usePwa } from './pwa/store';
+// Campus characters: subscribed before the room's welcome arrives (it carries who is on duty).
+import './npc/client';
 const World=lazy(()=>import('./world/World'));
 function CampusRecovery({ slow = false }: { slow?: boolean }) {
  const online=usePwa(s=>s.online);

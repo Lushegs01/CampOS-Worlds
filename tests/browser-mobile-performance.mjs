@@ -4,6 +4,7 @@
 //          PERF_SECONDS=s   seconds per sample (default 8)
 //          PERF_OUT=path    report path (default docs/mobile-performance-<label>.json)
 //          ASSERT_MOBILE_OPTIMIZED=1  production checks: Low skips high-detail downloads, versioned decoder
+//          PERF_QUERY=?qa-npcs=0      appended to the page address (QA builds: e.g. leave the campus characters out)
 // Without a GPU (Linux containers) Chromium renders with SwiftShader, so frame times there measure a CPU
 // rasterizer: compare runs made on the same machine only. Draw calls, triangles, textures, transfer size
 // and main-thread script time do not depend on the GPU.
@@ -14,7 +15,7 @@ import { launch, gpu } from './support/browser.mjs';
 
 const label = process.env.PERF_LABEL || 'after', base = process.env.TEST_URL || 'http://localhost:5173';
 const seconds = Number(process.env.PERF_SECONDS) || 8, botCount = Number(process.env.PERF_BOTS) || 0;
-const out = process.env.PERF_OUT || `docs/mobile-performance-${label}.json`;
+const out = process.env.PERF_OUT || `docs/mobile-performance-${label}.json`, query = process.env.PERF_QUERY || '';
 const browser = await launch();
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
 // A fresh profile on a phone starts on Low; make that explicit so runs are comparable.
@@ -77,7 +78,7 @@ async function walkAndTurn(name) {
 
 let bots = null;
 try {
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.goto(base + query, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 300000 });
   const readyMs = await page.evaluate(() => performance.now());
   await page.getByRole('button', { name: 'Enter campus', exact: true }).click();
@@ -88,7 +89,7 @@ try {
   const scene = await page.evaluate(() => window.__campusStats?.() ?? null);
   await mkdir('docs/screenshots/performance', { recursive: true });
   await page.screenshot({ path: `docs/screenshots/performance/mobile-${label}.png` });
-  const resources = await page.evaluate(() => { const r = performance.getEntriesByType('resource'); return { requests: r.length, transferredBytes: r.reduce((n, x) => n + x.transferSize, 0), decodedBytes: r.reduce((n, x) => n + x.decodedBodySize, 0) }; });
+  const resources = await page.evaluate(() => { const r = performance.getEntriesByType('resource'), characters = r.filter(x => /\/characters\/[^/]+\.glb/.test(x.name)); return { requests: r.length, transferredBytes: r.reduce((n, x) => n + x.transferSize, 0), decodedBytes: r.reduce((n, x) => n + x.decodedBodySize, 0), characterModels: characters.map(x => x.name.replace(/^.*\/characters\//, '').replace(/\?.*$/, '')), characterBytes: characters.reduce((n, x) => n + x.decodedBodySize, 0) }; });
   if (process.env.ASSERT_MOBILE_OPTIMIZED === '1') {
     const urls = await page.evaluate(() => performance.getEntriesByType('resource').map(r => r.name));
     assert.ok(!urls.some(u => /textures\/[^/]+\/(normal|arm)\.ktx2|\/PostFX-/.test(u)), 'Low fetched high-detail maps or post-processing');
@@ -101,7 +102,7 @@ try {
     bots?.stop(); bots = null; await page.close();
     const offline = await context.newPage(); offline.setDefaultTimeout(180000); offline.on('pageerror', e => errors.push(e.message));
     await offline.addInitScript(() => { const Real = window.WebSocket; window.WebSocket = function (url, p) { if (!String(url).endsWith('/ws')) return new Real(url, p); const fake = { readyState: 3, send() {}, close() {} }; setTimeout(() => fake.onclose?.({ code: 1006 }), 0); return fake; }; Object.assign(window.WebSocket, { OPEN: 1, CLOSED: 3 }); });
-    await offline.goto(base, { waitUntil: 'domcontentloaded' });
+    await offline.goto(base + query, { waitUntil: 'domcontentloaded' });
     await offline.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 300000 });
     await offline.getByRole('button', { name: 'Enter campus', exact: true }).click(); await offline.waitForTimeout(8000);
     const cdpOffline = await context.newCDPSession(offline); await cdpOffline.send('Performance.enable');
@@ -112,7 +113,7 @@ try {
   }
   const report = { date: new Date().toISOString(), label, url: base, browser: browser.version(), renderer, hardwareGpu: gpu, viewport: { width: 390, height: 844, deviceScaleFactor: 3 }, bots: botCount, secondsPerSample: seconds,
     environment: gpu ? 'Desktop Chrome, mobile viewport and touch emulation; no CPU or network throttling. Not a phone measurement.' : 'Linux container without a GPU: Chromium with SwiftShader (software WebGL), mobile viewport and touch emulation. Frame times measure a CPU rasterizer; not a phone measurement.',
-    readyMs: Math.round(readyMs), resources, samples, scene, errors };
+    query, readyMs: Math.round(readyMs), resources, samples, scene, errors };
   await mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true });
   await writeFile(out, JSON.stringify(report, null, 2));
   if (errors.length) throw new Error(errors.join('\n'));

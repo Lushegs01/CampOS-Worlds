@@ -38,6 +38,13 @@ Use a private connection/SSH tunnel for `GET /admin/status`. It reports connecti
 player counts, pending account/report work, report failures, slow-connection removals,
 rejected upgrades, maximum tick gap, memory and CPU counters. No access token or chat is
 returned. Protect all `/admin/*` routes at the network layer as well as with the token.
+
+`GET /admin/buildings` lists each staffed building's completion and availability and the campus
+characters on duty; `POST /admin/buildings` with `{"building":"studio-d1","completion":80}` (or
+`"available":false`) changes one on the live room until it restarts. `node scripts/ops/admin.mjs
+<origin> buildings | building <id> <0-100|open|closed>` wraps both. For a permanent change set
+`BUILDING_COMPLETION` (or the defaults in `shared/buildings.mjs`); see [campus characters](NPCS.md).
+`/admin/status` also reports `npcsOnDuty` and conversation/order counts (`npc`).
 Never expose the token in a frontend bundle, URL, screenshot, shell history or CI log.
 
 Configure external monitoring on the actual hosts: probe readiness every 30 seconds,

@@ -43,7 +43,7 @@ Enter immediately, or select **Make it you** to choose a name, skin tone, outfit
 | Drag the world with the mouse | Rotate camera |
 | Shift | Sprint |
 | Space | Jump; while holding a basketball, hold and release to shoot |
-| E | The action on the prompt: sit / stand, open / close a door, pick up a ball, use a fixture, explore a landmark |
+| E | The action on the prompt: sit / stand, open / close a door, pick up a ball, use a fixture, talk to a campus character, explore a landmark |
 | V | Events, clubs and challenges (also the dock's **Events** button) |
 | F | Friends, private messages, party and privacy (also the dock's **Friends** button) |
 | Q | Drop the ball |
@@ -53,6 +53,8 @@ Enter immediately, or select **Make it you** to choose a name, skin tone, outfit
 | Touch | Left joystick, right drag area, Jump, the contextual action button, and Shoot / Drop while holding a ball |
 
 At The Courts, the basketball panel offers free shooting and **Court Duel**: challenge a player on the court to a 60-second shootout, scored by the room's physics and rated for signed-in players ([rules](docs/COMPETITION.md)). Events → **Challenges** has the on-foot Courtyard Circuit and the Campus Loop drive. The People list lets you add friends, invite to a party, mute, block and report.
+
+Campus characters work in the buildings: a teacher in Studio D1, Tolu at the café counter, the librarian at the issue desk, a student services officer, an event host, the basketball coach, a residence assistant in Palm House, a research assistant in the Economic Simulation Lab, an orientation guide and a groundskeeper. Walk up and press **E** to talk; each one connects to what their place does (orders, the catalogue, events, map markers, Court Duel, rooms, the lab). They are scripted characters, never players, and appear once their building is complete enough ([campus characters](docs/NPCS.md)).
 
 The Welcome Pavilion starts the five-stop tour. Visit The Confluence, Adunni Learning Commons, The Student House and Horizon Auditorium to earn the Campus Compass badge. Walk through the library entrance to explore the shelves. Six golden keepsakes form a second, independent scavenger hunt. In Palm Residences, the door at the back of Palm House's common room leads to **your own room**: arrange its furniture on a floor plan, keep it private, or invite friends over ([your room](docs/DORM-ROOMS.md)). Sit on any bench or chair, open the library, café and Studio D1 doors and use what is inside, and play basketball with real ball physics at The Courts. See [interactions](docs/INTERACTIONS.md). Collectibles and badges are **gameplay only**.
 
@@ -81,6 +83,7 @@ Copy `.env.example` to `.env` if changing defaults. Keep server secrets out of `
 | `SUPABASE_ANON_KEY` | Room | Optional; public key used for token checks |
 | `BACHS_SECRET_KEY`, `BACHS_WEBHOOK_SECRET`, `PUBLIC_APP_URL` | Room | Optional; open the campus store (Bachs checkout and its webhook at `/shop/webhook`). **Server secrets** ([store](docs/STORE.md)) |
 | `SHOP_PRICE_CHARACTER`, `SHOP_PRICE_ITEM` | Room | `3000`, `1000`: store prices in whole naira |
+| `BUILDING_COMPLETION` | Room | Optional overrides of building completion, e.g. `studio-d1=70,courtyard-cafe=35`; campus characters work only in buildings complete enough for them ([campus characters](docs/NPCS.md)) |
 
 Brand, campus name, locations, collectibles and collision geometry are in `shared/campus.mjs`. Visual colours and interface typography are in `src/styles.css`. The original logo and avatar are procedural. Fonts are bundled with Fontsource, with system fallbacks.
 
@@ -100,6 +103,7 @@ src/analytics/      Opt-in statistics consent
 src/world/          Architecture, materials, vegetation, batching and lighting
 src/game/           Movement, camera, interactions and basketball
 src/avatar/         Replaceable animated procedural avatar
+src/npc/            Campus characters: scene, prompts, dialogue (the room's cast is in shared/npcs.mjs)
 src/network/        WebSocket connection lifecycle and typed UI state bridge
 src/ui/             HUD, overlays, map, profile, settings, social and touch controls
 src/config/         Service adapter boundary
@@ -116,7 +120,7 @@ The server simulates movement at 30 Hz and broadcasts at 15 Hz. Clients send dir
 
 ## Multiplayer and moderation
 
-This is one in-memory campus room. It contains actual connected clients, not NPCs masquerading as players. The server limits payloads, reads every client value with type checks (a fuzz test sends malformed messages of every type), normalizes input, validates cosmetics, enforces chat/emote/report budgets, checks origin/invitation and disconnects stale peers. A session that reconnects (a reload, or a phone changing networks before the room has noticed the old connection drop) takes its place back: the newest connection replaces the old one, and the player resumes where the room last had them, standing, for 45 seconds after leaving.
+This is one in-memory campus room. It contains actual connected clients, not NPCs masquerading as players: the campus characters are labelled as characters, hold no connection and are never listed or counted as players ([campus characters](docs/NPCS.md)). The server limits payloads, reads every client value with type checks (a fuzz test sends malformed messages of every type), normalizes input, validates cosmetics, enforces chat/emote/report budgets, checks origin/invitation and disconnects stale peers. A session that reconnects (a reload, or a phone changing networks before the room has noticed the old connection drop) takes its place back: the newest connection replaces the old one, and the player resumes where the room last had them, standing, for 45 seconds after leaving.
 
 Room chat and party chat are separate, labelled channels; private messages are a third, persistent channel in the Friends drawer and never appear in the chat panel. Account-level blocks are enforced by the room for chat and invitations in both directions. Guests cannot take staff-like names or fake the ✓ that marks signed-in players, and hidden direction-override characters are stripped from names and messages. Parties (up to 6, invite-only, 45-second reconnect grace) and meet-up travel live in the room's memory ([details](docs/SOCIAL.md)).
 
@@ -142,6 +146,7 @@ node tests/browser-reliability.mjs       # a failed character download, a silent
 node tests/browser-smoke.mjs             # welcome, avatar editor, walking, settings, phone layout
 node tests/browser-dorm.mjs              # your room in Palm House: enter, arrange, privacy, leave, phone
 node tests/browser-sound.mjs             # footsteps by surface, doors, sitting, the car, ambience, volume 0
+node tests/browser-npcs.mjs              # campus characters: thresholds, conversations, orders, phone, two browsers
 PERF_LABEL=after node tests/browser-mobile-performance.mjs   # phone-viewport benchmark (PERF_BOTS=n adds players)
 SOAK_SECONDS=300 node tests/browser-soak.mjs                 # GPU memory while players come and go
 node tests/browser-cpu-profile.mjs                           # main-thread script per frame on a phone viewport, and where it goes

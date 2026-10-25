@@ -93,6 +93,16 @@ benchmark.
 * The local Supabase stand-in implements only what the game uses; the migrations have not been
   applied to a hosted Supabase project (checklist in `docs/ACCOUNTS.md`).
 
+## Campus characters (done)
+
+Ten scripted campus characters with stable identities, role-specific appearances, routines,
+greetings, gaze and conversations that lead into existing features; on duty only once their
+building's configured completion reaches their threshold (teacher at 80 % of Studio D1, vendor at
+40 % of the café). Server-authoritative conversations and idempotent demo café orders; never counted
+or listed as players. Details, thresholds and measured results: `docs/NPCS.md`.
+**Not built:** characters as physical obstacles, schedules over a day (supported, unused),
+conversational AI (deliberately: dialogue is fixed text).
+
 ## Next milestone
 
 **Deploy against a real Supabase project and run a small closed play test.** Apply the
