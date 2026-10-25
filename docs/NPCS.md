@@ -131,7 +131,7 @@ Measured in a Linux cloud container (4 CPU cores, no GPU; Chromium renders WebGL
 
 - **Baseline before this change:** `npm run build` passed; `npm test` 206 / 206 passed.
 - **After:** `npm run typecheck` clean; `npm run build` passed; `npm test` **231 / 231 passed** (the 206 existing tests, 20 in `tests/npcs.test.mjs`, 5 in `tests/npcs-room.test.mjs`; the fuzz test now also sends malformed `npc` and `cafeOrder` messages). One earlier full run had three dorm-account tests fail because the embedded PostgreSQL did not start; the file passed alone and the whole suite passed on the next run.
-- **Real browsers** (`tests/browser-npcs.mjs`, development server): 14 / 14 checks passed with no page errors. GPU resources read after each of six teacher arrivals were identical every time (224 geometries, 123 textures, 42 shader programs).
+- **Real browsers** (`tests/browser-npcs.mjs` against the production QA bundle, `VITE_QA=1 vite build` served by `vite preview`, with its own room): **19 / 19 checks passed**, no page errors or unhandled rejections (`docs/screenshots/npcs/results.json`). GPU resources read after each of six teacher arrivals were identical every time (227 geometries, 122 textures, 42 shader programs): nothing accumulates. An earlier run against the development server passed the 14 checks it had then. Two intermediate failures were races in the test itself (a key press after a character had walked on, so it reached the next prompt, correctly) and were fixed in the test.
 
 Regression runs of the existing browser suites and the performance comparison follow below once complete.
 

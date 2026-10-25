@@ -1,6 +1,6 @@
 {
-  "at": "2026-10-25T16:30:45.979Z",
-  "base": "http://localhost:5173",
+  "at": "2026-10-25T16:57:05.648Z",
+  "base": "http://127.0.0.1:4173",
   "passed": [
     "teacher: prompt, conversation, turns to the player, design brief",
     "closing the dialogue restores movement",
@@ -13,6 +13,11 @@
     "the New Arrivals display still works",
     "coach: no prompt while holding a ball; afterwards a conversation about shooting",
     "after switching graphics quality, characters are drawn and talk as before",
+    "event host: a truthful “not set up” state instead of invented events; directions to the noticeboard",
+    "residence assistant: room privacy and visiting rules",
+    "research assistant: guides to the lab stations, which still work",
+    "orientation guide: starts the five-stop tour",
+    "groundskeeper: the campus trees, counted from the campus data",
     "phone: touch Interact opens conversations; dialogues fit a 390 px screen without sideways scrolling",
     "two browsers: same cast, same places; characters are not in the People list or the online count",
     "online: the room starts and ends the conversation; the other browser sees both"
@@ -21,38 +26,38 @@
   "metrics": {
     "teacherCycles": [
       {
-        "geometries": 224,
-        "textures": 123,
+        "geometries": 227,
+        "textures": 122,
         "programs": 42
       },
       {
-        "geometries": 224,
-        "textures": 123,
+        "geometries": 227,
+        "textures": 122,
         "programs": 42
       },
       {
-        "geometries": 224,
-        "textures": 123,
+        "geometries": 227,
+        "textures": 122,
         "programs": 42
       },
       {
-        "geometries": 224,
-        "textures": 123,
+        "geometries": 227,
+        "textures": 122,
         "programs": 42
       },
       {
-        "geometries": 224,
-        "textures": 123,
+        "geometries": 227,
+        "textures": 122,
         "programs": 42
       },
       {
-        "geometries": 224,
-        "textures": 123,
+        "geometries": 227,
+        "textures": 122,
         "programs": 42
       },
       {
-        "geometries": 224,
-        "textures": 123,
+        "geometries": 227,
+        "textures": 122,
         "programs": 42
       }
     ],
@@ -69,23 +74,23 @@
         "orientation-guide": 1,
         "groundskeeper": 1
       },
-      "drawCalls": 332
+      "drawCalls": 474
     },
     "online": {
       "position": {
-        "x": -19.87124130546029,
+        "x": -19.875631281528737,
         "y": 0,
-        "z": 25.611213319781967
+        "z": 25.609495870321823
       },
-      "fps": 1,
-      "drawCalls": 260,
-      "triangles": 389736,
-      "textures": 154,
-      "geometries": 286,
+      "fps": 2,
+      "drawCalls": 249,
+      "triangles": 384180,
+      "textures": 153,
+      "geometries": 283,
       "quality": "low",
       "peers": [
         {
-          "id": "4ee76605-5242-4924-ad04-c34841b8b58f",
+          "id": "91a6d695-f42c-41fc-a9ec-85891a589de6",
           "x": 0,
           "z": 36
         }
