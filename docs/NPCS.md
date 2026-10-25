@@ -152,7 +152,25 @@ Measured in a Linux cloud container (4 CPU cores, no GPU; Chromium renders WebGL
 
 ### Measured effect
 
-Pending: the same benchmark with the characters left out (`?qa-npcs=0`) and in.
+`tests/browser-mobile-performance.mjs` (390 × 844, device scale 3, touch, Low quality) against the production QA bundle and its room, with the characters left out (`PERF_QUERY=?qa-npcs=0`) and in, alternated on the same machine, two runs each. The benchmark enters at the gate, samples standing, walking with the joystick for 8 s and standing again, then (offline, placed by the QA hook) the library, the café and the court. Raw reports: `docs/performance/npcs/`.
+
+This machine has **no GPU** (SwiftShader): its 1.5–3 FPS and frame times measure a CPU rasteriser, and the adaptive resolution settled at different scales in different runs (0.6–1.0), so **frame rate and frame time are not comparable here and no phone frame rate is claimed**. What does not depend on the GPU:
+
+| | Characters off | On, load radius 45 m (first version) | On, load radius 30 m (shipped) |
+|---|---:|---:|---:|
+| Character files downloaded in the session (gate + 8 s walk) | 3.24 MB (the player's own character and clip library) | 10.83 MB: six more characters and the second clip library | 5.71–7.98 MB: three more characters, and the second clip library in one run |
+| Draw calls / triangles, gate (standing, walking) | 135 / 319k, 132 / 325k | identical | identical |
+| Draw calls / triangles, library (librarian behind the camera) | 117 / 358k | identical | identical |
+| Draw calls / triangles, café (vendor in view) | 115 / 295k | 139 / 314k | 126 / 304k |
+| GPU textures (after the walk → after the court) | 69 → 75 | 92 → 136 | 81–82 → 113–114 |
+| JavaScript heap, range over the samples | 110–155 MB | 139–197 MB | 126–185 MB |
+
+- Off screen, characters cost nothing to draw: wherever none was in view, draw calls and triangles were identical with and without them.
+- One character in view costs about 11 draw calls and 10k triangles (body, accessory, contact shadow, name tag, prop). The 45 m version had two characters drawn in the café view.
+- The real cost is **downloads and memory**. The first version fetched 7.6 MB of character files during a one-minute walk, mostly for characters the player never came near, so the radii were cut to 30 / 55 / 85 m. Each character model is 0.75–1.05 MB, and the clip library of the other body type 2.4 MB, all cached afterwards and shared with other players' characters.
+- Heap figures move by tens of megabytes between runs on this machine; characters add roughly 10–40 MB while a few are loaded. Main-thread script time showed no consistent difference (noise between runs was larger than any effect).
+
+Not measured: a physical phone, GPU frame time, battery. See the checklist in [MOBILE-PERFORMANCE.md](MOBILE-PERFORMANCE.md).
 
 ## Limitations
 

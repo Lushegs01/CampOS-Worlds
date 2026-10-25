@@ -4,6 +4,14 @@ Target reported by the owner: **itel S24, Chrome** (a low-end Android phone). **
 been available to any round of this work.** Every figure below is browser emulation and must not be
 read as a phone frame rate.
 
+## 25 October 2026: campus characters
+
+Ten campus characters ([NPCS.md](NPCS.md)) reuse the players' rigs and level of detail. Same machine and caveats as below (SwiftShader, no phone), Low, 390 × 844, characters off (`PERF_QUERY=?qa-npcs=0`) and on, two runs each (`docs/performance/npcs/`):
+
+- Off screen they cost no draw calls; one in view costs about 11 draw calls and 10k triangles.
+- Downloads were the cost: 7.6 MB of character files in a one-minute walk from the gate with a 45 m load radius on Low. The radius is now 30 m on Low (55 m Medium, 85 m High): 2.5–4.7 MB more than without characters in the same walk.
+- Heap: roughly 10–40 MB more while a few are loaded (noisy on this machine). Frame rates are not comparable here.
+
 ## 18 October 2026: speed, hitches, data and phone fixes
 
 Same machine and caveats as the 15 October pass below (SwiftShader, no GPU, no phone). Production
