@@ -39,9 +39,12 @@ const drawn = (p, id) => until(p, i => { let n = 0; window.__campusScene.travers
 const groups = (p, id) => p.evaluate(i => { let n = 0; window.__campusScene.traverse(o => { if (o.name === 'npc:' + i) n++; }); return n; }, id);
 const gpu = p => p.evaluate(() => ({ ...window.__campusGL.info.memory, programs: window.__campusGL.info.programs?.length ?? 0 }));
 const noOverflow = async p => { const o = await p.evaluate(() => ({ doc: document.documentElement.scrollWidth - document.documentElement.clientWidth, modal: (m => m ? m.scrollWidth - m.clientWidth : 0)(document.querySelector('.modal-body')) })); assert.ok(o.doc <= 0 && o.modal <= 0, `${p.label}: horizontal overflow ${JSON.stringify(o)}`); };
-/** Stand facing a character and wait for its prompt while it is waiting at a stop (not about to walk off). */
+/**
+ * Stand facing a character, wait for its model, then for its prompt while it waits at a stop (not about to
+ * walk off): the key press that follows reaches it.
+ */
 async function approach(p, id, x, z, yaw, label) {
-  await place(p, x, z, yaw);
+  await place(p, x, z, yaw); await drawn(p, id);
   await until(p, ([i, l]) => { const n = window.__campusNpcs.list().find(c => c.id === i); return window.__campusDebug.focus()?.label === l && n && n.state !== 'walking' && n.state !== 'returning'; }, [id, label], 120000);
 }
 async function closeDialog(p) { await p.getByRole('button', { name: 'Close panel' }).click(); await until(p, () => !window.__campusInspect().panel && !window.__campusNpcs.talking()); }
@@ -57,7 +60,7 @@ try {
     assert.equal((await A.evaluate(() => window.__campusNpcs.list())).length, 10, 'the whole cast is on duty by default');
 
     // ---- Studio D1: the teacher (80 %).
-    await approach(A, 'teacher', 35.05, -40.3, 0, 'Talk to teacher'); await drawn(A, 'teacher');
+    await approach(A, 'teacher', 35.05, -40.3, 0, 'Talk to teacher');
     await A.keyboard.press('KeyE');
     await A.getByRole('heading', { name: 'Ms Ifeoma Okafor' }).waitFor();
     assert.equal((await npc(A, 'teacher')).state, 'interacting'); await facing(A, 'teacher');
@@ -98,7 +101,7 @@ try {
     // ---- Courtyard Café: the vendor (40 %) and the existing counter.
     await A.evaluate(() => window.__campusNpcs.setBuilding('courtyard-cafe', 60));
     // At the counter the familiar prompt is unchanged, and the vendor serves it: her conversation opens at the order form.
-    await approach(A, 'vendor', 26.5, -9.3, 0, 'Order at the counter'); await drawn(A, 'vendor');
+    await approach(A, 'vendor', 26.5, -9.3, 0, 'Order at the counter');
     assert.match((await focus(A)).hint, /Tolu/);
     await A.keyboard.press('KeyE'); await A.getByRole('heading', { name: 'Tolu' }).waitFor();
     await A.getByRole('button', { name: /Jollof rice bowl/ }).click(); await A.getByRole('button', { name: /Zobo/ }).click();
@@ -119,7 +122,7 @@ try {
     await A.evaluate(() => window.__campusNpcs.setBuilding('courtyard-cafe', 40)); await drawn(A, 'vendor'); pass('vendor absent at 39%, present at exactly 40%; the counter keeps working without her');
 
     // ---- Adunni Learning Commons: the librarian and the catalogue.
-    await approach(A, 'librarian', -22.6, -6.6, 0, 'Ask librarian'); await drawn(A, 'librarian');
+    await approach(A, 'librarian', -22.6, -6.6, 0, 'Ask librarian');
     await A.keyboard.press('KeyE'); await A.getByRole('heading', { name: 'Mrs Hauwa Musa' }).waitFor();
     await A.getByRole('button', { name: 'Find a book or subject' }).click();
     await A.getByPlaceholder('Title, author or subject').fill('river'); await A.getByText('Rivers of the Delta').waitFor();
@@ -144,7 +147,7 @@ try {
 
     // ---- Graphics quality: the cast survives the scene being rebuilt.
     await A.keyboard.press('Escape'); await A.getByRole('button', { name: /^medium/i }).click(); await A.getByRole('button', { name: /Back to campus/ }).click();
-    await approach(A, 'librarian', -22.6, -6.6, 0, 'Ask librarian'); await drawn(A, 'librarian');
+    await approach(A, 'librarian', -22.6, -6.6, 0, 'Ask librarian');
     await A.keyboard.press('KeyE'); await A.getByRole('heading', { name: 'Mrs Hauwa Musa' }).waitFor(); await closeDialog(A);
     pass('after switching graphics quality, characters are drawn and talk as before');
     metrics.offline = await A.evaluate(() => ({ spawns: window.__campusNpcs.spawns(), drawCalls: window.__campus?.drawCalls }));
@@ -154,7 +157,7 @@ try {
   if (want('roles')) {
     // Every other character's conversation once, offline: each leads somewhere real or says plainly what it can't do.
     A = await open('Ada QA', { offline: true });
-    const talk = async (id, x, z, label, name) => { await approach(A, id, x, z, 0, label); await drawn(A, id); await A.keyboard.press('KeyE'); await A.getByRole('heading', { name }).waitFor(); };
+    const talk = async (id, x, z, label, name) => { await approach(A, id, x, z, 0, label); await A.keyboard.press('KeyE'); await A.getByRole('heading', { name }).waitFor(); };
     await talk('event-host', 3.3, -28.4, 'Ask about campus events', 'Kemi');
     await A.getByRole('button', { name: 'What’s on?' }).click();
     await A.getByText(/accounts aren’t set up on this deployment, so there are no events to list/).waitFor();
@@ -179,7 +182,7 @@ try {
 
   if (want('phone')) {
     B = await open('Tobi QA', { mobile: true, offline: true });
-    await approach(B, 'services-officer', -19.9, 25.5, 0, 'Ask about services'); await drawn(B, 'services-officer');
+    await approach(B, 'services-officer', -19.9, 25.5, 0, 'Ask about services');
     await B.locator('.touch-action').tap(); await B.getByRole('heading', { name: 'Mr Chinedu Eze' }).waitFor();
     await B.getByRole('button', { name: 'Who’s working on campus today?' }).tap();
     await B.getByText('On duty at Studio D1').waitFor(); await B.getByText('On duty at Courtyard Café').waitFor();
@@ -208,7 +211,7 @@ try {
     // A walks to the services officer (normal movement, validated by the room) and talks to them.
     for (const [x, z] of [[-6, 31], [-19.9, 25.6]]) { await A.evaluate(([x, z]) => window.__campusDebug.walkTo(x, z), [x, z]); await until(A, () => !window.__campusDebug.walking(), null, 60000); }
     await A.evaluate(() => window.__campusDebug.face(Math.PI)); await drawn(A, 'services-officer');
-    await until(A, () => window.__campusDebug.focus()?.label === 'Ask about services', null, 60000); await A.keyboard.press('KeyE');
+    await until(A, () => window.__campusDebug.focus()?.label === 'Ask about services' && !['walking', 'returning'].includes(window.__campusNpcs.list().find(n => n.id === 'services-officer')?.state), null, 90000); await A.keyboard.press('KeyE');
     await A.getByRole('heading', { name: 'Mr Chinedu Eze' }).waitFor();
     await until(B, () => window.__campusNpcs.list().find(n => n.id === 'services-officer')?.mode === 'engaged', null, 10000);
     assert.equal((await npc(B, 'services-officer')).by.length, 1, 'the other browser sees the officer talking to one player');
