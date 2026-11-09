@@ -160,6 +160,9 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     connections.set(c.id, c);
     const rate = (key, max, windowMs = 1000) => { const t = Date.now(); const r = c.limits[key] ?? { at: t, n: 0 }; if (t - r.at >= windowMs) { r.at = t; r.n = 0; } c.limits[key] = r; return ++r.n <= max; };
     ws.on('pong', () => { c.alive = true; });
+    // Oversized or invalid frames make ws close the connection with an error event; without a listener
+    // that error would be thrown and stop the whole server.
+    ws.on('error', () => { try { ws.terminate(); } catch { /* already closed */ } });
     ws.on('message', data => {
       if (closing) return;
       // Commands arrive ~30 times a second; everything else is occasional.

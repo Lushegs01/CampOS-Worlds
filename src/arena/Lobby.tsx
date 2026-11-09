@@ -108,15 +108,20 @@ function Controls() {
 
 type BoardRow = { handle: string; display_name: string; rank: number; xp: number; level: number; emblem: string; kills: number; deaths: number; wins: number; matches: number; kd: number };
 function Rankings() {
-  const configured = useAccount(a => a.status !== 'unconfigured'), signedIn = useAccount(a => a.status === 'signed-in');
+  const configured = useAccount(a => a.status !== 'unconfigured'), signedIn = useAccount(a => a.status === 'signed-in'), userId = useAccount(a => a.userId);
+  const [history, setHistory] = useState<{ id: string; mode: string; map: string; ended_at: string; result: string; kills: number; deaths: number; assists: number; captures: number; xp: number; scores: number[]; team: number }[]>([]);
   const [board, setBoard] = useState<{ ranked: BoardRow[]; me: { xp: number; level: number; matches: number; rank: number | null } | null } | null>(null), [mine, setMine] = useState<Record<string, any> | null>(null), [err, setErr] = useState('');
   useEffect(() => {
     if (!configured) return;
     void getCommunityService().then(async svc => {
-      try { setBoard(await svc.arenaLeaderboard() as typeof board); if (signedIn) setMine(await svc.myArena() as Record<string, any>); }
+      try {
+        setBoard(await svc.arenaLeaderboard() as typeof board);
+        if (signedIn) setMine(await svc.myArena() as Record<string, any>);
+        if (signedIn && userId) setHistory(((await svc.arenaProfile(userId)) as { history?: typeof history } | null)?.history ?? []);
+      }
       catch (e) { setErr((e as Error).message); }
     });
-  }, [configured, signedIn]);
+  }, [configured, signedIn, userId]);
   if (!configured) return <div className="ar-empty"><Lock size={22} /><p>Rankings and statistics need accounts, which are not set up on this deployment. Matches still work.</p></div>;
   if (err) return <p className="ar-error">{err}</p>;
   if (!board) return <p className="ar-fine">Loading rankings…</p>;
@@ -126,6 +131,10 @@ function Rankings() {
     {mine?.weapons?.length > 0 && <table className="ar-table"><thead><tr><th>Weapon</th><th>Level</th><th>Eliminations</th><th>Headshots</th><th>Accuracy</th></tr></thead><tbody>
       {mine!.weapons.map((w: { weapon: string; level: number; kills: number; headshots: number; shots: number; hits: number }) => <tr key={w.weapon}><td>{WEAPON_BY_ID.get(w.weapon)?.name}</td><td>{w.level}</td><td>{w.kills}</td><td>{w.headshots}</td><td>{w.shots ? Math.round(w.hits / w.shots * 100) + '%' : '—'}</td></tr>)}</tbody></table>}
     {mine && <EmblemPicker level={st?.level ?? 1} current={mine.emblem} />}
+    {signedIn && <table className="ar-table" aria-label="Your recent matches"><thead><tr><th>Recent match</th><th>Result</th><th>Score</th><th>E</th><th>D</th><th>A</th><th>XP</th></tr></thead><tbody>
+      {history.length ? history.map(h => <tr key={h.id}><td>{MODES.find(m => m.id === h.mode)?.name} · {MAPS.find(m => m.id === h.map)?.name}<br /><small>{new Date(h.ended_at).toLocaleString()}</small></td>
+        <td className={h.result === 'win' ? 'ar-ok' : h.result === 'loss' ? 'ar-error' : ''}>{h.result === 'win' ? 'Victory' : h.result === 'loss' ? 'Defeat' : 'Draw'}</td><td>{h.scores[h.team]}–{h.scores[1 - h.team]}</td><td>{h.kills}</td><td>{h.deaths}</td><td>{h.assists}</td><td>+{h.xp}</td></tr>)
+        : <tr><td colSpan={7}>Your Quick Play matches will appear here.</td></tr>}</tbody></table>}
     <table className="ar-table"><thead><tr><th>#</th><th>Player</th><th>Level</th><th>XP</th><th>Wins</th><th>K/D</th></tr></thead><tbody>
       {board.ranked.length ? board.ranked.map(r => <tr key={r.handle}><td>{r.rank}</td><td><span style={{ color: EMBLEM_BY_ID.get(r.emblem)?.color }}>{EMBLEM_BY_ID.get(r.emblem)?.glyph}</span> {r.display_name} <small>@{r.handle}</small></td><td>{r.level}</td><td>{r.xp}</td><td>{r.wins}/{r.matches}</td><td>{r.kd}</td></tr>)
         : <tr><td colSpan={6}>No ranked players yet. Finish a Quick Play match while signed in to appear here.</td></tr>}</tbody></table>

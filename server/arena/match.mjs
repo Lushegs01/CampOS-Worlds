@@ -589,7 +589,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     // Scoreboard statistics once a second (eliminations, deaths, assists, score, objective play).
     if (tickCount % R.tickHz === 0) emitAll({ k: 'board', rows: players.map(p => [p.num, p.stats.kills, p.stats.deaths, p.stats.assists, p.stats.score, p.stats.captures + p.stats.defends]) });
     snapAcc += R.snapshotHz / R.tickHz;
-    if (snapAcc >= 1) { snapAcc -= 1; snapshot(now); }
+    // Events first: a snapshot must never overtake the spawn or elimination it reflects.
+    if (snapAcc >= 1) { snapAcc -= 1; flush(); snapshot(now); }
     lifecycle();
     flush();
   }

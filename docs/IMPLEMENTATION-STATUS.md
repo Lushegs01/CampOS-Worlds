@@ -111,3 +111,26 @@ analytics, and invite a real group to use friends, parties, Court Duel, one sche
 challenges for two weeks. The analytics report and player feedback will show which system people
 return for, and that should decide whether tournaments, team play or voice come
 next.
+
+## Combat Arena (done; see `docs/COMBAT-ARENA.md`)
+
+| Requirement | Status |
+|---|---|
+| Entry from the campus; campus unaffected | Done: dock → Arena; campus scene paused and campus keys ignored while open; campus suites still pass |
+| First-person controller (move, sprint, slide with cooldown, jump, crouch, collisions, stairs) | Done, shared server/client simulation at 60 Hz |
+| Shooting (hip, ADS, reload, switch, recoil, spread, rates, headshots, hit markers, effects, sounds) | Done; recoil and spread applied by the server's simulation |
+| Seven weapon classes, configurable, genuinely different | Done (13 weapons, tested to differ) |
+| Loadouts saved per account; earned unlocks; no pay-to-win | Done (database-validated; guests on device) |
+| Team Deathmatch and Domination, fully playable | Done (tested end to end, including in two browsers) |
+| Matchmaking, private matches, team balance, join in progress, disconnect/reconnect, forfeits | Done (per process; cross-process matchmaking not built) |
+| Training bots, clearly distinct | Done (Training only, tagged SIM) |
+| Two maps for competitive play | Done (Foundry Yard, Sim Quad; mirror-symmetric, tested) |
+| Scorestreaks (Recon Pulse, Supply Drop, Tactical Strike) with server validation | Done |
+| HUD, lobby, loadout editor, post-match screen | Done |
+| Authoritative networking: prediction, reconciliation, interpolation, lag compensation, interest management | Done (tested, including lossy and laggy clients) |
+| Multiple independent matches | Done (load-tested: 8 concurrent matches in one process) |
+| Keyboard/mouse, gamepad, touch | Done (touch verified in a phone viewport) |
+| Progression, statistics, match history, weapon levels, finishes, emblems, leaderboard | Done (persisted, idempotent, plausibility-checked) |
+| Low/Medium/High graphics with automatic default | Done |
+| Physical low-end phone verification | **Not done** (no device here; software-rendering measurement only) |
+| Cross-process matchmaking, ranked play, more modes, kill cams | Not built (follow-up) |

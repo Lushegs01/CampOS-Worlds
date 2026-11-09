@@ -18,6 +18,7 @@ import { useGame } from '../state';
 import { useArena, useBanners, emptyHud, type Loadout, type MatchView, type Progress } from './store';
 import { controls, buttons, axes } from './input';
 import { sfx } from './audio';
+import { QA_HOOKS } from '../qa';
 
 type Sim = ReturnType<typeof spawnState>;
 type Cmd = { seq: number; b: number; mx: number; mz: number; yaw: number; pitch: number };
@@ -390,3 +391,12 @@ export function eye(out: { x: number; y: number; z: number }) {
   return out;
 }
 export { direction, B };
+
+// QA builds only: read-only inspection for the browser suite (tests/browser-arena.mjs).
+if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arena = {
+  state: () => { const a = useArena.getState(); return { phase: a.phase, status: a.status, match: a.match && { id: a.match.id, kind: a.match.kind, code: a.match.code, state: a.match.state, players: a.match.players.length }, you: a.you, hud: a.hud }; },
+  remotes: () => [...live.remotes.values()].filter(r => (r.flags & 1) && r.seenAt).map(r => ({ num: r.num, team: r.team, x: r.pos.x, z: r.pos.z })),
+  /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
+  look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
+  self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, pending: live.pending.length } : null),
+};

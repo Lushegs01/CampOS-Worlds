@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => {
    injectManifest:{
     // Only the bounded launch shell. Never glob the 34 MB of models/textures/audio or any API data.
     globPatterns:['index.html','offline.html','offline.css','favicon.svg','icons/*.png','assets/*.{js,css,woff2}'],
+    // Combat Arena needs a connection anyway: campus-only players never download it, even in the background.
+    globIgnores:['assets/arena-*'],
     maximumFileSizeToCacheInBytes:2*1024*1024,
    },
   })],
@@ -52,6 +54,10 @@ export default defineConfig(({ mode }) => {
   preview:{port:4173,strictPort:true,proxy},
   // three.js and the renderer get a chunk of their own (React stays with the interface), so the welcome
   // screen paints while the 3D engine is still downloading instead of waiting for it.
-  build:{chunkSizeWarningLimit:1000,rollupOptions:{output:{manualChunks:id=>/node_modules[\\/](three|@react-three)[\\/]/.test(id)?'three':/node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/.test(id)?'react':undefined}}}
+  build:{chunkSizeWarningLimit:1000,rollupOptions:{output:{
+   // Combat Arena's lazily loaded chunks are named arena-* (the service worker leaves them out); chunking is unchanged.
+   chunkFileNames:c=>[c.facadeModuleId??'',...c.moduleIds].some(id=>/[\\/]src[\\/]arena[\\/]/.test(id))?'assets/arena-[name]-[hash].js':'assets/[name]-[hash].js',
+   assetFileNames:a=>[...(a.names??[]),a.name??''].some(n=>/^(ArenaApp|arena)\b/.test(n))?'assets/arena-[name]-[hash][extname]':'assets/[name]-[hash][extname]',
+   manualChunks:id=>/node_modules[\\/](three|@react-three)[\\/]/.test(id)?'three':/node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/.test(id)?'react':undefined}}}
  };
 });

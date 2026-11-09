@@ -1,9 +1,11 @@
 // Combat Arena, loaded only when a player opens it from the campus (its code and assets are a separate
 // chunk). While it is open the campus scene stops rendering and campus controls are paused; the player
 // keeps their campus connection, account and identity, and returns to the same spot.
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { X, Play, Settings2, Backpack, LogOut, Home, Users } from 'lucide-react';
 import { stopAmbience } from '../audio/ambience';
+import { closeSocial } from '../social/store';
+import { useCommunity } from '../community/store';
 import { useGame } from '../state';
 import { useArena, emptyHud } from './store';
 import { connect, disconnect, request } from './net';
@@ -21,8 +23,16 @@ export default function ArenaApp() {
   const phase = useArena(s => s.phase), map = useArena(s => s.match?.map), editor = useArena(s => s.editor), menu = useArena(s => s.menu), settings = useArena(s => s.settingsOpen), status = useArena(s => s.status);
   useEffect(() => {
     useArena.getState().set({ open: true, phase: 'lobby', error: '', hud: emptyHud() });
-    stopAmbience(); connect();
-    return () => { disconnect(); releaseAll(); useArena.getState().set({ open: false, phase: 'lobby', menu: false, editor: false, settingsOpen: false }); };
+    stopAmbience(); closeSocial(); useCommunity.getState().toggle(false); connect();
+    // Escape closes the arena's own sheets (and opens the pause menu while playing without pointer lock).
+    const esc = (e: KeyboardEvent) => {
+      if (e.code !== 'Escape') return;
+      const a = useArena.getState();
+      if (a.settingsOpen) a.set({ settingsOpen: false }); else if (a.editor) a.set({ editor: false });
+      else if (a.phase === 'match' && !controls.locked) a.set({ menu: !a.menu });
+    };
+    window.addEventListener('keydown', esc);
+    return () => { window.removeEventListener('keydown', esc); disconnect(); releaseAll(); useArena.getState().set({ open: false, phase: 'lobby', menu: false, editor: false, settingsOpen: false }); };
   }, []);
   const exit = () => { document.exitPointerLock?.(); useGame.getState().set({ panel: null }); };
   return <div className="ar-root" data-phase={phase}>
@@ -40,10 +50,12 @@ export default function ArenaApp() {
   </div>;
 }
 
-/** Desktop: a click captures the mouse (pointer lock) before play starts. */
+/** Desktop: a click captures the mouse (pointer lock) before play starts; the hint hides once it has. */
 function ClickToPlay() {
   const touch = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
-  if (touch || controls.locked || controls.gamepad) return null;
+  const [locked, setLocked] = useState(() => !!document.pointerLockElement);
+  useEffect(() => { const on = () => setLocked(!!document.pointerLockElement); document.addEventListener('pointerlockchange', on); return () => document.removeEventListener('pointerlockchange', on); }, []);
+  if (touch || locked || controls.gamepad) return null;
   return <LockHint />;
 }
 function LockHint() {
@@ -72,7 +84,7 @@ function ArenaSettings() {
   const slider = (label: string, key: 'mouse' | 'ads' | 'touch' | 'pad' | 'fov', min: number, max: number, stepv: number, fmt = (v: number) => v.toFixed(2)) =>
     <label className="ar-setting"><span>{label}<b>{fmt(s[key])}</b></span><input type="range" min={min} max={max} step={stepv} value={s[key]} onChange={e => set({ [key]: Number(e.target.value) })} /></label>;
   return <div className="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-settings-title"><div className="ar-sheet ar-settings">
-    <header><h2 id="ar-settings-title">Arena settings</h2><button className="ar-icon" aria-label="Close" onClick={() => useArena.getState().set({ settingsOpen: false })}><X size={18} /></button></header>
+    <header><h2 id="ar-settings-title">Arena settings</h2><button className="ar-icon" aria-label="Close settings" onClick={() => useArena.getState().set({ settingsOpen: false })}><X size={18} /></button></header>
     <fieldset><legend>Graphics</legend><div className="ar-chips">{(['low', 'medium', 'high'] as const).map(q => <button key={q} className={s.quality === q ? 'on' : ''} aria-pressed={s.quality === q} onClick={() => set({ quality: q })}>{q[0].toUpperCase() + q.slice(1)}</button>)}</div>
       <p className="ar-fine">Low suits most phones (no shadows, simple materials, fewer effects); High adds real-time shadows and full resolution. Chosen automatically on first visit.</p>
       {slider('Field of view', 'fov', 60, 100, 1, v => `${v}°`)}

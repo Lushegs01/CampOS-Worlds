@@ -11,7 +11,7 @@ import { startLocalSupabase } from './local-supabase.mjs';
 import { createRoom } from '../../server/room.mjs';
 import { createAccounts } from '../../server/accounts.mjs';
 
-export async function startStack({ name = 'stack', database, keep = false, webPort = 5175, roomPort = 3201, supabasePort = 54321, accessTtl = 3600, confirmEmail = false, vite = true } = {}) {
+export async function startStack({ name = 'stack', database, keep = false, webPort = 5175, roomPort = 3201, supabasePort = 54321, accessTtl = 3600, confirmEmail = false, vite = true, arena = {} } = {}) {
   const dir = join(tmpdir(), `campos-worlds-pg17-${name}`);
   const db = await startDatabase({ name, database, keep });
   // A stable signing secret keeps local sessions valid across restarts of the dev stack.
@@ -20,7 +20,7 @@ export async function startStack({ name = 'stack', database, keep = false, webPo
   if (keep) await writeFile(secretFile, jwtSecret);
   const supa = await startLocalSupabase({ pool: db.pool, port: supabasePort, jwtSecret, accessTtl, confirmEmail });
   const origins = [`http://127.0.0.1:${webPort}`, `http://localhost:${webPort}`];
-  const room = createRoom({ port: roomPort, origins, accounts: createAccounts({ url: supa.url, serviceKey: supa.serviceKey, anonKey: supa.anonKey }) });
+  const room = createRoom({ port: roomPort, origins, arena, accounts: createAccounts({ url: supa.url, serviceKey: supa.serviceKey, anonKey: supa.anonKey }) });
   await room.start();
   let web = null;
   if (vite) {

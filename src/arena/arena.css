@@ -220,7 +220,7 @@ html.ar-locked,html.ar-locked body{overflow:hidden;overscroll-behavior:none;touc
 .ar-tbtn.melee{right:106px;bottom:180px;width:42px;height:42px}.ar-tbtn.lethal{right:160px;bottom:150px;width:42px;height:42px}.ar-tbtn.tactical{right:176px;bottom:100px;width:42px;height:42px}
 .ar-tstreaks{position:absolute;right:max(14px,env(safe-area-inset-right));top:40%;display:flex;flex-direction:column;gap:8px}
 .ar-tstreaks .ar-tbtn{position:relative;background:linear-gradient(180deg,#f3cf8c,#d9a752)!important;color:#1b1406!important;animation:ar-pulse .7s infinite alternate}
-.ar-ttop{position:absolute;top:max(10px,env(safe-area-inset-top));right:calc(max(14px,env(safe-area-inset-right)) + 0px);display:flex;gap:8px;transform:translateY(140px)}
+.ar-ttop{position:absolute;top:calc(max(12px,env(safe-area-inset-top)) + 112px);left:max(14px,env(safe-area-inset-left));display:flex;gap:8px}
 .ar-tbtn.small{position:relative;width:40px;height:40px}
 .ar-tdead{position:absolute;inset:0;pointer-events:none}
 

@@ -374,3 +374,23 @@ test('a full match of twelve players: everyone receives state at the snapshot ra
     assert.ok(room.arena.status().matches.some(x => x.connected === 12));
   } finally { for (const c of people) c.ws.close(); }
 });
+
+test('malformed and hostile messages of every kind never break the arena', async () => {
+  const bad = [null, 1, 'x', [], {}, { toString: 1 }, { t: { toString: 1 } }, -1, 1e308, '9'.repeat(400), [[[[]]]], { a: 1 }];
+  const types = ['hello', 'c', 'ping', 'streak', 'loadout', 'queue', 'private', 'training', 'rejoin', 'leave', 'nonsense'];
+  const a = await client('Fuzz'), b = await client('Peer');
+  try {
+    await queue(a, 'dom', 'foundry'); await queue(b, 'dom', 'foundry');
+    for (const t of types) for (const v of bad) {
+      a.send({ t, ref: v, c: v, rt: v, id: v, loadout: v, mode: v, map: v, action: v, code: v, match: v, key: v, bots: v, difficulty: v, size: v, access: v, n: v });
+      await sleep(2);
+    }
+    a.ws.send('not json'); a.ws.send(JSON.stringify('a string')); a.ws.send(JSON.stringify([1, 2]));
+    a.ws.send(JSON.stringify({ t: 'c', c: Array.from({ length: 200 }, () => [1, 0, 0, 0, 0, 0]) }));
+    await sleep(300);
+    // Too many messages close that connection only; everyone else plays on.
+    assert.equal(b.ws.readyState, WebSocket.OPEN);
+    const pong = b.wait(m => m.t === 'pong', 2000, 'pong'); b.send({ t: 'ping', n: 1 }); await pong;
+    assert.ok(matchOf(b) && !matchOf(b).closed);
+  } finally { a.ws.close(); b.ws.close(); }
+});

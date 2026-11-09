@@ -65,7 +65,7 @@ export default function LoadoutEditor() {
     <div className="ar-chips">{list.map(x => <button key={x.id} disabled={x.unlock > level} className={value === x.id ? 'on' : ''} aria-pressed={value === x.id} onClick={() => set(x.id)} title={text?.(x)}>{x.name}{x.unlock > level && <span className="ar-lock"><Lock size={11} />{x.unlock}</span>}</button>)}</div>;
   return <div className="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-loadout-title">
     <div className="ar-sheet ar-loadout">
-      <header><div><span className="ar-eyebrow">LOADOUTS · LEVEL {level}</span><h2 id="ar-loadout-title">Build your loadout</h2></div><button className="ar-icon" aria-label="Close" onClick={close}><X size={18} /></button></header>
+      <header><div><span className="ar-eyebrow">LOADOUTS · LEVEL {level}</span><h2 id="ar-loadout-title">Build your loadout</h2></div><button className="ar-icon" aria-label="Close loadouts" onClick={close}><X size={18} /></button></header>
       <nav className="ar-slotbar">{slots.map((l, i) => <button key={i} className={i === index ? 'on' : ''} onClick={() => setIndex(i)}>{l.name}</button>)}</nav>
       <label className="ar-name">Name<input value={cur.name} maxLength={24} onChange={e => patch({ name: e.target.value })} /></label>
       <h3>Primary</h3>{pick('primary')}
