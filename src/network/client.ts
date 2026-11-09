@@ -17,6 +17,8 @@ export interface ProgressReply {kind:'keepsake'|'landmark'|'hoops'|'duel'|'check
 interface AccountBridge {access:()=>Promise<string|null>;verified:()=>boolean;onAuth:(m:AuthReply)=>void;onProgress:(m:ProgressReply)=>void}
 let bridge:AccountBridge|null=null;
 export function registerAccountBridge(b:AccountBridge){bridge=b;}
+/** The signed-in player's access token (null for guests): Combat Arena presents it to verify the same account. */
+export function accountAccess():Promise<string|null>{return bridge?bridge.access():Promise.resolve(null);}
 // Other layers (social, matches) subscribe to room messages here rather than being imported, which
 // keeps the network layer free of feature code. A synthetic {type:'disconnected'} marks a lost room.
 /** Our connection id in the room ('' when not connected). */

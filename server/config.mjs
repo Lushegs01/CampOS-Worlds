@@ -40,5 +40,8 @@ export function roomConfig(env = process.env) {
     labFile: privatePath('LAB_DATA_FILE', 'server/data/economic-lab.json'),
     analyticsDir: privatePath('ANALYTICS_DIR', 'server/data/analytics'), retentionDays: number('ANALYTICS_RETENTION_DAYS', 90, 1, 90),
     // Building completion overrides ("studio-d1=70,courtyard-cafe=35"; shared/buildings.mjs). Invalid values stop start-up.
-    buildings: parseCompletionOverrides(env.BUILDING_COMPLETION || '') };
+    buildings: parseCompletionOverrides(env.BUILDING_COMPLETION || ''),
+    // Combat Arena (server/arena): connections and simultaneous matches this process hosts, and where
+    // per-match combat logs go (one JSON-lines file per finished match; unset keeps them in memory only).
+    arena: { capacity: number('ARENA_CAPACITY', 400, 2, 5000), maxMatches: number('ARENA_MAX_MATCHES', 60, 1, 1000), logDir: env.ARENA_LOG_DIR ? privatePath('ARENA_LOG_DIR', '') : null } };
 }

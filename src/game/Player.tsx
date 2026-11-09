@@ -85,6 +85,8 @@ export default function Player() {
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches('input,textarea,select')) return; const s = useGame.getState();
+      // Combat Arena handles its own keys (including Escape for its menus) while it is open.
+      if (s.panel === 'arena') return;
       if (e.code === 'Escape') { cancelCharge(); if (s.panel) s.set({ panel: null }); else if (s.phase === 'playing') s.set({ panel: 'settings' }); document.exitPointerLock?.(); keys.clear(); return; }
       if (s.phase !== 'playing' || s.panel) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); keys.add(e.code);

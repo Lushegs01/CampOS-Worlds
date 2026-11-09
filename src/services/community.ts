@@ -63,6 +63,12 @@ export interface CommunityService {
   reportPlayer(user: string, reason: ReportReason, context: ReportContext, details?: string, message?: number | null): Promise<void>;
   // Court Duel rankings and history (read-only; results are written by the room server).
   duelLeaderboard(): Promise<unknown>;
+  /** Combat Arena (supabase/migrations/*_combat_arena.sql): public rankings and profiles, your own data and loadouts. */
+  arenaLeaderboard(): Promise<unknown>;
+  arenaProfile(user: string): Promise<unknown>;
+  myArena(): Promise<unknown>;
+  saveArenaLoadout(slot: number, loadout: Record<string, unknown>): Promise<unknown>;
+  setArenaEmblem(emblem: string): Promise<unknown>;
   duelHistory(user: string): Promise<unknown[]>;
   challengeBoard(challenge: string): Promise<{ best: (ProfileCard & { best_ms: number; completions: number; rank: number })[]; me: { best_ms: number; completions: number } | null }>;
 }
@@ -112,6 +118,7 @@ const unconfigured: CommunityService = {
   removeFriend: unavailable, blockPlayer: unavailable, unblockPlayer: unavailable, saveSocialSettings: unavailable, unreadSummary: unavailable,
   listConversations: unavailable, openConversation: unavailable, listMessages: unavailable, sendMessage: unavailable, markRead: unavailable, reportPlayer: unavailable,
   duelLeaderboard: unavailable, duelHistory: unavailable, challengeBoard: unavailable,
+  arenaLeaderboard: unavailable, arenaProfile: unavailable, myArena: unavailable, saveArenaLoadout: unavailable, setArenaEmblem: unavailable,
 };
 
 // Responses come from the SQL functions in supabase/migrations; check their top-level shape before
@@ -228,6 +235,11 @@ function supabaseService(client: SupabaseClient, publicKey: string): CommunitySe
     markRead: (conversation, upTo) => call<UnreadSummary>('mark_conversation_read', { p_conversation: conversation, p_up_to: upTo }, 'object'),
     reportPlayer: async (user, reason, context, details = '', message = null) => { await call('report_player', { p_user: user, p_reason: reason, p_context: context, p_details: details, p_message: message }, 'object'); },
     duelLeaderboard: () => call('duel_leaderboard', { p_limit: 50 }, 'object'),
+    arenaLeaderboard: () => call('arena_leaderboard', { p_limit: 50 }, 'object'),
+    arenaProfile: user => call('arena_profile', { p_user: user }, 'nullable'),
+    myArena: () => call('my_arena', {}, 'nullable'),
+    saveArenaLoadout: (slot, loadout) => call('save_arena_loadout', { p_slot: slot, p_loadout: loadout }, 'object'),
+    setArenaEmblem: emblem => call('set_arena_emblem', { p_emblem: emblem }, 'object'),
     duelHistory: user => call<unknown[]>('duel_history', { p_user: user, p_limit: 10 }, 'array'),
     challengeBoard: challenge => call('challenge_board', { p_challenge: challenge, p_limit: 5 }, 'object'),
   };

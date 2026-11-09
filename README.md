@@ -62,6 +62,12 @@ The campus sounds like a place: footsteps that change between paving, grass and 
 
 The campus also has a football field, cafeteria terrace, campus road, shuttle shelter, academic buildings, noticeboard and CampOS Connect service kiosk. Cars can leave the road and drive anywhere outdoors: across the courtyard lawns and paths, onto the football field and over open land between districts. Walls, trees, fences and people still stop them, and they never enter a building or your room or roll onto the fenced basketball court. There is no football game; basketball is the implemented sports activity. Library readings, club interest, events and service information are clearly labelled demonstrations.
 
+## Combat Arena
+
+An optional multiplayer first-person mode: dock → **Arena**. Team Deathmatch and Domination on two original maps (Foundry Yard, Sim Quad), thirteen weapons in seven classes, loadouts, equipment, perks, scorestreaks, Quick Play matchmaking, private matches by code, Training against clearly labelled bots, and persistent levels, weapon progression and rankings for signed-in players. Matches are authoritative on the server (clients send inputs only; hits are lag-compensated; enemies behind walls are withheld), run in isolated match instances, and the client predicts and reconciles. Keyboard and mouse, gamepads and touch screens are supported. Combat never touches campus gameplay. Details, measurements and test results: [Combat Arena](docs/COMBAT-ARENA.md).
+
+![Combat Arena](docs/screenshots/arena/elimination-feed.png)
+
 ## Configuration
 
 Copy `.env.example` to `.env` if changing defaults. Keep server secrets out of `VITE_` variables.
@@ -83,6 +89,7 @@ Copy `.env.example` to `.env` if changing defaults. Keep server secrets out of `
 | `SUPABASE_ANON_KEY` | Room | Optional; public key used for token checks |
 | `BACHS_SECRET_KEY`, `BACHS_WEBHOOK_SECRET`, `PUBLIC_APP_URL` | Room | Optional; open the campus store (Bachs checkout and its webhook at `/shop/webhook`). **Server secrets** ([store](docs/STORE.md)) |
 | `SHOP_PRICE_CHARACTER`, `SHOP_PRICE_ITEM` | Room | `3000`, `1000`: store prices in whole naira |
+| `ARENA_CAPACITY`, `ARENA_MAX_MATCHES`, `ARENA_LOG_DIR` | Room | `400`, `60`, unset: Combat Arena connections, simultaneous matches and per-match combat logs ([arena](docs/COMBAT-ARENA.md)) |
 | `BUILDING_COMPLETION` | Room | Optional overrides of building completion, e.g. `studio-d1=70,courtyard-cafe=35`; campus characters work only in buildings complete enough for them ([campus characters](docs/NPCS.md)) |
 
 Brand, campus name, locations, collectibles and collision geometry are in `shared/campus.mjs`. Visual colours and interface typography are in `src/styles.css`. The original logo and avatar are procedural. Fonts are bundled with Fontsource, with system fallbacks.
@@ -98,6 +105,9 @@ src/account/        Session, profile and multiplayer identity state (outside the
 src/community/      Events and clubs drawer state, event templates, check-in and reminders
 src/social/         Friends, private messages, parties, presence and places
 src/duel/           Court Duel client state (the room runs the match)
+src/arena/          Combat Arena client (lazily loaded): prediction, HUD, lobby, loadouts, touch/gamepad
+shared/arena/       Combat Arena simulation, physics, weapons, maps and rules shared by client and server
+server/arena/       Combat Arena matchmaking and isolated authoritative matches on /arena
 src/challenges/     Challenge runs mirrored from the room
 src/analytics/      Opt-in statistics consent
 src/world/          Architecture, materials, vegetation, batching and lighting
@@ -147,6 +157,8 @@ node tests/browser-smoke.mjs             # welcome, avatar editor, walking, sett
 node tests/browser-dorm.mjs              # your room in Palm House: enter, arrange, privacy, leave, phone
 node tests/browser-sound.mjs             # footsteps by surface, doors, sitting, the car, ambience, volume 0
 node tests/browser-npcs.mjs              # campus characters: thresholds, conversations, orders, phone, two browsers
+node tests/browser-arena.mjs             # Combat Arena: two signed-in players matched, eliminations, saved results, phone touch controls
+node scripts/qa/arena-load.mjs           # Combat Arena server load: concurrent full matches and bot matches
 PERF_LABEL=after node tests/browser-mobile-performance.mjs   # phone-viewport benchmark (PERF_BOTS=n adds players)
 SOAK_SECONDS=300 node tests/browser-soak.mjs                 # GPU memory while players come and go
 node tests/browser-cpu-profile.mjs                           # main-thread script per frame on a phone viewport, and where it goes

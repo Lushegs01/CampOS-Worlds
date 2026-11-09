@@ -42,7 +42,7 @@ Optional, and only with accounts. Follow [STORE.md](STORE.md):
 1. Run `npm ci && npm run build` in CI with Node 22.12+.
 2. Serve `dist/` over HTTPS with immutable caching for hashed assets. Return `index.html` for frontend routes and a real 404 for missing assets. Apply the security and cache headers in `public/_headers` through your server configuration; Nginx does not read that file.
 3. Run `npm run server` as a supervised process. Set `NODE_ENV=production`, `HOST=127.0.0.1`, `PORT=3001`, `ALLOWED_ORIGINS=https://worlds.example.edu`, a room invitation for a private demonstration, and a random server-only `ADMIN_TOKEN` of at least 32 characters. Run `npm run verify:production-config` in that environment first.
-4. Proxy `/ws` to that process, preserving the origin and WebSocket upgrade headers. Keep all `/admin/*` private to the operator. Persist `server/data/` for moderation, reports and lab storage. Route `/ready` and `/health` directly to the room for monitoring. See [the operations runbook](OPERATIONS.md).
+4. Proxy `/ws` and `/arena` (Combat Arena) to that process, preserving the origin and WebSocket upgrade headers. Keep all `/admin/*` private to the operator. Persist `server/data/` for moderation, reports and lab storage. Route `/ready` and `/health` directly to the room for monitoring. See [the operations runbook](OPERATIONS.md).
 5. Confirm two independent browsers can join, chat, leave, reconnect, and receive useful feedback for an incorrect invitation. Test using the public HTTPS origin, not localhost.
 
 Example Nginx configuration, with the actual domain and TLS configured by the operator:
@@ -87,6 +87,16 @@ location /ws {
     proxy_set_header Origin $http_origin;
     proxy_read_timeout 45s;
 }
+# Combat Arena matches (docs/COMBAT-ARENA.md): the same process, its own WebSocket path.
+location /arena {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header Origin $http_origin;
+    proxy_read_timeout 45s;
+}
 location = /ready {
     proxy_pass http://127.0.0.1:3001;
 }
@@ -97,7 +107,7 @@ location = /health {
 
 ## Separate frontend and room domains
 
-Build with `VITE_WS_URL=wss://room.example.edu/ws`, host the `dist/` files on a static host, and set `ALLOWED_ORIGINS` on the room server to the exact frontend HTTPS origin. `VITE_` variables are public build configuration, not secrets. Configure TLS and WebSocket proxying at the room host. The current single room must route all participants to the same process; blindly adding load-balanced replicas produces separate populations.
+Build with `VITE_WS_URL=wss://room.example.edu/ws` (Combat Arena then connects to `wss://room.example.edu/arena`; set `VITE_ARENA_URL` to host the arena elsewhere), host the `dist/` files on a static host, and set `ALLOWED_ORIGINS` on the room server to the exact frontend HTTPS origin. `VITE_` variables are public build configuration, not secrets. Configure TLS and WebSocket proxying at the room host. The current single room must route all participants to the same process; blindly adding load-balanced replicas produces separate populations.
 
 ## Docker room
 

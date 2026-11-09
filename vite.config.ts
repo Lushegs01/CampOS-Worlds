@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
  const site=new URL(env.SITE_URL||'https://camposworlds.click');
  if(site.protocol!=='https:'||site.username||site.password||site.pathname!=='/'||site.search||site.hash)throw new Error('SITE_URL must be an HTTPS origin, without a path, credentials, query or fragment.');
  const labData=normalizePath(resolve(env.LAB_DATA_FILE||'server/data/economic-lab.json'));
- const proxy={'/ws':{target:`ws://${room}`,ws:true},'/health':{target:`http://${room}`}};
+ const proxy={'/ws':{target:`ws://${room}`,ws:true},'/arena':{target:`ws://${room}`,ws:true},'/health':{target:`http://${room}`}};
  return {
   plugins:[react(),{
    name:'campus-public-metadata',
@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => {
    injectManifest:{
     // Only the bounded launch shell. Never glob the 34 MB of models/textures/audio or any API data.
     globPatterns:['index.html','offline.html','offline.css','favicon.svg','icons/*.png','assets/*.{js,css,woff2}'],
+    // Combat Arena needs a connection anyway: campus-only players never download it, even in the background.
+    globIgnores:['assets/arena-*'],
     maximumFileSizeToCacheInBytes:2*1024*1024,
    },
   })],
@@ -52,6 +54,10 @@ export default defineConfig(({ mode }) => {
   preview:{port:4173,strictPort:true,proxy},
   // three.js and the renderer get a chunk of their own (React stays with the interface), so the welcome
   // screen paints while the 3D engine is still downloading instead of waiting for it.
-  build:{chunkSizeWarningLimit:1000,rollupOptions:{output:{manualChunks:id=>/node_modules[\\/](three|@react-three)[\\/]/.test(id)?'three':/node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/.test(id)?'react':undefined}}}
+  build:{chunkSizeWarningLimit:1000,rollupOptions:{output:{
+   // Combat Arena's lazily loaded chunks are named arena-* (the service worker leaves them out); chunking is unchanged.
+   chunkFileNames:c=>[c.facadeModuleId??'',...c.moduleIds].some(id=>/[\\/]src[\\/]arena[\\/]/.test(id))?'assets/arena-[name]-[hash].js':'assets/[name]-[hash].js',
+   assetFileNames:a=>[...(a.names??[]),a.name??''].some(n=>/^(ArenaApp|arena)\b/.test(n))?'assets/arena-[name]-[hash][extname]':'assets/[name]-[hash][extname]',
+   manualChunks:id=>/node_modules[\\/](three|@react-three)[\\/]/.test(id)?'three':/node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/.test(id)?'react':undefined}}}
  };
 });

@@ -1,0 +1,38 @@
+{
+  "when": "2026-11-09T20:17:38.246Z",
+  "node": "v22.23.4",
+  "seconds": 20.1,
+  "setup": {
+    "quickPlayMatches": 4,
+    "playersPerMatch": 12,
+    "trainingMatches": 4,
+    "botsPerTraining": 9
+  },
+  "server": {
+    "mainThreadUtilisation": "30.9%",
+    "processCpuIncludingClientWorker": "61.5%",
+    "eventLoopDelayMs": {
+      "p50": 5.18,
+      "p99": 9.41,
+      "max": 33.01
+    },
+    "heapUsedMB": 28.6,
+    "rssMB": 178.7,
+    "matchesRunning": 8,
+    "connections": 52,
+    "shotsResolved": 3908,
+    "eliminations": 14
+  },
+  "clients": {
+    "people": 48,
+    "trainingViewers": 4,
+    "snapshotsPerSecond": {
+      "min": 20.1,
+      "mean": 20
+    },
+    "downloadKBps": {
+      "mean": 17.1,
+      "max": 18.6
+    }
+  }
+}

@@ -17,6 +17,7 @@ import { createDuels, DUEL_RULES } from './duels.mjs';
 import { createAnalytics } from './analytics.mjs';
 import { createModeration, validAccount } from './moderation.mjs';
 import { createChallenges } from './challenges.mjs';
+import { createArena } from './arena/service.mjs';
 import { createNpcService } from './npcs.mjs';
 import { TOUR } from '../shared/campus.mjs';
 import { DEFAULT_LAYOUT, DORM_CAPACITY, DORM_INVITE_MS, DORM_INSIDE, DORM_OUTSIDE, validateLayout, furnitureAllows, furnitureBlocked, inDormRoom, nearDormDoor } from '../shared/dorm.mjs';
@@ -31,7 +32,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const str=v=>typeof v==='string'?v:'',num=v=>typeof v==='number'?v:NaN;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
-export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',moderationFile=null,accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={},buildings={}}={}){
+export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',moderationFile=null,accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={},buildings={},arena:arenaSettings={}}={}){
  const clients=new Map(),bySocket=new WeakMap(),moderation=createModeration({file:moderationFile});let reportQueue=Promise.resolve(),closing=false,closePromise,ready=false,pendingReports=0;
  const retries=new Set(),startedAt=Date.now(),metrics={slowConnections:0,rejectedUpgrades:0,reportsSaved:0,reportFailures:0,ticks:0,maxTickGapMs:0};
  // Flush already accepted account writes before the process exits; network calls have their own
@@ -54,6 +55,9 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  const fleet=createFleet(),classes=createClasses();
  const world=createWorld();let worldRevision=world.revision;
  const economy=createEconomyService({file:labFile});
+ // Combat Arena (server/arena): its own endpoint (/arena), matches and capacity, sharing only the HTTP
+ // listener and account verification. Nothing of the campus room's state is visible to it.
+ const arena=createArena({accounts,...arenaSettings});
  // Court Duel: one match at a time on The Courts, scored by the room's own physics.
  const duels=createDuels({world,players:()=>joined(),byId:id=>clients.get(id),send:(c,m)=>send(c.ws,m),broadcast:m=>broadcast(m),describe,rules:duelRules,record:m=>recordDuel(m),
   onStart:d=>d.players.forEach(p=>analytics.track(p,'duel_started')),onFinish:d=>d.players.forEach(p=>analytics.track(p,'duel_completed',{outcome:d.result.outcome}))});
@@ -116,6 +120,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    const expected=Buffer.from('Bearer '+adminToken),actual=Buffer.from(req.headers.authorization??'');
    if(!adminToken||expected.length!==actual.length||!timingSafeEqual(expected,actual)){res.writeHead(403);res.end('{}');return;}
    if(req.url==='/admin/status'&&req.method==='GET'){res.end(JSON.stringify({ready,room:roomId,uptimeSeconds:Math.floor((Date.now()-startedAt)/1000),players:joined().length,connections:clients.size,capacity,pendingReports,pendingAccountCalls:accountJobs.size,bans:moderation.list().length,npcsOnDuty:npcs.director.npcs.size,npc:npcs.metrics,...metrics,memory:process.memoryUsage(),cpu:process.cpuUsage()}));return;}
+   if(req.url==='/admin/arena'&&req.method==='GET'){res.end(JSON.stringify(arena.status()));return;}
    if(req.url==='/admin/bans'&&req.method==='GET'){res.end(JSON.stringify({bans:moderation.list()}));return;}
    // Building completion (shared/buildings.mjs) and the campus characters on duty because of it. A change
    // applies to the live room until it restarts; set BUILDING_COMPLETION (or the defaults) to keep it.
@@ -370,6 +375,11 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   clients.delete(c.id);if(was)broadcast({type:'left',id:c.id});
  }
  http.on('upgrade',(req,socket,head)=>{
+  if(req.url==='/arena'){
+   if(closing||!ready){metrics.rejectedUpgrades++;socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nRetry-After: 5\r\nContent-Length: 0\r\n\r\n');return;}
+   if(!origins.includes(req.headers.origin)){metrics.rejectedUpgrades++;socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');return;}
+   arena.handleUpgrade(req,socket,head);return;
+  }
   if(closing||!ready||clients.size>=capacity){metrics.rejectedUpgrades++;socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nRetry-After: 5\r\nContent-Length: 0\r\n\r\n');return;}
   if(req.url!=='/ws'||!origins.includes(req.headers.origin)){metrics.rejectedUpgrades++;socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');return;}
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));
@@ -596,7 +606,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    try{await Promise.all([
     new Promise(resolve=>wss.close(()=>resolve())),
     new Promise(resolve=>http.close(()=>resolve())),
-    economy.close(),reportQueue,moderation.flush(),analytics.flush?.(),Promise.allSettled([...accountJobs]),
+    economy.close(),arena.close(),reportQueue,moderation.flush(),analytics.flush?.(),Promise.allSettled([...accountJobs]),
    ]);}finally{clearTimeout(socketDeadline);clearTimeout(httpDeadline);}
   })();return closePromise;
  }
@@ -607,6 +617,6 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    return http.address();
   }catch(error){await close();throw error;}
  }
- return {http,wss,clients,fleet,parties,duels,challenges,world,economy,moderation,npcs,start,close};
+ return {http,wss,arena,clients,fleet,parties,duels,challenges,world,economy,moderation,npcs,start,close};
 }
 function clean(value,max){return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,max):'';}

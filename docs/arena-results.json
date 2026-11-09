@@ -1,0 +1,63 @@
+{
+  "started": "2026-11-09T20:12:08.891Z",
+  "checks": [
+    {
+      "name": "both players open Combat Arena from the campus dock, signed in with their campus accounts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "loadout editor equips a weapon and saves it to the account",
+      "ok": true,
+      "detail": "arena_loadouts.primary_weapon = longbow"
+    },
+    {
+      "name": "Quick Play matches both players into one Team Deathmatch on opposite teams",
+      "ok": true,
+      "detail": "2b52af66-0146-40c1-8819-85ff46d5ba17"
+    },
+    {
+      "name": "each browser renders the other player where the server has them",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the shooter eliminates the other player twice; the server applies damage, eliminations and the score",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "victory and defeat screens; the result, experience and weapon statistics are saved",
+      "ok": true,
+      "detail": "xp 800, level 1"
+    },
+    {
+      "name": "the rankings list the player with their level and record",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "returning to campus restores normal campus play (walking works)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a phone plays Training with on-screen touch controls; the fire button fires",
+      "ok": true,
+      "detail": "ammo 30 → 29"
+    },
+    {
+      "name": "the touch movement stick moves the player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "phone layout keeps controls on screen without page scrolling",
+      "ok": true,
+      "detail": "44 fps on software (SwiftShader) rendering"
+    }
+  ],
+  "phoneFpsSoftwareRendering": 44,
+  "ok": true,
+  "finished": "2026-11-09T20:15:36.500Z"
+}
