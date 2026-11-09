@@ -8,9 +8,10 @@ permissions:
 concurrency:
   group: release-checks-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+# Pinned: ubuntu-latest became Ubuntu 26.04, where the pinned Playwright (1.58.2) cannot install browsers.
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
@@ -37,7 +38,7 @@ jobs:
           name: release-evidence
           path: docs/release/
   container:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
@@ -58,7 +59,7 @@ jobs:
           name: container-evidence
           path: docs/release/container.json
   capacity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
@@ -76,7 +77,7 @@ jobs:
           name: capacity-evidence
           path: docs/release/capacity.json
   account-engines:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     strategy:
       fail-fast: false
@@ -101,7 +102,7 @@ jobs:
           name: account-${{ matrix.engine }}-evidence
           path: docs/release/account-recovery-${{ matrix.engine }}.json
   arena-ui:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
@@ -124,7 +125,7 @@ jobs:
             docs/arena-results.json
             docs/screenshots/arena/
   account-ui:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
