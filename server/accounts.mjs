@@ -66,6 +66,11 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     dormLayout: id => service('dorm_layout', { p_user: id }),
     /** Save a room layout the room server has validated (shared/dorm.mjs). */
     saveDorm: (id, layout) => service('save_dorm_layout', { p_user: id, p_layout: layout }),
+    /** Combat Arena: experience, weapon statistics, saved loadouts and earned emblem (supabase/migrations/*_combat_arena.sql). */
+    arenaSnapshot: id => service('arena_snapshot', { p_user: id }),
+    /** A finished Combat Arena match, scored by the arena server. Idempotent on the match id, so retries are safe. */
+    recordArenaMatch: m => service('record_arena_match', { p_match: m.id, p_mode: m.mode, p_map: m.map, p_started_at: new Date(m.startedAt).toISOString(), p_ended_at: new Date(m.endedAt).toISOString(),
+      p_winner: m.winner, p_score_a: m.scores[0], p_score_b: m.scores[1], p_outcome: m.outcome, p_players: m.players }),
     /** A finished Court Duel between two signed-in players. Idempotent on the match id, so retries are safe. */
     recordDuel: m => service('record_duel', { p_match: m.id, p_player_a: m.a, p_player_b: m.b, p_score_a: m.scoreA, p_score_b: m.scoreB, p_outcome: m.outcome, p_forfeit_by: m.forfeitBy, p_started_at: new Date(m.startedAt).toISOString(), p_ended_at: new Date(m.endedAt).toISOString() }),
   };

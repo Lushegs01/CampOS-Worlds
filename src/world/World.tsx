@@ -240,7 +240,9 @@ const QA_SCALE = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(l
 // Memoised: the interface around the canvas re-renders on its own state; that must not reconcile the scene.
 export default memo(function World() {
   const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey], ceiling = QA_SCALE || Math.min(quality.dpr, window.devicePixelRatio || 1);
-  return <Canvas shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
+  // While Combat Arena is open the campus stays loaded but stops rendering (no GPU or CPU per frame).
+  const paused = useGame(s => s.panel === 'arena');
+  return <Canvas frameloop={paused ? 'never' : 'always'} shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
     gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.AgXToneMapping, toneMappingExposure: LIGHTING.exposure, stencil: false }}
     // The scene root never moves: without this every object's world matrix was recomputed every frame.
     onCreated={({ gl, scene }) => { gl.setClearColor('#b9c8d4'); scene.matrixAutoUpdate = false; }}>

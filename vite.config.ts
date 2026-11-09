@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
  const site=new URL(env.SITE_URL||'https://camposworlds.click');
  if(site.protocol!=='https:'||site.username||site.password||site.pathname!=='/'||site.search||site.hash)throw new Error('SITE_URL must be an HTTPS origin, without a path, credentials, query or fragment.');
  const labData=normalizePath(resolve(env.LAB_DATA_FILE||'server/data/economic-lab.json'));
- const proxy={'/ws':{target:`ws://${room}`,ws:true},'/health':{target:`http://${room}`}};
+ const proxy={'/ws':{target:`ws://${room}`,ws:true},'/arena':{target:`ws://${room}`,ws:true},'/health':{target:`http://${room}`}};
  return {
   plugins:[react(),{
    name:'campus-public-metadata',
