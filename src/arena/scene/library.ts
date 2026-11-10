@@ -30,7 +30,10 @@ export function loadLibrary(gl: THREE.WebGLRenderer, q: ArenaQuality): Promise<L
   }));
   const props = Promise.all(PROP_KEYS.map(async key => {
     const g = await loadModel(`arena/props/${key}.glb`);
-    g.scene.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; (m.material as THREE.MeshStandardMaterial).envMapIntensity = .9; } });
+    g.scene.traverse(o => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.castShadow = true; m.receiveShadow = true;
+      // Transmission (lamp glass) makes three.js draw the whole scene a second time every frame: use plain transparency.
+      const mat = m.material as THREE.MeshPhysicalMaterial; if (mat.transmission) { mat.transmission = 0; mat.transparent = true; mat.opacity = .4; mat.depthWrite = false; }
+    });
     const size = new THREE.Box3().setFromObject(g.scene).getSize(new THREE.Vector3());
     return [key, { scene: g.scene, size }] as const;
   }));

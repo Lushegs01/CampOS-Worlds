@@ -5,14 +5,18 @@
 //   characters/<id>.glb + <id>-<part>-b.ktx2 Microsoft Rocketbox military avatars (MIT): body, head, tactical
 //                                            equipment and helmet, in two team camouflage colourways
 //   manifest.json                            what was built, sizes, heights, licences
-// Run: node scripts/assets/build-arena.mjs [textures|props|characters]
+//   weapons/<id>.glb + <id>-lod.glb          first-person weapons and their third-person LODs (Sketchfab CC BY 4.0
+//                                            via the Objaverse mirror, Poly Haven CC0), normalised: muzzle at the
+//                                            origin, bore along −z, metres; named parts (body, mag, …) for animation
+//   weapons/arms.glb                         rigged first-person arms (CC BY 4.0)
+// Run: node scripts/assets/build-arena.mjs [textures|props|characters|weapons]
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRTextureBasisu } from '@gltf-transform/extensions';
-import { prune, dedup, weld, simplify, meshopt, center } from '@gltf-transform/functions';
+import { prune, dedup, weld, simplify, meshopt, center, flatten, join } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import { CACHE, OUT, ROOT, ensureDir, fetchCached, fetchJson, decodeTGA, encodeKTX2Batch, writeJSON, kb } from './common.mjs';
 
@@ -178,6 +182,140 @@ async function soldier(c) {
   return { id: c.id, body: c.body, height: +top.toFixed(3), parts: c.parts, teamB: c.parts.filter(p => CAMO.has(p)) };
 }
 
+// ---------------------------------------------------------------- weapons and first-person arms
+// Sketchfab models are fetched from the Objaverse mirror on Hugging Face (a public archive of CC-licensed
+// Sketchfab models, textures at 1k), so the build needs no account. `forward` is the muzzle direction in
+// the source file; `length` the overall length in metres; `parts` splits named nodes out for animation;
+// `drop` removes loose props that shipped in the source scene (cartridges, display stands).
+const OBJAVERSE = 'https://huggingface.co/datasets/allenai/objaverse/resolve/main';
+const sf = (uid, dir, title, author) => ({ uid, url: `${OBJAVERSE}/glbs/${dir}/${uid}.glb`, page: `https://sketchfab.com/3d-models/${uid}`, title, author, license: 'CC BY 4.0' });
+export const WEAPONS = {
+  vanguard: { ...sf('429b6ef8516b46dca8992e78c4bf7a55', '000-105', 'SLR AR-15', 'AlexFinsher'), forward: '+z', length: .80 },
+  halcyon: { ...sf('9084c3bae8224d338103997bc3101480', '000-075', 'AK-74M Assault Rifle', 'FJH'), forward: '-z', length: .94, drop: /(^|\/)(Round|Shell)_/, parts: { mag: /(^|\/)Magazine_/ } },
+  wasp: { ...sf('c503d96157614fb78b5953d49e643b78', '000-043', 'HK MP5 (9mm submachine gun)', 'quick_loop'), forward: '-x', length: .68 },
+  kestrel: { ...sf('3d031dfeb2ad45beb19e89977225a631', '000-112', 'Saiga-9mm', 'rwroclav'), forward: '+x', length: .86, pca: true },
+  bastion: { ...sf('eea11de7e9d24b6683962b8388c319eb', '000-091', 'Remington 870 Police Magnum 12 Gauge Shotgun', '8sianDude'), forward: '-z', length: .98, dropMaterial: /12gauge/ },
+  rampart: { ...sf('7e472e24152246708cac8b6f1613c7a8', '000-061', 'M4 Super 90 (JW2) Brand-Friendly version', '8sianDude'), forward: '-z', length: 1.01, parts: { bolt: /(^|\/)bolt(\/|$)/ } },
+  longbow: { ...sf('e520b234140049e7890db0b6c29d3925', '000-009', 'Sniper rifle GameReady Free', 'pashtetuser'), forward: '-z', length: 1.2, parts: { mag: /LPmagazine_/ } },
+  talon: { ...sf('997840668e1e4c1384c7220563323085', '000-007', 'HK G28 Sniper Rifle', 'trolosqlfod'), forward: '+x', length: 1.08, parts: { mag: /Mag_1/ }, glass: /mat0\.00[56]/, finish: { roughness: .62, metalness: .25 } },
+  anvil: { ...sf('8c24d7374ea64bdab1c30f49c69d5ed8', '000-129', 'LMG', 'DJMaesen'), forward: '+z', length: 1.04, parts: { mag: /\/(mag|bulletholder\d*|bullet(_\d+)?)(\/|$)/ } },
+  sparrow: { ph: 'service_pistol', title: 'Service Pistol', forward: '?', length: .165 },
+  thorn: { ...sf('360c6276282e48109fcca66f31004d81', '000-118', 'Revolver .357 Magnum', 'Artem Goyko'), forward: '-x', length: .24 },
+  knife: { ...sf('5969d3423b6d42428d2f396441d99243', '000-146', 'Combat Knife', 'Aver1'), forward: '-x', length: .31 },
+  hammer: { ph: 'hatchet', title: 'Hatchet', forward: '?', length: .40 },
+};
+const ARMS = sf('e3c42c05b22944e5839deb8e003f0987', '000-013', 'First Person arms', 'DJMaesen');
+async function polyHavenDoc(id) {
+  const files = await fetchJson(`https://api.polyhaven.com/files/${id}`, path.join(PH, 'api', `files_${id}.json`));
+  const gltf = files.gltf['1k'].gltf, dir = ensureDir(path.join(PH, 'models', id));
+  const main = await fetchCached(gltf.url, path.join(dir, path.basename(gltf.url)));
+  for (const [rel, f] of Object.entries(gltf.include)) await fetchCached(f.url, path.join(dir, rel));
+  return io().read(main);
+}
+/** Recompress every texture of a document to KTX2 at `size`. */
+async function texturesToKtx2(doc, tmp, prefix, size) {
+  const root = doc.getRoot(), kinds = new Map();
+  for (const mat of root.listMaterials()) {
+    for (const t of [mat.getBaseColorTexture(), mat.getEmissiveTexture()]) if (t) kinds.set(t, 'color');
+    if (mat.getNormalTexture()) kinds.set(mat.getNormalTexture(), 'normal');
+    for (const t of [mat.getMetallicRoughnessTexture(), mat.getOcclusionTexture()]) if (t && !kinds.has(t)) kinds.set(t, 'linear');
+  }
+  const jobs = [], list = root.listTextures(); ensureDir(tmp);
+  for (const [i, tex] of list.entries()) {
+    const png = path.join(tmp, `${prefix}-${i}.png`), kind = kinds.get(tex) ?? 'linear', meta = await sharp(Buffer.from(tex.getImage())).metadata();
+    const dim = Math.min(size, 2 ** Math.round(Math.log2(Math.max(meta.width, meta.height))));
+    let img = sharp(Buffer.from(tex.getImage())).resize(dim, dim, { fit: 'fill' });
+    if (kind !== 'color') img = img.removeAlpha();
+    fs.writeFileSync(png, await img.png().toBuffer());
+    jobs.push({ in: png, out: path.join(tmp, `${prefix}-${i}.ktx2`), kind, quality: kind === 'normal' ? 230 : 190, force: true });
+  }
+  await encodeKTX2Batch(jobs);
+  doc.createExtension(KHRTextureBasisu).setRequired(true);
+  for (const [i, tex] of list.entries()) tex.setImage(new Uint8Array(fs.readFileSync(path.join(tmp, `${prefix}-${i}.ktx2`)))).setMimeType('image/ktx2').setURI(`${prefix}-${i}.ktx2`);
+}
+const mulPoint = (m, [x, y, z]) => [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
+async function weapon(id, spec, lod) {
+  const cache = ensureDir(path.join(CACHE, 'objaverse'));
+  const doc = spec.ph ? await polyHavenDoc(spec.ph) : await io().read(await fetchCached(spec.url, path.join(cache, `${spec.uid}.glb`)));
+  const root = doc.getRoot(), scene = root.listScenes()[0];
+  for (const a of root.listAnimations()) a.dispose();
+  // Name every mesh node by its full path so parts can still be recognised after flattening.
+  const pathOf = n => { const names = []; for (let c = n; c && c.getName; c = c.getParentNode?.()) names.unshift(c.getName()); return names.join('/'); };
+  const meshNodes = root.listNodes().filter(n => n.getMesh());
+  for (const n of meshNodes) n.setExtras({ path: pathOf(n) });
+  for (const n of meshNodes) {
+    if (spec.drop?.test(n.getExtras().path)) { n.setMesh(null); continue; }
+    if (spec.dropMaterial) { const mesh = n.getMesh(); for (const p of mesh.listPrimitives()) if (spec.dropMaterial.test(p.getMaterial()?.getName() ?? '')) mesh.removePrimitive(p); if (!mesh.listPrimitives().length) n.setMesh(null); }
+  }
+  for (const m of root.listMaterials()) {
+    const glass = spec.glass?.test(m.getName());
+    m.setAlphaMode(glass ? 'BLEND' : 'OPAQUE').setDoubleSided(false);
+    if (glass) m.setBaseColorFactor([.12, .16, .2, .45]).setRoughnessFactor(.05).setMetallicFactor(.2);
+    else { const c = m.getBaseColorFactor(); m.setBaseColorFactor([c[0], c[1], c[2], 1]); if (spec.finish && !m.getMetallicRoughnessTexture()) m.setRoughnessFactor(spec.finish.roughness).setMetallicFactor(spec.finish.metalness); }
+  }
+  await doc.transform(flatten());
+  const live = scene.listChildren().filter(n => n.getMesh());
+  // Orientation: muzzle to −z (yaw about +y), optionally squared up along the principal axis.
+  const points = function* (R) { for (const n of live) { const m = n.getWorldMatrix(); for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'), e = []; for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)); yield [w[0] * R[0] + w[2] * R[1], w[1], -w[0] * R[1] + w[2] * R[0]]; } } } };
+  let forward = spec.forward;
+  if (forward === '?') { let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9]; for (const p of points([1, 0])) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); } forward = mx[0] - mn[0] > mx[2] - mn[2] ? (spec.flip ? '+x' : '-x') : (spec.flip ? '+z' : '-z'); }
+  let yaw = { '-z': 0, '+z': Math.PI, '+x': Math.PI / 2, '-x': -Math.PI / 2 }[forward] + (spec.yaw ?? 0);
+  if (spec.pca) {
+    let n = 0, sx = 0, sz = 0, xx = 0, zz = 0, xz = 0; const R0 = [Math.cos(yaw), Math.sin(yaw)];
+    for (const p of points(R0)) { n++; sx += p[0]; sz += p[2]; xx += p[0] * p[0]; zz += p[2] * p[2]; xz += p[0] * p[2]; }
+    const cxx = xx / n - (sx / n) ** 2, czz = zz / n - (sz / n) ** 2, cxz = xz / n - sx * sz / n / n, a = .5 * Math.atan2(2 * cxz, czz - cxx); // angle of the long axis from +z toward +x
+    yaw += a;
+  }
+  const R = [Math.cos(yaw), Math.sin(yaw)];
+  let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (const p of points(R)) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); }
+  const len = mx[2] - mn[2], scale = spec.length / len;
+  // The bore: centre of the foremost 0.6 % of the weapon.
+  let bx = 0, by = 0, bn = 0; for (const p of points(R)) if (p[2] < mn[2] + len * .006) { bx += p[0]; by += p[1]; bn++; }
+  const c = [bx / bn + (spec.bore?.[0] ?? 0) / scale, by / bn + (spec.bore?.[1] ?? 0) / scale, mn[2]];
+  // Parts.
+  const holder = doc.createNode('weapon').setRotation([0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)]).setScale([scale, scale, scale]);
+  // p' = s (R p − c): rotate, then translate by −s c.
+  holder.setTranslation([-scale * c[0], -scale * c[1], -scale * c[2]]);
+  scene.addChild(holder);
+  const partNodes = new Map(), partBounds = {};
+  const partOf = n => { if (!lod) for (const [name, re] of Object.entries(spec.parts ?? {})) if (re.test(n.getExtras().path)) return name; return 'body'; };
+  for (const n of live) {
+    const name = partOf(n); let pn = partNodes.get(name); if (!pn) { pn = doc.createNode(name); partNodes.set(name, pn); holder.addChild(pn); }
+    pn.addChild(n);
+    const b = partBounds[name] ??= { min: [1e9, 1e9, 1e9], max: [-1e9, -1e9, -1e9] }, m = n.getMatrix(), e = [];
+    for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'); for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)), q = [(w[0] * R[0] + w[2] * R[1] - c[0]) * scale, (w[1] - c[1]) * scale, (-w[0] * R[1] + w[2] * R[0] - c[2]) * scale]; for (let k = 0; k < 3; k++) { b.min[k] = Math.min(b.min[k], q[k]); b.max[k] = Math.max(b.max[k], q[k]); } } }
+  }
+  for (const n of root.listNodes()) if (!n.getMesh() && n !== holder && !partNodes.has(n.getName()) && !n.listChildren().length) n.dispose();
+  let tris = 0; for (const m of root.listMeshes()) for (const p of m.listPrimitives()) tris += (p.getIndices()?.getCount() ?? p.getAttribute('POSITION').getCount()) / 3;
+  const target = lod ? 2600 : 60000, ratio = Math.min(1, target / tris);
+  await doc.transform(dedup(), join({ keepNamed: false }), weld(), ...(ratio < .98 ? [simplify({ simplifier: MeshoptSimplifier, ratio, error: lod ? .02 : .002, lockBorder: false })] : []), prune());
+  for (const [name, pn] of partNodes) pn.setName(name);
+  holder.setName('weapon');
+  await texturesToKtx2(doc, path.join(cache, 'baked'), `${id}${lod ? '-lod' : ''}`, lod ? 256 : 1024);
+  await doc.transform(prune({ keepExtras: false }), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  const out = path.join(ensureDir(path.join(ARENA, 'weapons')), `${id}${lod ? '-lod' : ''}.glb`);
+  await io().write(out, doc);
+  let after = 0; for (const m of root.listMeshes()) for (const p of m.listPrimitives()) after += p.getIndices().getCount() / 3;
+  const round = b => ({ min: b.min.map(v => +v.toFixed(4)), max: b.max.map(v => +v.toFixed(4)) });
+  if (!lod) {
+    console.log(`  ${id.padEnd(10)} ${Math.round(tris)} tris, ${root.listMeshes().length} meshes, ${root.listTextures().length} textures, ${kb(out)}  (${spec.title})`);
+    ledger.push({ asset: `arena/weapons/${id}.glb (+ ${id}-lod.glb)`, source: spec.ph ? `https://polyhaven.com/a/${spec.ph}` : spec.page, title: spec.title, license: spec.ph ? 'CC0 1.0' : spec.license, author: spec.ph ? 'Poly Haven' : spec.author, changes: 'Re-oriented and scaled, loose props removed, meshes merged, textures recompressed to KTX2; a simplified LOD was derived.', triangles: after });
+  }
+  return { id, triangles: after, bytes: fs.statSync(out).size, parts: Object.fromEntries(Object.entries(partBounds).map(([k, b]) => [k, round(b)])) };
+}
+async function arms() {
+  const cache = ensureDir(path.join(CACHE, 'objaverse'));
+  const doc = await io().read(await fetchCached(ARMS.url, path.join(cache, `${ARMS.uid}.glb`)));
+  for (const m of doc.getRoot().listMaterials()) m.setAlphaMode('OPAQUE').setDoubleSided(false);
+  await texturesToKtx2(doc, path.join(cache, 'baked'), 'arms', 1024);
+  await doc.transform(prune(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  const out = path.join(ensureDir(path.join(ARENA, 'weapons')), 'arms.glb');
+  await io().write(out, doc);
+  console.log(`  arms       ${kb(out)}  (${ARMS.title})`);
+  ledger.push({ asset: 'arena/weapons/arms.glb', source: ARMS.page, title: ARMS.title, license: ARMS.license, author: ARMS.author, changes: 'Textures recompressed to KTX2; posed at run time by inverse kinematics.' });
+}
+
 await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
 const only = process.argv[2];
 const manifestFile = path.join(ARENA, 'manifest.json');
@@ -185,6 +323,7 @@ const manifest = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manife
 if (!only || only === 'textures') { await textures(); manifest.textures = Object.keys(SURFACES); }
 if (!only || only === 'props') { manifest.props = []; for (const [k, spec] of Object.entries(PROPS)) manifest.props.push(await prop(k, spec)); }
 if (!only || only === 'characters') { manifest.characters = []; for (const c of SOLDIERS) manifest.characters.push(await soldier(c)); }
+if (!only || only === 'weapons') { manifest.weapons = []; const pick = process.argv[3]?.split(','); for (const [id, spec] of Object.entries(WEAPONS)) { if (pick && !pick.includes(id)) { const old = (JSON.parse(fs.readFileSync(manifestFile, 'utf8')).weapons ?? []).find(w => w.id === id); if (old) manifest.weapons.push(old); continue; } const full = await weapon(id, spec, false), low = await weapon(id, spec, true); manifest.weapons.push({ ...full, lodTriangles: low.triangles, lodBytes: low.bytes }); } await arms(); }
 manifest.licence = 'Textures and props: Poly Haven, CC0 1.0. Characters: Microsoft Rocketbox Avatar Library, MIT License (Copyright (c) 2020 Microsoft).';
 writeJSON(manifestFile, manifest);
 const ledgerFile = path.join(CACHE, 'ledger-arena.json');

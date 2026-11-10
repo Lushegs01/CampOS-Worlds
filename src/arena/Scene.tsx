@@ -54,11 +54,18 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => {
     let live2 = true;
     useArena.getState().set({ sceneReady: false });
-    loadLibrary(gl, q).then(l => { if (!live2) return; setLib(l); void loadSoldiers().then(k => { if (live2) setKits(k); }).catch(e => console.error('Arena characters could not load.', e)); })
+    loadLibrary(gl, q).then(l => { if (live2) setLib(l); })
       .catch(e => { console.error('Arena assets could not load.', e); useArena.getState().set({ error: 'The arena’s graphics could not be downloaded. Check your connection and try again.' }); });
     startAmbience();
     return () => { live2 = false; stopArenaAmbience(); setIndoor(0); };
   }, [gl, q]);
+  // Characters load after the world so the map appears first; the kits are cached for the page's lifetime.
+  useEffect(() => {
+    if (!lib) return;
+    let on = true;
+    loadSoldiers().then(k => { if (on) setKits(k); }).catch(e => console.error('Arena characters could not load.', e));
+    return () => { on = false; };
+  }, [lib]);
 
   // ---------------------------------------------------------------- environment, sky and lighting
   const world = useMemo(() => {
@@ -223,6 +230,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // ---------------------------------------------------------------- the frame
   const fwd = useMemo(() => new THREE.Vector3(), []), eyePos = useMemo(() => ({ x: 0, y: 0, z: 0 }), []), sample = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
   const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), stepDist = useRef(0), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
+  useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
   useEffect(() => { gl.info.autoReset = false; if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaGL = gl; return () => { gl.info.autoReset = true; }; }, [gl]);
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
@@ -275,7 +283,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // ---- players
     const t = live.playback.time(now), seenNums = new Set<number>();
     if (kits && lib) for (const r of live.remotes.values()) {
-      const dead = !!r.deadAt, visible = ((r.flags & 1) && r.seenAt && now - r.seenAt < 1000) || (dead && now - r.deadAt < 2600);
+      const dead = !!r.deadAt, visible = ((r.flags & 1) && r.seenAt && now - r.seenAt < 3000) || (dead && now - r.deadAt < 2600);
       let e = soldiers.current.get(r.num);
       const model = soldierModelFor(r.num);
       if (e && (e.s.team !== r.team || e.model !== model)) { scene.remove(e.s.root); e.s.dispose(); soldiers.current.delete(r.num); e = undefined; }

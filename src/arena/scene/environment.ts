@@ -164,8 +164,8 @@ function sandbags(geo: THREE.BufferGeometry, box: Box, list: THREE.Matrix4[]) {
   void geo;
 }
 /** A soft, pillowy bag: a rounded box with its faces puffed outward. */
-function bagGeometry() {
-  const g = new RoundedBoxGeometry(.56, .16, .34, 1, .06), p = g.attributes.position;
+function bagGeometry(detail: number) {
+  const g: THREE.BufferGeometry = detail ? new RoundedBoxGeometry(.56, .16, .34, 1, .06) : new THREE.BoxGeometry(.56, .16, .34, 2, 1, 1), p = g.attributes.position;
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); const k = 1 - Math.min(1, (x * x) / .08); p.setY(i, y * (1 + .18 * k)); p.setZ(i, z * (1 + .05 * k)); }
   g.computeVertexNormals(); worldUV(g, .6); return g;
 }
@@ -393,13 +393,13 @@ function backdrop(b: Builder, m: Mats, props: Props, map: Map3, lights: THREE.Ve
 
 // ---------------------------------------------------------------- dressing inside the map (never in walkable space)
 /** Small props against walls and on top of cover: lamps, power boxes, ammo, jerrycans. Purely decorative and flush with existing volumes. */
-function dressing(props: Props, map: Map3) {
+function dressing(props: Props, map: Map3, detail: number) {
   for (const box of map.boxes) {
     const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, h = y1 - y0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-    if ((box.mat === 'crate' || box.mat === 'barrier') && y0 < .1 && h < 1.5 && hash(cx, cz) > .45) {
+    if ((box.mat === 'crate' || box.mat === 'barrier') && y0 < .1 && h < 1.5 && hash(cx, cz) > (detail ? .45 : .75)) {
       props.place(hash(cz, cx) > .5 ? 'ammo' : 'jerrycan', cx + (hash(cx) - .5) * .5, y1, cz + (hash(cz) - .5) * .3, hash(cx, 7) * 6, 1, 1, 1);
     }
-    if ((box.mat === 'brick' || box.mat === 'perimeter') && y1 > 5 && h > 4) {
+    if (detail && (box.mat === 'brick' || box.mat === 'perimeter') && y1 > 5 && h > 4) {
       const alongX = x1 - x0 >= z1 - z0, L = alongX ? x1 - x0 : z1 - z0;
       for (let t = 5; t < L - 2; t += 16) {
         const inward = alongX ? (cz > 0 ? -1 : 1) : (cx > 0 ? -1 : 1);
@@ -450,11 +450,11 @@ export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality) {
     }
   }
   for (const d of map.deco ?? []) frame(b, m, d);
-  dressing(props, map);
+  dressing(props, map, q.detail);
   backdrop(b, m, props, map, lights);
   const objects: THREE.Object3D[] = [...b.meshes(q.shadows), ...props.meshes(lib, q.shadows), ground(lib, map, q)];
   if (bags.length) {
-    const inst = new THREE.InstancedMesh(bagGeometry(), m.sandbag, bags.length);
+    const inst = new THREE.InstancedMesh(bagGeometry(q.detail), m.sandbag, bags.length);
     bags.forEach((M, i) => inst.setMatrixAt(i, M)); inst.castShadow = q.shadows; inst.receiveShadow = true; inst.computeBoundingSphere(); objects.push(inst);
   }
   return { objects, lights };
