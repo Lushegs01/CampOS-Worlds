@@ -1,0 +1,143 @@
+{
+  "textures": [
+    "concreteWall",
+    "concreteFloor",
+    "road",
+    "gravel",
+    "dirt",
+    "brick",
+    "corrugated",
+    "rustyCorrugated",
+    "paintedMetal",
+    "metalPlate",
+    "plywood",
+    "planks",
+    "plaster",
+    "sandbag"
+  ],
+  "licence": "Textures and props: Poly Haven, CC0 1.0. Characters: Microsoft Rocketbox Avatar Library, MIT License (Copyright (c) 2020 Microsoft).",
+  "props": [
+    {
+      "key": "jersey",
+      "triangles": 1300,
+      "bytes": 625324
+    },
+    {
+      "key": "milCrate",
+      "triangles": 1710,
+      "bytes": 654916
+    },
+    {
+      "key": "oldCrate",
+      "triangles": 1530,
+      "bytes": 639336
+    },
+    {
+      "key": "ammo",
+      "triangles": 976,
+      "bytes": 144748
+    },
+    {
+      "key": "barrel",
+      "triangles": 1200,
+      "bytes": 197348
+    },
+    {
+      "key": "jerrycan",
+      "triangles": 1397,
+      "bytes": 245940
+    },
+    {
+      "key": "generator",
+      "triangles": 5838,
+      "bytes": 788280
+    },
+    {
+      "key": "wallLamp",
+      "triangles": 940,
+      "bytes": 368544
+    },
+    {
+      "key": "securityLight",
+      "triangles": 1421,
+      "bytes": 255176
+    },
+    {
+      "key": "powerBox",
+      "triangles": 3991,
+      "bytes": 249360
+    },
+    {
+      "key": "utilityBox",
+      "triangles": 1399,
+      "bytes": 185044
+    },
+    {
+      "key": "tyre",
+      "triangles": 900,
+      "bytes": 193456
+    },
+    {
+      "key": "propane",
+      "triangles": 1222,
+      "bytes": 202992
+    },
+    {
+      "key": "crate",
+      "triangles": 797,
+      "bytes": 581984
+    }
+  ],
+  "characters": [
+    {
+      "id": "soldier-m1",
+      "body": "m",
+      "height": 1.841,
+      "parts": [
+        "body",
+        "head",
+        "equipment",
+        "helmet",
+        "combat_knife"
+      ],
+      "teamB": [
+        "body",
+        "equipment",
+        "helmet"
+      ]
+    },
+    {
+      "id": "soldier-m2",
+      "body": "m",
+      "height": 1.847,
+      "parts": [
+        "body",
+        "head",
+        "equipment",
+        "helmet",
+        "pistol"
+      ],
+      "teamB": [
+        "body",
+        "equipment",
+        "helmet"
+      ]
+    },
+    {
+      "id": "soldier-f1",
+      "body": "f",
+      "height": 1.772,
+      "parts": [
+        "body",
+        "head",
+        "equipment",
+        "helmet"
+      ],
+      "teamB": [
+        "body",
+        "equipment",
+        "helmet"
+      ]
+    }
+  ]
+}

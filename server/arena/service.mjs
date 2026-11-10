@@ -22,7 +22,7 @@ const MAX_MESSAGE = 1536, MAX_HELLO = 6144;
 const str = v => (typeof v === 'string' ? v : '');
 const CODE = /^[A-HJ-NP-Z2-9]{6}$/;
 
-export function createArena({ accounts = { enabled: false }, capacity = 400, maxMatches = 60, rules = {}, logDir = null, log = console, clock = () => Date.now(), minRecordMs = 60000, autoTick = true } = {}) {
+export function createArena({ accounts = { enabled: false }, capacity = 400, maxMatches = 60, rules = {}, logDir = null, log = console, clock = () => Date.now(), minRecordMs = 60000, autoTick = true, slowCloseMs = 6000 } = {}) {
   const connections = new Map(), matches = new Map(), codes = new Map();
   const metrics = { matchesCreated: 0, matchesFinished: 0, recorded: 0, recordFailures: 0, rejected: 0 };
   let closing = false;
@@ -34,7 +34,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     const ws = c?.ws; if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (ws.bufferedAmount >= 65536) {
       const since = slowSince.get(ws) ?? Date.now(); slowSince.set(ws, since);
-      if (ws.bufferedAmount >= 262144 || Date.now() - since > 6000) { ws.close(1013, 'Connection too slow; reconnect'); return; }
+      if (ws.bufferedAmount >= 262144 * (slowCloseMs / 6000) || Date.now() - since > slowCloseMs) { ws.close(1013, 'Connection too slow; reconnect'); return; }
       if (transient) return; // a newer snapshot replaces this one; events are never dropped
     } else slowSince.delete(ws);
     ws.send(raw, { compress: raw.length >= 512 });

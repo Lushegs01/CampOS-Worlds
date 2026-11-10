@@ -36,6 +36,8 @@ interface Arena {
   /** Live scoreboard: num → [kills, deaths, assists, score, objective]. */
   board: Record<number, number[]>;
   result: MatchResult | null; progress: Progress | null; record: { state: string; reason: string | null } | null;
+  /** The 3D scene has its assets and is drawing. */
+  sceneReady: boolean;
   hud: Hud; menu: boolean; scoreboard: boolean; editor: boolean; settingsOpen: boolean;
   killedBy: { num: number | null; weapon: string | null } | null;
   settings: ArenaSettings;
@@ -47,7 +49,7 @@ export const emptyHud = (): Hud => ({ hp: 100, alive: false, respawnMs: 0, weapo
 export const useArena = create<Arena>()((set, get) => ({
   open: false, phase: 'lobby', status: 'idle', error: '', me: null, loadout: { ...PRESETS[0] }, loadouts: deviceLoadouts(), online: 0,
   match: null, you: null, feed: [], board: {}, result: null, progress: null, record: null,
-  hud: emptyHud(), menu: false, scoreboard: false, editor: false, settingsOpen: false, killedBy: null,
+  sceneReady: false, hud: emptyHud(), menu: false, scoreboard: false, editor: false, settingsOpen: false, killedBy: null,
   settings: readJson(SETTINGS_KEY, defaults()),
   set: v => set(v),
   setSettings: v => { const settings = { ...get().settings, ...v }; writeJson(SETTINGS_KEY, settings); set({ settings }); },

@@ -140,7 +140,7 @@ export function raySphere(ox, oy, oz, dx, dy, dz, cx, cy, cz, r, maxT) {
  * nearby boxes are tested. Returns { t, box, normal } for the first solid hit within maxT, or null.
  * Thin boxes are reported like any other; the caller decides about penetration via `skip`.
  */
-export function raycast(world, ox, oy, oz, dx, dy, dz, maxT, skip = null, out = { t: 0, box: null, normal: [0, 0, 0] }) {
+export function raycast(world, ox, oy, oz, dx, dy, dz, maxT, skip = null, out = /** @type {{ t: number, box: any, normal: number[], ground?: boolean }} */ ({ t: 0, box: null, normal: [0, 0, 0] })) {
   const [bx0, bz0] = world.bounds, cell = world.cell, cols = world.cols, rows = world.rows;
   const stamp = world.nextStamp();
   let best = maxT, hit = null; const n = [0, 0, 0];

@@ -19,7 +19,10 @@ function wall(out, { a0, a1, at, h, t = .5, alongZ = false, gaps = [], mat = 'co
   const pieces = [];
   let cursor = a0;
   const sorted = [...gaps].sort((p, q) => p[0] - q[0]);
+  // Render-only hints (window and door frames); never part of the collision world.
+  const deco = out.deco ??= [];
   for (const [g0, g1, gb = 0, gt = h] of sorted) {
+    deco.push({ ...(alongZ ? span(at - t / 2, g0, at + t / 2, g1, y + gb, y + gt, 'frame') : span(g0, at - t / 2, g1, at + t / 2, y + gb, y + gt, 'frame')), kind: gb > 0 ? 'window' : 'door', alongZ });
     if (g0 > cursor) pieces.push([cursor, g0, 0, h]);
     if (gb > 0) pieces.push([g0, g1, 0, gb]);
     if (gt < h) pieces.push([g0, g1, gt, h]);
@@ -49,6 +52,7 @@ function stairs(out, { x, z, dir, width, height, y = 0, mat = 'metal' }) {
 const mirrorX = b => ({ ...b, min: [-b.max[0], b.min[1], b.min[2]], max: [-b.min[0], b.max[1], b.max[2]] });
 /** Mirror boxes across z = 0. */
 const mirrorZ = b => ({ ...b, min: [b.min[0], b.min[1], -b.max[2]], max: [b.max[0], b.max[1], -b.min[2]] });
+const decoOf = (...lists) => lists.flatMap(([list, fn]) => (list.deco ?? []).map(fn ?? (d => d)));
 
 // ====================================================================================== Foundry Yard
 function foundry() {
@@ -96,6 +100,7 @@ function foundry() {
   half.push(box(-33, -6, .9, 6, 2.2, 0, 'barrier'), box(-33, 7, .9, 6, 2.2, 0, 'barrier'));
   const boxes = [...centre, ...half, ...half.map(mirrorX)];
   return {
+    deco: decoOf([centre], [half], [half, mirrorX]),
     id: 'foundry', name: 'Foundry Yard', blurb: 'An industrial training yard: a two-level warehouse at the centre, a container lane and gantry to the north, a pump house to the south.',
     bounds: [-40, -28, 40, 28], boxes,
     palette: { sky: '#9db7c9', horizon: '#e6d3b0', fog: '#c9c2b2', ground: '#7c776c', sun: '#ffe2b8', ambient: '#b8c4d2', sunDir: [-.45, .8, -.38] },
@@ -154,6 +159,7 @@ function quad() {
   const northAll = [...north];
   const boxes = [...centre, ...northAll, ...northAll.map(mirrorZ), ...half, ...half.map(mirrorX)];
   return {
+    deco: decoOf([centre], [north], [north, mirrorZ], [half], [half, mirrorX]),
     id: 'quad', name: 'Sim Quad', blurb: 'A simulated campus quadrangle: two-storey teaching blocks with balconies, a fountain court and shaded arcades.',
     bounds: [-36, -34, 36, 34], boxes,
     palette: { sky: '#86a9c9', horizon: '#f2d9a6', fog: '#d8cdb6', ground: '#6f8a5c', sun: '#ffd9a0', ambient: '#c6c2b4', sunDir: [.5, .75, .42] },

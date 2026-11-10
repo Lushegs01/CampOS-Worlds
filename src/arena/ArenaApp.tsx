@@ -37,6 +37,7 @@ export default function ArenaApp() {
   const exit = () => { document.exitPointerLock?.(); useGame.getState().set({ panel: null }); };
   return <div className="ar-root" data-phase={phase}>
     {phase === 'match' && map && <Suspense fallback={<div className="ar-loading">Loading the simulation…</div>}><Scene mapId={map} /></Suspense>}
+    {phase === 'match' && <SceneLoading />}
     {phase === 'match' && <Hud />}
     {phase === 'match' && <TouchControls />}
     {phase === 'match' && !menu && !editor && !settings && <ClickToPlay />}
@@ -50,6 +51,11 @@ export default function ArenaApp() {
   </div>;
 }
 
+/** Shown over the match until the arena's models and textures have arrived. */
+function SceneLoading() {
+  const ready = useArena(s => s.sceneReady);
+  return ready ? null : <div className="ar-loading ar-scene-loading"><span className="ar-eyebrow">COMBAT ARENA</span><strong>Deploying…</strong><i /><small>Loading the training ground</small></div>;
+}
 /** Desktop: a click captures the mouse (pointer lock) before play starts; the hint hides once it has. */
 function ClickToPlay() {
   const touch = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;

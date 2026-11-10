@@ -246,3 +246,9 @@ html.ar-locked,html.ar-locked body{overflow:hidden;overscroll-behavior:none;touc
 @media (pointer:coarse) and (max-height:430px){
   .ar-tbtns{transform:scale(.86);transform-origin:bottom right}.ar-stick{width:100px;height:100px;margin:-50px 0 0 -50px}
 }
+
+/* ------------------------------------------------------------- scene loading */
+.ar-scene-loading{z-index:4;flex-direction:column;gap:8px;display:flex;align-items:center;justify-content:center;background:radial-gradient(900px 500px at 50% 40%,#1a242b,#0b1013)}
+.ar-scene-loading strong{font:800 30px/1 'Manrope Variable',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--ar-text)}
+.ar-scene-loading i{width:220px;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--ar-gold),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:ar-load 1.1s linear infinite}
+@keyframes ar-load{from{background-position:-110px 0}to{background-position:220px 0}}
