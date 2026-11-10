@@ -219,23 +219,23 @@
     {
       "id": "kestrel",
       "triangles": 24320,
-      "bytes": 1536568,
+      "bytes": 1536608,
       "parts": {
         "body": {
           "min": [
-            -0.274,
-            -0.2795,
+            -0.0322,
+            -0.1845,
             0
           ],
           "max": [
-            0.0315,
-            0.0491,
+            0.0405,
+            0.1474,
             0.86
           ]
         }
       },
       "lodTriangles": 5402,
-      "lodBytes": 254756
+      "lodBytes": 254792
     },
     {
       "id": "bastion",
@@ -326,17 +326,17 @@
     },
     {
       "id": "talon",
-      "triangles": 27287,
-      "bytes": 1335264,
+      "triangles": 22235,
+      "bytes": 998832,
       "parts": {
         "body": {
           "min": [
-            -0.1265,
-            -0.2344,
+            -0.042,
+            -0.1683,
             0
           ],
           "max": [
-            0.1263,
+            0.0549,
             0.137,
             1.08
           ]
@@ -354,8 +354,8 @@
           ]
         }
       },
-      "lodTriangles": 25347,
-      "lodBytes": 821940
+      "lodTriangles": 20715,
+      "lodBytes": 646928
     },
     {
       "id": "anvil",
@@ -392,29 +392,41 @@
     },
     {
       "id": "sparrow",
-      "triangles": 27548,
-      "bytes": 931956,
+      "triangles": 7556,
+      "bytes": 707928,
       "parts": {
         "body": {
           "min": [
-            -0.0086,
-            -0.0417,
+            -0.0136,
+            -0.1007,
             0
           ],
           "max": [
-            0.0088,
-            0.1119,
-            0.165
+            0.0147,
+            0.0152,
+            0.2
+          ]
+        },
+        "slide": {
+          "min": [
+            -0.014,
+            -0.0131,
+            0.0609
+          ],
+          "max": [
+            0.0123,
+            0.0159,
+            0.1893
           ]
         }
       },
-      "lodTriangles": 6966,
-      "lodBytes": 189148
+      "lodTriangles": 2244,
+      "lodBytes": 106596
     },
     {
       "id": "thorn",
-      "triangles": 4825,
-      "bytes": 684340,
+      "triangles": 4661,
+      "bytes": 682168,
       "parts": {
         "body": {
           "min": [
@@ -429,8 +441,8 @@
           ]
         }
       },
-      "lodTriangles": 2600,
-      "lodBytes": 121784
+      "lodTriangles": 2599,
+      "lodBytes": 122352
     },
     {
       "id": "knife",
@@ -456,23 +468,23 @@
     {
       "id": "hammer",
       "triangles": 5250,
-      "bytes": 624692,
+      "bytes": 624792,
       "parts": {
         "body": {
           "min": [
-            -0.0506,
-            -1.0385,
+            -0.0175,
+            -0.0153,
             0
           ],
           "max": [
-            0.0492,
-            0.0691,
+            0.0183,
+            0.1293,
             0.4
           ]
         }
       },
       "lodTriangles": 2600,
-      "lodBytes": 97976
+      "lodBytes": 98076
     }
   ]
 }

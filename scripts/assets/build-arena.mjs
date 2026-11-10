@@ -197,12 +197,12 @@ export const WEAPONS = {
   bastion: { ...sf('eea11de7e9d24b6683962b8388c319eb', '000-091', 'Remington 870 Police Magnum 12 Gauge Shotgun', '8sianDude'), forward: '-z', length: .98, dropMaterial: /12gauge/ },
   rampart: { ...sf('7e472e24152246708cac8b6f1613c7a8', '000-061', 'M4 Super 90 (JW2) Brand-Friendly version', '8sianDude'), forward: '-z', length: 1.01, parts: { bolt: /(^|\/)bolt(\/|$)/ } },
   longbow: { ...sf('e520b234140049e7890db0b6c29d3925', '000-009', 'Sniper rifle GameReady Free', 'pashtetuser'), forward: '-z', length: 1.2, parts: { mag: /LPmagazine_/ } },
-  talon: { ...sf('997840668e1e4c1384c7220563323085', '000-007', 'HK G28 Sniper Rifle', 'trolosqlfod'), forward: '+x', length: 1.08, parts: { mag: /Mag_1/ }, glass: /mat0\.00[56]/, finish: { roughness: .62, metalness: .25 } },
+  talon: { ...sf('997840668e1e4c1384c7220563323085', '000-007', 'HK G28 Sniper Rifle', 'trolosqlfod'), forward: '+x', length: 1.08, drop: /Bipod_4/, parts: { mag: /Mag_1/ }, glass: /mat0\.00[56]/, finish: { roughness: .62, metalness: .25 } },
   anvil: { ...sf('8c24d7374ea64bdab1c30f49c69d5ed8', '000-129', 'LMG', 'DJMaesen'), forward: '+z', length: 1.04, parts: { mag: /\/(mag|bulletholder\d*|bullet(_\d+)?)(\/|$)/ } },
-  sparrow: { ph: 'service_pistol', title: 'Service Pistol', forward: '?', length: .165 },
-  thorn: { ...sf('360c6276282e48109fcca66f31004d81', '000-118', 'Revolver .357 Magnum', 'Artem Goyko'), forward: '-x', length: .24 },
+  sparrow: { ph: 'service_pistol', title: 'Service Pistol', forward: '+x', length: .2, drop: /_b$|magazine|bullet/, parts: { slide: /slide_a/ } },
+  thorn: { ...sf('360c6276282e48109fcca66f31004d81', '000-118', 'Revolver .357 Magnum', 'Artem Goyko'), forward: '-x', length: .24, cullAbove: .045 },
   knife: { ...sf('5969d3423b6d42428d2f396441d99243', '000-146', 'Combat Knife', 'Aver1'), forward: '-x', length: .31 },
-  hammer: { ph: 'hatchet', title: 'Hatchet', forward: '?', length: .40 },
+  hammer: { ph: 'hatchet', title: 'Hatchet', forward: '-z', length: .40, pca: true, axis: [0, -1, 0] },
 };
 const ARMS = sf('e3c42c05b22944e5839deb8e003f0987', '000-013', 'First Person arms', 'DJMaesen');
 async function polyHavenDoc(id) {
@@ -255,26 +255,51 @@ async function weapon(id, spec, lod) {
   }
   await doc.transform(flatten());
   const live = scene.listChildren().filter(n => n.getMesh());
-  // Orientation: muzzle to −z (yaw about +y), optionally squared up along the principal axis.
-  const points = function* (R) { for (const n of live) { const m = n.getWorldMatrix(); for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'), e = []; for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)); yield [w[0] * R[0] + w[2] * R[1], w[1], -w[0] * R[1] + w[2] * R[0]]; } } } };
+  // Orientation: muzzle to −z, top to +y. M is a row-major 3×3 rotation applied to source positions.
+  const points = function* (M) { for (const n of live) { const m = n.getWorldMatrix(); for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'), e = []; for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)); yield [M[0] * w[0] + M[1] * w[1] + M[2] * w[2], M[3] * w[0] + M[4] * w[1] + M[5] * w[2], M[6] * w[0] + M[7] * w[1] + M[8] * w[2]]; } } } };
+  const yawM = a => [Math.cos(a), 0, Math.sin(a), 0, 1, 0, -Math.sin(a), 0, Math.cos(a)];
+  const I = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   let forward = spec.forward;
-  if (forward === '?') { let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9]; for (const p of points([1, 0])) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); } forward = mx[0] - mn[0] > mx[2] - mn[2] ? (spec.flip ? '+x' : '-x') : (spec.flip ? '+z' : '-z'); }
-  let yaw = { '-z': 0, '+z': Math.PI, '+x': Math.PI / 2, '-x': -Math.PI / 2 }[forward] + (spec.yaw ?? 0);
+  if (forward === '?') { let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9]; for (const p of points(I)) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); } forward = mx[0] - mn[0] > mx[2] - mn[2] ? (spec.flip ? '+x' : '-x') : (spec.flip ? '+z' : '-z'); }
+  let M = yawM({ '-z': 0, '+z': Math.PI, '+x': Math.PI / 2, '-x': -Math.PI / 2 }[forward] + (spec.yaw ?? 0));
   if (spec.pca) {
-    let n = 0, sx = 0, sz = 0, xx = 0, zz = 0, xz = 0; const R0 = [Math.cos(yaw), Math.sin(yaw)];
-    for (const p of points(R0)) { n++; sx += p[0]; sz += p[2]; xx += p[0] * p[0]; zz += p[2] * p[2]; xz += p[0] * p[2]; }
-    const cxx = xx / n - (sx / n) ** 2, czz = zz / n - (sz / n) ** 2, cxz = xz / n - sx * sz / n / n, a = .5 * Math.atan2(2 * cxz, czz - cxx); // angle of the long axis from +z toward +x
-    yaw += a;
+    // Principal axes of the vertex cloud: longest → bore (z), next → height (y), shortest → width (x).
+    let n = 0; const mean = [0, 0, 0], C = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const p of points(M)) { n++; for (let k = 0; k < 3; k++) mean[k] += p[k]; }
+    for (let k = 0; k < 3; k++) mean[k] /= n;
+    for (const p of points(M)) { const d = [p[0] - mean[0], p[1] - mean[1], p[2] - mean[2]]; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i * 3 + j] += d[i] * d[j] / n; }
+    // Jacobi eigen-decomposition.
+    const A = C.slice(), V = I.slice();
+    for (let sweep = 0; sweep < 50; sweep++) for (const [p, q] of [[0, 1], [0, 2], [1, 2]]) {
+      if (Math.abs(A[p * 3 + q]) < 1e-14) continue;
+      const th = .5 * Math.atan2(2 * A[p * 3 + q], A[q * 3 + q] - A[p * 3 + p]), c = Math.cos(th), sn = Math.sin(th);
+      for (let k = 0; k < 3; k++) { const akp = A[k * 3 + p], akq = A[k * 3 + q]; A[k * 3 + p] = c * akp - sn * akq; A[k * 3 + q] = sn * akp + c * akq; }
+      for (let k = 0; k < 3; k++) { const apk = A[p * 3 + k], aqk = A[q * 3 + k]; A[p * 3 + k] = c * apk - sn * aqk; A[q * 3 + k] = sn * apk + c * aqk; }
+      for (let k = 0; k < 3; k++) { const vkp = V[k * 3 + p], vkq = V[k * 3 + q]; V[k * 3 + p] = c * vkp - sn * vkq; V[k * 3 + q] = sn * vkp + c * vkq; }
+    }
+    const order = [0, 1, 2].sort((a, b) => A[b * 4] - A[a * 4]), col = i => [V[i], V[3 + i], V[6 + i]];
+    let ez = col(order[0]), ey = col(order[1]);
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    if (spec.axis ? dot(ez, spec.axis) < 0 : ez[2] < 0) ez = ez.map(v => -v); // muzzle (or head) toward −z
+    if (ey[1] < 0) ey = ey.map(v => -v); // and the top stays up
+    const ex = [ey[1] * ez[2] - ey[2] * ez[1], ey[2] * ez[0] - ey[0] * ez[2], ey[0] * ez[1] - ey[1] * ez[0]];
+    const P = [...ex, ...ey, ...ez]; // rows: new axes
+    M = [0, 1, 2].flatMap(r => [0, 1, 2].map(c => P[r * 3] * M[c] + P[r * 3 + 1] * M[3 + c] + P[r * 3 + 2] * M[6 + c]));
   }
-  const R = [Math.cos(yaw), Math.sin(yaw)];
   let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
-  for (const p of points(R)) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); }
+  for (const p of points(M)) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); }
   const len = mx[2] - mn[2], scale = spec.length / len;
   // The bore: centre of the foremost 0.6 % of the weapon.
-  let bx = 0, by = 0, bn = 0; for (const p of points(R)) if (p[2] < mn[2] + len * .006) { bx += p[0]; by += p[1]; bn++; }
+  let bx = 0, by = 0, bn = 0; for (const p of points(M)) if (p[2] < mn[2] + len * .006) { bx += p[0]; by += p[1]; bn++; }
   const c = [bx / bn + (spec.bore?.[0] ?? 0) / scale, by / bn + (spec.bore?.[1] ?? 0) / scale, mn[2]];
+  const quat = (() => { const [m00, m01, m02, m10, m11, m12, m20, m21, m22] = M, tr = m00 + m11 + m22; let x, y, z, w;
+    if (tr > 0) { const S = Math.sqrt(tr + 1) * 2; w = .25 * S; x = (m21 - m12) / S; y = (m02 - m20) / S; z = (m10 - m01) / S; }
+    else if (m00 > m11 && m00 > m22) { const S = Math.sqrt(1 + m00 - m11 - m22) * 2; w = (m21 - m12) / S; x = .25 * S; y = (m01 + m10) / S; z = (m02 + m20) / S; }
+    else if (m11 > m22) { const S = Math.sqrt(1 + m11 - m00 - m22) * 2; w = (m02 - m20) / S; x = (m01 + m10) / S; y = .25 * S; z = (m12 + m21) / S; }
+    else { const S = Math.sqrt(1 + m22 - m00 - m11) * 2; w = (m10 - m01) / S; x = (m02 + m20) / S; y = (m12 + m21) / S; z = .25 * S; }
+    return [x, y, z, w]; })();
   // Parts.
-  const holder = doc.createNode('weapon').setRotation([0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)]).setScale([scale, scale, scale]);
+  const holder = doc.createNode('weapon').setRotation(quat).setScale([scale, scale, scale]);
   // p' = s (R p − c): rotate, then translate by −s c.
   holder.setTranslation([-scale * c[0], -scale * c[1], -scale * c[2]]);
   scene.addChild(holder);
@@ -284,7 +309,16 @@ async function weapon(id, spec, lod) {
     const name = partOf(n); let pn = partNodes.get(name); if (!pn) { pn = doc.createNode(name); partNodes.set(name, pn); holder.addChild(pn); }
     pn.addChild(n);
     const b = partBounds[name] ??= { min: [1e9, 1e9, 1e9], max: [-1e9, -1e9, -1e9] }, m = n.getMatrix(), e = [];
-    for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'); for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)), q = [(w[0] * R[0] + w[2] * R[1] - c[0]) * scale, (w[1] - c[1]) * scale, (-w[0] * R[1] + w[2] * R[0] - c[2]) * scale]; for (let k = 0; k < 3; k++) { b.min[k] = Math.min(b.min[k], q[k]); b.max[k] = Math.max(b.max[k], q[k]); } } }
+    for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'); for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)), q = [0, 1, 2].map(k => (M[k * 3] * w[0] + M[k * 3 + 1] * w[1] + M[k * 3 + 2] * w[2] - c[k]) * scale); for (let k = 0; k < 3; k++) { b.min[k] = Math.min(b.min[k], q[k]); b.max[k] = Math.max(b.max[k], q[k]); } } }
+  }
+  if (spec.cullAbove != null) for (const n of live) for (const prim of n.getMesh().listPrimitives()) {
+    // Remove loose items baked into a single mesh (a cartridge floating above a revolver) by position.
+    const m = n.getMatrix(), pos = prim.getAttribute('POSITION'), idx = prim.getIndices(), e = [], keep = [];
+    const yOf = i => { const w = mulPoint(m, pos.getElement(i, e)); return (M[3] * w[0] + M[4] * w[1] + M[5] * w[2] - c[1]) * scale; };
+    const ys = Array.from({ length: pos.getCount() }, (_, i) => yOf(i));
+    const count = idx ? idx.getCount() : pos.getCount(), at = i => idx ? idx.getScalar(i) : i;
+    for (let t = 0; t < count; t += 3) if (!(ys[at(t)] > spec.cullAbove && ys[at(t + 1)] > spec.cullAbove && ys[at(t + 2)] > spec.cullAbove)) keep.push(at(t), at(t + 1), at(t + 2));
+    prim.setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(keep)).setBuffer(root.listBuffers()[0]));
   }
   for (const n of root.listNodes()) if (!n.getMesh() && n !== holder && !partNodes.has(n.getName()) && !n.listChildren().length) n.dispose();
   let tris = 0; for (const m of root.listMeshes()) for (const p of m.listPrimitives()) tris += (p.getIndices()?.getCount() ?? p.getAttribute('POSITION').getCount()) / 3;

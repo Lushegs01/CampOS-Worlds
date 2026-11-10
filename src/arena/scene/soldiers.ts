@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadModel, loadTexture } from '../../world/assets';
-import { weaponLowDetail } from './weapons';
+import { weaponThirdPerson } from './weapons';
 import type { Library } from './library';
 
 const MODELS = ['soldier-m1', 'soldier-m2', 'soldier-f1'] as const;
@@ -66,9 +66,10 @@ export class Soldier {
     }
     void lib;
   }
-  setWeapon(id: string, lib: Library | null) {
-    if (this.weapon === id) return; this.weapon = id;
-    this.gun.clear(); const g = weaponLowDetail(id, 'standard', lib); g.traverse(o => { (o as THREE.Mesh).castShadow = true; }); this.gun.add(g);
+  setWeapon(id: string) {
+    if (this.weapon === id) return;
+    const g = weaponThirdPerson(id); if (!g) return; // still downloading: try again next frame
+    this.weapon = id; this.gun.clear(); this.gun.add(g);
   }
   /** Pose for this frame. flags: crouch 2, slide 4, sprint 8, ads 16. */
   update(dt: number, pos: THREE.Vector3, yaw: number, pitch: number, flags: number, dead: boolean, flashOn: boolean, ik: boolean) {
@@ -98,7 +99,7 @@ export class Soldier {
     const fwd = tmpV.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     this.gun.position.copy(chest).addScaledVector(right, .14).addScaledVector(fwd, .34).add(tmpV2.set(0, dead ? -.5 : -.12, 0));
-    this.gun.quaternion.setFromRotationMatrix(tmpM.lookAt(new THREE.Vector3(), fwd.clone().negate(), new THREE.Vector3(0, 1, 0)));
+    this.gun.quaternion.setFromRotationMatrix(tmpM.lookAt(new THREE.Vector3(), fwd, new THREE.Vector3(0, 1, 0))); // −z (the muzzle) along the aim
     this.gun.visible = !dead || this.fall < .5;
     this.gun.updateMatrixWorld(true);
     const muzzle = this.gun.getObjectByName('muzzle');

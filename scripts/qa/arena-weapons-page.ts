@@ -42,3 +42,28 @@ if (mode === 'sheet') {
   }
   document.title = 'done';
 }
+
+if (mode === 'fp') {
+  const { weaponModel, preloadWeapon, preloadArms, FirstPersonArms } = await import('../../src/arena/scene/weapons');
+  const id = params.get('id') ?? 'vanguard', pose = params.get('pose') ?? 'hip', team = Number(params.get('team') ?? 0);
+  renderer.setSize(1280, 720);
+  const scene = new THREE.Scene(); scene.environment = env; scene.background = hdr; scene.backgroundIntensity = .8; scene.environmentIntensity = .95;
+  const sun = new THREE.DirectionalLight('#fff0d8', 3.2); sun.position.set(1.2, 2, .8); scene.add(sun, new THREE.HemisphereLight('#cdd9e8', '#5a5348', .5));
+  const cam = new THREE.PerspectiveCamera(pose === 'ads' ? 42 : 56, 1280 / 720, .01, 50);
+  await Promise.all([preloadWeapon(id), preloadArms()]);
+  const gun = weaponModel(id, params.get('skin') ?? 'standard')!, holder = new THREE.Group(); holder.add(gun); scene.add(holder);
+  const arms = new FirstPersonArms(await preloadArms(), team); scene.add(arms.root);
+  const sightY = gun.userData.sightY as number, hold = gun.userData.hold as string;
+  let x = hold === 'blade' ? .15 : hold === 'pistol' ? .085 : .1, y = hold === 'blade' ? -.17 : -sightY - (hold === 'pistol' ? .07 : .068), z = hold === 'blade' ? -.42 : hold === 'pistol' ? -.5 : -.4;
+  let rx = hold === 'blade' ? .22 : 0, ry = hold === 'blade' ? .14 : .035, rz = hold === 'blade' ? -.25 : 0, toMag = 0;
+  if (pose === 'ads') { x = 0; y = -sightY; z = gun.userData.adsZ; ry = 0; rz = 0; }
+  if (pose === 'sprint') { x -= .05; y -= .03; z += .05; rx -= .32; ry += .8; rz += .32; }
+  if (pose === 'reload') { rx += .22; rz -= .42; ry += .12; y -= .035; x -= .02; toMag = 1; const mag = gun.getObjectByName('mag'); if (mag) mag.position.y -= .12; }
+  holder.position.set(x, y, z); holder.rotation.set(rx, ry, rz); holder.updateMatrixWorld(true);
+  const r = gun.getObjectByName('gripR')!.getWorldPosition(new THREE.Vector3()), l = gun.getObjectByName('gripL')!.getWorldPosition(new THREE.Vector3());
+  if (toMag) { const well = gun.getObjectByName('mag') ?? gun.getObjectByName('magwell')!; well.getWorldPosition(l); if (gun.getObjectByName('mag')) l.y -= .07; }
+  if (pose === 'bind') { holder.visible = false; cam.position.set(0, .45, -1.4); cam.lookAt(0, -.35, -.45); }
+  else arms.pose(hold as 'rifle', r, l, holder.quaternion, toMag);
+  renderer.render(scene, cam);
+  document.title = 'done';
+}

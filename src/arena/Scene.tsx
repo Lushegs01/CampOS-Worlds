@@ -24,7 +24,7 @@ import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, skyDome, clearMaterialCache, type Library } from './scene/library';
 import { buildEnvironment, surfaceOf } from './scene/environment';
-import { weaponModel, createArms, poseArm } from './scene/weapons';
+import { weaponModel, FirstPersonArms, preloadArms } from './scene/weapons';
 import { loadSoldiers, Soldier, soldierModelFor } from './scene/soldiers';
 import { Effects, Casings } from './scene/fx';
 import { sfx, setIndoor, startAmbience, stopArenaAmbience, type Ground } from './audio';
@@ -155,12 +155,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const core = new THREE.Mesh(new THREE.PlaneGeometry(.2, .2), fm); flash.add(core);
     const casings = new Casings(q.casings); vmScene.add(casings.mesh);
     return {
-      vmScene, vmCam, holder, sun, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as ReturnType<typeof createArms> | null, armsTeam: -1,
+      vmScene, vmCam, holder, sun, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
       bob: 0, swayX: 0, swayY: 0, lastYaw: 0, lastPitch: 0, kickZ: 0, kickPitch: 0, kickRoll: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0, breath: 0, cyl: 0, slideKick: 0,
       handR: new THREE.Vector3(.2, -.3, .1), handL: new THREE.Vector3(-.2, -.3, .1),
     };
   }, [q]);
   useEffect(() => { if (lib) { vm.vmScene.environment = lib.env; vm.vmScene.environmentIntensity = .9; vm.gunId = ''; } }, [lib, vm]);
+  useEffect(() => { let on = true; preloadArms().then(src => { if (on) { vm.armsSrc = src; vm.armsTeam = -1; } }).catch(e => console.error('Arena arms could not load.', e)); return () => { on = false; }; }, [vm]);
 
   // ---------------------------------------------------------------- post-processing
   const composer = useMemo(() => {
@@ -291,7 +292,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       seenNums.add(r.num);
       e.s.root.visible = !!visible; if (!visible) continue;
       if (t != null && !dead) { r.track.sample(t, sample); r.pos.x = sample.x; r.pos.y = sample.y; r.pos.z = sample.z; r.pos.yaw = sample.yaw; }
-      const w = WEAPONS[r.weapon]; if (w) e.s.setWeapon(w.id, lib);
+      const w = WEAPONS[r.weapon]; if (w) e.s.setWeapon(w.id);
       const far = Math.hypot(r.pos.x - cam.position.x, r.pos.z - cam.position.z);
       e.s.update(dt, v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw, r.pitch, r.flags, dead, now - e.flashAt < 55, q.ik && far < 45);
       // Footsteps of others within earshot.
@@ -344,15 +345,18 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   function updateViewmodel(dt: number, now: number) {
     const s = live.sim, scoped = !!s && weaponOf(s).category === 'sniper' && s.ads > .85;
     const show = !!s && live.alive && !scoped && !!lib;
-    vm.holder.visible = show; vm.flash.visible = false; if (vm.arms) { vm.arms.right.group.visible = show; vm.arms.left.group.visible = show; }
+    vm.holder.visible = show; vm.flash.visible = false; if (vm.arms) vm.arms.visible = show;
     if (!s || !lib) return;
     const w = weaponOf(s), skin = live.loadout?.skins?.[w.id] ?? 'standard';
     if (vm.gunId !== w.id || vm.skin !== skin) {
+      // The model streams in on first use; until then nothing is drawn (the weapon is still raising).
+      const next = weaponModel(w.id, skin);
       if (vm.gun) vm.holder.remove(vm.gun);
-      vm.gun = weaponModel(w.id, skin, lib); vm.holder.add(vm.gun); vm.gunId = w.id; vm.skin = skin; vm.cyl = 0;
+      vm.gun = next; if (next) { vm.holder.add(next); vm.gunId = w.id; vm.skin = skin; vm.cyl = 0; } else vm.gunId = '';
     }
-    if (vm.armsTeam !== live.team || !vm.arms) { if (vm.arms) vm.vmScene.remove(vm.arms.right.group, vm.arms.left.group); vm.arms = createArms(lib, live.team); vm.vmScene.add(vm.arms.right.group, vm.arms.left.group); vm.armsTeam = live.team; }
-    const gun = vm.gun!, sightY = (gun.userData.sightY as number) ?? .09, melee = w.fire === 'melee', sidearm = w.category === 'pistol';
+    if (vm.armsSrc && (vm.armsTeam !== live.team || !vm.arms)) { if (vm.arms) { vm.vmScene.remove(vm.arms.root); vm.arms.dispose(); } vm.arms = new FirstPersonArms(vm.armsSrc, live.team); vm.vmScene.add(vm.arms.root); vm.armsTeam = live.team; }
+    if (!vm.gun) { vm.holder.visible = false; if (vm.arms) vm.arms.visible = false; return; }
+    const gun = vm.gun, sightY = (gun.userData.sightY as number) ?? .09, melee = w.fire === 'melee', sidearm = w.category === 'pistol';
     // Springs: recoil, landing, look sway.
     vm.kickZ *= Math.exp(-dt * 13); vm.kickPitch *= Math.exp(-dt * 11); vm.kickRoll *= Math.exp(-dt * 9); vm.slideKick *= Math.exp(-dt * 26);
     vm.landV += (-vm.land * 90 - vm.landV * 13) * dt; vm.land += vm.landV * dt;
@@ -362,9 +366,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const moving = s.grounded ? Math.min(1, speed / 5) : 0, ads = s.ads * s.ads * (3 - 2 * s.ads), hipK = 1 - ads;
     // Base pose: hip, blended to the sights when aiming.
     const hip = melee ? v1.set(.15, -.17, -.42) : sidearm ? v1.set(.085, -sightY - .07, -.5) : v1.set(.1, -sightY - .068, -.4);
-    const aim = v2.set(0, -sightY, w.category === 'sniper' ? -.22 : sidearm ? -.42 : -.28);
+    const aim = v2.set(0, -sightY, (gun.userData.adsZ as number) ?? -.28);
     let x = hip.x + (aim.x - hip.x) * ads, y = hip.y + (aim.y - hip.y) * ads, z = hip.z + (aim.z - hip.z) * ads;
-    let rx = 0, ry = (melee ? .3 : .035) * hipK, rz = melee ? -.4 : 0;
+    let rx = melee ? .22 : 0, ry = (melee ? .14 : .035) * hipK, rz = melee ? -.25 : 0;
     // Idle breathing, look sway, walk bob.
     x += vm.swayX + Math.cos(vm.bob) * .0065 * moving * (hipK * .9 + .1) + Math.sin(vm.breath * .9) * .0012 * hipK;
     y += vm.swayY - Math.abs(Math.sin(vm.bob)) * .008 * moving * (hipK * .9 + .1) + Math.sin(vm.breath * 1.3) * .0016 * (hipK * .8 + .2) - vm.land * .05;
@@ -416,15 +420,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // Arms: two-bone IK from the shoulders to the weapon's grips (or to the magazine, the bolt).
     if (vm.arms && show) {
       const gR = gun.getObjectByName('gripR'), gL = gun.getObjectByName('gripL');
-      if (gR) { gR.getWorldPosition(v1); if (rightToBolt && bolt) v1.lerp(bolt.getWorldPosition(v3), rightToBolt * .85); vm.handR.copy(v1); q1.copy(vm.holder.quaternion).multiply(new THREE.Quaternion().setFromEuler(e1.set(gR.rotation.x - .15, 0, -Math.PI / 2 * .92))); poseArm(vm.arms.right, v2.set(.26, -.36, .02), vm.handR, q1, v3.set(.6, -.9, -.1)); }
-      if (gL) {
+      if (gR && gL) {
+        gR.getWorldPosition(v1); if (rightToBolt && bolt) v1.lerp(bolt.getWorldPosition(v3), rightToBolt * .85); vm.handR.copy(v1);
         gL.getWorldPosition(v1); v1.z += leftOff;
-        if (leftToMag && mag) { mag.getWorldPosition(v3); v3.y -= .07; v1.lerp(v3, leftToMag); }
+        const well = mag ?? gun.getObjectByName('magwell'); if (leftToMag && well) { well.getWorldPosition(v3); if (mag) v3.y -= .07; v1.lerp(v3, leftToMag); }
         if (s.phase === 'throw' || (s.phase === 'melee' && !melee)) v1.lerp(v3.set(-.25, -.5, .1), .9);
         vm.handL.lerp(v1, Math.min(1, dt * 30));
-        const under = sidearm || melee ? Math.PI / 2 * .9 : Math.PI * .72;
-        q1.copy(vm.holder.quaternion).multiply(new THREE.Quaternion().setFromEuler(e1.set(sidearm ? -.4 : 0, 0, under)));
-        poseArm(vm.arms.left, v2.set(-.2, -.4, -.02), vm.handL, q1, v3.set(-.5, -1, -.2));
+        vm.arms.pose(gun.userData.hold ?? 'rifle', vm.handR, vm.handL, vm.holder.quaternion, leftToMag);
       }
     }
     // Light on the weapon follows the world: the sun in camera space, dimmed in shade.
