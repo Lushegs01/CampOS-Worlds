@@ -190,7 +190,7 @@ async function soldier(c) {
 const OBJAVERSE = 'https://huggingface.co/datasets/allenai/objaverse/resolve/main';
 const sf = (uid, dir, title, author) => ({ uid, url: `${OBJAVERSE}/glbs/${dir}/${uid}.glb`, page: `https://sketchfab.com/3d-models/${uid}`, title, author, license: 'CC BY 4.0' });
 export const WEAPONS = {
-  vanguard: { ...sf('429b6ef8516b46dca8992e78c4bf7a55', '000-105', 'SLR AR-15', 'AlexFinsher'), forward: '+z', length: .80, lens: { y: .0685, z: [.34, .415], r: .017 } },
+  vanguard: { ...sf('429b6ef8516b46dca8992e78c4bf7a55', '000-105', 'SLR AR-15', 'AlexFinsher'), forward: '+z', length: .80, lens: { y: .0685, z: [.34, .415], r: .017 }, parts: { mag: /None\.003_0/ } },
   halcyon: { ...sf('9084c3bae8224d338103997bc3101480', '000-075', 'AK-74M Assault Rifle', 'FJH'), forward: '-z', length: .94, drop: /(^|\/)(Round|Shell)_/, parts: { mag: /(^|\/)Magazine_/ } },
   wasp: { ...sf('c503d96157614fb78b5953d49e643b78', '000-043', 'HK MP5 (9mm submachine gun)', 'quick_loop'), forward: '-x', length: .68, lens: { y: .071, z: [.238, .287], box: [.024, .05, .097] } },
   kestrel: { ...sf('3d031dfeb2ad45beb19e89977225a631', '000-112', 'Saiga-9mm', 'rwroclav'), forward: '+x', length: .86, pca: true, lens: { y: .122, z: [.395, .47], r: .011 } },
@@ -254,6 +254,13 @@ async function weapon(id, spec, lod) {
     else { const c = m.getBaseColorFactor(); m.setBaseColorFactor([c[0], c[1], c[2], 1]); if (spec.finish && !m.getMetallicRoughnessTexture()) m.setRoughnessFactor(spec.finish.roughness).setMetallicFactor(spec.finish.metalness); }
   }
   await doc.transform(flatten());
+  // Parts that are a material of a shared mesh (a magazine with its own texture set) get their own node.
+  if (!lod) for (const [part, re] of Object.entries(spec.partMaterials ?? {})) for (const n of scene.listChildren().filter(c => c.getMesh())) {
+    const mesh = n.getMesh(), hits = mesh.listPrimitives().filter(pr => re.test(pr.getMaterial()?.getName() ?? ''));
+    if (!hits.length || hits.length === mesh.listPrimitives().length) continue;
+    const split = doc.createMesh(`${part}-mesh`); for (const pr of hits) { mesh.removePrimitive(pr); split.addPrimitive(pr); }
+    scene.addChild(doc.createNode(`${part}-split`).setMatrix(n.getMatrix()).setMesh(split).setExtras({ path: `${n.getExtras().path}/__part_${part}` }));
+  }
   const live = scene.listChildren().filter(n => n.getMesh());
   // Orientation: muzzle to −z, top to +y. M is a row-major 3×3 rotation applied to source positions.
   const points = function* (M) { for (const n of live) { const m = n.getWorldMatrix(); for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'), e = []; for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)); yield [M[0] * w[0] + M[1] * w[1] + M[2] * w[2], M[3] * w[0] + M[4] * w[1] + M[5] * w[2], M[6] * w[0] + M[7] * w[1] + M[8] * w[2]]; } } } };
@@ -304,7 +311,7 @@ async function weapon(id, spec, lod) {
   holder.setTranslation([-scale * c[0], -scale * c[1], -scale * c[2]]);
   scene.addChild(holder);
   const partNodes = new Map(), partBounds = {};
-  const partOf = n => { if (!lod) for (const [name, re] of Object.entries(spec.parts ?? {})) if (re.test(n.getExtras().path)) return name; return 'body'; };
+  const partOf = n => { if (!lod) { const m = /__part_(\w+)$/.exec(n.getExtras().path ?? ''); if (m) return m[1]; for (const [name, re] of Object.entries(spec.parts ?? {})) if (re.test(n.getExtras().path)) return name; } return 'body'; };
   for (const n of live) {
     const name = partOf(n); let pn = partNodes.get(name); if (!pn) { pn = doc.createNode(name); partNodes.set(name, pn); holder.addChild(pn); }
     pn.addChild(n);

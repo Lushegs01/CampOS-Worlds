@@ -8,15 +8,22 @@ import { existsSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import { createRoom } from '../../server/room.mjs';
 
-const LABEL = process.env.LABEL || 'after', QUALITIES = (process.env.QUALITIES || 'low,medium,high').split(','), ONLY = process.env.VIEWS?.split(',');
+const MAP = process.env.MAP || 'foundry', LABEL = process.env.LABEL || 'after', QUALITIES = (process.env.QUALITIES || 'low,medium,high').split(','), ONLY = process.env.VIEWS?.split(',');
 const OUT = 'docs/screenshots/arena/visual/';
-const VIEWS = [
+const TAG = MAP === 'foundry' ? '' : `${MAP}-`;
+// Sim Quad: the fountain court and an arcade (MAP=quad).
+const QUAD_VIEWS = [
+  { id: 'court', at: [-30, 0], yaw: -Math.PI / 2, pitch: -.02, bots: [[-16, -2, Math.PI / 2], [-12, 4, Math.PI / 2.4]] },
+  { id: 'arcade', at: [0, -20], yaw: 0, pitch: .02, bots: [[1.5, -10, Math.PI], [-2, -6, Math.PI]] },
+];
+const FOUNDRY_VIEWS = [
   { id: 'yard', at: [-30, 3], yaw: -Math.PI / 2, pitch: -.02, bots: [[-19, -1, Math.PI / 2], [-15, 5.5, Math.PI / 2.4]] },
   { id: 'interior', at: [-8.6, 6.8], yaw: -2.35, pitch: .12, bots: [[-2, -5.6, 2.6], [3, 3, -2.2]] },
   { id: 'lane', at: [-27, -15], yaw: -1.35, pitch: .04, bots: [[-12, -19.5, 1.7], [-3, -21, 1.3]] },
   // Close range: the soldiers themselves (kit, camouflage, how they hold their weapons).
   { id: 'squad', at: [-24.5, 2.2], yaw: -Math.PI / 2, pitch: -.04, bots: [[-19.6, 1.1, Math.PI / 2 - .25], [-19.2, 3.6, Math.PI / 2 + .35], [-20.8, -.6, Math.PI / 2 + .05]] },
 ];
+const VIEWS = MAP === 'quad' ? QUAD_VIEWS : FOUNDRY_VIEWS;
 const room = createRoom({ port: 3215, origins: ['http://127.0.0.1:5181'], arena: { slowCloseMs: 600000, rules: { countdownMs: 300, snapshotHz: 10, mode: { timeMs: 3600000, scoreLimit: 9999 } } } });
 await room.start();
 process.env.ROOM_URL = '127.0.0.1:3215';
@@ -39,6 +46,7 @@ try {
     await page.waitForFunction(() => window.__arena?.state().status === 'ready');
     await page.getByRole('tab', { name: 'Training' }).click();
     await page.getByLabel('Bots').selectOption('3');
+    if (MAP !== 'foundry') await page.getByLabel('Map').selectOption(MAP);
     await page.getByRole('button', { name: 'Start training' }).click();
     await page.waitForFunction(() => window.__arena?.state().hud.matchState === 'playing', null, { timeout: 90000 });
     // Freeze the bots at once (they hold still and nobody can be hurt), so all are alive for the photographs.
@@ -58,10 +66,10 @@ try {
       await page.waitForFunction(([x, z]) => { const s = window.__arena.self(); return s && Math.abs(s.x - x) < .05 && Math.abs(s.z - z) < .05; }, view.at);
       await page.evaluate(([y, p]) => window.__arena.look(y, p), [view.yaw, view.pitch]);
       await page.waitForTimeout(2500);
-      await page.screenshot({ path: `${OUT}${LABEL}-${view.id}-${quality}.png` });
+      await page.screenshot({ path: `${OUT}${LABEL}-${TAG}${view.id}-${quality}.png` });
       const stats = await page.evaluate(() => ({ ...(window.__arenaStats ?? {}), fps: window.__arena.state().hud.fps }));
       if (process.env.BREAKDOWN) console.log(JSON.stringify(await page.evaluate(() => window.__arenaBreakdown?.())));
-      results.views[`${view.id}-${quality}`] = stats; console.log(LABEL, view.id, quality, JSON.stringify(stats));
+      results.views[`${TAG}${view.id}-${quality}`] = stats; console.log(LABEL, view.id, quality, JSON.stringify(stats));
     }
     // ADS on the yard view: the weapon's sights.
     const v = VIEWS[0];
@@ -69,13 +77,13 @@ try {
     Object.assign(me.sim, { x: v.at[0], z: v.at[1] }); me.history = [];
     await page.locator('.ar-canvas canvas').click({ position: { x: 640, y: 360 } }).catch(() => {});
     await page.mouse.down({ button: 'right' }); await page.waitForTimeout(1200);
-    await page.screenshot({ path: `${OUT}${LABEL}-ads-${quality}.png` }); await page.mouse.up({ button: 'right' });
+    await page.screenshot({ path: `${OUT}${LABEL}-${TAG}ads-${quality}.png` }); await page.mouse.up({ button: 'right' });
     clearInterval(keepShielded);
     await page.close();
     for (const m of [...room.arena.matches.values()]) m.close('capture');
   }
 } finally {
   await mkdir('docs/performance', { recursive: true });
-  await writeFile(`docs/performance/arena-visual-${LABEL}.json`, JSON.stringify(results, null, 2) + '\n');
+  await writeFile(`docs/performance/arena-visual-${LABEL}${TAG ? '-' + MAP : ''}.json`, JSON.stringify(results, null, 2) + '\n');
   await browser.close(); await web.close(); await room.close();
 }

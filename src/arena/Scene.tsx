@@ -383,7 +383,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     rz += -vm.swayX * 1.4 + Math.sin(vm.bob) * .012 * moving * hipK; rx += vm.swayY * .8;
     // Sprint: high-ready, canted across the body, with a heavier bob.
     const sp = (vm as unknown as { sprintK?: number }); sp.sprintK = (sp.sprintK ?? 0) + ((s.sprint ? 1 : 0) - (sp.sprintK ?? 0)) * Math.min(1, dt * 9); const sk = sp.sprintK;
-    if (!melee) { x -= .05 * sk; y += (-.03 + Math.sin(vm.bob * 2) * .012) * sk; z += .05 * sk; rx += -.32 * sk; ry += .8 * sk; rz += .32 * sk; } else { y += Math.sin(vm.bob * 2) * .015 * sk; rx -= .2 * sk; }
+    if (!melee) { x -= .025 * sk; y += (-.055 + Math.sin(vm.bob * 2) * .012) * sk; z += .03 * sk; rx += -.5 * sk; ry += .58 * sk; rz += .22 * sk; } else { y += Math.sin(vm.bob * 2) * .015 * sk; rx -= .2 * sk; }
     // Airborne and sliding.
     if (!s.grounded) { y += THREE.MathUtils.clamp(-s.vy * .004, -.03, .03); rx += THREE.MathUtils.clamp(s.vy * .008, -.06, .06); }
     if (s.stance === 2) { rz += .26; y -= .02; x += .02; }

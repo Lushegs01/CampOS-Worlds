@@ -57,7 +57,7 @@ if (mode === 'fp') {
   let x = hold === 'blade' ? .15 : hold === 'pistol' ? .085 : .1, y = hold === 'blade' ? -.17 : -sightY - (hold === 'pistol' ? .07 : .068), z = hold === 'blade' ? -.42 : hold === 'pistol' ? -.5 : -.4;
   let rx = hold === 'blade' ? .22 : 0, ry = hold === 'blade' ? .14 : .035, rz = hold === 'blade' ? -.25 : 0, toMag = 0;
   if (pose === 'ads') { x = 0; y = -sightY; z = gun.userData.adsZ; ry = 0; rz = 0; const r = gun.getObjectByName('reticle'); if (r) r.visible = true; }
-  if (pose === 'sprint') { x -= .05; y -= .03; z += .05; rx -= .32; ry += .8; rz += .32; }
+  if (pose === 'sprint') { x -= .025; y -= .055; z += .03; rx -= .5; ry += .58; rz += .22; }
   if (pose === 'reload') { rx += .22; rz -= .42; ry += .12; y -= .035; x -= .02; toMag = 1; const mag = gun.getObjectByName('mag'); if (mag) mag.position.y -= .12; }
   holder.position.set(x, y, z); holder.rotation.set(rx, ry, rz); holder.updateMatrixWorld(true);
   const r = gun.getObjectByName('gripR')!.getWorldPosition(new THREE.Vector3()), l = gun.getObjectByName('gripL')!.getWorldPosition(new THREE.Vector3());
