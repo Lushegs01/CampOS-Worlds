@@ -72,7 +72,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       loadout: who.loadout ?? PRESETS[0], pendingLoadout: null, perks: new Set((who.loadout ?? PRESETS[0]).perks),
       sim: null, alive: false, hp: R.maxHealth, respawnAt: 0, diedAt: 0, life: 0, lastSeq: who.lastSeq ?? 0,
       tokens: R.commandBurst, tokensAt: clock(), rt: 0, history: [], damageLog: [], lastDamageAt: 0, protectUntil: 0, blindUntil: 0, firedAt: 0,
-      streak: 0, streakPts: 0, earned: new Set(), streakUsedAt: {}, recentKills: [], lastKiller: null, joinedAt: clock(), leftAt: 0, seen: new Map(),
+      streak: 0, streakPts: 0, earned: new Set(), streakUsedAt: {}, recentKills: [], lastKiller: null, joinedAt: clock(), leftAt: 0, loaded: !!who.bot, seen: new Map(),
       stats: freshStats(), weaponKills: {},
     };
     players.push(p);
@@ -125,7 +125,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   function lifecycle() {
     const now = clock(), present = connected().length;
     if (state === 'waiting') {
-      const enough = kind === 'training' ? present >= 1 : present >= R.minToStart;
+      // Training waits for its player's scene to load (or loadWaitMs), so the bots never open fire on a loading screen.
+      const enough = kind === 'training' ? connected().some(p => p.loaded || now - p.joinedAt >= R.loadWaitMs) : present >= R.minToStart;
       const full = players.length >= maxPerTeam * 2;
       if (kind === 'private') return; // the host starts a private match
       if (enough && (full || kind === 'training' || now - (api.enoughAt ??= now) >= R.fillWaitMs)) setState('countdown');
@@ -653,6 +654,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     if (connected().length < 2) return { ok: false, reason: 'Wait for at least one more player.' };
     setState('countdown'); return { ok: true };
   }
+  /** The client has its scene drawn and can play. */
+  function loaded(p) { if (p && !p.bot) p.loaded = true; }
   function setLoadout(p, loadout) { p.pendingLoadout = loadout; if (state !== 'playing' && p.alive) spawn(p); }
 
   const interval = autoTick ? setInterval(tick, 1000 / R.tickHz) : null;
@@ -660,7 +663,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     id, kind, code, map, mode, world, players, objectives, scores, seed, rules: R,
     get state() { return state; }, get result() { return result; }, get closed() { return closed; }, get startedAt() { return startedAt; },
     get combatLog() { return combatLog; }, enoughAt: null,
-    join, leave, disconnect, rejoin, commands, useStreak, hostStart, setLoadout, view, roster, tick, close, finish, flush, smokeBlocks, byNum,
+    join, leave, disconnect, rejoin, commands, useStreak, hostStart, setLoadout, loaded, view, roster, tick, close, finish, flush, smokeBlocks, byNum,
     humans, connected, summary: () => ({ id, kind, mode: mode.id, map: map.id, state, players: humans().length, connected: connected().length, bots: players.filter(p => p.bot).length, scores: [...scores], startedAt }),
   };
   for (let i = 0; i < bots; i++) join({ id: `bot-${i + 1}`, name: `SIM-Unit ${String(i + 1).padStart(2, '0')}`, bot: true, loadout: PRESETS[Math.floor(random() * PRESETS.length)] });

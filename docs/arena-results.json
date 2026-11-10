@@ -1,5 +1,5 @@
 {
-  "started": "2026-11-09T20:12:08.891Z",
+  "started": "2026-11-10T10:57:49.379Z",
   "checks": [
     {
       "name": "both players open Combat Arena from the campus dock, signed in with their campus accounts",
@@ -14,7 +14,7 @@
     {
       "name": "Quick Play matches both players into one Team Deathmatch on opposite teams",
       "ok": true,
-      "detail": "2b52af66-0146-40c1-8819-85ff46d5ba17"
+      "detail": "0021f6b0-4675-4fe6-8603-d24553c0f97a"
     },
     {
       "name": "each browser renders the other player where the server has them",
@@ -32,7 +32,7 @@
       "detail": "xp 800, level 1"
     },
     {
-      "name": "the rankings list the player with their level and record",
+      "name": "the rankings list the player with their level and record, and the match appears in their history",
       "ok": true,
       "detail": ""
     },
@@ -54,10 +54,10 @@
     {
       "name": "phone layout keeps controls on screen without page scrolling",
       "ok": true,
-      "detail": "44 fps on software (SwiftShader) rendering"
+      "detail": "3 fps on software (SwiftShader) rendering"
     }
   ],
-  "phoneFpsSoftwareRendering": 44,
+  "phoneFpsSoftwareRendering": 3,
   "ok": true,
-  "finished": "2026-11-09T20:15:36.500Z"
+  "finished": "2026-11-10T11:02:31.546Z"
 }

@@ -1,0 +1,502 @@
+{
+  "textures": [
+    "concreteWall",
+    "concreteFloor",
+    "road",
+    "gravel",
+    "dirt",
+    "brick",
+    "corrugated",
+    "rustyCorrugated",
+    "paintedMetal",
+    "metalPlate",
+    "plywood",
+    "planks",
+    "plaster",
+    "sandbag"
+  ],
+  "licence": "Textures and props: Poly Haven, CC0 1.0. Characters: Microsoft Rocketbox Avatar Library, MIT License (Copyright (c) 2020 Microsoft).",
+  "props": [
+    {
+      "key": "jersey",
+      "triangles": 1300,
+      "bytes": 625324
+    },
+    {
+      "key": "milCrate",
+      "triangles": 1710,
+      "bytes": 654916
+    },
+    {
+      "key": "oldCrate",
+      "triangles": 1530,
+      "bytes": 639336
+    },
+    {
+      "key": "ammo",
+      "triangles": 976,
+      "bytes": 144748
+    },
+    {
+      "key": "barrel",
+      "triangles": 1200,
+      "bytes": 197348
+    },
+    {
+      "key": "jerrycan",
+      "triangles": 1397,
+      "bytes": 245940
+    },
+    {
+      "key": "generator",
+      "triangles": 5838,
+      "bytes": 788280
+    },
+    {
+      "key": "wallLamp",
+      "triangles": 940,
+      "bytes": 368544
+    },
+    {
+      "key": "securityLight",
+      "triangles": 1421,
+      "bytes": 255176
+    },
+    {
+      "key": "powerBox",
+      "triangles": 3991,
+      "bytes": 249360
+    },
+    {
+      "key": "utilityBox",
+      "triangles": 1399,
+      "bytes": 185044
+    },
+    {
+      "key": "tyre",
+      "triangles": 900,
+      "bytes": 193456
+    },
+    {
+      "key": "propane",
+      "triangles": 1222,
+      "bytes": 202992
+    },
+    {
+      "key": "crate",
+      "triangles": 797,
+      "bytes": 581984
+    }
+  ],
+  "characters": [
+    {
+      "id": "soldier-m1",
+      "body": "m",
+      "height": 1.841,
+      "parts": [
+        "body",
+        "head",
+        "equipment",
+        "helmet",
+        "combat_knife"
+      ],
+      "teamB": [
+        "body",
+        "equipment",
+        "helmet"
+      ]
+    },
+    {
+      "id": "soldier-m2",
+      "body": "m",
+      "height": 1.847,
+      "parts": [
+        "body",
+        "head",
+        "equipment",
+        "helmet",
+        "pistol"
+      ],
+      "teamB": [
+        "body",
+        "equipment",
+        "helmet"
+      ]
+    },
+    {
+      "id": "soldier-f1",
+      "body": "f",
+      "height": 1.772,
+      "parts": [
+        "body",
+        "head",
+        "equipment",
+        "helmet"
+      ],
+      "teamB": [
+        "body",
+        "equipment",
+        "helmet"
+      ]
+    }
+  ],
+  "weapons": [
+    {
+      "id": "vanguard",
+      "triangles": 41232,
+      "bytes": 2449020,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0341,
+            -0.1612,
+            0
+          ],
+          "max": [
+            0.0395,
+            0.0969,
+            0.8
+          ]
+        },
+        "mag": {
+          "min": [
+            -0.0133,
+            -0.2072,
+            0.3247
+          ],
+          "max": [
+            0.0132,
+            0.0046,
+            0.4193
+          ]
+        }
+      },
+      "lodTriangles": 9694,
+      "lodBytes": 460120
+    },
+    {
+      "id": "halcyon",
+      "triangles": 16795,
+      "bytes": 809536,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0232,
+            -0.1455,
+            0
+          ],
+          "max": [
+            0.0426,
+            0.0527,
+            0.94
+          ]
+        },
+        "mag": {
+          "min": [
+            -0.0164,
+            -0.2103,
+            0.4262
+          ],
+          "max": [
+            0.0164,
+            -0.0025,
+            0.5575
+          ]
+        }
+      },
+      "lodTriangles": 2813,
+      "lodBytes": 139956
+    },
+    {
+      "id": "wasp",
+      "triangles": 11302,
+      "bytes": 588224,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0227,
+            -0.2242,
+            0
+          ],
+          "max": [
+            0.0226,
+            0.0961,
+            0.68
+          ]
+        }
+      },
+      "lodTriangles": 2990,
+      "lodBytes": 118088
+    },
+    {
+      "id": "kestrel",
+      "triangles": 24127,
+      "bytes": 1535240,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0322,
+            -0.1845,
+            0
+          ],
+          "max": [
+            0.0405,
+            0.1474,
+            0.86
+          ]
+        }
+      },
+      "lodTriangles": 5291,
+      "lodBytes": 252820
+    },
+    {
+      "id": "bastion",
+      "triangles": 15816,
+      "bytes": 595352,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0217,
+            -0.1508,
+            0
+          ],
+          "max": [
+            0.0216,
+            0.0315,
+            0.98
+          ]
+        }
+      },
+      "lodTriangles": 2597,
+      "lodBytes": 102468
+    },
+    {
+      "id": "rampart",
+      "triangles": 25184,
+      "bytes": 1257352,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0223,
+            -0.1562,
+            0
+          ],
+          "max": [
+            0.0391,
+            0.0512,
+            1.01
+          ]
+        },
+        "bolt": {
+          "min": [
+            -0.0109,
+            -0.0032,
+            0.4499
+          ],
+          "max": [
+            0.0384,
+            0.0236,
+            0.5667
+          ]
+        }
+      },
+      "lodTriangles": 2655,
+      "lodBytes": 184996
+    },
+    {
+      "id": "longbow",
+      "triangles": 15257,
+      "bytes": 780112,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0349,
+            -0.1718,
+            0
+          ],
+          "max": [
+            0.0581,
+            0.1202,
+            1.2
+          ]
+        },
+        "mag": {
+          "min": [
+            -0.0174,
+            -0.1278,
+            0.6331
+          ],
+          "max": [
+            0.0159,
+            -0.0573,
+            0.7386
+          ]
+        }
+      },
+      "lodTriangles": 6026,
+      "lodBytes": 202456
+    },
+    {
+      "id": "talon",
+      "triangles": 22235,
+      "bytes": 998832,
+      "parts": {
+        "body": {
+          "min": [
+            -0.042,
+            -0.1683,
+            0
+          ],
+          "max": [
+            0.0549,
+            0.137,
+            1.08
+          ]
+        },
+        "mag": {
+          "min": [
+            -0.0203,
+            -0.1956,
+            0.5254
+          ],
+          "max": [
+            0.0201,
+            -0.0134,
+            0.6335
+          ]
+        }
+      },
+      "lodTriangles": 20684,
+      "lodBytes": 646348
+    },
+    {
+      "id": "anvil",
+      "triangles": 26848,
+      "bytes": 954796,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0368,
+            -0.1525,
+            0
+          ],
+          "max": [
+            0.0652,
+            0.0656,
+            1.04
+          ]
+        },
+        "mag": {
+          "min": [
+            -0.0683,
+            -0.174,
+            0.5121
+          ],
+          "max": [
+            0.0567,
+            0.0235,
+            0.602
+          ]
+        }
+      },
+      "lodTriangles": 5237,
+      "lodBytes": 178140
+    },
+    {
+      "id": "sparrow",
+      "triangles": 7556,
+      "bytes": 707928,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0136,
+            -0.1007,
+            0
+          ],
+          "max": [
+            0.0147,
+            0.0152,
+            0.2
+          ]
+        },
+        "slide": {
+          "min": [
+            -0.014,
+            -0.0131,
+            0.0609
+          ],
+          "max": [
+            0.0123,
+            0.0159,
+            0.1893
+          ]
+        }
+      },
+      "lodTriangles": 2106,
+      "lodBytes": 104812
+    },
+    {
+      "id": "thorn",
+      "triangles": 4661,
+      "bytes": 682168,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0198,
+            -0.1307,
+            0
+          ],
+          "max": [
+            0.0197,
+            0.0798,
+            0.24
+          ]
+        }
+      },
+      "lodTriangles": 2599,
+      "lodBytes": 122352
+    },
+    {
+      "id": "knife",
+      "triangles": 12420,
+      "bytes": 576124,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0048,
+            -0.0127,
+            0
+          ],
+          "max": [
+            0.0047,
+            0.0439,
+            0.31
+          ]
+        }
+      },
+      "lodTriangles": 2600,
+      "lodBytes": 105456
+    },
+    {
+      "id": "hammer",
+      "triangles": 5250,
+      "bytes": 624792,
+      "parts": {
+        "body": {
+          "min": [
+            -0.0175,
+            -0.0153,
+            0
+          ],
+          "max": [
+            0.0183,
+            0.1293,
+            0.4
+          ]
+        }
+      },
+      "lodTriangles": 2600,
+      "lodBytes": 98076
+    }
+  ]
+}

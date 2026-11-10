@@ -21,6 +21,7 @@ export default function Hud() {
   return <div className="ar-hud" aria-live="polite">
     <HudFx />
     <TopBar />
+    <Compass />
     {mode === 'dom' && <Objectives />}
     <KillFeed />
     <Minimap />
@@ -82,6 +83,39 @@ function TopBar() {
     <div className="ar-score enemy"><span style={{ width: `${Math.min(100, theirs / limit * 100)}%` }} /><b>{theirs}</b></div>
   </div>;
 }
+
+/** Heading strip: cardinal points every 15°, teammates and visible firing enemies as pips. */
+const Compass = memo(function Compass() {
+  const strip = useRef<HTMLDivElement>(null!), pips = useRef<HTMLDivElement>(null!), deg = useRef<HTMLElement>(null!);
+  const WIDTH = 360, SPAN = 120; // pixels per SPAN degrees
+  useEffect(() => {
+    let raf = 0;
+    const frame = () => {
+      raf = requestAnimationFrame(frame);
+      // Yaw 0 looks along −z: call that north, east to the right (yaw decreases turning right).
+      const heading = ((-controls.yaw * 180 / Math.PI) % 360 + 360) % 360;
+      strip.current.style.transform = `translateX(${-heading * WIDTH / SPAN}px)`;
+      deg.current.textContent = String(Math.round(heading) % 360).padStart(3, '0');
+      const s = live.sim; let html = '';
+      if (s) for (const r of live.remotes.values()) {
+        if (!(r.flags & 1) || !r.seenAt) continue;
+        const friend = r.team === live.team; if (!friend && !(r.flags & 64)) continue;
+        const bearing = Math.atan2(r.pos.x - s.x, -(r.pos.z - s.z)) * 180 / Math.PI;
+        let d = ((bearing - heading) % 360 + 540) % 360 - 180; if (Math.abs(d) > SPAN / 2) continue;
+        html += `<i class="${friend ? 'friend' : 'enemy'}" style="left:calc(50% + ${(d * WIDTH / SPAN).toFixed(1)}px)"></i>`;
+      }
+      pips.current.innerHTML = html;
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const marks = [];
+  for (let a = -180; a <= 540; a += 15) {
+    const n = ((a % 360) + 360) % 360, label = ({ 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' } as Record<number, string>)[n];
+    marks.push(<span key={a} className={label ? (label.length === 1 ? 'card' : 'inter') : ''} style={{ left: a * WIDTH / SPAN }}>{label ?? n}</span>);
+  }
+  return <div className="ar-compass" aria-hidden="true"><div className="ar-compass-window"><div ref={strip} className="ar-compass-strip">{marks}</div><div ref={pips} className="ar-compass-pips" /></div><b ref={deg}>000</b></div>;
+});
 
 function Objectives() {
   const objectives = useArena(s => s.hud.objectives), team = useArena(s => s.you?.team ?? 0);
@@ -154,6 +188,7 @@ function WeaponPanel() {
     <div className="ar-slots"><span className={h.slot === 0 ? 'on' : ''}>1 · {WEAPON_BY_ID.get(loadout.primary)?.name}</span><span className={h.slot === 1 ? 'on' : ''}>2 · {WEAPON_BY_ID.get(loadout.secondary)?.name}</span></div>
     <div className="ar-wname">{w?.name}<small>{w ? CATEGORIES[w.category as keyof typeof CATEGORIES] : ''}</small></div>
     {!melee ? <div className={`ar-ammo${low ? ' low' : ''}`}><b>{h.mag}</b><span>/ {h.reserve}</span></div> : <div className="ar-ammo"><b>∞</b></div>}
+    {!melee && h.magSize > 0 && <div className={`ar-magbar${low ? ' low' : ''}`} aria-hidden="true">{h.magSize <= 40 ? Array.from({ length: h.magSize }, (_, i) => <i key={i} className={i < h.mag ? 'on' : ''} />) : <span style={{ width: `${h.mag / h.magSize * 100}%` }} />}</div>}
     <div className="ar-state">{h.phase === 'reload' ? 'RELOADING' : h.phase === 'switch' ? 'SWITCHING' : !melee && h.mag === 0 && h.reserve === 0 ? 'NO AMMO' : !melee && low ? 'RELOAD [R]' : ''}</div>
     <div className="ar-equip"><span title={EQUIPMENT_BY_ID.get(loadout.lethal)?.name}>◆ {h.lethal} <kbd>G</kbd></span><span title={EQUIPMENT_BY_ID.get(loadout.tactical)?.name}>◇ {h.tactical} <kbd>Q</kbd></span></div>
   </div>;

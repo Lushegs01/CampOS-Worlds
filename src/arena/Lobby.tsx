@@ -1,6 +1,7 @@
 // Combat Arena lobby: your identity and level, Quick Play for each mode (matchmaking), private matches
 // with an invitation code, Training against labelled bots, your loadout, and the arena rankings.
 import { useEffect, useState } from 'react';
+import { ARENA_CREDITS, CREDIT_CHANGES } from './credits';
 import { Swords, Users, Bot, Trophy, KeyRound, Play, Map as MapIcon, Shield, Settings2, ChevronRight, Lock } from 'lucide-react';
 import { MODES, xpForLevel, MAX_LEVEL } from '../../shared/arena/rules.mjs';
 import { MAPS } from '../../shared/arena/maps.mjs';
@@ -86,6 +87,10 @@ export default function Lobby() {
           <button className="ar-secondary" onClick={() => useArena.getState().set({ editor: true })}>Edit loadouts<ChevronRight size={16} /></button>
         </div>
         <Controls />
+        <details className="ar-credits"><summary><span className="ar-eyebrow">ART CREDITS</span></summary>
+          <ul>{ARENA_CREDITS.map(c => <li key={c.what}><b>{c.what}</b> — <a href={c.url} target="_blank" rel="noreferrer noopener">“{c.title}”</a> by {c.author} · {c.licence === 'CC BY 4.0' ? <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer noopener">CC BY 4.0</a> : c.licence}</li>)}</ul>
+          <p className="ar-fine">{CREDIT_CHANGES}</p>
+        </details>
       </aside>
     </div>
   </div>;

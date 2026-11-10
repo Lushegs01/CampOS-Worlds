@@ -159,6 +159,9 @@ node tests/browser-sound.mjs             # footsteps by surface, doors, sitting,
 node tests/browser-npcs.mjs              # campus characters: thresholds, conversations, orders, phone, two browsers
 node tests/browser-arena.mjs             # Combat Arena: two signed-in players matched, eliminations, saved results, phone touch controls
 node scripts/qa/arena-load.mjs           # Combat Arena server load: concurrent full matches and bot matches
+LABEL=after node scripts/qa/arena-shots.mjs     # Combat Arena fixed-camera captures and renderer stats per graphics profile
+node scripts/qa/arena-weapons.mjs fp all hip,ads  # first-person weapon and arm poses (sheet <ids> <png> for measurement sheets)
+node scripts/assets/build-arena.mjs [textures|props|characters|weapons]  # rebuild the arena's licensed asset pack
 PERF_LABEL=after node tests/browser-mobile-performance.mjs   # phone-viewport benchmark (PERF_BOTS=n adds players)
 SOAK_SECONDS=300 node tests/browser-soak.mjs                 # GPU memory while players come and go
 node tests/browser-cpu-profile.mjs                           # main-thread script per frame on a phone viewport, and where it goes

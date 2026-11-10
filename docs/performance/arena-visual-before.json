@@ -1,0 +1,71 @@
+{
+  "label": "before",
+  "when": "2026-11-09T20:44:35.113Z",
+  "renderer": "SwiftShader (software WebGL, no GPU): frame rates are NOT representative of real devices",
+  "views": {
+    "yard-low": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 2,
+      "geometries": 20,
+      "fps": 27
+    },
+    "interior-low": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 2,
+      "geometries": 20,
+      "fps": 21
+    },
+    "lane-low": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 2,
+      "geometries": 20,
+      "fps": 27
+    },
+    "yard-medium": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 10,
+      "geometries": 20,
+      "fps": 7
+    },
+    "interior-medium": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 10,
+      "geometries": 20,
+      "fps": 6
+    },
+    "lane-medium": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 10,
+      "geometries": 20,
+      "fps": 7
+    },
+    "yard-high": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 12,
+      "geometries": 20,
+      "fps": 5
+    },
+    "interior-high": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 12,
+      "geometries": 20,
+      "fps": 4
+    },
+    "lane-high": {
+      "calls": 12,
+      "triangles": 172,
+      "textures": 12,
+      "geometries": 20,
+      "fps": 6
+    }
+  },
+  "note": "Counts here cover only the last render pass (the first-person weapon): the pre-overhaul renderer reset three.js counters per pass. They are not whole-frame figures."
+}

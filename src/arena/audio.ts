@@ -1,7 +1,7 @@
 // Combat Arena sound: every sound is synthesised here (filtered noise and tones shaped by envelopes),
 // so there are no recordings to license or download. Sounds go through the game's mixer (Settings →
 // Sound sets the volume; 0 turns sound off) and world sounds are positioned around the listener.
-import { audio } from '../audio/mixer';
+import { audio, play as playRecorded, loop, loadSounds, type Loop } from '../audio/mixer';
 
 type Ctx = AudioContext;
 const cache = new Map<string, AudioBuffer>();
@@ -66,8 +66,32 @@ export function play(name: string, opts: { at?: [number, number, number]; gain?:
     node = node.connect(p);
   }
   node.connect(m.effects);
+  // Indoors, a share of every sound also goes through the room reverb.
+  const wet = reverb(m.ctx, m.effects); if (wet) node.connect(wet);
   src.start(m.ctx.currentTime + (opts.delay ?? 0));
 }
+
+// ---------------------------------------------------------------- room reverb and ambience
+let verb: { ctx: Ctx; input: GainNode } | null = null, indoor = 0;
+/** A convolution reverb with a synthesised impulse (a short, dense hall tail). Its send follows `setIndoor`. */
+function reverb(ctx: Ctx, out: AudioNode) {
+  if (verb?.ctx === ctx) return verb.input;
+  try {
+    const len = Math.floor(ctx.sampleRate * 1.1), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); let seed = 9001 + ch * 77; for (let i = 0; i < len; i++) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; d[i] = (seed / 0x3fffffff - 1) * Math.pow(1 - i / len, 2.6) * (i < 400 ? i / 400 : 1); } }
+    const conv = ctx.createConvolver(); conv.buffer = ir;
+    const input = ctx.createGain(); input.gain.value = indoor * .55; input.connect(conv).connect(out);
+    verb = { ctx, input };
+    return input;
+  } catch { return null; }
+}
+/** 0 outdoors … 1 under a roof: sets how much reverb sounds carry. */
+export function setIndoor(amount: number) { indoor = amount; const m = audio(); if (verb && m && verb.ctx === m.ctx) verb.input.gain.setTargetAtTime(amount * .55, m.ctx.currentTime, .25); if (wind) wind.gain.setTargetAtTime(.22 * (1 - amount * .7), audio()?.ctx.currentTime ?? 0, .4); }
+let wind: Loop | null = null;
+/** Outdoor wind while a match is open (the campus' recorded loop). */
+export function startAmbience() { loadSounds(); wind ??= loop('wind', { gain: .22, bus: 'ambience' }); }
+export function stopArenaAmbience() { wind?.stop(.5); wind = null; }
+export type Ground = 'concrete' | 'metal' | 'wood' | 'sand' | 'brick' | 'dirt' | 'foliage';
 /** A short tone sequence (interface cues: hit markers, captures, rewards, countdown). */
 export function tones(notes: [number, number, number?][], gain = .18, type: OscillatorType = 'triangle') {
   const m = audio(); if (!m) return;
@@ -89,7 +113,23 @@ export const sfx = {
   switch: () => play('click', { gain: .4, rate: .7 }),
   dry: () => play('click', { gain: .5, rate: 1.4 }),
   swing: (at?: [number, number, number]) => play('swing', { at, gain: .5 }),
-  step: (at?: [number, number, number], gain = .25) => play('step', { at, gain }),
+  /** A footstep on a surface: recorded steps (hard, wood, soft) with a metallic ring on steel. */
+  step: (at?: [number, number, number], gain = .25, ground: Ground = 'concrete') => {
+    const name = ground === 'wood' ? 'step-wood' : ground === 'dirt' || ground === 'sand' || ground === 'foliage' ? 'step-grass' : 'step-hard';
+    const ok = playRecorded(name, { at: at ? { x: at[0], y: at[1], z: at[2] } : undefined, gain: gain * 2.2, rate: ground === 'metal' ? 1.25 : 1, range: 26 });
+    if (!ok) play('step', { at, gain });
+    if (ground === 'metal') play('click', { at, gain: gain * .9, rate: .55 });
+  },
+  /** A round striking a surface, heard from where it landed. */
+  impact: (ground: Ground, at: [number, number, number]) => {
+    if (ground === 'metal') { play('click', { at, gain: .9, rate: 1.6 + Math.random() * .8 }); play('click', { at, gain: .5, rate: 3.2, delay: .012 }); }
+    else if (ground === 'wood') play('thud', { at, gain: .5, rate: 2.2 });
+    else if (ground === 'sand' || ground === 'dirt' || ground === 'foliage') play('step', { at, gain: .7, rate: .7 });
+    else play('land', { at, gain: .55, rate: 2.4 + Math.random() * .6 });
+  },
+  flesh: (at: [number, number, number]) => play('thud', { at, gain: .45, rate: 1.5 }),
+  casing: () => play('click', { gain: .12, rate: 2.6 + Math.random(), delay: .32 + Math.random() * .1 }),
+  bolt: () => { play('click', { gain: .4, rate: .8 }); play('click', { gain: .4, rate: 1, delay: .22 }); },
   land: () => play('land', { gain: .4 }),
   boom: (at: [number, number, number]) => play('boom', { at, gain: 1.4, rate: .8 + Math.random() * .1 }),
   flash: (at: [number, number, number]) => { play('click', { at, gain: 1, rate: .5 }); tones([[3800, .02, .9]], .05, 'sine'); },

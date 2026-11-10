@@ -1,0 +1,40 @@
+{
+  "label": "after",
+  "when": "2026-11-10T11:30:19.365Z",
+  "renderer": "SwiftShader (software WebGL, no GPU): frame rates are NOT representative of real devices",
+  "views": {
+    "quad-court-low": {
+      "world": 105372,
+      "calls": 115,
+      "triangles": 154164,
+      "textures": 119,
+      "geometries": 62,
+      "fps": 1
+    },
+    "quad-court-high": {
+      "world": 0,
+      "calls": 268,
+      "triangles": 385727,
+      "textures": 198,
+      "geometries": 75,
+      "fps": 1
+    },
+    "quad-corner-low": {
+      "world": 119581,
+      "calls": 75,
+      "triangles": 168373,
+      "textures": 128,
+      "geometries": 65,
+      "fps": 1
+    },
+    "quad-corner-high": {
+      "world": 0,
+      "calls": 231,
+      "triangles": 390021,
+      "textures": 161,
+      "geometries": 67,
+      "fps": 0
+    }
+  },
+  "note": "court views from the first run of this capture, corner views from a re-run with the corner camera."
+}

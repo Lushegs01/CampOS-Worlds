@@ -1,0 +1,103 @@
+{
+  "label": "after",
+  "when": "2026-11-10T11:04:09.761Z",
+  "renderer": "SwiftShader (software WebGL, no GPU): frame rates are NOT representative of real devices",
+  "views": {
+    "yard-low": {
+      "world": 164830,
+      "calls": 72,
+      "triangles": 213622,
+      "textures": 145,
+      "geometries": 75,
+      "fps": 1
+    },
+    "interior-low": {
+      "world": 162628,
+      "calls": 66,
+      "triangles": 211420,
+      "textures": 145,
+      "geometries": 75,
+      "fps": 1
+    },
+    "lane-low": {
+      "world": 164340,
+      "calls": 71,
+      "triangles": 213132,
+      "textures": 145,
+      "geometries": 75,
+      "fps": 1
+    },
+    "squad-low": {
+      "world": 184966,
+      "calls": 78,
+      "triangles": 233758,
+      "textures": 169,
+      "geometries": 81,
+      "fps": 1
+    },
+    "yard-medium": {
+      "world": 0,
+      "calls": 143,
+      "triangles": 317791,
+      "textures": 163,
+      "geometries": 72,
+      "fps": 1
+    },
+    "interior-medium": {
+      "world": 0,
+      "calls": 155,
+      "triangles": 585428,
+      "textures": 163,
+      "geometries": 72,
+      "fps": 1
+    },
+    "lane-medium": {
+      "world": 0,
+      "calls": 143,
+      "triangles": 317791,
+      "textures": 163,
+      "geometries": 72,
+      "fps": 1
+    },
+    "squad-medium": {
+      "world": 0,
+      "calls": 219,
+      "triangles": 623202,
+      "textures": 188,
+      "geometries": 78,
+      "fps": 1
+    },
+    "yard-high": {
+      "world": 0,
+      "calls": 274,
+      "triangles": 594711,
+      "textures": 174,
+      "geometries": 73,
+      "fps": 0
+    },
+    "interior-high": {
+      "world": 0,
+      "calls": 171,
+      "triangles": 592803,
+      "textures": 174,
+      "geometries": 73,
+      "fps": 0
+    },
+    "lane-high": {
+      "world": 0,
+      "calls": 274,
+      "triangles": 594711,
+      "textures": 174,
+      "geometries": 73,
+      "fps": 0
+    },
+    "squad-high": {
+      "world": 0,
+      "calls": 288,
+      "triangles": 631469,
+      "textures": 198,
+      "geometries": 79,
+      "fps": 0
+    }
+  }
+}

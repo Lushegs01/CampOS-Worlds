@@ -19,7 +19,7 @@ export const MODES = [
 export const MODE_BY_ID = new Map(MODES.map(m=>[m.id,m]));
 
 export const MATCH = {
- maxPerTeam:6, minToStart:2, countdownMs:10000, fillWaitMs:15000, resultsMs:20000,
+ maxPerTeam:6, minToStart:2, countdownMs:10000, fillWaitMs:15000, loadWaitMs:20000, resultsMs:20000,
  /** Players who drop keep their place this long (reconnect with the match key). */
  reconnectMs:60000,
  /** A team with nobody connected for this long forfeits. */

@@ -79,7 +79,7 @@ export const WEAPONS = [
  // ---------------------------------------------------------------- melee: close-range emergency combat
  {id:'knife',name:'Combat Knife',category:'melee',slot:'secondary',unlock:1,fire:'melee',swing:s(.45),reach:2.3,damage:[[0,150]],range:2.3,head:1,legs:1,pellets:0,penetration:0,
   ads:s(.1),swap:s(.3),sprintOut:s(.05),moveMul:1.08,adsMoveMul:1,sound:'knife'},
- {id:'hammer',name:'Breach Hammer',category:'melee',slot:'secondary',unlock:7,fire:'melee',swing:s(.7),reach:2.9,damage:[[0,150]],range:2.9,head:1,legs:1,pellets:0,penetration:0,
+ {id:'hammer',name:'Breach Axe',category:'melee',slot:'secondary',unlock:7,fire:'melee',swing:s(.7),reach:2.9,damage:[[0,150]],range:2.9,head:1,legs:1,pellets:0,penetration:0,
   ads:s(.1),swap:s(.4),sprintOut:s(.08),moveMul:1.02,adsMoveMul:1,sound:'hammer'},
 ];
 export const WEAPON_BY_ID = new Map(WEAPONS.map(w=>[w.id,w]));

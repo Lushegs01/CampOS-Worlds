@@ -72,7 +72,7 @@ penetration through thin cover (rails, sandbag lines).
 | Sparrow P9 | Pistol | 1 | semi | 420 | 12 | 28 @0m → 21 @12m → 16 @25m | ×1.4 | 1.4 | 1.05 |
 | Thorn .44 | Pistol | 5 | semi | 150 | 6 | 58 @0m → 46 @15m → 36 @30m | ×1.5 | 2.3 | 1.03 |
 | Combat Knife | Melee | 1 | melee | — | — | one hit within 2.3 m | — | — | 1.08 |
-| Breach Hammer | Melee | 7 | melee | — | — | one hit within 2.9 m | — | — | 1.02 |
+| Breach Axe | Melee | 7 | melee | — | — | one hit within 2.9 m | — | — | 1.02 |
 
 Every gun also has a quick melee (two hits). Adding a weapon is a catalogue entry in
 `shared/arena/weapons.mjs` plus its row in the migration's catalogue insert; nothing else changes.
@@ -225,17 +225,78 @@ neutralising (60), defending a zone (50), and finishing the match (win 600, draw
 Tactical Strike and emblems; weapon levels (from eliminations with that weapon) unlock finishes.
 Everything is earned; nothing is sold.
 
+## Visuals and rendering
+
+The arena's look is a modern military shooter's, built from licensed production art (every source and
+licence is in [ASSETS.md](ASSETS.md#combat-arena--loaded-only-when-a-match-opens); CC BY works are also
+credited in the lobby under **Art credits**). Nothing is drawn with untextured primitives.
+
+| Area | What it is | Where |
+|---|---|---|
+| Asset pack | 14 Poly Haven PBR surface sets (colour, normal, AO/roughness/metal), 14 photoscanned props, 3 Rocketbox soldiers in two camouflage colourways, 13 weapons with third-person LODs, rigged first-person arms. KTX2/Basis textures, meshopt glTF: 34 MB on disk, of which a match downloads about 22–25 MB (surfaces, props, soldiers, every third-person weapon LOD, the arms and the player's own two weapons), only when a match opens and never precached by the PWA | `scripts/assets/build-arena.mjs` → `public/assets/arena/` |
+| Environment | Foundry Yard rebuilt from its collision boxes: corrugated shipping containers with real ribbed geometry, frames and door gear; precast perimeter panels with razor wire; brick sheds with trussed roofs, light fittings and framed windows and doors; sandbag walls; photoscanned barriers, crates, drums, generators, cans and lamps placed to read as a working depot; a splat-blended ground (slab, road, gravel, dirt and paint) under a real HDR sky; warehouses, silos and floodlight towers beyond the walls | `src/arena/scene/environment.ts` |
+| Lighting | HDR image-based lighting from the campus sky (PMREM), shadowed sun matched to the HDRI, hemisphere fill, warm practical lights under roofs, a roof shelter mask that dims sky light on covered ground, indoor/outdoor probes for the weapon's light and the reverb | `library.ts`, `environment.ts`, `Scene.tsx` |
+| Post-processing | Medium/High: ACES filmic tone mapping, bloom on hot highlights, grading (contrast, saturation), vignette, SMAA; High adds N8AO ambient occlusion. The first-person weapon is a second pass over a cleared depth buffer inside the same chain | `Scene.tsx` |
+| First person | Licensed weapon models with measured grip, support-hand, sight and ejection anchors; optic glass removed on the sight line and an illuminated reticle on red-dot sights; gloved, rigged arms posed by two-bone IK with hand frames and finger wrap per hold (rifle, pistol, blade), forearm twist, a magazine-grab frame for reloads | `src/arena/scene/weapons.ts` |
+| Weapon animation | Driven by the simulation's own timers, so it always matches gameplay: idle breathing, look sway, walk bob, sprint carry, jump and landing springs, slide cant, recoil kick and recovery, ADS blend, reload (tilt, magazine out and in, hand to magazine, charge), weapon switch, melee swing, grenade throw, pump/bolt/slide cycling | `Scene.tsx` (`updateViewmodel`) |
+| Characters | Rocketbox military avatars with helmets, vests and team camouflage (woodland vs desert), motion-captured locomotion blended by speed (idle/walk/jog/run/crouch), spine and head follow aim pitch, both hands put on the third-person weapon by IK, a fall on elimination; teammates carry blue names, enemies a small red marker | `soldiers.ts` |
+| Effects | Instanced particle pools (sparks, dust, debris, blood mist), impacts that differ by surface (concrete, metal, wood, sand, brick, dirt, foliage), decals, streak tracers, muzzle flashes with a flash light, ejected casings, explosion light and smoke, flashbang | `fx.ts` |
+| Audio | Wind ambience, surface footsteps (hard, wood, grass), surface impact and casing sounds, convolution reverb that rises indoors, 3D-positioned weapons | `audio.ts` |
+| HUD | Compass strip with teammate and firing-enemy bearings, angled score panels, monospace timer and ammunition, magazine round bar, segmented health, minimap, kill feed, streak buttons; compact layout on phones | `Hud.tsx`, `arena.css` |
+
+### Graphics profiles
+
+All three use the same assets and art direction; Low scales cost, never the look.
+
+| | Low | Medium | High |
+|---|---|---|---|
+| Resolution | 1× | up to 1.5× | up to 2× |
+| Sun shadows | 1024², baked once | 2048², every 2nd frame | 4096², every frame |
+| Post-processing | none (renderer ACES tone mapping) | tone mapping, bloom, grading, SMAA | + ambient occlusion (N8AO) |
+| Practical lights | 0 | 2 | 4 |
+| Detail | fewer sandbag segments, less dressing, low sky | full | full |
+| Antialiasing | MSAA | SMAA | SMAA |
+| Effects | half the particles, 24 decals, 10 casings | full, 64 decals | full, 120 decals |
+
+Defaults come from the device as before (touch or ≤ 4 GB / ≤ 4 cores → Low).
+
+### Loading
+
+A match shows a loading screen until the world, the player's weapon, the arms and the soldiers can be
+drawn (capped at 15 s, after which play starts and late models stream in). The client then tells the
+server it has loaded; **Training** holds its countdown until then (`rules.loadWaitMs`, 20 s cap) so the
+bots never shoot at a loading screen. Remote players' positions never wait for their models.
+
 ## Performance
 
 * The arena is a separate chunk and loads nothing for campus-only players. While it is open the campus
   stops rendering.
-* A map is about a dozen draw calls (boxes merged per material, world-space UVs, 128 px procedural
-  textures). Players are a fixed pool of 12 low-poly mannequins; tracers, impacts, flashes,
-  explosions, smoke and grenades come from preallocated pools (nothing allocated per shot). The
-  first-person weapon is drawn in a second pass over a cleared depth buffer.
-* Graphics **Low / Medium / High** (Settings), defaulting from the device like the campus (touch or
-  ≤ 4 GB / ≤ 4 cores → Low): Low uses 1× resolution, no antialiasing, no textures, simple lighting and
-  half the effects; High adds real-time shadows and up to 2× resolution.
+* Static geometry is merged per material with world-space UVs (about 60–110 draw calls on Low);
+  props, sandbags and particles are instanced; nothing is allocated per shot.
+
+### Rendering measurements
+
+Fixed cameras on Foundry Yard in Training, 1280 × 720, captured by `LABEL=after node
+scripts/qa/arena-shots.mjs` (`docs/performance/arena-visual-after.json`; Sim Quad with `MAP=quad`). Counts
+are per frame including the first-person pass. On Medium and High they also include the shadow and
+post-processing passes.
+
+| View | Low: draw calls / triangles | Medium | High |
+|---|---|---|---|
+| Yard | 72 / 214k (world pass 165k) | 143 / 318k | 274 / 595k |
+| Interior | 66 / 211k | 155 / 585k | 171 / 593k |
+| Lane | 71 / 213k | 143 / 318k | 274 / 595k |
+| Squad (three soldiers at 5 m) | 78 / 234k | 219 / 623k | 288 / 631k |
+| Sim Quad court | 115 / 154k | — | 268 / 386k |
+
+GPU textures resident: 145 (Low) to 198 (High). Before the overhaul the scene was a dozen flat-coloured
+boxes; its recorded counters (`arena-visual-before.json`) cover only the weapon pass and are not
+comparable. Before/after pictures from the same cameras: `docs/screenshots/arena/visual/compare-yard.jpg`,
+`compare-interior.jpg`, `compare-lane.jpg` and `compare-ads.jpg`. All frame rates here were taken with
+software rendering (SwiftShader, no GPU) and are **not** representative: 0–3 fps on every profile in this
+environment. **No GPU or phone measurements were possible.** The Low profile's ~214k triangles and ~70
+draw calls are within what mid-range phone GPUs handle at 30 fps, but that is an estimate, not a
+measurement.
 
 Measured (`docs/performance/arena-load.json`, `node scripts/qa/arena-load.mjs`): one room process with
 4 full 6 v 6 Quick Play matches (48 WebSocket clients each sending 60 commands/s while moving and
@@ -243,10 +304,11 @@ firing) plus 4 Training matches (36 bots) for 20 s — **31% of the server's mai
 delay p99 9.4 ms, every client received 20.0 snapshots/s (minimum 20.1), ~17 KB/s download per client,
 3,908 shots resolved with lag compensation.
 
-Client frame rate was measured only with software rendering (SwiftShader, no GPU) in this
-environment: **44 fps** on Low at a 844 × 390 phone viewport during Training
-(`docs/arena-results.json`). Physical low-end Android phones were **not** available to test; the 30 fps
-mobile target is not yet verified on real hardware.
+Client frame rate before the visual overhaul was 44 fps on Low with software rendering at a 844 × 390
+phone viewport; with the production art the browser suite now records about 3 fps in the same software
+renderer even at a 0.3 render scale (`docs/arena-results.json`). That says little about GPUs, but it is
+why the suite renders small and allows slow clients more time.
+Physical phones were **not** available to test; the 30 fps mobile target is unverified on hardware.
 
 ## Testing
 
@@ -277,6 +339,10 @@ Proxy `/arena` like `/ws` ([deployment](DEPLOYMENT.md)). Apply the migration wit
 * Cross-process matchmaking queue (each process matches its own players).
 * Ranked play with skill ratings; Free-for-all, Search and Destroy, Hardpoint (architecture ready).
 * Kill cams, voice, parties queuing together, spectating.
-* Recorded (rather than synthesised) sound and skinned, animated character models in matches; the
-  simulation mannequins are deliberate (exact hitboxes, cheap on phones) but plain.
 * Physical-device performance verification on low-end Android phones.
+* Art still to raise: Sim Quad's planters, benches and interior blocks are textured boxes rather than
+  modelled props; the Wasp, Kestrel and Bastion magazines are fused to the gun (reloads move the hand
+  but nothing drops); the Talon's third-person LOD stays at ~20k triangles (its source mesh does not
+  simplify); bespoke animation clips for the first-person arms (reloads are procedural poses driven by
+  the simulation, not keyframed animation); a lighter streaming pack for phones on metered data (a
+  match downloads about 22–25 MB).

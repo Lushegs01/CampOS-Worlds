@@ -14,12 +14,14 @@ import { EYE } from '../shared/arena/sim.mjs';
 const SHOTS = 'docs/screenshots/arena/';
 await mkdir(SHOTS, { recursive: true });
 const RULES = { countdownMs: 1500, fillWaitMs: 0, spawnProtectMs: 0, regenDelayMs: 60000, mode: { scoreLimit: 2, respawnMs: 2500 } };
-const stack = await startStack({ name: 'arena-browser', webPort: 5179, roomPort: 3209, supabasePort: 54329, arena: { rules: RULES, minRecordMs: 0 } });
+const stack = await startStack({ name: 'arena-browser', webPort: 5179, roomPort: 3209, supabasePort: 54329, arena: { rules: RULES, minRecordMs: 0, slowCloseMs: 30000 } });
 const browser = await launch();
 const errors = [], results = { started: new Date().toISOString(), checks: [] };
 const check = (name, detail = '') => { results.checks.push({ name, ok: true, detail }); console.log('✓', name, detail); };
 const arenaState = page => page.evaluate(() => window.__arena?.state());
-const pinArena = async page => page.addInitScript(() => localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: 'low', showFps: true })));
+// Software rendering (SwiftShader in CI) draws the arena's photoscanned scene at a few frames a second:
+// render it small so the networking under test is not starved, and give slow clients longer.
+const pinArena = async page => page.addInitScript(() => { localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: 'low', showFps: true })); localStorage.setItem('campos-arena-qa-scale', '0.3'); });
 async function openArena(page) {
   await page.getByRole('button', { name: /Combat Arena/ }).click();
   await page.getByRole('heading', { name: 'Combat Arena' }).waitFor({ timeout: 60000 });
@@ -129,8 +131,15 @@ try {
   await phone.screenshot({ path: SHOTS + 'phone-lobby.png' });
   await phone.getByRole('tab', { name: 'Training' }).click();
   await phone.getByRole('button', { name: 'Start training' }).click();
+  // This step is about touch controls: hold the bots still (software rendering makes each check slow
+  // enough for them to win the short test match otherwise).
+  await phone.waitForFunction(() => !!window.__arena?.state().match, null, { timeout: 60000 });
+  const trainingId = (await arenaState(phone)).match.id, training = matchOf(trainingId);
+  for (const b of training.players.filter(p => p.bot)) b.brain.think = () => null;
   await phone.waitForFunction(() => window.__arena?.state().hud.matchState === 'playing', null, { timeout: 60000 });
   await phone.waitForFunction(() => window.__arena.state().hud.alive && window.__arena.self()?.ammo > 0, null, { timeout: 20000 });
+  // The match is playable once its loading screen (world, weapon, arms, soldiers) has gone.
+  await phone.locator('.ar-scene-loading').waitFor({ state: 'detached', timeout: 90000 });
   const fire = phone.getByRole('button', { name: 'Fire', exact: true });
   await fire.waitFor();
   for (const name of ['Fire', 'Aim down sights', 'Jump', 'Reload', 'Switch weapon', 'Throw lethal']) {
@@ -163,6 +172,9 @@ try {
   console.log('All Combat Arena browser checks passed.');
 } catch (e) {
   results.ok = false; results.error = String(e?.stack ?? e); results.pageErrors = errors;
+  results.pageStates = [];
+  for (const ctx of browser.contexts()) for (const p of ctx.pages()) results.pageStates.push(await p.evaluate(() => { const a = window.__arena; return a && { status: a.state().status, phase: a.state().phase, match: a.state().hud.matchState, fps: a.state().hud.fps, self: a.self(), remotes: a.remotes() }; }).catch(err => String(err)));
+  console.error('page states', JSON.stringify(results.pageStates));
   for (const ctx of browser.contexts()) for (const p of ctx.pages()) await p.screenshot({ path: `${SHOTS}failure-${browser.contexts().indexOf(ctx)}.png` }).catch(() => {});
   console.error(e); process.exitCode = 1;
 } finally {

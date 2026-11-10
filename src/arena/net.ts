@@ -25,13 +25,15 @@ type Cmd = { seq: number; b: number; mx: number; mz: number; yaw: number; pitch:
 export type Remote = { num: number; team: number; track: ReturnType<typeof createTrack>; pitch: number; flags: number; weapon: number; hp: number; seenAt: number; deadAt: number; pos: { x: number; y: number; z: number; yaw: number }; stepAt: number };
 export type Fx =
   | { type: 'tracer'; from: number[]; to: number[]; local: boolean }
-  | { type: 'impact'; at: number[]; normal: number[]; flesh: boolean }
+  | { type: 'impact'; at: number[]; normal: number[]; flesh: boolean; mat?: string }
+  | { type: 'capture'; id: string; team: number }
   | { type: 'muzzle'; num: number }
   | { type: 'boom'; at: number[]; r: number }
   | { type: 'smoke'; at: number[]; r: number; ms: number }
   | { type: 'flash'; at: number[] }
   | { type: 'death'; num: number }
-  | { type: 'shot'; weapon: string };
+  | { type: 'shot'; weapon: string }
+  | { type: 'land'; speed: number } | { type: 'jump' };
 
 /** Everything that changes every frame, outside React. */
 export const live = {
@@ -246,7 +248,16 @@ function event(ev: Record<string, any>) {
     case 'shot': {
       const w = WEAPONS[ev.w]; const r = live.remotes.get(ev.num);
       const from = r && r.seenAt ? [r.pos.x, r.pos.y + (r.flags & 2 ? 1.0 : 1.45), r.pos.z] : ev.o.map((v: number) => v / 100);
-      for (const e of ev.e) { fx({ type: 'tracer', from, to: [e[0] / 100, e[1] / 100, e[2] / 100], local: false }); fx({ type: 'impact', at: [e[0] / 100, e[1] / 100, e[2] / 100], normal: [0, 1, 0], flesh: !!e[3] }); }
+      for (const e of ev.e) {
+        const to = [e[0] / 100, e[1] / 100, e[2] / 100];
+        fx({ type: 'tracer', from, to, local: false });
+        // What it struck (for the right dust, sparks and sound): re-cast the same ray against the map.
+        let normal = [0, 1, 0], mat: string | undefined;
+        const dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2], len = Math.hypot(dx, dy, dz) || 1;
+        const hit = live.world && !e[3] ? raycast(live.world, from[0], from[1], from[2], dx / len, dy / len, dz / len, len + .4, null, hitScratch) : null;
+        if (hit && hit.t > len - .6) { normal = [...hit.normal]; mat = hit.box ? matOf(hit.box) : undefined; }
+        fx({ type: 'impact', at: to, normal, flesh: !!e[3], mat });
+      }
       fx({ type: 'muzzle', num: ev.num });
       if (w) sfx.gun(w.sound, [from[0], from[1], from[2]]);
       return;
@@ -308,7 +319,7 @@ function event(ev: Record<string, any>) {
     case 'capture': case 'neutral': {
       const ours = ev.team === live.team, inIt = ev.by?.includes(live.num);
       banner({ text: ev.k === 'capture' ? `${ours ? 'We' : 'Enemy'} captured ${ev.id}` : `${ev.id} ${ours ? 'neutralised' : 'lost'}`, sub: inIt ? '+150' : undefined, tone: ours ? 'good' : 'bad', ms: 2200 });
-      sfx.capture(ours); return;
+      sfx.capture(ours); if (ev.k === 'capture') fx({ type: 'capture', id: ev.id, team: ev.team }); return;
     }
     case 'end': {
       const result = ev.result, won = result.winner === live.team, draw = result.winner === null;
@@ -353,7 +364,9 @@ export function tickInput(dt: number) {
   }
 }
 /** Our own predicted events: immediate muzzle flash, tracer, impact and sound. Hits are confirmed by the server. */
-const hitScratch = { t: 0, box: null, normal: [0, 0, 0], ground: false };
+const hitScratch: { t: number; box: { i: number } | null; normal: number[]; ground: boolean } = { t: 0, box: null, normal: [0, 0, 0], ground: false };
+/** The map material of a collision box (what a round or a boot is touching). */
+export const matOf = (box: { i: number }): string | undefined => MAP_BY_ID.get(live.mapId)?.boxes[box.i]?.mat;
 function local(ev: Record<string, any>) {
   const s = live.sim!;
   if (ev.kind === 'shot') {
@@ -364,7 +377,7 @@ function local(ev: Record<string, any>) {
       const t = hit ? hit.t : Math.min(w.range, 120);
       const to = [ev.ox + dx * t, ev.oy + dy * t, ev.oz + dz * t];
       fx({ type: 'tracer', from: [ev.ox, ev.oy, ev.oz], to, local: true });
-      if (hit) fx({ type: 'impact', at: to, normal: [...hit.normal], flesh: false });
+      if (hit) fx({ type: 'impact', at: to, normal: [...hit.normal], flesh: false, mat: hit.box ? matOf(hit.box) : undefined });
     }
     fx({ type: 'shot', weapon: w.id });
     sfx.gun(w.sound);
@@ -372,7 +385,8 @@ function local(ev: Record<string, any>) {
   else if (ev.kind === 'switch') sfx.switch();
   else if (ev.kind === 'dry') sfx.dry();
   else if (ev.kind === 'melee') sfx.swing();
-  else if (ev.kind === 'land') sfx.land();
+  else if (ev.kind === 'land') { sfx.land(); fx({ type: 'land', speed: ev.speed }); }
+  else if (ev.kind === 'jump') fx({ type: 'jump' });
   else if (ev.kind === 'throw') sfx.swing();
 }
 

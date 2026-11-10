@@ -11,6 +11,11 @@ import { startLocalSupabase } from './local-supabase.mjs';
 import { createRoom } from '../../server/room.mjs';
 import { createAccounts } from '../../server/accounts.mjs';
 
+// embedded-postgres registers async-exit-hook, whose 'beforeExit' handler calls process.exit(0): a suite
+// that failed (process.exitCode = 1) would still exit 0 and pass in CI. Registered first, this keeps the
+// failure's exit code; successful runs fall through to the normal clean-up.
+process.on('beforeExit', () => { if (process.exitCode) process.exit(process.exitCode); });
+
 export async function startStack({ name = 'stack', database, keep = false, webPort = 5175, roomPort = 3201, supabasePort = 54321, accessTtl = 3600, confirmEmail = false, vite = true, arena = {} } = {}) {
   const dir = join(tmpdir(), `campos-worlds-pg17-${name}`);
   const db = await startDatabase({ name, database, keep });
