@@ -190,10 +190,10 @@ async function soldier(c) {
 const OBJAVERSE = 'https://huggingface.co/datasets/allenai/objaverse/resolve/main';
 const sf = (uid, dir, title, author) => ({ uid, url: `${OBJAVERSE}/glbs/${dir}/${uid}.glb`, page: `https://sketchfab.com/3d-models/${uid}`, title, author, license: 'CC BY 4.0' });
 export const WEAPONS = {
-  vanguard: { ...sf('429b6ef8516b46dca8992e78c4bf7a55', '000-105', 'SLR AR-15', 'AlexFinsher'), forward: '+z', length: .80 },
+  vanguard: { ...sf('429b6ef8516b46dca8992e78c4bf7a55', '000-105', 'SLR AR-15', 'AlexFinsher'), forward: '+z', length: .80, lens: { y: .0685, z: [.34, .415], r: .017 } },
   halcyon: { ...sf('9084c3bae8224d338103997bc3101480', '000-075', 'AK-74M Assault Rifle', 'FJH'), forward: '-z', length: .94, drop: /(^|\/)(Round|Shell)_/, parts: { mag: /(^|\/)Magazine_/ } },
-  wasp: { ...sf('c503d96157614fb78b5953d49e643b78', '000-043', 'HK MP5 (9mm submachine gun)', 'quick_loop'), forward: '-x', length: .68 },
-  kestrel: { ...sf('3d031dfeb2ad45beb19e89977225a631', '000-112', 'Saiga-9mm', 'rwroclav'), forward: '+x', length: .86, pca: true },
+  wasp: { ...sf('c503d96157614fb78b5953d49e643b78', '000-043', 'HK MP5 (9mm submachine gun)', 'quick_loop'), forward: '-x', length: .68, lens: { y: .071, z: [.238, .287], box: [.024, .05, .097] } },
+  kestrel: { ...sf('3d031dfeb2ad45beb19e89977225a631', '000-112', 'Saiga-9mm', 'rwroclav'), forward: '+x', length: .86, pca: true, lens: { y: .122, z: [.395, .47], r: .011 } },
   bastion: { ...sf('eea11de7e9d24b6683962b8388c319eb', '000-091', 'Remington 870 Police Magnum 12 Gauge Shotgun', '8sianDude'), forward: '-z', length: .98, dropMaterial: /12gauge/ },
   rampart: { ...sf('7e472e24152246708cac8b6f1613c7a8', '000-061', 'M4 Super 90 (JW2) Brand-Friendly version', '8sianDude'), forward: '-z', length: 1.01, parts: { bolt: /(^|\/)bolt(\/|$)/ } },
   longbow: { ...sf('e520b234140049e7890db0b6c29d3925', '000-009', 'Sniper rifle GameReady Free', 'pashtetuser'), forward: '-z', length: 1.2, parts: { mag: /LPmagazine_/ } },
@@ -311,19 +311,31 @@ async function weapon(id, spec, lod) {
     const b = partBounds[name] ??= { min: [1e9, 1e9, 1e9], max: [-1e9, -1e9, -1e9] }, m = n.getMatrix(), e = [];
     for (const p of n.getMesh().listPrimitives()) { const a = p.getAttribute('POSITION'); for (let i = 0; i < a.getCount(); i++) { const w = mulPoint(m, a.getElement(i, e)), q = [0, 1, 2].map(k => (M[k * 3] * w[0] + M[k * 3 + 1] * w[1] + M[k * 3 + 2] * w[2] - c[k]) * scale); for (let k = 0; k < 3; k++) { b.min[k] = Math.min(b.min[k], q[k]); b.max[k] = Math.max(b.max[k], q[k]); } } }
   }
-  if (spec.cullAbove != null) for (const n of live) for (const prim of n.getMesh().listPrimitives()) {
+  if (spec.cullAbove != null || spec.lens) for (const n of live) for (const prim of n.getMesh().listPrimitives()) {
     // Remove loose items baked into a single mesh (a cartridge floating above a revolver) by position.
     const m = n.getMatrix(), pos = prim.getAttribute('POSITION'), idx = prim.getIndices(), e = [], keep = [];
-    const yOf = i => { const w = mulPoint(m, pos.getElement(i, e)); return (M[3] * w[0] + M[4] * w[1] + M[5] * w[2] - c[1]) * scale; };
-    const ys = Array.from({ length: pos.getCount() }, (_, i) => yOf(i));
+    // Positions in the normalised frame.
+    const P = Array.from({ length: pos.getCount() }, (_, i) => { const w = mulPoint(m, pos.getElement(i, e)); return [0, 1, 2].map(k => (M[k * 3] * w[0] + M[k * 3 + 1] * w[1] + M[k * 3 + 2] * w[2] - c[k]) * scale); });
     const count = idx ? idx.getCount() : pos.getCount(), at = i => idx ? idx.getScalar(i) : i;
-    for (let t = 0; t < count; t += 3) if (!(ys[at(t)] > spec.cullAbove && ys[at(t + 1)] > spec.cullAbove && ys[at(t + 2)] > spec.cullAbove)) keep.push(at(t), at(t + 1), at(t + 2));
+    // Optic glass: flat faces across the sight line are cut out, so the sights can be looked through.
+    const isLens = (a, b, d) => {
+      const L = spec.lens; if (!L) return false;
+      const u = b.map((v, k) => v - a[k]), w = d.map((v, k) => v - a[k]), nrm = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]], len = Math.hypot(...nrm) || 1;
+      if (Math.abs(nrm[2] / len) < .9) return false;
+      return [a, b, d].every(p => p[2] >= L.z[0] && p[2] <= L.z[1] && (L.box ? Math.abs(p[0]) <= L.box[0] && p[1] >= L.box[1] && p[1] <= L.box[2] : Math.hypot(p[0], p[1] - L.y) <= L.r));
+    };
+    for (let t = 0; t < count; t += 3) {
+      const A = P[at(t)], B = P[at(t + 1)], D = P[at(t + 2)];
+      if (spec.cullAbove != null && A[1] > spec.cullAbove && B[1] > spec.cullAbove && D[1] > spec.cullAbove) continue;
+      if (isLens(A, B, D)) continue;
+      keep.push(at(t), at(t + 1), at(t + 2));
+    }
     prim.setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(keep)).setBuffer(root.listBuffers()[0]));
   }
   for (const n of root.listNodes()) if (!n.getMesh() && n !== holder && !partNodes.has(n.getName()) && !n.listChildren().length) n.dispose();
   let tris = 0; for (const m of root.listMeshes()) for (const p of m.listPrimitives()) tris += (p.getIndices()?.getCount() ?? p.getAttribute('POSITION').getCount()) / 3;
   const target = lod ? 2600 : 60000, ratio = Math.min(1, target / tris);
-  await doc.transform(dedup(), join({ keepNamed: false }), weld(), ...(ratio < .98 ? [simplify({ simplifier: MeshoptSimplifier, ratio, error: lod ? .02 : .002, lockBorder: false })] : []), prune());
+  await doc.transform(dedup(), join({ keepNamed: false }), weld(), ...(ratio < .98 ? [simplify({ simplifier: MeshoptSimplifier, ratio, error: lod ? .06 : .002, lockBorder: false })] : []), prune());
   for (const [name, pn] of partNodes) pn.setName(name);
   holder.setName('weapon');
   await texturesToKtx2(doc, path.join(cache, 'baked'), `${id}${lod ? '-lod' : ''}`, lod ? 256 : 1024);

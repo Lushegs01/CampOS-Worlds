@@ -6,7 +6,8 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadModel, loadTexture } from '../../world/assets';
-import { weaponThirdPerson } from './weapons';
+import { weaponThirdPerson, preloadWeapon } from './weapons';
+import { WEAPONS } from '../../../shared/arena/weapons.mjs';
 import type { Library } from './library';
 
 const MODELS = ['soldier-m1', 'soldier-m2', 'soldier-f1'] as const;
@@ -23,7 +24,11 @@ export function loadSoldiers(): Promise<Record<string, Kit>> {
     const teamB: Record<string, THREE.Texture> = {};
     CAMO.forEach((p, i) => { const t = b[i]; if (t) { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true; teamB[p] = t; } });
     return [id, { scene: g.scene, clips, teamB }] as const;
-  })).then(list => Object.fromEntries(list));
+  })).then(async list => {
+    // Third-person weapons come with the soldiers, so nobody appears empty-handed.
+    await Promise.all((WEAPONS as { id: string }[]).map(w => preloadWeapon(w.id, true).catch(() => null)));
+    return Object.fromEntries(list);
+  });
   kits.catch(() => { kits = null; });
   return kits;
 }
@@ -51,9 +56,8 @@ export class Soldier {
     this.mixer = new THREE.AnimationMixer(this.rig);
     for (const name of ['idle', 'walk', 'jog', 'run', 'crouch', 'look']) {
       const clip = kit.clips[name]; if (!clip) continue;
-      // Arms are posed by IK onto the weapon: drop arm tracks from locomotion.
-      const tracks = clip.tracks.filter(t => !/^Bip01_[LR]_(Clavicle|UpperArm|Forearm|Hand|Finger)/.test(t.name));
-      const a = this.mixer.clipAction(new THREE.AnimationClip(name, clip.duration, tracks)); a.play(); a.weight = name === 'idle' ? 1 : 0; this.actions[name] = a;
+      // The clip poses the whole body; near soldiers then have their arms put on the weapon by IK.
+      const a = this.mixer.clipAction(clip); a.play(); a.weight = name === 'idle' ? 1 : 0; this.actions[name] = a;
     }
     this.gun = new THREE.Group(); this.root.add(this.gun);
     this.flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTexture, color: '#ffcf8a', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
@@ -98,8 +102,10 @@ export class Soldier {
     const chest = spine ? spine.getWorldPosition(tmpV2) : tmpV2.set(pos.x, pos.y + 1.35, pos.z);
     const fwd = tmpV.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-    this.gun.position.copy(chest).addScaledVector(right, .14).addScaledVector(fwd, .34).add(tmpV2.set(0, dead ? -.5 : -.12, 0));
-    this.gun.quaternion.setFromRotationMatrix(tmpM.lookAt(new THREE.Vector3(), fwd, new THREE.Vector3(0, 1, 0))); // −z (the muzzle) along the aim
+    // Worked out in world space, then expressed in the soldier's own (yawed) frame, since the gun is its child.
+    const gunAt = chest.clone().addScaledVector(right, .14).addScaledVector(fwd, .34).add(tmpV2.set(0, dead ? -.5 : -.12, 0));
+    this.gun.position.copy(this.root.worldToLocal(gunAt));
+    this.gun.quaternion.setFromRotationMatrix(tmpM.lookAt(new THREE.Vector3(), fwd, new THREE.Vector3(0, 1, 0))).premultiply(this.root.getWorldQuaternion(tmpQ).invert()); // −z (the muzzle) along the aim
     this.gun.visible = !dead || this.fall < .5;
     this.gun.updateMatrixWorld(true);
     const muzzle = this.gun.getObjectByName('muzzle');

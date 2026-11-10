@@ -14,6 +14,8 @@ const VIEWS = [
   { id: 'yard', at: [-30, 3], yaw: -Math.PI / 2, pitch: -.02, bots: [[-19, -1, Math.PI / 2], [-15, 5.5, Math.PI / 2.4]] },
   { id: 'interior', at: [-8.6, 6.8], yaw: -2.35, pitch: .12, bots: [[-2, -5.6, 2.6], [3, 3, -2.2]] },
   { id: 'lane', at: [-27, -15], yaw: -1.35, pitch: .04, bots: [[-12, -19.5, 1.7], [-3, -21, 1.3]] },
+  // Close range: the soldiers themselves (kit, camouflage, how they hold their weapons).
+  { id: 'squad', at: [-24.5, 2.2], yaw: -Math.PI / 2, pitch: -.04, bots: [[-19.6, 1.1, Math.PI / 2 - .25], [-19.2, 3.6, Math.PI / 2 + .35], [-20.8, -.6, Math.PI / 2 + .05]] },
 ];
 const room = createRoom({ port: 3215, origins: ['http://127.0.0.1:5181'], arena: { slowCloseMs: 600000, rules: { countdownMs: 300, snapshotHz: 10, mode: { timeMs: 3600000, scoreLimit: 9999 } } } });
 await room.start();
@@ -39,12 +41,16 @@ try {
     await page.getByLabel('Bots').selectOption('3');
     await page.getByRole('button', { name: 'Start training' }).click();
     await page.waitForFunction(() => window.__arena?.state().hud.matchState === 'playing', null, { timeout: 90000 });
-    await page.waitForFunction(() => document.querySelector('.ar-scene-loading') === null && window.__arenaStats?.calls > 0, null, { timeout: 240000 });
-    await page.waitForTimeout(4000);
+    // Freeze the bots at once (they hold still and nobody can be hurt), so all are alive for the photographs.
     const match = [...room.arena.matches.values()].find(m => m.kind === 'training' && !m.closed);
     const me = match.players.find(p => !p.bot), bots = match.players.filter(p => p.bot);
-    for (const b of bots) b.brain.think = () => null; // hold still for the photograph
-    me.protectUntil = Infinity; for (const b of bots) b.protectUntil = Infinity;
+    for (const b of bots) b.brain.think = () => null;
+    const shield = () => { me.protectUntil = Infinity; for (const b of bots) b.protectUntil = Infinity; };
+    shield(); const keepShielded = setInterval(shield, 200); // a respawn resets protection
+    await page.waitForFunction(() => document.querySelector('.ar-scene-loading') === null && window.__arenaStats?.calls > 0, null, { timeout: 240000 });
+    // Software rendering streams slowly: also wait for the soldiers and the first-person weapon.
+    await page.waitForFunction(() => { const d = window.__arenaDebug?.(); return !d || (d.kits && d.vm.gun); }, null, { timeout: 180000 });
+    await page.waitForTimeout(4000);
     for (const view of VIEWS.filter(v => !ONLY || ONLY.includes(v.id))) {
       const place = (p, x, z, yaw) => { Object.assign(p.sim, { x, y: 0, z, vx: 0, vy: 0, vz: 0, yaw }); p.history = []; };
       place(me, view.at[0], view.at[1], view.yaw);
@@ -64,6 +70,7 @@ try {
     await page.locator('.ar-canvas canvas').click({ position: { x: 640, y: 360 } }).catch(() => {});
     await page.mouse.down({ button: 'right' }); await page.waitForTimeout(1200);
     await page.screenshot({ path: `${OUT}${LABEL}-ads-${quality}.png` }); await page.mouse.up({ button: 'right' });
+    clearInterval(keepShielded);
     await page.close();
     for (const m of [...room.arena.matches.values()]) m.close('capture');
   }

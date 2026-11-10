@@ -50,6 +50,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const { scene, camera, gl, size } = useThree();
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
+  const worldAt = useRef(0);
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   useEffect(() => {
     let live2 = true;
@@ -92,7 +93,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!world || !lib) return;
     scene.add(world.group); scene.environment = lib.env; scene.environmentIntensity = 1.5;
     const fog = lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, 55, q.fogFar * 3.2); scene.background = fog;
-    useArena.getState().set({ sceneReady: true });
+    worldAt.current = performance.now();
     return () => {
       scene.remove(world.group); scene.environment = null; scene.fog = null;
       world.group.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && !m.name.startsWith('prop:')) m.geometry.dispose(); });
@@ -231,7 +232,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // ---------------------------------------------------------------- the frame
   const fwd = useMemo(() => new THREE.Vector3(), []), eyePos = useMemo(() => ({ x: 0, y: 0, z: 0 }), []), sample = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
   const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), stepDist = useRef(0), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
-  useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
+  useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
   useEffect(() => { gl.info.autoReset = false; if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaGL = gl; return () => { gl.info.autoReset = true; }; }, [gl]);
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
@@ -331,6 +332,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       });
     } else objectives.g.visible = false;
     updateViewmodel(dt, now);
+    // The match is shown once the player's weapon, arms and the soldiers can be drawn (or after 15 s regardless).
+    if (!a.sceneReady && worldAt.current && ((kits && vm.gun && vm.arms) || now - worldAt.current > 15000)) a.set({ sceneReady: true });
     const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); }
   }, -1);
 
@@ -414,6 +417,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (bolt && w.fire !== 'bolt') bolt.position.z += vm.slideKick * .0;
     if (cyl) { vm.cyl += (s.shots * Math.PI / 3 - vm.cyl) * Math.min(1, dt * 18); cyl.rotation.z = vm.cyl; }
     vm.holder.position.set(x, y, z); vm.holder.rotation.set(rx, ry, rz); vm.holder.updateMatrixWorld(true);
+    const reticle = gun.getObjectByName('reticle'); if (reticle) reticle.visible = ads > .55 && s.phase !== 'reload';
     // Muzzle flash: two frames of a star flash at the barrel.
     const muzzle = gun.getObjectByName('muzzle');
     if (muzzle && !melee && now - vm.flashAt < 42 && show) { vm.flash.visible = true; muzzle.getWorldPosition(vm.flash.position); vm.flash.quaternion.copy(vm.holder.quaternion); vm.flash.rotateZ(Math.random() * 6.28); const sc = (.5 + Math.random() * .5) * (w.category === 'shotgun' || w.category === 'sniper' ? 1.5 : w.category === 'pistol' ? .7 : 1) * (1 - ads * .45); vm.flash.scale.setScalar(sc); }

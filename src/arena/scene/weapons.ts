@@ -14,18 +14,20 @@ type Hold = 'rifle' | 'pistol' | 'blade';
 interface Spec {
   grip: [number, number]; fore: [number, number]; sight: [number, number]; mag: [number, number];
   eject: [number, number, number] | null; eye: number; hold: Hold;
+  /** Red-dot optics: z of the emitter window, where the reticle is drawn. */
+  dot?: number;
 }
 // Measured from the normalised models (y up from the bore, z back from the muzzle, metres).
 const SPECS: Record<string, Spec> = {
-  vanguard: { grip: [-.09, .58], fore: [-.035, .3], sight: [.085, .46], mag: [-.12, .38], eject: [.025, 0, .5], eye: .2, hold: 'rifle' },
-  halcyon: { grip: [-.09, .66], fore: [-.03, .38], sight: [.045, .47], mag: [-.12, .48], eject: [.025, .01, .55], eye: .17, hold: 'rifle' },
-  wasp: { grip: [-.1, .39], fore: [-.03, .14], sight: [.08, .32], mag: [-.12, .17], eject: [.025, .02, .3], eye: .2, hold: 'rifle' },
-  kestrel: { grip: [-.075, .55], fore: [-.03, .3], sight: [.11, .47], mag: [-.13, .42], eject: [.03, .04, .45], eye: .2, hold: 'rifle' },
+  vanguard: { grip: [-.09, .58], fore: [-.035, .3], sight: [.0685, .41], mag: [-.12, .38], eject: [.025, 0, .5], eye: .26, hold: 'rifle', dot: .35 },
+  halcyon: { grip: [-.09, .66], fore: [-.03, .38], sight: [.053, .4], mag: [-.12, .48], eject: [.025, .01, .55], eye: .17, hold: 'rifle' },
+  wasp: { grip: [-.1, .39], fore: [-.03, .14], sight: [.071, .285], mag: [-.12, .17], eject: [.025, .02, .3], eye: .26, hold: 'rifle', dot: .25 },
+  kestrel: { grip: [-.075, .55], fore: [-.03, .3], sight: [.122, .47], mag: [-.13, .42], eject: [.03, .04, .45], eye: .26, hold: 'rifle', dot: .405 },
   bastion: { grip: [-.08, .68], fore: [-.035, .32], sight: [.03, .55], mag: [-.04, .5], eject: [.025, 0, .55], eye: .17, hold: 'rifle' },
   rampart: { grip: [-.08, .7], fore: [-.04, .34], sight: [.045, .58], mag: [-.04, .52], eject: [.03, 0, .55], eye: .17, hold: 'rifle' },
   longbow: { grip: [-.1, .78], fore: [-.035, .45], sight: [.1, .86], mag: [-.1, .66], eject: [.03, .02, .7], eye: .1, hold: 'rifle' },
   talon: { grip: [-.1, .76], fore: [-.035, .42], sight: [.11, .8], mag: [-.1, .58], eject: [.03, .02, .68], eye: .1, hold: 'rifle' },
-  anvil: { grip: [-.08, .7], fore: [-.05, .36], sight: [.06, .72], mag: [-.12, .55], eject: [.03, 0, .62], eye: .16, hold: 'rifle' },
+  anvil: { grip: [-.08, .7], fore: [-.05, .36], sight: [.058, .71], mag: [-.12, .55], eject: [.03, 0, .62], eye: .16, hold: 'rifle' },
   sparrow: { grip: [-.072, .165], fore: [-.088, .155], sight: [.008, .19], mag: [-.1, .16], eject: [.012, 0, .12], eye: .45, hold: 'pistol' },
   thorn: { grip: [-.088, .2], fore: [-.1, .19], sight: [.012, .18], mag: [-.03, .1], eject: null, eye: .45, hold: 'pistol' },
   knife: { grip: [.03, .26], fore: [-.3, .3], sight: [0, .2], mag: [-.3, .3], eject: null, eye: .3, hold: 'blade' },
@@ -79,6 +81,13 @@ export function weaponModel(id: string, skin = 'standard', lod = false): THREE.G
   const [gy, gz] = at(s.grip), [fy, fz] = at(s.fore), [my, mz] = at(s.mag), [sy, sz] = at(s.sight);
   anchor(g, 'gripR', 0, gy, gz); anchor(g, 'gripL', s.hold === 'pistol' ? -.012 : 0, fy, fz); anchor(g, 'magwell', 0, my, mz);
   if (s.eject) anchor(g, 'ejection', s.eject[0], s.eject[1], s.eject[2] - o);
+  if (s.dot != null) {
+    // The illuminated dot: drawn over everything, shown only on the sights (see the viewmodel).
+    const dot = new THREE.Group(); dot.name = 'reticle'; dot.position.set(0, sy, s.dot - o); dot.visible = false; dot.renderOrder = 20;
+    const core = new THREE.Mesh(new THREE.CircleGeometry(.0006, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(4, .35, .25), toneMapped: false, depthTest: false, transparent: true }));
+    const halo = new THREE.Mesh(new THREE.CircleGeometry(.0016, 20), new THREE.MeshBasicMaterial({ color: '#ff3a24', toneMapped: false, depthTest: false, transparent: true, opacity: .28, blending: THREE.AdditiveBlending }));
+    core.renderOrder = halo.renderOrder = 20; dot.add(halo, core); g.add(dot);
+  }
   g.userData.sightY = sy;
   // Aim: rear sight `eye` metres ahead of the eye.
   g.userData.adsZ = -s.eye - sz;
@@ -178,7 +187,12 @@ export class FirstPersonArms {
     this.aim(s.fore, s.fore.getWorldPosition(new THREE.Vector3()), s.wrist.getWorldPosition(new THREE.Vector3()), wristAt);
     // Wrist orientation: map the bind hand frame onto the wanted one.
     const want = _m.makeBasis(f0, p0, _d.crossVectors(f0, p0)).multiply(_m2.copy(s.bindBasis).transpose());
-    const world = _q.setFromRotationMatrix(want).multiply(s.bindWrist);
+    const world = new THREE.Quaternion().setFromRotationMatrix(want).multiply(s.bindWrist);
+    // Share the wrist's roll with the forearm (as a real radius/ulna does), so the sleeve twists, not the joint.
+    const local = s.fore.getWorldQuaternion(_q).invert().multiply(world), rollAxis = _d.copy(s.wrist.position).normalize();
+    const proj = rollAxis.multiplyScalar(rollAxis.dot(_e.set(local.x, local.y, local.z)));
+    const twist = _q2.set(proj.x, proj.y, proj.z, local.w).normalize();
+    s.fore.quaternion.multiply(new THREE.Quaternion().slerp(twist, .6)); s.fore.updateMatrixWorld(true);
     this.setWorld(s.wrist, world);
     // Fingers wrap toward the palm.
     const axis = _d.crossVectors(f0, p0).normalize(), amounts = [.9, 1.0, .7];

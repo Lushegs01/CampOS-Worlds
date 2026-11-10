@@ -143,8 +143,8 @@
   "weapons": [
     {
       "id": "vanguard",
-      "triangles": 41573,
-      "bytes": 2454384,
+      "triangles": 41232,
+      "bytes": 2448988,
       "parts": {
         "body": {
           "min": [
@@ -159,8 +159,8 @@
           ]
         }
       },
-      "lodTriangles": 10370,
-      "lodBytes": 474784
+      "lodTriangles": 9694,
+      "lodBytes": 460120
     },
     {
       "id": "halcyon",
@@ -192,13 +192,13 @@
           ]
         }
       },
-      "lodTriangles": 2839,
-      "lodBytes": 140576
+      "lodTriangles": 2813,
+      "lodBytes": 139956
     },
     {
       "id": "wasp",
-      "triangles": 11388,
-      "bytes": 589360,
+      "triangles": 11302,
+      "bytes": 588224,
       "parts": {
         "body": {
           "min": [
@@ -213,13 +213,13 @@
           ]
         }
       },
-      "lodTriangles": 3128,
-      "lodBytes": 120264
+      "lodTriangles": 2990,
+      "lodBytes": 118088
     },
     {
       "id": "kestrel",
-      "triangles": 24320,
-      "bytes": 1536608,
+      "triangles": 24127,
+      "bytes": 1535240,
       "parts": {
         "body": {
           "min": [
@@ -234,8 +234,8 @@
           ]
         }
       },
-      "lodTriangles": 5402,
-      "lodBytes": 254792
+      "lodTriangles": 5291,
+      "lodBytes": 252820
     },
     {
       "id": "bastion",
@@ -288,8 +288,8 @@
           ]
         }
       },
-      "lodTriangles": 2763,
-      "lodBytes": 187236
+      "lodTriangles": 2655,
+      "lodBytes": 184996
     },
     {
       "id": "longbow",
@@ -321,8 +321,8 @@
           ]
         }
       },
-      "lodTriangles": 6097,
-      "lodBytes": 203672
+      "lodTriangles": 6026,
+      "lodBytes": 202456
     },
     {
       "id": "talon",
@@ -354,8 +354,8 @@
           ]
         }
       },
-      "lodTriangles": 20715,
-      "lodBytes": 646928
+      "lodTriangles": 20684,
+      "lodBytes": 646348
     },
     {
       "id": "anvil",
@@ -387,8 +387,8 @@
           ]
         }
       },
-      "lodTriangles": 5271,
-      "lodBytes": 178708
+      "lodTriangles": 5237,
+      "lodBytes": 178140
     },
     {
       "id": "sparrow",
@@ -420,8 +420,8 @@
           ]
         }
       },
-      "lodTriangles": 2244,
-      "lodBytes": 106596
+      "lodTriangles": 2106,
+      "lodBytes": 104812
     },
     {
       "id": "thorn",

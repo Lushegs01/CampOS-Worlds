@@ -320,11 +320,30 @@ function splatTexture(map: Map3) {
 }
 
 /** Ground: a standard PBR material whose albedo, normal and roughness blend four surface sets by the splat map. */
+/**
+ * Where the yard is roofed over: roof and upper-floor footprints at one texel per metre. Sampled with
+ * linear filtering it fades over about a metre, and it dims sky and ambient light on covered ground
+ * (a cheap, all-profile stand-in for ambient occlusion under the sheds).
+ */
+function shelterTexture(map: Map3) {
+  const [bx0, bz0, bx1, bz1] = map.bounds, pad = 4, w = Math.ceil(bx1 - bx0 + pad * 2), h = Math.ceil(bz1 - bz0 + pad * 2);
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d')!;
+  g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff';
+  for (const b of map.boxes as Box[]) {
+    const roofed = b.mat === 'roof' || (b.min[1] > 2.2 && b.max[1] - b.min[1] < 1.2 && (b.max[0] - b.min[0]) * (b.max[2] - b.min[2]) > 6);
+    if (roofed) g.fillRect(b.min[0] - bx0 + pad + .4, b.min[2] - bz0 + pad + .4, b.max[0] - b.min[0] - .8, b.max[2] - b.min[2] - .8);
+  }
+  const tex = new THREE.CanvasTexture(c); tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  return { tex, origin: new THREE.Vector2(bx0 - pad, bz0 - pad), size: new THREE.Vector2(w, h) };
+}
+
 function ground(lib: Library, map: Map3, q: ArenaQuality) {
   const s = lib.surfaces, splat = splatTexture(map);
+  const shelter = shelterTexture(map);
   const m = new THREE.MeshStandardMaterial({ map: s.concreteFloor.color, normalMap: s.concreteFloor.normal, roughnessMap: s.concreteFloor.arm, aoMap: s.concreteFloor.arm, roughness: 1, metalness: 0, envMapIntensity: .7 });
   const uniforms = {
     tSplat: { value: splat.tex }, uOrigin: { value: splat.origin }, uSize: { value: splat.size },
+    tShelter: { value: shelter.tex }, uShOrigin: { value: shelter.origin }, uShSize: { value: shelter.size },
     tRoad: { value: s.road.color }, tGravel: { value: s.gravel.color }, tDirt: { value: s.dirt.color },
     nRoad: { value: s.road.normal }, nGravel: { value: s.gravel.normal }, nDirt: { value: s.dirt.normal },
   };
@@ -332,7 +351,7 @@ function ground(lib: Library, map: Map3, q: ArenaQuality) {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = 'varying vec3 vGround;\n' + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvGround = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = `varying vec3 vGround;
-uniform sampler2D tSplat, tRoad, tGravel, tDirt, nRoad, nGravel, nDirt; uniform vec2 uOrigin, uSize;
+uniform sampler2D tSplat, tRoad, tGravel, tDirt, nRoad, nGravel, nDirt, tShelter; uniform vec2 uOrigin, uSize, uShOrigin, uShSize;
 vec4 splatAt() { return texture2D(tSplat, (vGround.xz - uOrigin) / uSize); }
 float gnoise(vec2 p) { return fract(sin(dot(floor(p), vec2(12.9898, 78.233))) * 43758.5453); }
 ` + shader.fragmentShader
@@ -353,6 +372,7 @@ vec3 tn = mix(mix(mix(texture2D(normalMap, wuv / 3.0).xyz, texture2D(nRoad, wuv 
 tn.xy *= 1.15;
 normal = normalize((viewMatrix * vec4(normalize(vec3(tn.x, tn.z, tn.y)), 0.0)).xyz);`)
       .replace('#include <aomap_fragment>', `float ambientOcclusion = mix(texture2D(aoMap, wuv / 3.0).r, 1.0, max(wR, wG));
+ambientOcclusion *= 1.0 - .74 * texture2D(tShelter, (vGround.xz - uShOrigin) / uShSize).r;
 reflectedLight.indirectDiffuse *= ambientOcclusion; reflectedLight.indirectSpecular *= ambientOcclusion;`);
   };
   const [bx0, bz0, bx1, bz1] = map.bounds, size = Math.max(bx1 - bx0, bz1 - bz0) + 260;

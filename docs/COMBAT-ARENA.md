@@ -72,7 +72,7 @@ penetration through thin cover (rails, sandbag lines).
 | Sparrow P9 | Pistol | 1 | semi | 420 | 12 | 28 @0m → 21 @12m → 16 @25m | ×1.4 | 1.4 | 1.05 |
 | Thorn .44 | Pistol | 5 | semi | 150 | 6 | 58 @0m → 46 @15m → 36 @30m | ×1.5 | 2.3 | 1.03 |
 | Combat Knife | Melee | 1 | melee | — | — | one hit within 2.3 m | — | — | 1.08 |
-| Breach Hammer | Melee | 7 | melee | — | — | one hit within 2.9 m | — | — | 1.02 |
+| Breach Axe | Melee | 7 | melee | — | — | one hit within 2.9 m | — | — | 1.02 |
 
 Every gun also has a quick melee (two hits). Adding a weapon is a catalogue entry in
 `shared/arena/weapons.mjs` plus its row in the migration's catalogue insert; nothing else changes.
