@@ -41,6 +41,18 @@ try {
   await pa.screenshot({ path: SHOTS + 'lobby.png' });
   check('both players open Combat Arena from the campus dock, signed in with their campus accounts');
 
+  // The Longbow is a premium Armory weapon: before it is owned, choosing it opens the Armory instead.
+  await pa.getByRole('button', { name: 'Edit loadouts' }).click();
+  await pa.getByRole('button', { name: /^Longbow SR/ }).click();
+  await pa.getByRole('heading', { name: 'Armory' }).waitFor();
+  await pa.getByRole('button', { name: /Buy for ₦1,500/ }).waitFor();
+  await pa.screenshot({ path: SHOTS + 'armory-locked.png' });
+  await pa.getByRole('button', { name: 'Close the Armory' }).click();
+  check('a premium weapon is locked until bought: choosing it opens the Armory with its price');
+  // Ada owns it (a purchase recorded as the verified Bachs webhook does; the payment path itself is covered by
+  // tests/arena-armory-accounts.test.mjs), and the arena re-reads her ownership.
+  await stack.db.pool.query(`insert into public.shop_ownership (user_id, item) select id, 'weapon-longbow' from public.profiles where handle = 'ada_arena'`);
+  assert.deepEqual(await pa.evaluate(() => window.__arena.refreshOwned()), ['weapon-longbow']);
   // Loadout: Ada equips the Longbow; it is validated by the arena and saved to her account.
   await pa.getByRole('button', { name: 'Edit loadouts' }).click();
   await pa.getByRole('button', { name: /^Longbow SR/ }).click();

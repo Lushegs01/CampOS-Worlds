@@ -83,9 +83,9 @@ const BASE = {
   touchLandscape: {
     crosshair: el(.5, .5), hitmarker: el(.5, .5), killNotify: el(.5, .24, .8),
     health: el(.2, 0, .72), status: el(.5, 1, .9),
-    ammo: el(1, .3, .62, { align: 'right' }), weaponInfo: el(1, .17, .62, { align: 'right' }), weaponSlots: el(1, .4, .6, { align: 'right', visible: false }),
+    ammo: el(1, .33, .6, { align: 'right' }), weaponInfo: el(1, .25, .6, { align: 'right' }), weaponSlots: el(1, .4, .6, { align: 'right', visible: false }),
     minimap: el(0, 0, .62), compass: el(.5, .16, .6), timer: el(.5, 0, .8), score: el(.5, .095, .72), objectives: el(.5, .3, .8),
-    killfeed: el(.66, 0, .72, { align: 'right' }), streaks: el(.5, .62, .9),
+    killfeed: el(1, 0, .62, { align: 'right' }), streaks: el(.5, .62, .9),
     stick: el(0.125, 0.82), fire: el(0.958, 0.801), ads: el(0.839, 0.673), reload: el(0.828, 0.859), jump: el(0.998, 0.999), crouch: el(0.91, 1), sprint: el(0.059, 0.555, 1, { visible: false }), swap: el(0.948, 0.503), melee: el(0.869, 0.473), lethal: el(0.785, 0.5), tactical: el(0.755, 0.681), autofire: el(0.749, 0.897), menu: el(0, 0.43),
   },
   touchPortrait: {
@@ -105,7 +105,7 @@ const PRESET_PATCH = {
   mobileStandard: { landscape: {}, portrait: {}, desktop: {} },
   competitive: {
     desktop: { minimap: { scale: 1.2 }, killfeed: { scale: .85 }, weaponSlots: { visible: false }, streaks: { scale: .85 }, health: { scale: .9 }, ammo: { scale: .85 }, weaponInfo: { scale: .85 }, status: { visible: true } },
-    landscape: { minimap: { scale: .75 }, compass: { visible: false }, killfeed: { scale: .62 } },
+    landscape: { minimap: { scale: .75 }, compass: { visible: false }, killfeed: { scale: .6 } },
     portrait: { minimap: { scale: .7 }, compass: { visible: false }, killfeed: { scale: .6 } },
     global: { textScale: .9 }, crosshair: { style: 'crossDot', color: '#4dff88', thickness: 1 },
   },

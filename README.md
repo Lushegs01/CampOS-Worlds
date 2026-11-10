@@ -5,6 +5,8 @@ Current release assessment and test evidence: [Launch readiness](docs/LAUNCH-REA
 
 Mobile rendering improvements, benchmark results, and the itel S24 test checklist: [Mobile performance](docs/MOBILE-PERFORMANCE.md).
 
+Combat Arena HUD customization, Armory (two free firearms, premium weapons), auto-fire and adaptive performance: [engineering report](docs/ARENA-ARMORY-HUD-REPORT.md).
+
 A playable, standalone 3D campus for exploring, meeting people and making small discoveries. The fictional **Òrìṣun Campus** is modelled locally with procedural architecture, vegetation, a walk-in library and a bronze courtyard landmark. No production institutional account is needed.
 
 Players can find their friends and travel together, message privately, form parties, play rated one-versus-one **Court Duels**, run timed exploration and driving challenges, check in at club events inside the game, and build a profile with earned badges, titles and colours. These systems are server-validated and tested end to end; see [Social](docs/SOCIAL.md), [Competition](docs/COMPETITION.md), [Progression](docs/PROGRESSION.md), [Activities](docs/ACTIVITIES.md), [Analytics](docs/ANALYTICS.md) and the honest [implementation status](docs/IMPLEMENTATION-STATUS.md).

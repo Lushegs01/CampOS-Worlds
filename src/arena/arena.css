@@ -232,19 +232,8 @@ html.ar-locked,html.ar-locked body{overflow:hidden;overscroll-behavior:none;touc
   .ar-results h1{font-size:34px}
 }
 @media (pointer:coarse),(max-width:760px){
-  .ar-minimap{width:104px!important;height:104px!important}
-  .ar-vitals{top:max(12px,env(safe-area-inset-top));left:calc(max(14px,env(safe-area-inset-left)) + 112px);bottom:auto;width:150px}
-  .ar-weapon{top:calc(max(12px,env(safe-area-inset-top)) + 96px);bottom:auto;right:max(14px,env(safe-area-inset-right));min-width:0}
-  .ar-ammo b{font-size:26px}.ar-ammo span{font-size:13px}.ar-slots,.ar-equip kbd,.ar-streaks,.ar-wname small{display:none}
-  .ar-feed{font-size:11px;top:auto;bottom:auto;transform:translateY(0)}.ar-feed li{padding:3px 7px}
-  .ar-feed{top:calc(max(12px,env(safe-area-inset-top)) + 40px)}
-  .ar-topbar{transform:translateX(-50%) scale(.85);transform-origin:top center}.ar-objectives{top:calc(max(10px,env(safe-area-inset-top)) + 76px)}
-  .ar-banners{top:20%}.ar-banner.big strong{font-size:28px}.ar-banner strong{font-size:16px}
   .ar-respawn{bottom:auto;top:38%}
-  .ar-status{top:auto;bottom:max(12px,env(safe-area-inset-bottom));left:50%;max-width:46vw}
-}
-@media (pointer:coarse) and (max-height:430px){
-  .ar-tbtns{transform:scale(.86);transform-origin:bottom right}.ar-stick{width:100px;height:100px;margin:-50px 0 0 -50px}
+  .ar-status{top:auto;bottom:max(46px,env(safe-area-inset-bottom));left:50%;max-width:46vw}
 }
 
 /* ------------------------------------------------------------- scene loading */
@@ -286,12 +275,119 @@ html.ar-locked,html.ar-locked body{overflow:hidden;overscroll-behavior:none;touc
 .ar-magbar span{display:block;height:4px;align-self:center;background:#f1f4f2;margin-left:auto}
 .ar-feed li{border-radius:2px;background:linear-gradient(90deg,rgba(10,14,16,.35),rgba(10,14,16,.68));border-right:2px solid var(--hud-edge)}
 .ar-streak{border-radius:3px!important}
-@media (pointer:coarse),(max-width:760px){
-  .ar-compass{top:calc(max(10px,env(safe-area-inset-top)) + 38px)}.ar-compass-window{width:220px;height:20px}
-  .ar-magbar{width:110px;height:6px}.ar-weapon{padding:4px 8px 4px 18px}.ar-ammo b{font-size:26px}
-}
+
 
 .ar-credits{background:var(--ar-panel);border:1px solid var(--ar-line);border-radius:16px;padding:14px 16px}
 .ar-credits summary{cursor:pointer;list-style:none}.ar-credits summary::-webkit-details-marker{display:none}
 .ar-credits ul{list-style:none;margin:10px 0 8px;padding:0;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45;color:var(--ar-muted)}
 .ar-credits b{color:var(--ar-text);font-weight:650}.ar-credits a{color:var(--ar-gold)}
+
+/* ------------------------------------------------------------- customisable HUD (shared/arena/hud.mjs)
+   A slot puts its element's own point (x·width, y·height) at (x, y) of the safe area, so it never leaves the
+   screen; its content is scaled about that same point. */
+.ar-hud,.ar-touch,.ar-hx-stage{--sl:max(10px,env(safe-area-inset-left));--sr:max(10px,env(safe-area-inset-right));--st:max(8px,env(safe-area-inset-top));--sb:max(8px,env(safe-area-inset-bottom))}
+.ar-hx-stage.framed{--sl:10px;--sr:10px;--st:8px;--sb:8px}
+.ar-hud{opacity:var(--hud-op,1)}
+.ar-slot{position:absolute;left:calc(var(--sl) + var(--x) * (100% - var(--sl) - var(--sr)));top:calc(var(--st) + var(--y) * (100% - var(--st) - var(--sb)));transform:translate(calc(var(--x) * -100%),calc(var(--y) * -100%)) scale(var(--s,1));transform-origin:calc(var(--x) * 100%) calc(var(--y) * 100%);pointer-events:none;width:max-content;max-width:none}
+.ar-slot.live{pointer-events:auto}
+.ar-slot-in>*{position:relative!important;inset:auto!important;transform:none!important;margin:0}
+.ar-slot.al-left .ar-slot-in>*{align-items:flex-start;text-align:left}.ar-slot.al-right .ar-slot-in>*{align-items:flex-end;text-align:right}.ar-slot.al-center .ar-slot-in>*{align-items:center;text-align:center}
+.ar-slot.al-left .ar-feed li,.ar-slot.al-left .ar-slots,.ar-slot.al-left .ar-equip,.ar-slot.al-left .ar-magbar{justify-content:flex-start}
+.ar-slot.al-center .ar-slots,.ar-slot.al-center .ar-equip,.ar-slot.al-center .ar-magbar{justify-content:center}
+.ar-wammo,.ar-winfo{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:6px 12px;background:linear-gradient(90deg,transparent,rgba(10,14,16,.5) 30%)}
+.ar-slot.al-left .ar-wammo,.ar-slot.al-left .ar-winfo{background:linear-gradient(270deg,transparent,rgba(10,14,16,.5) 30%)}
+.ar-winfo .ar-state:empty{display:none}
+.ar-compass{display:flex;flex-direction:column;align-items:center;gap:2px}
+.ar-clock{background:var(--hud-panel);border:1px solid var(--hud-edge);padding:3px 12px;border-radius:3px}
+.ar-topbar{display:flex;gap:8px}
+.ar-net .ar-af-tag{font-style:normal;color:var(--ar-gold);margin-left:6px;letter-spacing:.08em}
+.ar-hud.contrast-high{--hud-panel:linear-gradient(180deg,rgba(4,6,8,.92),rgba(4,6,8,.85));--ar-glass:rgba(4,6,8,.88);--ar-muted:#d5dcd8;--hud-edge:rgba(255,255,255,.45);text-shadow:0 0 3px #000,0 1px 2px #000}
+.ar-hud.contrast-high .ar-feed li,.ar-hud.contrast-high .ar-wammo,.ar-hud.contrast-high .ar-winfo{background:rgba(4,6,8,.85)}
+/* crosshair styles: colour, thickness, outline and size are the player's */
+.ar-crosshair{--ch:#fff;--th:2px;--chs:1;position:absolute;transform:scale(var(--chs))}
+.ar-crosshair i{background:var(--ch);box-shadow:var(--ch-shadow,0 0 2px rgba(0,0,0,.9))}
+.ar-crosshair i:nth-child(1),.ar-crosshair i:nth-child(2){width:var(--th);left:calc(var(--th) / -2)}
+.ar-crosshair i:nth-child(3),.ar-crosshair i:nth-child(4){height:var(--th);top:calc(var(--th) / -2)}
+.ar-crosshair b{background:var(--ch);width:var(--th);height:var(--th);left:calc(var(--th) / -2);top:calc(var(--th) / -2);display:none}
+.ar-crosshair s{position:absolute;display:none;border-radius:50%;border:var(--th) solid var(--ch);box-shadow:var(--ch-shadow);text-decoration:none}
+.ar-crosshair.cs-crossDot b,.ar-crosshair.cs-dot b{display:block;box-shadow:var(--ch-shadow)}
+.ar-crosshair.cs-dot b{width:calc(var(--th) + 3px);height:calc(var(--th) + 3px);left:calc((var(--th) + 3px) / -2);top:calc((var(--th) + 3px) / -2)}
+.ar-crosshair.cs-dot i,.ar-crosshair.cs-circle i{display:none}
+.ar-crosshair.cs-circle s{display:block;width:calc(var(--gap) * 2 + 6px);height:calc(var(--gap) * 2 + 6px);left:calc(-1 * (var(--gap) + 3px));top:calc(-1 * (var(--gap) + 3px));box-sizing:border-box}
+.ar-crosshair.cs-circle b{display:block;width:2px;height:2px;left:-1px;top:-1px}
+.ar-crosshair.cs-chevron i:nth-child(1),.ar-crosshair.cs-chevron i:nth-child(3){display:none}
+.ar-crosshair.cs-chevron i:nth-child(2){transform:rotate(35deg);transform-origin:top center}.ar-crosshair.cs-chevron i:nth-child(4){transform:rotate(-35deg) translateX(calc(-1 * var(--gap)));transform-origin:left center;top:var(--gap)}
+.ar-crosshair.melee i,.ar-crosshair.melee s{display:none}.ar-crosshair.melee b{display:block;width:6px;height:6px;left:-3px;top:-3px;border:2px solid var(--ch);background:none}
+.ar-hitmarker{transform:scale(var(--hms,1));opacity:var(--hm-op,1)!important;transition:none}
+/* touch controls */
+.ar-touch{z-index:2;opacity:1}
+.ar-hud{z-index:3}
+.ar-lookzone{position:absolute;inset:0;width:auto;height:auto}
+.ar-stickzone{position:absolute;top:25%;bottom:0;width:50%}.ar-stickzone.left{left:0}.ar-stickzone.right{right:0}
+.ar-touch .ar-tbtn{position:relative;opacity:var(--btn-op,.85);display:grid!important;place-items:center;flex-direction:column}
+.ar-touch .ar-tbtn svg,.ar-hud .ar-streak svg{transform:scale(var(--icon,1))}
+.ar-slot-ads .ar-tbtn,.ar-slot-jump .ar-tbtn,.ar-slot-crouch .ar-tbtn{width:54px;height:54px}
+.ar-slot-reload .ar-tbtn,.ar-slot-swap .ar-tbtn,.ar-slot-sprint .ar-tbtn,.ar-slot-melee .ar-tbtn,.ar-slot-lethal .ar-tbtn,.ar-slot-tactical .ar-tbtn{width:48px;height:48px}
+.ar-slot-autofire .ar-tbtn{width:46px;height:46px;gap:0!important}.ar-tbtn.autofire small{font:800 8px/1 'Manrope Variable';letter-spacing:.08em}
+.ar-tbtn.autofire.on{background:rgba(239,197,123,.5)!important}
+.ar-slot-fire .ar-tbtn.fire{position:relative;right:auto;bottom:auto;width:82px;height:82px}
+.ar-tmenu{display:flex;gap:8px;width:88px;height:40px}
+.ar-slot-stick .ar-slot-in{width:118px;height:118px}
+.ar-slot-stick .ar-stick{position:relative;left:0;top:0;margin:0;width:118px;height:118px;opacity:calc(var(--btn-op,.85) * .65)}
+.ar-slot-stick .ar-stick.on{opacity:1}
+.ar-stick.rest{opacity:.75}
+/* HUD Customization Studio */
+.ar-hx{position:absolute;inset:0;z-index:20;display:flex;background:#0b1013;touch-action:none}
+.ar-hx-stage-wrap{position:relative;flex:1;display:grid;place-items:center;overflow:hidden;background:radial-gradient(1200px 600px at 50% 40%,#33413f,#151c1f 60%,#0b1013)}
+.ar-hx-stage{position:absolute;left:50%;top:50%;overflow:hidden;flex:none}
+.ar-hx-stage.framed{border:2px solid rgba(255,255,255,.18);border-radius:18px;box-shadow:0 0 0 6px #050708;background:linear-gradient(180deg,#5d6d73 0,#7b8577 45%,#4a4d42 46%,#2f312a)}
+.ar-hx-stage:not(.framed){background:linear-gradient(180deg,#5d6d73 0,#7b8577 45%,#4a4d42 46%,#2f312a)}
+.ar-hx-stage .ar-slot{pointer-events:auto;cursor:grab;touch-action:none}
+.ar-hx-stage .ar-slot *{pointer-events:none}
+.ar-hx-stage .ar-slot.sel{outline:2px solid var(--ar-gold);outline-offset:3px;z-index:5}
+.ar-hx-stage .ar-slot:hover{outline:1px dashed rgba(239,197,123,.7);outline-offset:3px}
+.ar-hx-stage .ar-slot.ghost{opacity:.28!important;outline:1px dashed rgba(255,255,255,.5)}
+.ar-hx-handle,.ar-hx-grip{transform:scale(calc(1 / var(--s,1)))}
+.ar-hx-handle{position:absolute;right:-12px;bottom:-12px;width:22px;height:22px;border-radius:50%;background:var(--ar-gold);border:2px solid #1b1406;cursor:nwse-resize;pointer-events:auto!important;z-index:6}
+.ar-hx-grip{position:absolute;left:-12px;top:-12px;width:20px;height:20px;border-radius:6px;background:rgba(239,197,123,.9);color:#1b1406;font:800 12px/20px sans-serif;text-align:center;pointer-events:none}
+.ar-hx-guide{position:absolute;background:rgba(79,179,255,.85);pointer-events:none;z-index:7}.ar-hx-guide.x{top:0;bottom:0;width:1px}.ar-hx-guide.y{left:0;right:0;height:1px}
+.ar-hx-grid{position:absolute;inset:var(--st) var(--sr) var(--sb) var(--sl);pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:5% 5%}
+.ar-hx-safe{position:absolute;inset:var(--st) var(--sr) var(--sb) var(--sl);border:1px dashed rgba(255,255,255,.2);pointer-events:none;border-radius:8px}
+.ar-hx-cross{position:absolute;left:50%;top:50%}
+.ar-hx-panel{width:min(340px,42vw);max-height:100%;overflow-y:auto;background:#10181c;border-left:1px solid var(--ar-line);padding:12px 14px max(14px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;touch-action:pan-y;font-size:13px}
+.ar-hx.panel-left{flex-direction:row-reverse}.ar-hx.panel-left .ar-hx-panel{border-left:0;border-right:1px solid var(--ar-line)}
+.ar-hx.panel-hidden .ar-hx-panel{display:none}
+.ar-hx-panel h2{font:800 16px 'Manrope Variable';display:flex;justify-content:space-between;align-items:center}
+.ar-hx-panel h3{font:700 11px 'Manrope Variable';letter-spacing:.12em;text-transform:uppercase;color:var(--ar-gold);margin:2px 0}
+.ar-hx-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ar-hx-row button,.ar-hx-list button{padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid var(--ar-line)!important;font-size:12.5px}
+.ar-hx-row button.on{background:rgba(239,197,123,.25);border-color:var(--ar-gold)!important}
+.ar-hx-row button.ar-primary{background:linear-gradient(180deg,#f3cf8c,#d9a752);color:#1b1406;font-weight:800;border-color:transparent!important}
+.ar-hx-list{display:flex;flex-direction:column;gap:3px;max-height:220px;overflow:auto}
+.ar-hx-list label{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;text-align:left;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer}
+.ar-hx-list label small{white-space:nowrap}.ar-hx-list label.sel{background:rgba(239,197,123,.14)}
+.ar-hx-list label span{flex:1}
+.ar-hx-swatch{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.3)!important;padding:0!important}.ar-hx-swatch.on{border-color:#fff!important;box-shadow:0 0 0 2px var(--ar-gold)}
+.ar-hx-warn{color:#ffcf9a;font-size:12px}.ar-hx-ok{color:var(--ar-good);font-size:12px}
+.ar-hx-bar{position:absolute;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:9;background:rgba(10,14,16,.85);padding:6px;border-radius:12px;border:1px solid var(--ar-line)}
+.ar-hx-bar button{padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.08);font-size:12.5px}
+.ar-hx-bar button.primary{background:linear-gradient(180deg,#f3cf8c,#d9a752);color:#1b1406;font-weight:800}
+@media (max-width:760px),(max-height:480px){.ar-hx-panel{width:min(300px,48vw);padding:8px 10px;gap:8px}.ar-hx-bar{top:auto;bottom:max(8px,env(safe-area-inset-bottom));flex-wrap:wrap;justify-content:center;max-width:96vw}}
+/* Armory */
+.ar-armory{max-width:1100px}
+.ar-armory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.ar-acard{display:flex!important;flex-direction:column;align-items:stretch!important;text-align:left;gap:6px!important;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--ar-line)!important}
+.ar-acard.on{border-color:var(--ar-gold)!important;background:rgba(239,197,123,.08)}
+.ar-acard header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.ar-acard b{font:800 14px 'Manrope Variable'}
+.ar-tag{font:800 9.5px 'Manrope Variable';letter-spacing:.12em;text-transform:uppercase;padding:3px 6px;border-radius:5px;white-space:nowrap}
+.ar-tag.free{background:rgba(126,214,154,.18);color:var(--ar-good)}.ar-tag.owned{background:rgba(79,179,255,.18);color:var(--friend)}.ar-tag.price{background:rgba(239,197,123,.2);color:var(--ar-gold)}.ar-tag.earned{background:rgba(255,255,255,.1)}
+.ar-inspect{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}
+.ar-inspect-view{position:relative;min-height:240px;border-radius:12px;background:radial-gradient(circle at 50% 40%,#2c3a40,#0e1417);overflow:hidden;touch-action:none;cursor:grab}
+.ar-inspect-view canvas{display:block;width:100%;height:100%}
+.ar-inspect-view .ar-fine{position:absolute;left:10px;bottom:8px}
+.ar-stats{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;align-items:center;font-size:12.5px}
+.ar-stats i{display:block;height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}.ar-stats i em{display:block;height:100%;background:var(--ar-gold)}
+.ar-history{width:100%;border-collapse:collapse;font-size:12.5px}.ar-history td,.ar-history th{padding:5px 6px;border-top:1px solid var(--ar-line);text-align:left}
+@media (max-width:760px){.ar-inspect{grid-template-columns:1fr}}
+.ar-inspect-name{font:800 22px 'Manrope Variable';margin:2px 0 4px}
+.ar-hx.panel-hidden .ar-hx-bar{top:auto;bottom:max(8px,env(safe-area-inset-bottom))}

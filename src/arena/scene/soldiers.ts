@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadModel, loadTexture } from '../../world/assets';
 import { weaponThirdPerson, preloadWeapon } from './weapons';
-import { WEAPONS } from '../../../shared/arena/weapons.mjs';
+import { FREE_FIREARMS, WEAPONS } from '../../../shared/arena/weapons.mjs';
 import type { Library } from './library';
 
 const MODELS = ['soldier-m1', 'soldier-m2', 'soldier-f1'] as const;
@@ -25,8 +25,9 @@ export function loadSoldiers(): Promise<Record<string, Kit>> {
     CAMO.forEach((p, i) => { const t = b[i]; if (t) { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true; teamB[p] = t; } });
     return [id, { scene: g.scene, clips, teamB }] as const;
   })).then(async list => {
-    // Third-person weapons come with the soldiers, so nobody appears empty-handed.
-    await Promise.all((WEAPONS as { id: string }[]).map(w => preloadWeapon(w.id, true).catch(() => null)));
+    // The weapons most players carry (the two free firearms and the knife) come with the soldiers, so nobody
+    // appears empty-handed; any other weapon's model downloads the first time someone is seen holding it.
+    await Promise.all([...FREE_FIREARMS, 'knife'].map(id => preloadWeapon(id, true).catch(() => null)));
     return Object.fromEntries(list);
   });
   kits.catch(() => { kits = null; });
@@ -136,3 +137,16 @@ export class Soldier {
   dispose() { this.mixer.stopAllAction(); this.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); }
 }
 export const soldierModelFor = (num: number) => MODELS[num % MODELS.length];
+
+/**
+ * After the match is on screen, fetch the remaining third-person weapon models quietly — but only where it is
+ * cheap (not on Low, not with data saver on), so phones download only what they actually see.
+ */
+export function prefetchRemainingWeapons(allowed: boolean) {
+  if (!allowed) return;
+  const rest = (WEAPONS as { id: string }[]).map(w => w.id).filter(id => ![...FREE_FIREARMS, 'knife'].includes(id));
+  const idle = (cb: () => void) => ((window as unknown as { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 200)))(cb);
+  let i = 0;
+  const next = () => { if (i >= rest.length) return; void preloadWeapon(rest[i++], true).catch(() => null).finally(() => idle(next)); };
+  setTimeout(() => idle(next), 8000);
+}

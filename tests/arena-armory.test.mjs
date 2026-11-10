@@ -45,7 +45,7 @@ test('starting loadouts use free weapons only; premium weapons are locked unless
 test('every premium weapon is a store item at the weapon price, mirrored in the database catalogue', () => {
   for (const id of PREMIUM_WEAPONS) {
     const item = SHOP_BY_ID.get(weaponItem(id));
-    assert.ok(item, id); assert.equal(item.kind, 'weapon'); assert.equal(item.weapon, id); assert.equal(item.name, WEAPON_BY_ID.get(id).name);
+    assert.ok(item, id); assert.equal(item.kind, 'weapon'); assert.equal(item.weapon, id); assert.equal(item.name, WEAPON_BY_ID.get(id).name); assert.equal(item.detail, WEAPON_BY_ID.get(id).armory);
     assert.equal(priceOf(item.id), DEFAULT_PRICES.weapon);
   }
   assert.equal(SHOP_ITEMS.filter(i => i.kind === 'weapon').length, PREMIUM_WEAPONS.length);

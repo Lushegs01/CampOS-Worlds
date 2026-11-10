@@ -34,7 +34,7 @@ Optional, and only with accounts. Follow [STORE.md](STORE.md):
 
 1. Apply `supabase/migrations/20261022120000_campus_store.sql`.
 2. In Bachs, add a webhook endpoint at `https://<room host>/shop/webhook` for `collection.succeeded` and `checkout.completed`. If a proxy fronts the room, route `/shop/webhook` to it as well as `/ws`. Keep `/admin/kick` private as before.
-3. On the room server, set `BACHS_SECRET_KEY`, `BACHS_WEBHOOK_SECRET` and `PUBLIC_APP_URL` as secrets. Optionally set `SHOP_PRICE_CHARACTER` / `SHOP_PRICE_ITEM` in naira. Restart the room.
+3. On the room server, set `BACHS_SECRET_KEY`, `BACHS_WEBHOOK_SECRET` and `PUBLIC_APP_URL` as secrets. Optionally set `SHOP_PRICE_CHARACTER` / `SHOP_PRICE_ITEM` / `SHOP_PRICE_WEAPON` in naira, and `BACHS_REFUND_EVENTS` once you have confirmed the refund event names your Bachs account sends. Restart the room.
 4. The frontend needs no new settings. `shop-return.html` is part of the build.
 
 ## Same-origin deployment (recommended for a private demo)

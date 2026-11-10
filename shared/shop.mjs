@@ -5,8 +5,6 @@
 // An item is worn only by an account that owns it: the client shows it locked with its price, the room
 // replaces it when sanitising an avatar (shared/campus.mjs), and the database refuses to save it.
 
-import { WEAPONS, weaponItem } from './arena/weapons.mjs';
-
 /** Prices are set on the room server (SHOP_PRICE_CHARACTER / SHOP_PRICE_ITEM / SHOP_PRICE_WEAPON, in naira); these are the defaults. */
 export const SHOP_CURRENCY = 'NGN';
 /** @type {Readonly<{ character: number, item: number, weapon: number }>} */
@@ -21,8 +19,13 @@ export const SHOP_ITEMS = Object.freeze([
   { id: 'cap', kind: 'accessory', name: 'Snapback cap', detail: 'In your accent colour' },
   { id: 'beanie', kind: 'accessory', name: 'Knit beanie', detail: 'In your accent colour' },
   { id: 'shades', kind: 'accessory', name: 'Gold aviators', detail: 'Tinted lenses, gold frames' },
-  // Combat Arena's premium Armory weapons (shared/arena/weapons.mjs, `access: 'premium'`): one item each.
-  ...WEAPONS.filter(w => w.access === 'premium').map(w => ({ id: weaponItem(w.id), kind: 'weapon', name: w.name, detail: w.armory, weapon: w.id })),
+  // Combat Arena's premium Armory weapons: one item each, `weapon-<id>` (shared/arena/weapons.mjs, `access:
+  // 'premium'`). Listed here rather than imported so the campus bundle does not carry the weapon catalogue;
+  // tests/arena-armory.test.mjs keeps the two identical.
+  ...[['halcyon', 'Halcyon BR-3', 'Advanced assault rifle'], ['kestrel', 'Kestrel K-45', 'Heavy SMG'], ['bastion', 'Bastion 12G', 'Pump shotgun'],
+    ['rampart', 'Rampart Auto', 'Semi-automatic shotgun'], ['longbow', 'Longbow SR', 'Sniper rifle'], ['talon', 'Talon DMR', 'Precision rifle'],
+    ['anvil', 'Anvil LMG', 'Light machine gun'], ['sparrow', 'Sparrow P9', 'Sidearm'], ['thorn', 'Thorn .44', 'Heavy sidearm']]
+    .map(([weapon, name, detail]) => ({ id: `weapon-${weapon}`, kind: 'weapon', name, detail, weapon })),
 ].map(i => Object.freeze(/** @type {ShopItem} */ (i))));
 /** @type {Map<string, ShopItem>} */
 export const SHOP_BY_ID = new Map(SHOP_ITEMS.map(i => [i.id, i]));

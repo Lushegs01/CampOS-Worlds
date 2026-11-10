@@ -2,7 +2,7 @@
 // with an invitation code, Training against labelled bots, your loadout, and the arena rankings.
 import { useEffect, useState } from 'react';
 import { ARENA_CREDITS, CREDIT_CHANGES } from './credits';
-import { Swords, Users, Bot, Trophy, KeyRound, Play, Map as MapIcon, Shield, Settings2, ChevronRight, Lock } from 'lucide-react';
+import { Swords, Users, Bot, Trophy, KeyRound, Play, Map as MapIcon, Shield, Settings2, ChevronRight, Lock, Crosshair, LayoutDashboard, Target } from 'lucide-react';
 import { MODES, xpForLevel, MAX_LEVEL } from '../../shared/arena/rules.mjs';
 import { MAPS } from '../../shared/arena/maps.mjs';
 import { WEAPON_BY_ID, EQUIPMENT_BY_ID, PERK_BY_ID, EMBLEM_BY_ID, EMBLEMS } from '../../shared/arena/weapons.mjs';
@@ -72,6 +72,8 @@ export default function Lobby() {
             <label>Bots<select value={bots} onChange={e => setBots(Number(e.target.value))}>{[1, 3, 5, 7, 9].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
             <label>Difficulty<select value={difficulty} onChange={e => setDifficulty(e.target.value)}><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
             <button className="ar-primary" disabled={!ready || !!busy} onClick={() => run('training', { t: 'training', mode: tMode, map: tMap, bots, difficulty })}><Bot size={16} />{busy === 'training' ? 'Starting…' : 'Start training'}</button></article>
+          <article><h2>Firing range</h2><p>Your loadout, controls and HUD layout on a real map with nobody shooting back. Try a weapon, tune your sensitivity, or check a new HUD layout before a match.</p>
+            <button className="ar-secondary" disabled={!ready || !!busy} onClick={() => run('range', { t: 'training', mode: 'tdm', map: tMap, bots: 0, difficulty: 'easy' })}><Target size={16} />{busy === 'range' ? 'Opening…' : 'Open the firing range'}</button></article>
         </div>}
         {tab === 'rankings' && <Rankings />}
       </section>
@@ -85,6 +87,8 @@ export default function Lobby() {
             <li><b>{loadout.perks.map(p => PERK_BY_ID.get(p)?.name).join(' · ')}</b><small>Perks</small></li>
           </ul>
           <button className="ar-secondary" onClick={() => useArena.getState().set({ editor: true })}>Edit loadouts<ChevronRight size={16} /></button>
+          <button className="ar-secondary" onClick={() => useArena.getState().set({ armory: '' })}><Crosshair size={16} />Armory</button>
+          <button className="ar-secondary" onClick={() => useArena.getState().set({ hudEditor: true })}><LayoutDashboard size={16} />HUD customization</button>
         </div>
         <Controls />
         <details className="ar-credits"><summary><span className="ar-eyebrow">ART CREDITS</span></summary>

@@ -1,8 +1,13 @@
 {
-  "started": "2026-11-10T10:57:49.379Z",
+  "started": "2026-11-10T19:27:58.687Z",
   "checks": [
     {
       "name": "both players open Combat Arena from the campus dock, signed in with their campus accounts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a premium weapon is locked until bought: choosing it opens the Armory with its price",
       "ok": true,
       "detail": ""
     },
@@ -14,7 +19,7 @@
     {
       "name": "Quick Play matches both players into one Team Deathmatch on opposite teams",
       "ok": true,
-      "detail": "0021f6b0-4675-4fe6-8603-d24553c0f97a"
+      "detail": "46e54679-e575-4cc5-9e1b-413b96556444"
     },
     {
       "name": "each browser renders the other player where the server has them",
@@ -59,5 +64,5 @@
   ],
   "phoneFpsSoftwareRendering": 3,
   "ok": true,
-  "finished": "2026-11-10T11:02:31.546Z"
+  "finished": "2026-11-10T19:32:42.778Z"
 }

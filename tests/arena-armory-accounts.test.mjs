@@ -189,3 +189,19 @@ test('arena preferences: settings and HUD layouts sync to the account, privately
   assert.match((await a.sb.rpc('save_arena_preferences', { p_hud: { junk: 'x'.repeat(60000) } })).error?.message ?? '', /too large/);
   assert.match((await a.sb.rpc('save_arena_preferences', { p_settings: [] })).error?.message ?? '', /could not be saved/);
 });
+
+test('players already using a weapon when it joined the Armory keep it (the migration’s legacy grant)', async () => {
+  const a = await account('veteran'), b = await account('newcomer');
+  // Data as it stood before the migration: a saved loadout with the Anvil, shots fired with the Longbow.
+  await db.pool.query(`insert into public.arena_loadouts (user_id, slot, name, primary_weapon, secondary_weapon, lethal, tactical, perks) values ($1, 1, 'Old', 'anvil', 'knife', 'frag', 'flash', '{fleet,steady}')`, [a.id]);
+  await db.pool.query(`insert into public.arena_weapon_stats (user_id, weapon, kills, headshots, shots, hits) values ($1, 'longbow', 0, 0, 12, 3), ($1, 'vanguard', 4, 1, 90, 30)`, [a.id]);
+  const sql = (await import('node:fs')).readFileSync('supabase/migrations/20261110120000_arena_armory_and_preferences.sql', 'utf8');
+  const legacy = sql.slice(sql.indexOf('insert into public.shop_ownership (user_id, item, source)'), sql.indexOf('on conflict do nothing;', sql.indexOf('insert into public.shop_ownership (user_id, item, source)')) + 'on conflict do nothing;'.length);
+  await db.pool.query(legacy); await db.pool.query(legacy); // idempotent
+  const owned = (await a.sb.rpc('my_purchases')).data.owned.map(o => [o.item, o.source]).sort();
+  assert.deepEqual(owned, [['weapon-anvil', 'legacy'], ['weapon-longbow', 'legacy']], 'free weapons need no grant; premium ones in use are kept');
+  assert.deepEqual((await b.sb.rpc('my_purchases')).data.owned, [], 'nobody else gains anything');
+  const c = await arena(a);
+  assert.deepEqual([...c.ready.owned].sort(), ['weapon-anvil', 'weapon-longbow']); assert.equal(c.ready.loadout.primary, 'anvil', 'their saved loadout still works');
+  c.ws.close();
+});

@@ -1,0 +1,52 @@
+{
+  "started": "2026-11-10T19:53:34.600Z",
+  "checks": [
+    {
+      "name": "desktop: drag, resize, restyle the crosshair, hide an element and save",
+      "ok": true,
+      "detail": "minimap at 0.25, 0.55"
+    },
+    {
+      "name": "the layout is saved to the account (arena_preferences)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "changes persist after leaving and rejoining, and follow the account to another device",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a damaged saved layout is repaired element by element and the player is told",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "phone: move the joystick and enlarge the fire button with touch, and save",
+      "ok": true,
+      "detail": "fire ×1.26, stick at 0.25, 0.63"
+    },
+    {
+      "name": "the firing range shows the saved touch layout exactly, with no page scrolling",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the customised fire button fires",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "auto-fire on: fires at the enemy under the player’s aim, damage decided by the server",
+      "ok": true,
+      "detail": "bot hp 0"
+    },
+    {
+      "name": "auto-fire stops as soon as the aim leaves the enemy",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "ok": true,
+  "finished": "2026-11-10T19:57:20.926Z"
+}
