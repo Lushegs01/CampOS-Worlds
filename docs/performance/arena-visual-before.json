@@ -66,5 +66,6 @@
       "geometries": 20,
       "fps": 6
     }
-  }
+  },
+  "note": "Counts here cover only the last render pass (the first-person weapon): the pre-overhaul renderer reset three.js counters per pass. They are not whole-frame figures."
 }

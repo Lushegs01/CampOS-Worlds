@@ -2,7 +2,7 @@
 // Starts its own room and Vite dev server, opens Training on Foundry Yard with bots frozen at fixed
 // spots, and photographs the same views at each graphics quality.
 // Usage: LABEL=before node scripts/qa/arena-shots.mjs   (QUALITIES=low,medium,high)
-// Writes docs/screenshots/arena/visual/<label>-<view>-<quality>.png and docs/performance/arena-visual-<label>.json.
+// Writes docs/screenshots/arena/visual/<label>-<view>-<quality>.jpg and docs/performance/arena-visual-<label>.json.
 import { writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { chromium } from '@playwright/test';
@@ -14,7 +14,7 @@ const TAG = MAP === 'foundry' ? '' : `${MAP}-`;
 // Sim Quad: the fountain court and an arcade (MAP=quad).
 const QUAD_VIEWS = [
   { id: 'court', at: [-30, 0], yaw: -Math.PI / 2, pitch: -.02, bots: [[-16, -2, Math.PI / 2], [-12, 4, Math.PI / 2.4]] },
-  { id: 'arcade', at: [0, -20], yaw: 0, pitch: .02, bots: [[1.5, -10, Math.PI], [-2, -6, Math.PI]] },
+  { id: 'corner', at: [20, 18], yaw: .84, pitch: .03, bots: [[9, 8, .84 + Math.PI], [5, 2.5, .84 + Math.PI - .4]] },
 ];
 const FOUNDRY_VIEWS = [
   { id: 'yard', at: [-30, 3], yaw: -Math.PI / 2, pitch: -.02, bots: [[-19, -1, Math.PI / 2], [-15, 5.5, Math.PI / 2.4]] },
@@ -46,7 +46,7 @@ try {
     await page.waitForFunction(() => window.__arena?.state().status === 'ready');
     await page.getByRole('tab', { name: 'Training' }).click();
     await page.getByLabel('Bots').selectOption('3');
-    if (MAP !== 'foundry') await page.getByLabel('Map').selectOption(MAP);
+    if (MAP !== 'foundry') await page.locator('.ar-training label', { hasText: 'Map' }).locator('select').selectOption(MAP);
     await page.getByRole('button', { name: 'Start training' }).click();
     await page.waitForFunction(() => window.__arena?.state().hud.matchState === 'playing', null, { timeout: 90000 });
     // Freeze the bots at once (they hold still and nobody can be hurt), so all are alive for the photographs.
@@ -66,7 +66,7 @@ try {
       await page.waitForFunction(([x, z]) => { const s = window.__arena.self(); return s && Math.abs(s.x - x) < .05 && Math.abs(s.z - z) < .05; }, view.at);
       await page.evaluate(([y, p]) => window.__arena.look(y, p), [view.yaw, view.pitch]);
       await page.waitForTimeout(2500);
-      await page.screenshot({ path: `${OUT}${LABEL}-${TAG}${view.id}-${quality}.png` });
+      await page.screenshot({ path: `${OUT}${LABEL}-${TAG}${view.id}-${quality}.jpg`, type: 'jpeg', quality: 90 });
       const stats = await page.evaluate(() => ({ ...(window.__arenaStats ?? {}), fps: window.__arena.state().hud.fps }));
       if (process.env.BREAKDOWN) console.log(JSON.stringify(await page.evaluate(() => window.__arenaBreakdown?.())));
       results.views[`${TAG}${view.id}-${quality}`] = stats; console.log(LABEL, view.id, quality, JSON.stringify(stats));
@@ -77,7 +77,7 @@ try {
     Object.assign(me.sim, { x: v.at[0], z: v.at[1] }); me.history = [];
     await page.locator('.ar-canvas canvas').click({ position: { x: 640, y: 360 } }).catch(() => {});
     await page.mouse.down({ button: 'right' }); await page.waitForTimeout(1200);
-    await page.screenshot({ path: `${OUT}${LABEL}-${TAG}ads-${quality}.png` }); await page.mouse.up({ button: 'right' });
+    await page.screenshot({ path: `${OUT}${LABEL}-${TAG}ads-${quality}.jpg`, type: 'jpeg', quality: 90 }); await page.mouse.up({ button: 'right' });
     clearInterval(keepShielded);
     await page.close();
     for (const m of [...room.arena.matches.values()]) m.close('capture');

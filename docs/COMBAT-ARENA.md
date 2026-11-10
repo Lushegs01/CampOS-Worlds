@@ -274,16 +274,41 @@ bots never shoot at a loading screen. Remote players' positions never wait for t
 * Static geometry is merged per material with world-space UVs (about 60–110 draw calls on Low);
   props, sandbags and particles are instanced; nothing is allocated per shot.
 
+### Rendering measurements
+
+Fixed cameras on Foundry Yard in Training, 1280 × 720, captured by `LABEL=after node
+scripts/qa/arena-shots.mjs` (`docs/performance/arena-visual-after.json`; Sim Quad with `MAP=quad`). Counts
+are per frame including the first-person pass. On Medium and High they also include the shadow and
+post-processing passes.
+
+| View | Low: draw calls / triangles | Medium | High |
+|---|---|---|---|
+| Yard | 72 / 214k (world pass 165k) | 143 / 318k | 274 / 595k |
+| Interior | 66 / 211k | 155 / 585k | 171 / 593k |
+| Lane | 71 / 213k | 143 / 318k | 274 / 595k |
+| Squad (three soldiers at 5 m) | 78 / 234k | 219 / 623k | 288 / 631k |
+| Sim Quad court | 115 / 154k | — | 268 / 386k |
+
+GPU textures resident: 145 (Low) to 198 (High). Before the overhaul the scene was a dozen flat-coloured
+boxes; its recorded counters (`arena-visual-before.json`) cover only the weapon pass and are not
+comparable. Before/after pictures from the same cameras: `docs/screenshots/arena/visual/compare-yard.jpg`,
+`compare-interior.jpg`, `compare-lane.jpg` and `compare-ads.jpg`. All frame rates here were taken with
+software rendering (SwiftShader, no GPU) and are **not** representative: 0–3 fps on every profile in this
+environment. **No GPU or phone measurements were possible.** The Low profile's ~214k triangles and ~70
+draw calls are within what mid-range phone GPUs handle at 30 fps, but that is an estimate, not a
+measurement.
+
 Measured (`docs/performance/arena-load.json`, `node scripts/qa/arena-load.mjs`): one room process with
 4 full 6 v 6 Quick Play matches (48 WebSocket clients each sending 60 commands/s while moving and
 firing) plus 4 Training matches (36 bots) for 20 s — **31% of the server's main thread**, event-loop
 delay p99 9.4 ms, every client received 20.0 snapshots/s (minimum 20.1), ~17 KB/s download per client,
 3,908 shots resolved with lag compensation.
 
-Client frame rate was measured only with software rendering (SwiftShader, no GPU) in this
-environment: **44 fps** on Low at a 844 × 390 phone viewport during Training
-(`docs/arena-results.json`). Physical low-end Android phones were **not** available to test; the 30 fps
-mobile target is not yet verified on real hardware.
+Client frame rate before the visual overhaul was 44 fps on Low with software rendering at a 844 × 390
+phone viewport; with the production art the browser suite now records about 3 fps in the same software
+renderer even at a 0.3 render scale (`docs/arena-results.json`). That says little about GPUs, but it is
+why the suite renders small and allows slow clients more time.
+Physical phones were **not** available to test; the 30 fps mobile target is unverified on hardware.
 
 ## Testing
 
@@ -315,3 +340,9 @@ Proxy `/arena` like `/ws` ([deployment](DEPLOYMENT.md)). Apply the migration wit
 * Ranked play with skill ratings; Free-for-all, Search and Destroy, Hardpoint (architecture ready).
 * Kill cams, voice, parties queuing together, spectating.
 * Physical-device performance verification on low-end Android phones.
+* Art still to raise: Sim Quad's planters, benches and interior blocks are textured boxes rather than
+  modelled props; the Wasp, Kestrel and Bastion magazines are fused to the gun (reloads move the hand
+  but nothing drops); the Talon's third-person LOD stays at ~20k triangles (its source mesh does not
+  simplify); bespoke animation clips for the first-person arms (reloads are procedural poses driven by
+  the simulation, not keyframed animation); a lighter streaming pack for phones on metered data (a
+  match downloads about 22–25 MB).
