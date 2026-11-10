@@ -14,21 +14,23 @@ const sign = (body, ts = Math.floor(Date.now() / 1000), secret = SECRET) => crea
 const v2 = (body, ts = Math.floor(Date.now() / 1000), secrets = [SECRET]) => ({ 'x-bachs-signature-v2': `t=${ts},${secrets.map(s => `v1=${sign(body, ts, s)}`).join(',')}` });
 const ORDER = '7b0c0f5e-8a3e-4d8e-9a43-2f1d0c7e9b11';
 
-test('the catalogue: three characters and three accessories, at ₦3,000 and ₦1,000, mirrored by the database', () => {
+test('the catalogue: three characters, three accessories and the premium Armory weapons, at ₦3,000, ₦1,000 and ₦1,500, mirrored by the database', () => {
   assert.deepEqual(PREMIUM_MODELS, ['emeka', 'folake', 'seun']);
   assert.deepEqual(PREMIUM_ACCESSORIES, ['cap', 'beanie', 'shades']);
   for (const id of PREMIUM_MODELS) assert.ok(MODELS.includes(id)); for (const id of PREMIUM_ACCESSORIES) assert.ok(ACCESSORIES.includes(id));
   assert.equal(priceOf('emeka'), 3000); assert.equal(priceOf('cap'), 1000); assert.equal(priceOf('tunde'), null);
   assert.equal(formatNaira(3000), '₦3,000'); assert.equal(bachsAmount(3000), '3000.00'); assert.equal(bachsAmount(1499.5), '1499.50');
-  const sql = readdirSync('supabase/migrations').sort().map(f => readFileSync(`supabase/migrations/${f}`, 'utf8')).filter(s => s.includes('insert into public.shop_items')).at(-1);
-  const rows = [...sql.matchAll(/\('([a-z0-9-]+)', '(character|accessory)', '([^']+)'\)/g)].map(m => ({ id: m[1], kind: m[2], name: m[3] }));
+  // Every migration that adds store items, in order (characters and accessories first, then Armory weapons).
+  const sql = readdirSync('supabase/migrations').sort().map(f => readFileSync(`supabase/migrations/${f}`, 'utf8')).filter(s => s.includes('insert into public.shop_items')).join('\n');
+  const rows = [...sql.matchAll(/^\s*\('([a-z0-9-]+)', '(character|accessory|weapon)', '([^']+)'\)/gm)].map(m => ({ id: m[1], kind: m[2], name: m[3] }));
   assert.deepEqual(rows, SHOP_ITEMS.map(({ id, kind, name }) => ({ id, kind, name })), 'shop_items matches shared/shop.mjs');
 });
 
 test('prices are a server setting: whole naira, anything invalid falls back to the defaults', () => {
   assert.deepEqual(shopPrices(), DEFAULT_PRICES);
-  assert.deepEqual(shopPrices({ character: '3500', item: '1200' }), { character: 3500, item: 1200 });
-  for (const bad of ['', '0', '-5', '12.5', 'abc', '2000000', undefined, NaN]) assert.deepEqual(shopPrices({ character: bad, item: bad }), DEFAULT_PRICES, String(bad));
+  assert.deepEqual(shopPrices({ character: '3500', item: '1200' }), { character: 3500, item: 1200, weapon: 1500 });
+  assert.equal(priceOf('weapon-talon', shopPrices({ weapon: '2000' })), 2000);
+  for (const bad of ['', '0', '-5', '12.5', 'abc', '2000000', undefined, NaN]) assert.deepEqual(shopPrices({ character: bad, item: bad, weapon: bad }), DEFAULT_PRICES, String(bad));
   assert.equal(priceOf('seun', shopPrices({ character: '4000' })), 4000);
 });
 
@@ -71,7 +73,7 @@ test('checkout: one Bachs session per order, at the server’s price, with the o
   const requests = [], accounts = fakeAccounts();
   const fetchImpl = async (url, init) => { requests.push({ url, init, body: JSON.parse(init.body) }); return new Response(JSON.stringify({ checkout_id: 'chk_1', checkout_url: 'https://pay.bachs.test/chk_1', status: 'open' }), { status: 201 }); };
   const shop = createShop({ ...settings, accounts, fetchImpl });
-  assert.equal(shop.enabled, true); assert.deepEqual(shop.catalogue(), { enabled: true, currency: 'NGN', prices: { character: 3000, item: 1000 } });
+  assert.equal(shop.enabled, true); assert.deepEqual(shop.catalogue(), { enabled: true, currency: 'NGN', prices: { character: 3000, item: 1000, weapon: 1500 } });
   const r = await shop.checkout('user-1', 'emeka', { email: 'ada@example.test', name: 'Ada' });
   assert.equal(r.url, 'https://pay.bachs.test/chk_1'); assert.equal(r.amount, 3000);
   const [q] = requests;

@@ -8,7 +8,8 @@ import { createRoom } from '../server/room.mjs';
 import { step, spawnState, unpackState, quantize, encodeCommand, B, EYE } from '../shared/arena/sim.mjs';
 import { createWorld } from '../shared/arena/physics.mjs';
 import { MAP_BY_ID } from '../shared/arena/maps.mjs';
-import { WEAPON_BY_ID } from '../shared/arena/weapons.mjs';
+import { WEAPON_BY_ID, PREMIUM_WEAPONS, weaponItem, weaponOwned } from '../shared/arena/weapons.mjs';
+import { randomUUID } from 'node:crypto';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const RULES = { countdownMs: 150, fillWaitMs: 0, spawnProtectMs: 0, reconnectMs: 4000, abandonMs: 1500, resultsMs: 400, regenDelayMs: 60000, mode: { respawnMs: 400, scoreLimit: 3, captureMs: 600, tickMs: 300 } };
@@ -17,7 +18,8 @@ const recorded = [];
 const accounts = {
   enabled: true,
   verify: async t => (typeof t === 'string' && t.startsWith('token-') ? { id: t.slice(6), email: '' } : { error: 'invalid' }),
-  snapshot: async id => ({ handle: 'h' + id.slice(0, 6), display_name: 'Player ' + id.slice(0, 4), avatar: {}, achievements: [], social: {} }),
+  // Stand-in accounts own every Armory weapon (purchases themselves are tested in arena-armory-accounts.test.mjs).
+  snapshot: async id => ({ handle: 'h' + id.slice(0, 6), display_name: 'Player ' + id.slice(0, 4), avatar: {}, achievements: [], social: {}, owned: PREMIUM_WEAPONS.map(weaponItem) }),
   arenaSnapshot: async () => ({ xp: 0, emblem: 'recruit', weapons: [], loadouts: [] }),
   recordArenaMatch: async m => { recorded.push(m); return { recorded: true, players: m.players.map(p => ({ user: p.user, xp: 100, total_xp: 100, level: 1, level_before: 1, unlocked: [], weapon_levels: [] })) }; },
 };
@@ -29,6 +31,8 @@ afterEach(() => { for (const m of [...room.arena.matches.values()]) m.close('tes
 
 /** A test client: connects, says hello, records every message, and can wait for one. */
 async function client(name, { access, loadout } = {}) {
+  // Premium weapons need an account that owns them: such a loadout signs the test client in.
+  if (loadout && !access && ![loadout.primary, loadout.secondary].every(w => weaponOwned(w, []))) access = `token-${randomUUID()}`;
   const ws = new WebSocket(url, { origin: 'http://localhost:5173' });
   await new Promise((r, j) => { ws.once('open', r); ws.once('error', j); });
   const c = { ws, name, msgs: [], events: [], seq: 0, ref: 0, waiters: new Set() };

@@ -21,6 +21,8 @@ import { guestName, cleanText } from '../../shared/text.mjs';
 const MAX_MESSAGE = 1536, MAX_HELLO = 6144;
 const str = v => (typeof v === 'string' ? v : '');
 const CODE = /^[A-HJ-NP-Z2-9]{6}$/;
+/** Store item ids an account owns, as sent by account_snapshot (anything malformed is dropped). */
+const ownedList = v => (Array.isArray(v) ? [...new Set(v.filter(i => typeof i === 'string' && /^[a-z0-9-]{1,32}$/.test(i)))].slice(0, 200) : []);
 
 export function createArena({ accounts = { enabled: false }, capacity = 400, maxMatches = 60, rules = {}, logDir = null, log = console, clock = () => Date.now(), minRecordMs = 60000, autoTick = true, slowCloseMs = 6000 } = {}) {
   const connections = new Map(), matches = new Map(), codes = new Map();
@@ -122,7 +124,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
 
   // ---------------------------------------------------------------- identity
   async function identify(c, m) {
-    c.name = guestName(m.name); c.account = null; c.level = 1; c.xp = 0; c.weaponLevels = {}; c.loadouts = [];
+    c.name = guestName(m.name); c.account = null; c.level = 1; c.xp = 0; c.weaponLevels = {}; c.loadouts = []; c.owned = [];
     if (typeof m.access === 'string' && accounts.enabled) {
       const who = await accounts.verify(m.access);
       if (!who.error) {
@@ -132,8 +134,10 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
             c.account = { id: who.id, handle: snap.handle };
             c.name = cleanText(snap.display_name, 32) || 'Explorer';
             c.xp = arena?.xp ?? 0; c.level = levelFor(c.xp);
+            // Premium weapons the account owns (store items granted only from verified payments).
+            c.owned = ownedList(snap.owned);
             for (const w of arena?.weapons ?? []) c.weaponLevels[w.weapon] = weaponLevel(weaponXp(w.kills, w.headshots));
-            c.loadouts = (arena?.loadouts ?? []).map(l => validateLoadout(l, c.level, c.weaponLevels)).filter(r => r.ok).map(r => r.loadout);
+            c.loadouts = (arena?.loadouts ?? []).map(l => validateLoadout(l, c.level, c.weaponLevels, c.owned)).filter(r => r.ok).map(r => r.loadout);
             c.emblem = typeof arena?.emblem === 'string' ? arena.emblem : 'recruit';
           }
         } catch { /* keep playing as a guest */ }
@@ -145,7 +149,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     c.emblem = emblem.id;
     c.loadout = c.loadouts[0] ?? PRESETS[0];
     c.ready = true;
-    send(c, { t: 'ready', id: c.id, name: c.name, verified: !!c.account, handle: c.account?.handle ?? null, level: c.level, xp: c.xp, weaponLevels: c.weaponLevels, emblem: c.emblem,
+    send(c, { t: 'ready', id: c.id, name: c.name, verified: !!c.account, handle: c.account?.handle ?? null, level: c.level, xp: c.xp, weaponLevels: c.weaponLevels, emblem: c.emblem, owned: c.owned,
       loadout: c.loadout, loadouts: c.loadouts, modes: MODES.map(({ id, name, text }) => ({ id, name, text })), maps: MAPS.map(({ id, name, blurb }) => ({ id, name, blurb })),
       online: [...connections.values()].filter(o => o.ready).length, matches: matches.size });
   }
@@ -188,9 +192,9 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
       case 'loaded': if (c.match && c.player?.conn === c && rate('loaded', 2)) c.match.loaded(c.player); return;
       case 'streak': if (c.match && c.player && rate('streak', 4)) c.match.useStreak(c.player, str(m.id)); return;
       case 'loadout': {
-        if (!rate('loadout', 6, 5000)) return;
-        const r = validateLoadout(m.loadout, c.level, c.weaponLevels);
-        if (!r.ok) return reply(m.ref, { ok: false, reason: r.reason });
+        if (!rate('loadout', 6, 5000)) return reply(m.ref, { ok: false, reason: 'Wait a moment before changing your loadout again.' });
+        const r = validateLoadout(m.loadout, c.level, c.weaponLevels, c.owned);
+        if (!r.ok) return reply(m.ref, { ok: false, reason: r.reason, locked: r.locked ?? null });
         c.loadout = r.loadout;
         if (c.match && c.player) c.match.setLoadout(c.player, r.loadout);
         return reply(m.ref, { ok: true, loadout: r.loadout, next: c.match?.state === 'playing' ? 'spawn' : 'now' });
@@ -223,7 +227,8 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
       }
       case 'training': {
         if (!rate('training', 3, 5000)) return reply(m.ref, { ok: false, reason: 'Wait a moment.' });
-        const mode = str(m.mode), map = str(m.map), bots = Number.isInteger(m.bots) ? Math.max(1, Math.min(9, m.bots)) : 5;
+        // 0 bots is the firing range: the player's own loadout and HUD on a real map, nobody shooting back.
+        const mode = str(m.mode), map = str(m.map), bots = Number.isInteger(m.bots) ? Math.max(0, Math.min(9, m.bots)) : 5;
         const difficulty = ['easy', 'normal', 'hard'].includes(m.difficulty) ? m.difficulty : 'normal';
         if (!MODE_BY_ID.has(mode) || !MAP_BY_ID.has(map)) return reply(m.ref, { ok: false, reason: 'Choose a mode and map.' });
         if (matches.size >= maxMatches) return reply(m.ref, { ok: false, reason: 'Every arena is busy right now.' });
@@ -243,9 +248,38 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
         return reply(m.ref, { ok: true });
       }
       case 'leave': leaveMatch(c); return reply(m.ref, { ok: true });
+      case 'owned': {
+        // Re-read what the account owns (after a purchase confirmed on another server process, or a refund).
+        if (!rate('owned', 3, 10000) || !c.account || !accounts.enabled) return reply(m.ref, { ok: !!c.account, owned: c.owned });
+        const id = c.account.id;
+        accounts.snapshot(id).then(snap => { if (c.account?.id !== id) return; setOwned(id, ownedList(snap?.owned)); reply(m.ref, { ok: true, owned: c.owned }); }, () => reply(m.ref, { ok: false, reason: 'Your purchases could not be checked right now.', owned: c.owned }));
+        return;
+      }
     }
   }
   function leaveMatchKeep(c, keep) { if (c.match && c.match !== keep) leaveMatch(c); }
+
+  // ---------------------------------------------------------------- Armory entitlements
+  /**
+   * The room calls these when a verified payment grants a store item, or an operator reverses one. Every
+   * arena connection of that account learns at once. A loadout that uses a weapon no longer owned falls
+   * back to a free one from the player's next deployment: a purchase or refund never interrupts a life.
+   */
+  function setOwned(accountId, list) {
+    for (const c of connections.values()) {
+      if (c.account?.id !== accountId) continue;
+      c.owned = list;
+      c.loadouts = c.loadouts.filter(l => validateLoadout(l, c.level, c.weaponLevels, c.owned).ok);
+      if (!validateLoadout(c.loadout, c.level, c.weaponLevels, c.owned).ok) {
+        c.loadout = c.loadouts[0] ?? PRESETS[0];
+        if (c.match && c.player) c.match.setLoadout(c.player, c.loadout);
+        send(c, { t: 'loadoutReset', loadout: c.loadout });
+      }
+      send(c, { t: 'owned', owned: c.owned });
+    }
+  }
+  const granted = (accountId, item) => { for (const c of connections.values()) if (c.account?.id === accountId && !c.owned.includes(item)) { setOwned(accountId, ownedList([...c.owned, item])); return; } };
+  const revoked = (accountId, item) => { for (const c of connections.values()) if (c.account?.id === accountId) { setOwned(accountId, c.owned.filter(i => i !== item)); return; } };
 
   const heartbeat = setInterval(() => { for (const c of connections.values()) { if (!c.alive) c.ws.terminate(); else { c.alive = false; c.ws.ping(); } if (!c.ready && Date.now() - c.openedAt > 15000) c.ws.close(4000, 'Say hello'); } }, 10000);
   heartbeat.unref?.();
@@ -260,5 +294,5 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     for (const c of connections.values()) c.ws.terminate();
     await new Promise(r => wss.close(() => r()));
   }
-  return { handleUpgrade, status, close, matches, connections, wss, metrics };
+  return { handleUpgrade, status, close, matches, connections, wss, metrics, granted, revoked };
 }

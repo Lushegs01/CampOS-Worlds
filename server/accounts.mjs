@@ -61,6 +61,8 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     /** The store (server/shop.mjs): open an order, record its Bachs checkout, fulfil it from a verified webhook. */
     createOrder: (id, item, amount, currency) => service('shop_create_order', { p_user: id, p_item: item, p_amount: amount, p_currency: currency }),
     openOrder: (order, checkout) => service('shop_open_order', { p_order: order, p_checkout: checkout }),
+    /** Reverse a paid order (refund or chargeback): removes what it granted, once. */
+    revokeOrder: (order, reason, event = null) => service('shop_revoke', { p_order: order, p_reason: reason, p_event: event }),
     fulfilOrder: f => service('shop_fulfil', { p_event: f.event, p_type: f.type, p_order: f.order, p_checkout: f.checkout, p_amount: f.amount, p_currency: f.currency, p_charge: f.charge }),
     /** The saved layout of the player's room in Palm House (null until they first arrange it). */
     dormLayout: id => service('dorm_layout', { p_user: id }),

@@ -1,6 +1,7 @@
 // A whole store purchase without a browser: real PostgreSQL (supabase/migrations) behind the local Supabase
 // stand-in, a room with the store configured, a stand-in for Bachs' checkout API, and signed webhooks
 // delivered to the room as Bachs delivers them (at least once, either event first).
+import { SHOP_ITEMS } from '../shared/shop.mjs';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -73,7 +74,7 @@ test('premium items cannot be saved before they are bought; guests cannot buy', 
   }
   assert.deepEqual((await a.sb.rpc('my_profile')).data.owned, []);
   const guest = await join();
-  assert.deepEqual(guest.welcome.shop, { enabled: true, currency: 'NGN', prices: { character: 3000, item: 1000 } });
+  assert.deepEqual(guest.welcome.shop, { enabled: true, currency: 'NGN', prices: { character: 3000, item: 1000, weapon: 1500 } });
   const reply = next(guest.ws, m => m.type === 'shopCheckout'); guest.send({ type: 'shopCheckout', item: 'emeka', ref: 1 });
   assert.deepEqual(await reply, { type: 'shopCheckout', ref: 1, item: 'emeka', ok: false, reason: 'Sign in to buy from the store.' });
   guest.ws.close();
@@ -147,7 +148,7 @@ test('players can read only their own orders and ownership, and cannot write the
     await c.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: a.id, role: 'authenticated' })]);
     await c.query('set local role authenticated');
     assert.equal((await c.query('select * from public.shop_ownership')).rows.length, 0, 'another player’s purchase is not visible');
-    assert.equal((await c.query('select * from public.shop_items')).rows.length, 6, 'the catalogue is public');
+    assert.equal((await c.query('select * from public.shop_items')).rows.length, SHOP_ITEMS.length, 'the catalogue is public');
     for (const sql of [`insert into public.shop_ownership (user_id, item) values ('${a.id}', 'seun')`, `insert into public.shop_orders (user_id, item, amount, currency) values ('${a.id}', 'seun', 1, 'NGN')`]) {
       await c.query('savepoint s'); await assert.rejects(c.query(sql), /permission denied/); await c.query('rollback to savepoint s');
     }

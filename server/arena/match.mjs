@@ -11,7 +11,7 @@ import { randomBytes } from 'node:crypto';
 import { createWorld, raycast, rayBox, raySphere, lineOfSight } from '../../shared/arena/physics.mjs';
 import { step, spawnState, packState, decodeCommand, hitbox, eyeOf, heightOf, direction, RADIUS, B } from '../../shared/arena/sim.mjs';
 import { WEAPON_BY_ID, WEAPON_INDEX, EQUIPMENT_BY_ID, STREAK_BY_ID, STREAKS, QUICK_MELEE, damageAt, TICK_RATE } from '../../shared/arena/weapons.mjs';
-import { MATCH, MODE_BY_ID, balanceTeam, matchXp, PRESETS } from '../../shared/arena/rules.mjs';
+import { MATCH, MODE_BY_ID, balanceTeam, matchXp, PRESETS, BOT_PRESETS, autoFireAllowed } from '../../shared/arena/rules.mjs';
 import { createBrain } from './bots.mjs';
 
 const cm = v => Math.round(v * 100), mr = v => Math.round(v * 1000);
@@ -54,7 +54,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   }
   const describe = p => ({ num: p.num, name: p.name, team: p.team, verified: !!p.account, handle: p.handle ?? null, bot: !!p.bot, connected: p.bot || p.connected, level: p.level ?? 1, emblem: p.emblem ?? 'recruit' });
   const roster = () => players.map(describe);
-  const view = () => ({ id, mode: mode.id, map: map.id, kind, code, state, maxPerTeam, scoreLimit, timeMs: mode.timeMs, seed, scores: [...scores], players: roster(), objectives: objectives.map(o => ({ id: o.id, x: o.x, z: o.z, r: o.r })) });
+  const view = () => ({ id, mode: mode.id, map: map.id, kind, code, state, autoFire: autoFireAllowed(kind), maxPerTeam, scoreLimit, timeMs: mode.timeMs, seed, scores: [...scores], players: roster(), objectives: objectives.map(o => ({ id: o.id, x: o.x, z: o.z, r: o.r })) });
   function announceRoster() { emitAll({ k: 'roster', players: roster() }); }
 
   // ---------------------------------------------------------------- joining, leaving, reconnecting
@@ -666,6 +666,6 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     join, leave, disconnect, rejoin, commands, useStreak, hostStart, setLoadout, loaded, view, roster, tick, close, finish, flush, smokeBlocks, byNum,
     humans, connected, summary: () => ({ id, kind, mode: mode.id, map: map.id, state, players: humans().length, connected: connected().length, bots: players.filter(p => p.bot).length, scores: [...scores], startedAt }),
   };
-  for (let i = 0; i < bots; i++) join({ id: `bot-${i + 1}`, name: `SIM-Unit ${String(i + 1).padStart(2, '0')}`, bot: true, loadout: PRESETS[Math.floor(random() * PRESETS.length)] });
+  for (let i = 0; i < bots; i++) join({ id: `bot-${i + 1}`, name: `SIM-Unit ${String(i + 1).padStart(2, '0')}`, bot: true, loadout: BOT_PRESETS[Math.floor(random() * BOT_PRESETS.length)] });
   return api;
 }
