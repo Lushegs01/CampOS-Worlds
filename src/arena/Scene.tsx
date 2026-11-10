@@ -19,7 +19,7 @@ import { weaponOf, eyeOf } from '../../shared/arena/sim.mjs';
 import { raycast } from '../../shared/arena/physics.mjs';
 import { setListener } from '../audio/mixer';
 import { useArena } from './store';
-import { live, onFx, tickInput, eye, useStreak, matOf, type Fx } from './net';
+import { live, onFx, tickInput, eye, useStreak, matOf, send, type Fx } from './net';
 import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, skyDome, clearMaterialCache, type Library } from './scene/library';
@@ -38,7 +38,8 @@ export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   const quality = useArena(s => s.settings.quality), q = ARENA_QUALITY[quality];
   const dpr = Math.min(q.dpr, window.devicePixelRatio || 1);
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
-  const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale')) || 0)) : 0;
+  // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
+  const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale') ?? (() => { try { return localStorage.getItem('campos-arena-qa-scale'); } catch { return null; } })()) || 0)) : 0;
   return <Canvas key={quality} className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
     gl={{ antialias: !q.post, powerPreference: 'high-performance', stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
     camera={{ fov: 78, near: .06, far: 1200, position: [0, 2, 0] }}>
@@ -50,7 +51,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const { scene, camera, gl, size } = useThree();
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
-  const worldAt = useRef(0);
+  const worldAt = useRef(0), loadedFor = useRef('');
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   useEffect(() => {
     let live2 = true;
@@ -284,6 +285,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (world && q.shadows && q.shadowEvery && frameNo.current % q.shadowEvery === 0) world.sun.shadow.needsUpdate = true;
     // ---- players
     const t = live.playback.time(now), seenNums = new Set<number>();
+    // Where everyone is comes from the network, whether or not their soldier model has downloaded yet.
+    if (t != null) for (const r of live.remotes.values()) if (!r.deadAt) { r.track.sample(t, sample); r.pos.x = sample.x; r.pos.y = sample.y; r.pos.z = sample.z; r.pos.yaw = sample.yaw; }
     if (kits && lib) for (const r of live.remotes.values()) {
       const dead = !!r.deadAt, visible = ((r.flags & 1) && r.seenAt && now - r.seenAt < 3000) || (dead && now - r.deadAt < 2600);
       let e = soldiers.current.get(r.num);
@@ -292,7 +295,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       if (!e) { if (!visible || r.team < 0) continue; e = { s: new Soldier(kits[model], r.team, lib, softTexture()), tag: null, tagKey: '', flashAt: 0, model }; soldiers.current.set(r.num, e); scene.add(e.s.root); }
       seenNums.add(r.num);
       e.s.root.visible = !!visible; if (!visible) continue;
-      if (t != null && !dead) { r.track.sample(t, sample); r.pos.x = sample.x; r.pos.y = sample.y; r.pos.z = sample.z; r.pos.yaw = sample.yaw; }
+      if (t != null && !dead) r.track.sample(t, sample); // (for the footstep cadence below)
       const w = WEAPONS[r.weapon]; if (w) e.s.setWeapon(w.id);
       const far = Math.hypot(r.pos.x - cam.position.x, r.pos.z - cam.position.z);
       e.s.update(dt, v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw, r.pitch, r.flags, dead, now - e.flashAt < 55, q.ik && far < 45);
@@ -334,6 +337,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     updateViewmodel(dt, now);
     // The match is shown once the player's weapon, arms and the soldiers can be drawn (or after 15 s regardless).
     if (!a.sceneReady && worldAt.current && ((kits && vm.gun && vm.arms) || now - worldAt.current > 15000)) a.set({ sceneReady: true });
+    // Tell the server once per match that this player can see and play (Training waits for it).
+    if (a.sceneReady && a.match && loadedFor.current !== a.match.id && send({ t: 'loaded' })) loadedFor.current = a.match.id;
     const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); }
   }, -1);
 

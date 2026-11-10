@@ -306,6 +306,9 @@ test('Training uses labelled bots that play by the same rules; Quick Play never 
     assert.equal(view.kind, 'training'); assert.equal(view.players.filter(p => p.bot).length, 3);
     assert.ok(view.players.filter(p => p.bot).every(p => /^SIM-Unit/.test(p.name)));
     const m = room.arena.matches.get(view.id);
+    // It holds until the player's scene has loaded (so bots never fire at a loading screen), then starts.
+    await sleep(600); assert.equal(m.state, 'waiting', 'waits for the client to load');
+    a.ws.send(JSON.stringify({ t: 'loaded' }));
     await a.wait(m2 => m2.t === 's' && m2.st === 'playing', 8000, 'training starts');
     const start = m.players.filter(p => p.bot).map(p => [p.sim.x, p.sim.z]);
     await sleep(1500);
@@ -377,7 +380,7 @@ test('a full match of twelve players: everyone receives state at the snapshot ra
 
 test('malformed and hostile messages of every kind never break the arena', async () => {
   const bad = [null, 1, 'x', [], {}, { toString: 1 }, { t: { toString: 1 } }, -1, 1e308, '9'.repeat(400), [[[[]]]], { a: 1 }];
-  const types = ['hello', 'c', 'ping', 'streak', 'loadout', 'queue', 'private', 'training', 'rejoin', 'leave', 'nonsense'];
+  const types = ['hello', 'c', 'ping', 'loaded', 'streak', 'loadout', 'queue', 'private', 'training', 'rejoin', 'leave', 'nonsense'];
   const a = await client('Fuzz'), b = await client('Peer');
   try {
     await queue(a, 'dom', 'foundry'); await queue(b, 'dom', 'foundry');

@@ -185,6 +185,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     switch (m.t) {
       case 'c': if (c.match && c.player?.conn === c) c.match.commands(c.player, m.c, typeof m.rt === 'number' ? m.rt : NaN); return;
       case 'ping': if (rate('ping', 4)) send(c, { t: 'pong', n: m.n, at: clock() }); return;
+      case 'loaded': if (c.match && c.player?.conn === c && rate('loaded', 2)) c.match.loaded(c.player); return;
       case 'streak': if (c.match && c.player && rate('streak', 4)) c.match.useStreak(c.player, str(m.id)); return;
       case 'loadout': {
         if (!rate('loadout', 6, 5000)) return;
