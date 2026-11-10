@@ -18,14 +18,16 @@ import { WEAPONS, EQUIPMENT_BY_ID } from '../../shared/arena/weapons.mjs';
 import { weaponOf, eyeOf } from '../../shared/arena/sim.mjs';
 import { raycast } from '../../shared/arena/physics.mjs';
 import { setListener } from '../audio/mixer';
-import { useArena } from './store';
-import { live, onFx, tickInput, eye, useStreak, matOf, send, type Fx } from './net';
+import { useArena, useBanners } from './store';
+import { live, onFx, tickInput, eye, useStreak, matOf, send, toggleAutoFire, type Fx } from './net';
 import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, skyDome, clearMaterialCache, type Library } from './scene/library';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, FirstPersonArms, preloadArms } from './scene/weapons';
-import { loadSoldiers, Soldier, soldierModelFor } from './scene/soldiers';
+import { loadSoldiers, Soldier, soldierModelFor, prefetchRemainingWeapons } from './scene/soldiers';
+import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
+
 import { Effects, Casings } from './scene/fx';
 import { sfx, setIndoor, startAmbience, stopArenaAmbience, type Ground } from './audio';
 import { QA_HOOKS } from '../qa';
@@ -48,7 +50,7 @@ export default memo(function ArenaScene({ mapId }: { mapId: string }) {
 });
 
 function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
-  const { scene, camera, gl, size } = useThree();
+  const { scene, camera, gl, size } = useThree(), setDpr = useThree(s => s.setDpr), dprNow = useThree(s => s.viewport.dpr);
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
   const worldAt = useRef(0), loadedFor = useRef('');
@@ -191,13 +193,30 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const before = gl.toneMapping; gl.toneMapping = THREE.NoToneMapping; gl.toneMappingExposure = .82;
     return () => { composer.c.dispose(); gl.toneMapping = before; };
   }, [composer, gl]);
-  useEffect(() => { composer?.c.setSize(size.width, size.height); }, [composer, size]);
+  useEffect(() => { composer?.c.setSize(size.width, size.height); }, [composer, size, dprNow]);
+  // ---------------------------------------------------------------- adaptive performance
+  // Hold the frame rate (30 on touch devices, 55 elsewhere): fewer pixels first, then a lighter profile.
+  // The simulation, input and network run at fixed rates whatever the frame rate.
+  const touchDevice = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  const baseDpr = useMemo(() => Math.min(q.dpr, window.devicePixelRatio || 1), [q]);
+  const adaptive = useMemo(() => createAdaptive({ target: frameTarget(touchDevice), min: Math.max(.5, .6 / Math.max(1, baseDpr)) }), [q, baseDpr, touchDevice]); // eslint-disable-line react-hooks/exhaustive-deps
+  const adaptFps = (fps: number) => {
+    const st = useArena.getState().settings; if (!st.adaptive || QA_HOOKS && new URLSearchParams(location.search).has('qa-scale')) return;
+    const r = adaptive.sample(fps);
+    if (r.changed) setDpr(Math.max(.5, baseDpr * r.scale));
+    if (r.stepDown && st.quality !== 'low') {
+      const lower = st.quality === 'high' ? 'medium' : 'low';
+      useArena.getState().setSettings({ quality: lower, qualityChosen: false });
+      useBanners.getState().push({ text: 'Graphics lowered to keep the game smooth', sub: `Now ${lower[0].toUpperCase() + lower.slice(1)} · change it in Settings`, tone: 'info', ms: 3600 });
+    }
+  };
 
   // ---------------------------------------------------------------- input
   useEffect(() => attachDesktop(gl.domElement, {
     streak: id => useStreak(id),
     scoreboard: open => useArena.getState().set({ scoreboard: open }),
     menu: () => { const a = useArena.getState(); a.set({ menu: !a.menu }); },
+    autoFire: () => toggleAutoFire(),
   }, () => ({ ads: live.sim?.ads ?? 0, zoom: zoomOf() })), [gl]);
   const zoomOf = () => { const s = live.sim; if (!s) return 1; const w = weaponOf(s); return w.zoom ?? (w.category === 'melee' ? 1 : 1.3); };
 
@@ -336,10 +355,14 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     } else objectives.g.visible = false;
     updateViewmodel(dt, now);
     // The match is shown once the player's weapon, arms and the soldiers can be drawn (or after 15 s regardless).
-    if (!a.sceneReady && worldAt.current && ((kits && vm.gun && vm.arms) || now - worldAt.current > 15000)) a.set({ sceneReady: true });
+    if (!a.sceneReady && worldAt.current && ((kits && vm.gun && vm.arms) || now - worldAt.current > 15000)) {
+      a.set({ sceneReady: true });
+      const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
+      prefetchRemainingWeapons(q.detail > 0 && !saveData);
+    }
     // Tell the server once per match that this player can see and play (Training waits for it).
     if (a.sceneReady && a.match && loadedFor.current !== a.match.id && send({ t: 'loaded' })) loadedFor.current = a.match.id;
-    const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); }
+    const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); if (a.sceneReady && !document.hidden) adaptFps(fps); }
   }, -1);
 
   /** What a boot lands on: the box underfoot, or the yard's concrete, gravel margins and dirt. */

@@ -51,7 +51,11 @@ async function rawBody(req, limit = MAX_BODY) {
  * The store service. `accounts` is server/accounts.mjs (orders and ownership live in Supabase). `granted`
  * is called with (accountId, itemId) when a payment grants an item, so the room can tell the player at once.
  */
-export function createShop({ secretKey = '', webhookSecret = '', appUrl = '', apiUrl = '', prices: priceSettings = {}, accounts = { enabled: false }, granted = () => {}, fetchImpl = globalThis.fetch, timeoutMs = 10000, log = console } = {}) {
+export function createShop({ secretKey = '', webhookSecret = '', appUrl = '', apiUrl = '', prices: priceSettings = {}, accounts = { enabled: false }, granted = () => {}, revoked = () => {}, refundEvents = '', fetchImpl = globalThis.fetch, timeoutMs = 10000, log = console } = {}) {
+  // Event types that mean a payment was reversed (a refund or chargeback). Empty by default: set
+  // BACHS_REFUND_EVENTS to the type names your Bachs account sends once you have confirmed them. Operators can
+  // always reverse an order with POST /admin/shop/revoke.
+  const reversals = new Set(String(refundEvents).split(',').map(t => t.trim()).filter(t => /^[a-z0-9._-]{1,64}$/i.test(t)));
   const prices = shopPrices(priceSettings), base = (apiUrl || (secretKey ? apiBase(secretKey) : '')).replace(/\/+$/, '');
   const returnTo = appUrl.replace(/\/+$/, '');
   const enabled = !!(secretKey && webhookSecret && returnTo && accounts.enabled);
@@ -100,12 +104,18 @@ export function createShop({ secretKey = '', webhookSecret = '', appUrl = '', ap
   async function fulfil(event) {
     const type = typeof event?.type === 'string' ? event.type : '', data = event?.data && typeof event.data === 'object' ? event.data : {};
     if (typeof event?.id !== 'string' || !event.id || event.id.length > 128) return 400;
-    if (type !== 'collection.succeeded' && type !== 'checkout.completed') return 200; // nothing to do for other events
+    const reversal = reversals.has(type);
+    if (type !== 'collection.succeeded' && type !== 'checkout.completed' && !reversal) return 200; // nothing to do for other events
     const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
     const reference = typeof data.reference === 'string' ? data.reference : typeof meta.order === 'string' ? meta.order : '';
     const order = UUID.test(reference) ? reference : null, checkoutId = typeof data.checkout_id === 'string' && data.checkout_id.length <= 128 ? data.checkout_id : null;
     // Events for other products on the same Bachs account are not ours.
     if (!order && meta.app !== 'campos-worlds') return 200;
+    if (reversal) {
+      if (!order) return 200;
+      const r = await revoke(order, type, event.id);
+      return r.status >= 500 ? 503 : 200;
+    }
     let amount = null, currency = null, charge = null;
     if (type === 'collection.succeeded') {
       if (typeof data.status !== 'string' || !PAID.has(data.status.toUpperCase())) return 200;
@@ -125,6 +135,20 @@ export function createShop({ secretKey = '', webhookSecret = '', appUrl = '', ap
     return 200;
   }
 
+  /**
+   * Reverse what one paid order granted (refund or chargeback): ownership is removed, the order is marked
+   * refunded, and the player is told. Idempotent. Returns { status, body } for the admin endpoint.
+   */
+  async function revoke(order, reason = 'refund', event = null) {
+    if (typeof order !== 'string' || !UUID.test(order)) return { status: 400, body: { error: 'order must be an order id' } };
+    if (!accounts.enabled || !accounts.revokeOrder) return { status: 503, body: { error: 'accounts not configured' } };
+    let r;
+    try { r = await accounts.revokeOrder(order, String(reason).slice(0, 120), event); }
+    catch { log.warn?.('Store reversal could not reach the database.'); return { status: 503, body: { error: 'database unavailable' } }; }
+    if (r?.outcome === 'revoked') { log.log?.(`Store item revoked: ${r.item}`); revoked(r.user_id, r.item); }
+    return { status: r?.outcome === 'unknown-order' ? 404 : 200, body: { outcome: r?.outcome ?? 'unknown', item: r?.item ?? null } };
+  }
+
   /** The room's HTTP handler for Bachs webhooks. */
   async function handle(req, res) {
     const answer = (status, body = {}) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
@@ -138,5 +162,5 @@ export function createShop({ secretKey = '', webhookSecret = '', appUrl = '', ap
     return answer(status, status < 300 ? { received: true } : {});
   }
 
-  return { enabled, prices, catalogue, checkout, handle, fulfil };
+  return { enabled, prices, catalogue, checkout, handle, fulfil, revoke };
 }

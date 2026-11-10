@@ -11,6 +11,7 @@
 
 export const TICK_RATE = 60;
 const s = seconds => Math.round(seconds * TICK_RATE);
+const CATEGORIES_FALLBACK = 'Weapon';
 
 /**
  * Damage at distance: `damage` is a list of [fromMetres, damage] steps (the first starts at 0). Beyond
@@ -31,8 +32,8 @@ export const WEAPONS = [
   damage:[[0,28],[24,23],[45,19]],range:120,head:1.45,legs:.9,pellets:1,penetration:.35,
   spread:{hip:.042,ads:.0035,move:1.6,air:2.4,bloom:.0016,bloomMax:.02,bloomRecover:.0009},recoil:{kick:.0072,drift:.0042,pattern:1,adsRecoil:.72,recover:.0016,max:.11},
   ads:s(.24),swap:s(.62),sprintOut:s(.2),moveMul:.97,adsMoveMul:.58,tracer:'#ffd27a',sound:'rifle'},
- {id:'halcyon',name:'Halcyon BR-3',category:'ar',slot:'primary',unlock:6,fire:'burst',burst:3,burstRpm:960,rpm:340,mag:24,reserve:96,reload:s(2.2),reloadEmpty:s(2.7),reloadMode:'mag',
-  damage:[[0,34],[30,29],[55,24]],range:130,head:1.4,legs:.9,pellets:1,penetration:.35,
+ {id:'halcyon',name:'Halcyon BR-3',category:'ar',slot:'primary',unlock:1,fire:'burst',burst:3,burstRpm:960,rpm:340,mag:24,reserve:96,reload:s(2.2),reloadEmpty:s(2.7),reloadMode:'mag',
+  damage:[[0,30],[30,27],[55,23]],range:130,head:1.4,legs:.9,pellets:1,penetration:.35,
   spread:{hip:.04,ads:.0026,move:1.6,air:2.4,bloom:.0012,bloomMax:.012,bloomRecover:.001},recoil:{kick:.009,drift:.003,pattern:2,adsRecoil:.66,recover:.0022,max:.09},
   ads:s(.26),swap:s(.64),sprintOut:s(.22),moveMul:.96,adsMoveMul:.56,tracer:'#ffe2a0',sound:'burst'},
  // ---------------------------------------------------------------- SMGs: fast close-range
@@ -40,7 +41,7 @@ export const WEAPONS = [
   damage:[[0,26],[11,19],[22,14]],range:70,head:1.3,legs:.92,pellets:1,penetration:.2,
   spread:{hip:.03,ads:.009,move:1.25,air:1.8,bloom:.0012,bloomMax:.016,bloomRecover:.0012},recoil:{kick:.0058,drift:.0058,pattern:3,adsRecoil:.8,recover:.0018,max:.09},
   ads:s(.17),swap:s(.5),sprintOut:s(.12),moveMul:1.04,adsMoveMul:.72,tracer:'#ffcf8a',sound:'smg'},
- {id:'kestrel',name:'Kestrel K-45',category:'smg',slot:'primary',unlock:4,fire:'auto',rpm:690,mag:25,reserve:125,reload:s(1.9),reloadEmpty:s(2.3),reloadMode:'mag',
+ {id:'kestrel',name:'Kestrel K-45',category:'smg',slot:'primary',unlock:1,fire:'auto',rpm:690,mag:25,reserve:125,reload:s(1.9),reloadEmpty:s(2.3),reloadMode:'mag',
   damage:[[0,34],[12,24],[24,17]],range:70,head:1.3,legs:.92,pellets:1,penetration:.2,
   spread:{hip:.028,ads:.007,move:1.25,air:1.8,bloom:.0014,bloomMax:.016,bloomRecover:.0012},recoil:{kick:.0075,drift:.0048,pattern:4,adsRecoil:.78,recover:.0018,max:.1},
   ads:s(.18),swap:s(.52),sprintOut:s(.13),moveMul:1.03,adsMoveMul:.7,tracer:'#ffc275',sound:'smg'},
@@ -49,7 +50,7 @@ export const WEAPONS = [
   damage:[[0,22],[7,13],[13,6]],range:28,head:1.2,legs:.95,pellets:8,penetration:0,
   spread:{hip:.075,ads:.062,move:1.1,air:1.3,bloom:0,bloomMax:0,bloomRecover:0},recoil:{kick:.05,drift:.012,pattern:5,adsRecoil:.85,recover:.004,max:.12},
   ads:s(.22),swap:s(.58),sprintOut:s(.16),moveMul:.97,adsMoveMul:.65,tracer:'#ffb36a',sound:'shotgun'},
- {id:'rampart',name:'Rampart Auto',category:'shotgun',slot:'primary',unlock:8,fire:'semi',rpm:210,mag:8,reserve:32,reload:s(2.4),reloadEmpty:s(2.9),reloadMode:'mag',
+ {id:'rampart',name:'Rampart Auto',category:'shotgun',slot:'primary',unlock:1,fire:'semi',rpm:210,mag:8,reserve:32,reload:s(2.4),reloadEmpty:s(2.9),reloadMode:'mag',
   damage:[[0,16],[6,10],[11,5]],range:24,head:1.2,legs:.95,pellets:7,penetration:0,
   spread:{hip:.07,ads:.058,move:1.1,air:1.3,bloom:.004,bloomMax:.02,bloomRecover:.0015},recoil:{kick:.03,drift:.012,pattern:6,adsRecoil:.85,recover:.0035,max:.12},
   ads:s(.24),swap:s(.6),sprintOut:s(.17),moveMul:.96,adsMoveMul:.62,tracer:'#ffb36a',sound:'shotgun'},
@@ -58,7 +59,7 @@ export const WEAPONS = [
   damage:[[0,110],[60,98]],range:220,head:2,legs:.82,pellets:1,penetration:.6,
   spread:{hip:.11,ads:0,move:1.7,air:3,bloom:0,bloomMax:0,bloomRecover:0},recoil:{kick:.055,drift:.01,pattern:7,adsRecoil:1,recover:.003,max:.1},
   ads:s(.42),swap:s(.78),sprintOut:s(.3),moveMul:.9,adsMoveMul:.45,zoom:3.2,tracer:'#fff4c8',sound:'sniper'},
- {id:'talon',name:'Talon DMR',category:'sniper',slot:'primary',unlock:10,fire:'semi',rpm:270,mag:12,reserve:60,reload:s(2.4),reloadEmpty:s(2.9),reloadMode:'mag',
+ {id:'talon',name:'Talon DMR',category:'sniper',slot:'primary',unlock:1,fire:'semi',rpm:270,mag:12,reserve:60,reload:s(2.4),reloadEmpty:s(2.9),reloadMode:'mag',
   damage:[[0,49],[40,44],[70,40]],range:180,head:1.8,legs:.86,pellets:1,penetration:.5,
   spread:{hip:.07,ads:.0012,move:1.6,air:2.6,bloom:.002,bloomMax:.012,bloomRecover:.0012},recoil:{kick:.022,drift:.006,pattern:8,adsRecoil:.75,recover:.0028,max:.1},
   ads:s(.32),swap:s(.68),sprintOut:s(.24),moveMul:.93,adsMoveMul:.5,zoom:2.2,tracer:'#fff0b8',sound:'dmr'},
@@ -72,7 +73,7 @@ export const WEAPONS = [
   damage:[[0,28],[12,21],[25,16]],range:60,head:1.4,legs:.92,pellets:1,penetration:.1,
   spread:{hip:.022,ads:.006,move:1.2,air:1.6,bloom:.003,bloomMax:.02,bloomRecover:.0016},recoil:{kick:.012,drift:.004,pattern:10,adsRecoil:.8,recover:.0035,max:.08},
   ads:s(.15),swap:s(.38),sprintOut:s(.1),moveMul:1.05,adsMoveMul:.78,tracer:'#ffd9a0',sound:'pistol'},
- {id:'thorn',name:'Thorn .44',category:'pistol',slot:'secondary',unlock:5,fire:'semi',rpm:150,mag:6,reserve:30,reload:s(2.3),reloadEmpty:s(2.3),reloadMode:'mag',
+ {id:'thorn',name:'Thorn .44',category:'pistol',slot:'secondary',unlock:1,fire:'semi',rpm:150,mag:6,reserve:30,reload:s(2.3),reloadEmpty:s(2.3),reloadMode:'mag',
   damage:[[0,58],[15,46],[30,36]],range:70,head:1.5,legs:.9,pellets:1,penetration:.25,
   spread:{hip:.03,ads:.004,move:1.3,air:1.8,bloom:.006,bloomMax:.02,bloomRecover:.002},recoil:{kick:.04,drift:.01,pattern:11,adsRecoil:.8,recover:.004,max:.1},
   ads:s(.2),swap:s(.45),sprintOut:s(.13),moveMul:1.03,adsMoveMul:.72,tracer:'#ffc98a',sound:'magnum'},
@@ -82,10 +83,50 @@ export const WEAPONS = [
  {id:'hammer',name:'Breach Axe',category:'melee',slot:'secondary',unlock:7,fire:'melee',swing:s(.7),reach:2.9,damage:[[0,150]],range:2.9,head:1,legs:1,pellets:0,penetration:0,
   ads:s(.1),swap:s(.4),sprintOut:s(.08),moveMul:1.02,adsMoveMul:1,sound:'hammer'},
 ];
+
+// ---------------------------------------------------------------- the Armory: who may use what
+// Exactly two firearms are free (FREE_FIREARMS). Every other firearm is a premium Armory weapon, bought
+// once with real money through the campus store (shared/shop.mjs item `weapon-<id>`, server/shop.mjs) and
+// owned by the account on every device. Premium weapons are not stronger: each trades something away (see
+// `tradeoff`), tests/arena-armory.test.mjs checks that none dominates a free weapon, and the server
+// simulates every weapon with the same rules. Melee weapons are not firearms: the Combat Knife is free and
+// the Breach Axe is earned at level 7.
+/** @type {Record<string,{access:'free'|'premium'|'earned',armory:string,role:string,tradeoff:string}>} */
+const ARMORY={
+ vanguard:{access:'free',armory:'Assault rifle',role:'Balanced damage, moderate recoil and a 30-round magazine: reliable at any range the maps offer.',tradeoff:'No single strength: out-ranged by marksman rifles, out-paced by SMGs up close.'},
+ wasp:{access:'free',armory:'Submachine gun',role:'Very high fire rate and fast handling for aggressive, close-range movement.',tradeoff:'Damage falls off quickly past 11 m and recoil builds under sustained fire.'},
+ halcyon:{access:'premium',armory:'Advanced assault rifle',role:'Three-round bursts with tight aimed spread for disciplined mid-range fights.',tradeoff:'Burst-only fire punishes misses, slower aiming and a smaller 24-round magazine.'},
+ kestrel:{access:'premium',armory:'Heavy SMG',role:'Hard-hitting rounds up close with steadier recoil than other SMGs.',tradeoff:'Slower fire rate and a 25-round magazine: misses cost more than with the Wasp.'},
+ bastion:{access:'premium',armory:'Pump shotgun',role:'Eight-pellet blasts that end close fights in one shot.',tradeoff:'Useless past 13 m, shell-by-shell reloads and a slow pump between shots.'},
+ rampart:{access:'premium',armory:'Semi-automatic shotgun',role:'Rapid follow-up shots inside rooms and stairwells.',tradeoff:'Weaker pellets than the Bastion and almost no reach beyond 11 m.'},
+ longbow:{access:'premium',armory:'Sniper rifle',role:'One body shot at any distance; built for long sightlines.',tradeoff:'Bolt action, very slow aiming and movement, no hip-fire accuracy.'},
+ talon:{access:'premium',armory:'Precision rifle',role:'Semi-automatic marksman rifle that rewards accurate follow-up shots at range.',tradeoff:'Needs two to three hits, heavy recoil per shot and slow handling up close.'},
+ anvil:{access:'premium',armory:'Light machine gun',role:'A 75-round belt for holding lanes and suppressing cover.',tradeoff:'Slowest movement and aiming, a 4.6-second reload, wide hip-fire.'},
+ sparrow:{access:'premium',armory:'Sidearm',role:'Fast-drawing 9 mm pistol for when the primary runs dry.',tradeoff:'Low damage past 12 m; a backup, not a main weapon.'},
+ thorn:{access:'premium',armory:'Heavy sidearm',role:'Six-shot revolver with heavy single hits.',tradeoff:'Strong recoil, slow cylinder reload and only six rounds.'},
+ knife:{access:'free',armory:'Melee',role:'One hit eliminates at arm’s length; fastest movement.',tradeoff:'2.3 m reach.'},
+ hammer:{access:'earned',armory:'Melee',role:'Longer reach than the knife.',tradeoff:'Slower swing; earned at level 7.'},
+};
+for(const w of WEAPONS)Object.assign(w,ARMORY[w.id]??{access:'premium',armory:CATEGORIES_FALLBACK,role:'',tradeoff:''});
 export const WEAPON_BY_ID = new Map(WEAPONS.map(w=>[w.id,w]));
 /** Small stable index of every weapon (snapshots name a weapon by index). */
 export const WEAPON_INDEX = new Map(WEAPONS.map((w,i)=>[w.id,i]));
 export const CATEGORIES = {ar:'Assault rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper rifle',lmg:'LMG',pistol:'Pistol',melee:'Melee'};
+/** A gun (not a melee weapon). */
+export const isFirearm = w => !!w && w.fire !== 'melee';
+/** The two firearms every player has, free. */
+export const FREE_FIREARMS = WEAPONS.filter(w => isFirearm(w) && w.access === 'free').map(w => w.id);
+/** Firearms bought in the Armory. */
+export const PREMIUM_WEAPONS = WEAPONS.filter(w => w.access === 'premium').map(w => w.id);
+/** The campus store item that grants a premium weapon (shared/shop.mjs, shop_items). */
+export const weaponItem = id => `weapon-${id}`;
+/** Whether an account owning `owned` (store item ids, e.g. from account_snapshot) may use weapon `id`. */
+export function weaponOwned(id, owned) {
+ const w = WEAPON_BY_ID.get(id); if (!w) return false;
+ if (w.access !== 'premium') return true;
+ const item = weaponItem(id);
+ return owned instanceof Set ? owned.has(item) : Array.isArray(owned) && owned.includes(item);
+}
 
 /** Damage a round does at `distance` metres, before hit-location multipliers. */
 export function damageAt(weapon,distance){
@@ -156,7 +197,7 @@ export const EMBLEM_BY_ID=new Map(EMBLEMS.map(e=>[e.id,e]));
  * the unlock is a weapon level; for everything else it is a player level.
  */
 export const CATALOG=[
- ...WEAPONS.map(w=>({id:w.id,kind:'weapon',slot:w.slot,category:w.category,unlock:w.unlock})),
+ ...WEAPONS.map(w=>({id:w.id,kind:'weapon',slot:w.slot,category:w.category,unlock:w.unlock,premium:w.access==='premium'})),
  ...LETHALS.map(e=>({id:e.id,kind:'lethal',slot:null,category:null,unlock:e.unlock})),
  ...TACTICALS.map(e=>({id:e.id,kind:'tactical',slot:null,category:null,unlock:e.unlock})),
  ...PERKS.map(p=>({id:p.id,kind:'perk',slot:null,category:null,unlock:p.unlock})),

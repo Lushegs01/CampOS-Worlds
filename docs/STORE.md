@@ -1,6 +1,6 @@
-# Campus store (paid characters and accessories)
+# Campus store (paid characters, accessories and Combat Arena weapons)
 
-Players can buy premium characters and accessories with real money. Payment goes through [Bachs](https://bachs.io) hosted checkout. Everything else in the game stays free.
+Players can buy premium characters, accessories and Combat Arena Armory weapons with real money. Payment goes through [Bachs](https://bachs.io) hosted checkout. Everything else in the game stays free, including two fully competitive firearms (see [Combat Arena · Armory](COMBAT-ARENA.md#armory)).
 
 | Item | Kind | Default price |
 |---|---|---|
@@ -10,6 +10,7 @@ Players can buy premium characters and accessories with real money. Payment goes
 | Snapback cap (in your accent colour) | Accessory | ₦1,000 |
 | Knit beanie (in your accent colour) | Accessory | ₦1,000 |
 | Gold aviators | Accessory | ₦1,000 |
+| Combat Arena premium weapons (nine: Halcyon BR-3, Kestrel K-45, Bastion 12G, Rampart Auto, Longbow SR, Talon DMR, Anvil LMG, Sparrow P9, Thorn .44), one store item each (`weapon-<id>`) | Weapon | ₦1,500 |
 
 Characters are Microsoft Rocketbox avatars (MIT, see [ASSETS.md](ASSETS.md)). The accessories are procedural and fitted to each character's own head: the cap and beanie wrap round the hair or headscarf, so they fit everyone.
 
@@ -52,16 +53,35 @@ Players can read their own orders and purchases through row security. They canno
    | `BACHS_SECRET_KEY` | API key. A `sk_sandbox_` key uses `https://sandbox-api.bachs.io`, `sk_live_` uses `https://api.bachs.io` |
    | `BACHS_WEBHOOK_SECRET` | The webhook endpoint's signing secret (not the API key) |
    | `PUBLIC_APP_URL` | The game's public address, e.g. `https://worlds.example.edu`. Bachs returns players to `/shop-return.html` there |
-   | `SHOP_PRICE_CHARACTER`, `SHOP_PRICE_ITEM` | Optional, in whole naira (defaults `3000` and `1000`). Change them and restart the room: no code change. Orders keep the amount they were opened at |
+   | `SHOP_PRICE_CHARACTER`, `SHOP_PRICE_ITEM`, `SHOP_PRICE_WEAPON` | Optional, in whole naira (defaults `3000`, `1000` and `1500`). Change them and restart the room: no code change. Orders keep the amount they were opened at |
+   | `BACHS_REFUND_EVENTS` | Optional, comma-separated event types that reverse an order (see Refunds) |
    | `BACHS_API_URL` | Optional override of the API address (for testing) |
 
    Without the first three (or without accounts) the store stays closed. Prices still show, and **Buy** explains that the store is not open on this server yet.
 4. **Try it with the sandbox key:** buy an item and pay with a Bachs test payment method. Check that the game tab says the item is yours and that the Bachs dashboard shows the webhook delivered with `200`. Then switch to the live key and the live endpoint's secret.
 
+## Armory weapons
+
+Weapons use exactly the same order, checkout, webhook and fulfilment path as characters. What changes is where ownership is enforced:
+
+- **Arena server:** every loadout a client sends is checked against the account's store items (`validateLoadout(…, owned)` in `shared/arena/rules.mjs`); guests own nothing. A grant reaches the player's open arena connection at once (the room calls `arena.granted`); a reversal falls back to a free loadout from the next deployment, never mid-life.
+- **Database:** `save_arena_loadout` refuses a premium weapon the account does not own (`arena_weapon_owned`).
+- **Browser:** locked weapons open the Armory (preview, numbers, price) instead of being equipped.
+
+Accounts that were already using a weapon when it joined the Armory (it was in a saved loadout, or they had shot with it) keep it: the migration records a `legacy` ownership row for them.
+
+## Refunds and reversals
+
+- `POST /admin/shop/revoke` with `Authorization: Bearer <ADMIN_TOKEN>` and `{"order":"<order id>","reason":"refund"}` reverses one paid order: the item it granted is removed, the order becomes `refunded`, a row is added to `shop_revocations`, and the player (campus and arena) is told at once. It is idempotent (`already-revoked`).
+- Optionally set `BACHS_REFUND_EVENTS` to the Bachs event types that mean a refund or chargeback for your account (for example `collection.refunded`); verified events of those types reverse the order automatically. It is empty by default because those event names could not be confirmed against Bachs here.
+- A refunded order is never granted again by a late or repeated payment event.
+
+Players can see their orders (paid, refunded, awaiting payment) in the Combat Arena **Armory → Purchase history** (`my_purchases()`).
+
 ## Operations
 
 - **Who bought what:** `select * from shop_orders order by created_at desc;` (status `created` → `open` → `paid`) and `shop_ownership`.
-- **Refunds** are made in Bachs. To also take the item back, delete the row from `shop_ownership`. The room then drops the item from that player's avatar when they next join.
+- **Refunds** are made in Bachs. To also take the item back, call `POST /admin/shop/revoke` (above). The room drops a character or accessory from that player's avatar when they next join; a weapon leaves their loadouts from their next deployment.
 - **Logs** say only `Store item granted: <item>` or why an event was not fulfilled. Keys, secrets, signatures and emails are never logged. The player's email is sent to Bachs only to pre-fill the checkout.
 - Analytics (when enabled) count `shop_checkout` by item. Purchases themselves are in the database.
 

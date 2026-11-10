@@ -1,16 +1,16 @@
-// The campus store: premium characters and accessories bought with real money (Bachs checkout,
+// The campus store: premium characters, accessories and Combat Arena weapons bought with real money (Bachs checkout,
 // server/shop.mjs). Shared by the client, the room server and the tests; the database mirrors the item
 // list (shop_items in the newest store migration) and tests keep the two in step.
 //
 // An item is worn only by an account that owns it: the client shows it locked with its price, the room
 // replaces it when sanitising an avatar (shared/campus.mjs), and the database refuses to save it.
 
-/** Prices are set on the room server (SHOP_PRICE_CHARACTER / SHOP_PRICE_ITEM, in naira); these are the defaults. */
+/** Prices are set on the room server (SHOP_PRICE_CHARACTER / SHOP_PRICE_ITEM / SHOP_PRICE_WEAPON, in naira); these are the defaults. */
 export const SHOP_CURRENCY = 'NGN';
-/** @type {Readonly<{ character: number, item: number }>} */
-export const DEFAULT_PRICES = Object.freeze({ character: 3000, item: 1000 });
+/** @type {Readonly<{ character: number, item: number, weapon: number }>} */
+export const DEFAULT_PRICES = Object.freeze({ character: 3000, item: 1000, weapon: 1500 });
 
-/** @typedef {{ id: string, kind: 'character' | 'accessory', name: string, detail: string }} ShopItem */
+/** @typedef {{ id: string, kind: 'character' | 'accessory' | 'weapon', name: string, detail: string, weapon?: string }} ShopItem */
 /** @type {readonly ShopItem[]} */
 export const SHOP_ITEMS = Object.freeze([
   { id: 'emeka', kind: 'character', name: 'Emeka', detail: 'Tailored suit' },
@@ -19,6 +19,13 @@ export const SHOP_ITEMS = Object.freeze([
   { id: 'cap', kind: 'accessory', name: 'Snapback cap', detail: 'In your accent colour' },
   { id: 'beanie', kind: 'accessory', name: 'Knit beanie', detail: 'In your accent colour' },
   { id: 'shades', kind: 'accessory', name: 'Gold aviators', detail: 'Tinted lenses, gold frames' },
+  // Combat Arena's premium Armory weapons: one item each, `weapon-<id>` (shared/arena/weapons.mjs, `access:
+  // 'premium'`). Listed here rather than imported so the campus bundle does not carry the weapon catalogue;
+  // tests/arena-armory.test.mjs keeps the two identical.
+  ...[['halcyon', 'Halcyon BR-3', 'Advanced assault rifle'], ['kestrel', 'Kestrel K-45', 'Heavy SMG'], ['bastion', 'Bastion 12G', 'Pump shotgun'],
+    ['rampart', 'Rampart Auto', 'Semi-automatic shotgun'], ['longbow', 'Longbow SR', 'Sniper rifle'], ['talon', 'Talon DMR', 'Precision rifle'],
+    ['anvil', 'Anvil LMG', 'Light machine gun'], ['sparrow', 'Sparrow P9', 'Sidearm'], ['thorn', 'Thorn .44', 'Heavy sidearm']]
+    .map(([weapon, name, detail]) => ({ id: `weapon-${weapon}`, kind: 'weapon', name, detail, weapon })),
 ].map(i => Object.freeze(/** @type {ShopItem} */ (i))));
 /** @type {Map<string, ShopItem>} */
 export const SHOP_BY_ID = new Map(SHOP_ITEMS.map(i => [i.id, i]));
@@ -28,12 +35,15 @@ export const PREMIUM_ACCESSORIES = SHOP_ITEMS.filter(i => i.kind === 'accessory'
 /** A price in whole naira: positive, at most ₦1,000,000. */
 const validPrice = v => Number.isSafeInteger(v) && v > 0 && v <= 1e6;
 /** Prices from the server's settings, falling back to the defaults for anything missing or invalid. */
-export function shopPrices({ character, item } = {}) {
+export function shopPrices({ character, item, weapon } = {}) {
   const read = (v, d) => { const n = typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v.trim()) : v; return validPrice(n) ? n : d; };
-  return { character: read(character, DEFAULT_PRICES.character), item: read(item, DEFAULT_PRICES.item) };
+  return { character: read(character, DEFAULT_PRICES.character), item: read(item, DEFAULT_PRICES.item), weapon: read(weapon, DEFAULT_PRICES.weapon) };
 }
-/** The price of one item in naira, by its kind (characters, or accessories and other items). */
-export const priceOf = (id, prices = DEFAULT_PRICES) => { const i = SHOP_BY_ID.get(id); return i ? (i.kind === 'character' ? prices.character : prices.item) : null; };
+/** The price of one item in naira, by its kind (characters, weapons, or accessories and other items). */
+export const priceOf = (id, prices = DEFAULT_PRICES) => {
+  const i = SHOP_BY_ID.get(id); if (!i) return null;
+  return i.kind === 'character' ? prices.character : i.kind === 'weapon' ? (prices.weapon ?? DEFAULT_PRICES.weapon) : prices.item;
+};
 /** "₦3,000" */
 export const formatNaira = n => `₦${Math.round(n).toLocaleString('en-NG')}`;
 /** Bachs takes amounts as decimal strings in major units: 3000 → "3000.00". */

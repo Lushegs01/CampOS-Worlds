@@ -194,8 +194,11 @@ test('maps: playable bounds, clear spawns and zones, both teams’ halves are mi
 
 test('rules: loadouts are validated against unlocks; experience and levels; team balance', () => {
   assert.equal(validateLoadout(PRESETS[0], 1).ok, true);
-  assert.match(validateLoadout({ ...PRESETS[0], primary: 'talon' }, 1).reason, /level 10/);
-  assert.equal(validateLoadout({ ...PRESETS[0], primary: 'talon' }, 10).ok, true);
+  assert.match(validateLoadout({ ...PRESETS[0], secondary: 'hammer' }, 1).reason, /level 7/);
+  assert.equal(validateLoadout({ ...PRESETS[0], secondary: 'hammer' }, 7).ok, true);
+  // Premium Armory weapons need the account to own them, whatever its level.
+  assert.match(validateLoadout({ ...PRESETS[0], primary: 'talon' }, 30).reason, /Armory/);
+  assert.equal(validateLoadout({ ...PRESETS[0], primary: 'talon' }, 1, {}, ['weapon-talon']).ok, true);
   assert.match(validateLoadout({ ...PRESETS[0], primary: 'sparrow' }, 30).reason, /primary/);
   assert.match(validateLoadout({ ...PRESETS[0], perks: ['fleet'] }, 30).reason, /two different perks/);
   assert.match(validateLoadout({ ...PRESETS[0], skins: { vanguard: 'gilded' } }, 30, { vanguard: 3 }).reason, /weapon level 10/);

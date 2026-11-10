@@ -12,7 +12,7 @@ import { reloadProfile } from './store';
 interface ShopState {
   /** The room has payments configured (Bachs keys, webhook secret, return address and accounts). */
   enabled: boolean;
-  prices: { character: number; item: number };
+  prices: { character: number; item: number; weapon: number };
   /** The item whose checkout is being prepared. */
   buying: string | null;
 }
@@ -30,7 +30,12 @@ export function initShop() {
     if (m.type === 'shopCheckout') { waiting.get(m.ref)?.({ ok: !!m.ok, url: typeof m.url === 'string' ? m.url : undefined, reason: m.reason }); waiting.delete(m.ref); }
     if (m.type === 'shopGranted') {
       const item = SHOP_BY_ID.get(m.item);
-      if (item) useGame.getState().notify(`${item.name} is yours. Choose ${item.kind === 'character' ? 'them' : 'it'} in Appearance and save your profile.`);
+      if (item) useGame.getState().notify(item.kind === 'weapon' ? `${item.name} is yours: it is in your Combat Arena Armory and loadouts.` : `${item.name} is yours. Choose ${item.kind === 'character' ? 'them' : 'it'} in Appearance and save your profile.`);
+      void reloadProfile().catch(() => {});
+    }
+    if (m.type === 'shopRevoked') {
+      const item = SHOP_BY_ID.get(m.item);
+      if (item) useGame.getState().notify(`${item.name} was refunded and is no longer in your account.`);
       void reloadProfile().catch(() => {});
     }
     if (m.type === 'disconnected') { for (const w of waiting.values()) w({ ok: false, reason: 'The connection to campus was lost. Please try again.' }); waiting.clear(); }

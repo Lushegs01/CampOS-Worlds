@@ -103,7 +103,7 @@ jobs:
           path: docs/release/account-recovery-${{ matrix.engine }}.json
   arena-ui:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 34
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -117,12 +117,16 @@ jobs:
       - name: Combat Arena in two browsers and on a phone
         timeout-minutes: 14
         run: node tests/browser-arena.mjs
+      - name: Combat Arena HUD customization, auto-fire and Armory
+        timeout-minutes: 14
+        run: node tests/browser-arena-hud.mjs
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: arena-evidence
           path: |
             docs/arena-results.json
+            docs/arena-hud-results.json
             docs/screenshots/arena/
   account-ui:
     runs-on: ubuntu-24.04

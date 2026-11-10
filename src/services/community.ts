@@ -68,6 +68,11 @@ export interface CommunityService {
   arenaProfile(user: string): Promise<unknown>;
   myArena(): Promise<unknown>;
   saveArenaLoadout(slot: number, loadout: Record<string, unknown>): Promise<unknown>;
+  /** Arena settings and HUD layouts kept in the account (validated by the game before use). */
+  myArenaPreferences(): Promise<unknown>;
+  saveArenaPreferences(settings: Record<string, unknown> | null, hud: Record<string, unknown> | null): Promise<unknown>;
+  /** The player's store orders, what they own and how (purchase history). */
+  myPurchases(): Promise<unknown>;
   setArenaEmblem(emblem: string): Promise<unknown>;
   duelHistory(user: string): Promise<unknown[]>;
   challengeBoard(challenge: string): Promise<{ best: (ProfileCard & { best_ms: number; completions: number; rank: number })[]; me: { best_ms: number; completions: number } | null }>;
@@ -119,6 +124,7 @@ const unconfigured: CommunityService = {
   listConversations: unavailable, openConversation: unavailable, listMessages: unavailable, sendMessage: unavailable, markRead: unavailable, reportPlayer: unavailable,
   duelLeaderboard: unavailable, duelHistory: unavailable, challengeBoard: unavailable,
   arenaLeaderboard: unavailable, arenaProfile: unavailable, myArena: unavailable, saveArenaLoadout: unavailable, setArenaEmblem: unavailable,
+  myArenaPreferences: unavailable, saveArenaPreferences: unavailable, myPurchases: unavailable,
 };
 
 // Responses come from the SQL functions in supabase/migrations; check their top-level shape before
@@ -240,6 +246,9 @@ function supabaseService(client: SupabaseClient, publicKey: string): CommunitySe
     myArena: () => call('my_arena', {}, 'nullable'),
     saveArenaLoadout: (slot, loadout) => call('save_arena_loadout', { p_slot: slot, p_loadout: loadout }, 'object'),
     setArenaEmblem: emblem => call('set_arena_emblem', { p_emblem: emblem }, 'object'),
+    myArenaPreferences: () => call('my_arena_preferences', {}, 'nullable'),
+    saveArenaPreferences: (settings, hud) => call('save_arena_preferences', { p_settings: settings, p_hud: hud }, 'object'),
+    myPurchases: () => call('my_purchases', {}, 'nullable'),
     duelHistory: user => call<unknown[]>('duel_history', { p_user: user, p_limit: 10 }, 'array'),
     challengeBoard: challenge => call('challenge_board', { p_challenge: challenge, p_limit: 5 }, 'object'),
   };

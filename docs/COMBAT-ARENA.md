@@ -58,24 +58,71 @@ reserve, reload (shotguns shell by shell, interruptible), spread (hip, aimed, mo
 learnable recoil pattern, aim-down-sights time, movement speed, headshot and leg multipliers, and
 penetration through thin cover (rails, sandbag lines).
 
-| Weapon | Class | Unlock | Fire | RPM | Magazine | Damage (near → far) | Head | Reload (s) | Move |
+| Weapon | Class | Access | Fire | RPM | Magazine | Damage (near → far) | Head | Reload (s) | Move |
 |---|---|---|---|---|---|---|---|---|---|
-| Vanguard AR-7 | Assault rifle | 1 | auto | 740 | 30 | 28 @0m → 23 @24m → 19 @45m | ×1.45 | 2.1 | 0.97 |
-| Halcyon BR-3 | Assault rifle | 6 | burst (3) | 340 | 24 | 34 @0m → 29 @30m → 24 @55m | ×1.4 | 2.2 | 0.96 |
-| Wasp SMG-9 | SMG | 1 | auto | 930 | 32 | 26 @0m → 19 @11m → 14 @22m | ×1.3 | 1.8 | 1.04 |
-| Kestrel K-45 | SMG | 4 | auto | 690 | 25 | 34 @0m → 24 @12m → 17 @24m | ×1.3 | 1.9 | 1.03 |
-| Bastion 12G | Shotgun | 1 | semi | 72 | 6 | 22×8 @0m → 13×8 @7m → 6×8 @13m | ×1.2 | 0.6 per shell | 0.97 |
-| Rampart Auto | Shotgun | 8 | semi | 210 | 8 | 16×7 @0m → 10×7 @6m → 5×7 @11m | ×1.2 | 2.4 | 0.96 |
-| Longbow SR | Sniper rifle | 1 | bolt | 46 | 5 | 110 @0m → 98 @60m | ×2 | 2.9 | 0.9 |
-| Talon DMR | Sniper rifle | 10 | semi | 270 | 12 | 49 @0m → 44 @40m → 40 @70m | ×1.8 | 2.4 | 0.93 |
-| Anvil LMG | LMG | 1 | auto | 640 | 75 | 30 @0m → 26 @30m → 22 @55m | ×1.35 | 4.6 | 0.86 |
-| Sparrow P9 | Pistol | 1 | semi | 420 | 12 | 28 @0m → 21 @12m → 16 @25m | ×1.4 | 1.4 | 1.05 |
-| Thorn .44 | Pistol | 5 | semi | 150 | 6 | 58 @0m → 46 @15m → 36 @30m | ×1.5 | 2.3 | 1.03 |
-| Combat Knife | Melee | 1 | melee | — | — | one hit within 2.3 m | — | — | 1.08 |
-| Breach Axe | Melee | 7 | melee | — | — | one hit within 2.9 m | — | — | 1.02 |
+| Vanguard AR-7 | Assault rifle | **Free** | auto | 740 | 30 | 28 @0m → 23 @24m → 19 @45m | ×1.45 | 2.1 | 0.97 |
+| Wasp SMG-9 | SMG | **Free** | auto | 930 | 32 | 26 @0m → 19 @11m → 14 @22m | ×1.3 | 1.8 | 1.04 |
+| Halcyon BR-3 | Advanced assault rifle | Armory | burst (3) | 340 | 24 | 30 @0m → 27 @30m → 23 @55m | ×1.4 | 2.2 | 0.96 |
+| Kestrel K-45 | Heavy SMG | Armory | auto | 690 | 25 | 34 @0m → 24 @12m → 17 @24m | ×1.3 | 1.9 | 1.03 |
+| Bastion 12G | Pump shotgun | Armory | semi | 72 | 6 | 22×8 @0m → 13×8 @7m → 6×8 @13m | ×1.2 | 0.6 per shell | 0.97 |
+| Rampart Auto | Semi-automatic shotgun | Armory | semi | 210 | 8 | 16×7 @0m → 10×7 @6m → 5×7 @11m | ×1.2 | 2.4 | 0.96 |
+| Longbow SR | Sniper rifle | Armory | bolt | 46 | 5 | 110 @0m → 98 @60m | ×2 | 2.9 | 0.9 |
+| Talon DMR | Precision rifle | Armory | semi | 270 | 12 | 49 @0m → 44 @40m → 40 @70m | ×1.8 | 2.4 | 0.93 |
+| Anvil LMG | Light machine gun | Armory | auto | 640 | 75 | 30 @0m → 26 @30m → 22 @55m | ×1.35 | 4.6 | 0.86 |
+| Sparrow P9 | Sidearm | Armory | semi | 420 | 12 | 28 @0m → 21 @12m → 16 @25m | ×1.4 | 1.4 | 1.05 |
+| Thorn .44 | Heavy sidearm | Armory | semi | 150 | 6 | 58 @0m → 46 @15m → 36 @30m | ×1.5 | 2.3 | 1.03 |
+| Combat Knife | Melee | Free | melee | — | — | one hit within 2.3 m | — | — | 1.08 |
+| Breach Axe | Melee | Level 7 | melee | — | — | one hit within 2.9 m | — | — | 1.02 |
 
 Every gun also has a quick melee (two hits). Adding a weapon is a catalogue entry in
-`shared/arena/weapons.mjs` plus its row in the migration's catalogue insert; nothing else changes.
+`shared/arena/weapons.mjs` (with its `access`, Armory class, role and trade-off) plus its row in a migration's
+catalogue insert, and for a premium weapon its store item (`shared/shop.mjs`, `shop_items`); tests keep all
+of them in step.
+
+### Armory
+
+Exactly **two firearms are free**: the **Vanguard AR-7** (assault rifle: balanced damage, moderate recoil,
+reliable at medium range) and the **Wasp SMG-9** (submachine gun: very high fire rate, fast handling, falls off
+past 11 m). The working names in the brief (“Kestrel AR-01”, “Viper SMG-09”) were not used because the arena
+already had original weapons that match those roles exactly, and a *Kestrel* already exists (the K-45 SMG).
+The Combat Knife (melee) is also free; the Breach Axe is earned at level 7.
+
+Every other firearm is a **premium Armory weapon**, sold once through the campus store (₦1,500 by default,
+`SHOP_PRICE_WEAPON`) and owned by the account on every device. Each is its own licensed model with its own
+third-person LOD, sound profile, recoil pattern, handling and statistics:
+
+| Armory class | Weapon | Strength | Trade-off |
+|---|---|---|---|
+| Advanced assault rifle | Halcyon BR-3 | 3-round bursts, tight aimed spread | Burst-only, slower aiming, 24 rounds |
+| Heavy SMG | Kestrel K-45 | Hard-hitting up close, steadier recoil | Slower fire rate, 25 rounds |
+| Pump shotgun | Bastion 12G | One-shot close fights | Useless past 13 m, shell reloads |
+| Semi-automatic shotgun | Rampart Auto | Quick follow-ups indoors | Weaker pellets, ~11 m reach |
+| Sniper rifle | Longbow SR | One body shot at any range | Bolt action, slow aim and movement |
+| Precision rifle | Talon DMR | Accurate semi-auto at range | 2–3 hits, heavy recoil per shot |
+| Light machine gun | Anvil LMG | 75-round belt | Slowest movement and aiming, 4.6 s reload |
+| Sidearm | Sparrow P9 | Fast draw | Weak past 12 m |
+| Heavy sidearm | Thorn .44 | Heavy single hits | Recoil, 6 rounds, slow reload |
+
+**Fairness.** Paid weapons unlock playstyles, not victories. `dominates()` in `shared/arena/rules.mjs` compares
+time-to-eliminate at every distance plus movement, aiming, swap, magazine and reload; the test suite fails if
+any premium weapon is at least as good as a free one in every respect. That check found one real problem,
+fixed in this update: the Halcyon BR-3 eliminated a full-health player with one 3-round burst out to 30 m
+(3 × 34 = 102), beating both free weapons at every range; its damage is now 30 / 27 / 23 (a burst with one
+headshot still eliminates). The Wasp out-trades every premium automatic at 5 m and the Vanguard is within 20 %
+of the premium automatics at 30 m. Nothing is random: no loot boxes, no paid rerolls.
+
+**Not built:** the brief also lists *tactical carbines* and *bullpup rifles*. Their licensed models could not
+be fetched from this build environment (the Hugging Face / Objaverse and Poly Haven hosts the asset build uses
+were blocked), so those classes have no weapon yet rather than a duplicated or placeholder model. Adding one is
+an entry in `scripts/assets/build-arena.mjs` (`WEAPONS`) plus a catalogue entry.
+
+**Buying and ownership.** The Armory (lobby, pause menu, or any locked weapon in the loadout editor) shows
+each weapon's role, trade-off and statistics, and a 3D inspection of the real game model, downloaded only when
+inspected. **Buy** opens the Bachs checkout through the campus connection ([STORE.md](STORE.md)); only the
+signed webhook grants it. The arena server, the database (`save_arena_loadout`) and the client all check
+ownership; a client claiming ownership changes nothing. A purchase or refund never interrupts a match: a new or
+removed weapon applies from the next deployment. Purchase history: Armory → Purchase history. Accounts that
+were already using a weapon when it joined the Armory keep it (`source = 'legacy'`).
 
 **Equipment**: Frag Grenade (bounces, 2.4 s fuse) or Tack Charge (sticks, 1.5 s) as lethal; Flash Pulse
 (blinds players who can see it, longer when facing it) or Smoke Canister (blocks bots' sight) as
@@ -102,8 +149,54 @@ The server checks each use: earned, alive, match running, and a per-team cooldow
 | R reload · 1/2/wheel/X switch · V melee · G lethal · Q tactical | X · Y · R3 · RB · LB | Reload · Switch · Melee · Lethal · Tactical |
 | 3/4/5 rewards · Tab scoreboard · Esc menu | d-pad · Back · Start | reward buttons appear when earned · scoreboard · menu |
 
-Settings: mouse, aiming, touch and gamepad sensitivity, invert vertical look, field of view, sprint by
-stick, graphics quality, frame rate readout, volume and mute (the game's master volume).
+Settings: auto-fire, HUD customization, mouse, aiming, touch and gamepad sensitivity, invert vertical look,
+field of view, sprint by stick, fixed or floating movement stick, graphics quality (with a recommendation for
+the device), adaptive performance, frame rate readout, volume and mute (the game's master volume). Settings and
+HUD layouts are kept on the device and, for signed-in players, in their account (`arena_preferences`).
+
+### HUD customization
+
+Settings (or the lobby, or the pause menu) → **HUD customization** opens a studio over a live preview drawn
+with the match's own HUD components. Every element can be dragged anywhere in the safe area, resized with its
+handle, a slider or + / −, faded, hidden, and (weapon, ammunition and kill feed) aligned left, centre or
+right: crosshair, hit markers, kill notifications, health, player status, ammunition, current weapon, weapon
+switching, minimap, compass, match timer, team score, objectives, kill feed and killstreak rewards; on touch
+layouts also the movement joystick and the fire, ADS, reload, jump, crouch, sprint, switch, melee, lethal,
+tactical, auto-fire and menu buttons. The crosshair has five styles, any colour, 1–4 px thickness and an
+optional outline; it stays centred because it marks where shots go. HUD-wide: opacity, text size, icon size,
+button transparency and a high-contrast mode. Presets (Classic FPS, Competitive, Minimal, Mobile Standard,
+Mobile Claw) are starting points; any change makes the layout Custom.
+
+Positions are fractions of the safe area (notches and rounded corners excluded), anchored so an element can
+never leave the screen whatever its size or the aspect ratio. Desktop, touch landscape and touch portrait each
+have their own layout and the right one is used automatically when the device rotates. Touch controls scale
+with the screen but never below a 40 px target (fire 56 px, joystick 84 px), required controls (fire, joystick,
+menu) cannot be hidden, and the studio warns about overlapping buttons; the default presets were checked not to
+overlap on 640×360 to 1024×600 screens.
+
+The studio has selection outlines, drag and resize handles, alignment guides (centre lines and other elements),
+snap to grid, undo and redo, reset element, reset layout, restore the previous saved layout, and Save. Work in
+progress is kept on the device until saved or discarded; nothing in the studio can fire, aim or move (gameplay
+input is paused and the preview's controls are inert). **Try it in the firing range** opens Training with no
+bots. Layouts are versioned (`HUD_VERSION`) and validated before use: an older, damaged or hostile layout is
+repaired element by element and the player is told, never trusted (`validateLayout`, `shared/arena/hud.mjs`).
+
+### Auto-fire
+
+Settings → **Auto-fire: ON / OFF** (default **OFF**); also the F key, the AUTO touch button and the pause menu.
+*“When enabled, your weapon automatically fires when your manually controlled aim is over a visible enemy.”*
+
+Every 60 Hz input tick `autoFireDecision()` (`shared/arena/autofire.mjs`) casts the player's own line of fire
+(their view plus the simulation's recoil) against the players the client is drawing. It presses the trigger
+only if the first player on that line is an enemy that is alive and in the latest snapshot, within the
+weapon's range, with no wall in between, and the weapon is ready with rounds in the magazine (not reloading,
+switching or sprinting; semi-automatic weapons release the trigger between shots). A teammate in the line of
+fire stops it. It never moves the view, never compensates recoil, never reloads for the player, and only adds
+the same FIRE button a player presses, so the shared simulation enforces fire rate, magazine and reloads, the
+server decides every hit with its own ray casts and lag compensation, and enemies behind walls are never even
+sent to the client. Weapon accuracy and damage are identical whether it is on or off. Per-playlist policy is
+public (`AUTO_FIRE_POLICY` in `rules.mjs`, sent in every match view): allowed in Quick Play, private matches and
+Training today; a future ranked playlist would set it to `false` and the client switches it off there.
 
 ## Architecture
 
@@ -223,7 +316,7 @@ per match.
 neutralising (60), defending a zone (50), and finishing the match (win 600, draw 400, loss 250);
 30 levels (each costs 800 + 200 × the previous level). Levels unlock weapons, equipment, perks, the
 Tactical Strike and emblems; weapon levels (from eliminations with that weapon) unlock finishes.
-Everything is earned; nothing is sold.
+Everything except the premium Armory weapons is earned; the Armory sells weapons, never progression, statistics or experience.
 
 ## Visuals and rendering
 
@@ -246,7 +339,14 @@ credited in the lobby under **Art credits**). Nothing is drawn with untextured p
 
 ### Graphics profiles
 
-All three use the same assets and art direction; Low scales cost, never the look.
+All three use the same assets and art direction; Low scales cost, never the look. The first-visit profile is
+recommended from what the device reports (`src/arena/device.ts`): the GPU's WebGL renderer string where the
+browser shares it, the largest texture it accepts, memory, processor count, touch input and data saver — not
+the user agent. The player can always choose another, and **adaptive performance** (on by default,
+`shared/arena/adaptive.mjs`) holds 30 fps on touch devices and 55 fps elsewhere by lowering the render
+resolution in 15 % steps (to a floor), and only then stepping the profile down one level, with a notice;
+resolution comes back after ten comfortable seconds. Input, simulation and networking run at fixed rates
+regardless.
 
 | | Low | Medium | High |
 |---|---|---|---|
@@ -261,6 +361,12 @@ All three use the same assets and art direction; Low scales cost, never the look
 Defaults come from the device as before (touch or ≤ 4 GB / ≤ 4 cores → Low).
 
 ### Loading
+
+Only the free weapons' third-person models (and the knife) download with the soldiers; any other weapon's
+model streams in the first time someone is seen holding it. On Medium and High the rest are fetched in idle
+time after the match is on screen; on Low or with data saver on, never. The player's own first-person weapons
+load when equipped, the Armory's inspection model when inspected, and the Armory and HUD studio code only when
+opened.
 
 A match shows a loading screen until the world, the player's weapon, the arms and the soldiers can be
 drawn (capped at 15 s, after which play starts and late models stream in). The client then tells the
@@ -317,8 +423,14 @@ Physical phones were **not** available to test; the 30 fps mobile target is unve
 | `tests/arena-sim.test.mjs` | Weapon classes differ; damage steps and multipliers; exact fire rate; semi/burst triggers; ammunition and reloads; shell reloads; switching; walk/sprint/crouch/ADS speeds, sliding and cooldown, jumping, walls, stairs; determinism and reconciliation equality; command quantisation and rejection; spread and recoil; ray casts; map symmetry and clear spawns; rules | 15 / 15 pass |
 | `tests/arena-match.test.mjs` | Real WebSockets against the real room: two players matched on opposite teams and synchronised; server-decided hits, damage, kill feed, score and respawn; cheating attempts (damage/kill/score claims, a 600-command flood, replays, malformed commands); simultaneous eliminations; disconnect and reconnect (and a different account refused); score-limit end with one recorded result; independent matches; Domination capture, contest and scoring; scorestreak validation; interest management through walls; Training bots; forfeits; high latency, jitter and lost batches with reconciliation converging; a full 12-player match at the snapshot rate; fuzzing | 15 / 15 pass |
 | `tests/arena-accounts.test.mjs` | Real PostgreSQL 17: catalogue mirrors the game; formulas equal; only the server records; concurrent duplicates count once; implausible statistics refused; loadouts validated, private, saved; emblems | 7 / 7 pass |
-| `tests/browser-arena.mjs` | Two signed-in Chromium players open the arena from the campus, equip and save a loadout, are matched together, see each other, one eliminates the other twice through the server, Victory/Defeat, results and experience saved to the database, rankings, back to campus and walking; a phone (landscape, touch) plays Training: fire button fires, stick moves, controls on screen, no page scroll | 11 / 11 checks pass |
-| `npm test` (everything) | All campus suites plus the arena suites | 268 / 268 pass |
+| `tests/arena-armory.test.mjs` | Exactly two free firearms; every other firearm premium, described and fully configured with its own model; premium weapons refused in loadout validation unless owned; store items and prices mirror the catalogue and migration; no premium weapon dominates a free one | 4 / 4 pass |
+| `tests/arena-armory-accounts.test.mjs` | Real PostgreSQL 17 + room + arena + stand-in Bachs: premium weapons refused by the arena server and the database until bought, forged claims ignored, underpayment ignored, a signed payment grants once and reaches the open arena connection, equip and save, persistence on a new connection, purchase history, refund webhook and admin reversal, late payment events after a refund grant nothing; legacy grants; arena preferences private and size-limited | 4 / 4 pass |
+| `tests/arena-hud.test.mjs` | Every brief element customisable; touch controls separate; presets valid and non-overlapping on 640×360 to 1024×600 phones; drag (clamped, grid, guides, fixed crosshair); resize limits and 40 px touch targets; visibility, opacity, alignment, global and crosshair options; save/restore/reset/undo/redo; orientation profiles; damaged, hostile, older and newer layouts repaired; the acceptance scenario | 9 / 9 pass |
+| `tests/arena-autofire.test.mjs` | Off by default and persisted; fires only at a visible enemy under the player's own aim; never at teammates, through walls or out of range; stops for reload, switch, empty magazine, sprint, melee; same fire rate and ammunition as manual fire, never reloads; does not compensate recoil; stops on target loss; manual fire unaffected | 6 / 6 pass |
+| `tests/arena-performance.test.mjs` | Adaptive rendering (resolution first, then profile; recovery; no oscillation); a match preloads only the free weapons' third-person models; the Armory and studio are separate chunks | 2 / 2 pass |
+| `tests/browser-arena-hud.mjs` | Chromium, desktop and phone: the studio drags, resizes, restyles and hides elements and saves them (device and account); kept after a reload and on another device; a damaged layout is repaired; on a phone the joystick is moved and the fire button enlarged by touch, and the firing range shows them exactly there and fires; auto-fire against a Training bot fires only while aimed at it and stops when the aim leaves | 9 / 9 checks pass |
+| `tests/browser-arena.mjs` | Two signed-in Chromium players open the arena from the campus, a premium weapon opens the Armory until owned, equip and save a loadout, are matched together, see each other, one eliminates the other twice through the server, Victory/Defeat, results and experience saved to the database, rankings, back to campus and walking; a phone (landscape, touch) plays Training: fire button fires, stick moves, controls on screen, no page scroll | 12 / 12 checks pass |
+| `npm test` (everything) | All campus suites plus the arena suites | 293 / 293 pass |
 
 The fuzz test found a real defect during development (an oversized message raised an unhandled
 socket error that would have stopped the server); it is fixed and covered.

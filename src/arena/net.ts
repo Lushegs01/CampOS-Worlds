@@ -15,7 +15,9 @@ import { MEDALS, MODE_BY_ID } from '../../shared/arena/rules.mjs';
 import { createPlayback, createTrack } from '../network/interpolation.mjs';
 import { accountAccess } from '../network/client';
 import { useGame } from '../state';
-import { useArena, useBanners, emptyHud, type Loadout, type MatchView, type Progress } from './store';
+import { useArena, useBanners, emptyHud, inputPaused, type Loadout, type MatchView, type Progress } from './store';
+import { autoFireDecision } from '../../shared/arena/autofire.mjs';
+import { syncFromAccount } from './hudLayout';
 import { controls, buttons, axes } from './input';
 import { sfx } from './audio';
 import { QA_HOOKS } from '../qa';
@@ -48,6 +50,8 @@ export const live = {
   radar: [] as number[][], reconUntil: 0, enemyReconUntil: 0,
   hit: { at: 0, kill: false, head: false }, damage: [] as { angle: number; at: number }[], hurtAt: 0, blindUntil: 0, blindMs: 0,
   kick: 0, shake: 0, firedAt: 0, reloadStart: 0, reloadTotal: 0, rtt: 0, loadout: null as Loadout | null, perks: new Set<string>(),
+  /** Auto-fire is holding the trigger this tick (and why not, for the QA hooks). */
+  autoFiring: false, autoReason: '',
 };
 const fxListeners = new Set<(f: Fx) => void>();
 export function onFx(fn: (f: Fx) => void) { fxListeners.add(fn); return () => { fxListeners.delete(fn); }; }
@@ -126,7 +130,8 @@ function receive(m: Record<string, any>) {
   switch (m.t) {
     case 'ready': {
       retry = 0;
-      a.set({ status: 'ready', me: { name: m.name, verified: m.verified, handle: m.handle, level: m.level, xp: m.xp, emblem: m.emblem, weaponLevels: m.weaponLevels ?? {} }, online: m.online });
+      a.set({ status: 'ready', me: { name: m.name, verified: m.verified, handle: m.handle, level: m.level, xp: m.xp, emblem: m.emblem, weaponLevels: m.weaponLevels ?? {} }, online: m.online, owned: Array.isArray(m.owned) ? m.owned : [] });
+      if (m.verified) void syncFromAccount();
       if (m.verified && Array.isArray(m.loadouts) && m.loadouts.length) a.set({ loadouts: m.loadouts, loadout: m.loadout });
       else raw({ t: 'loadout', loadout: a.loadout, ref: ++ref });
       clearInterval(pingTimer); pingTimer = setInterval(() => raw({ t: 'ping', n: performance.now() }), 2000);
@@ -138,6 +143,13 @@ function receive(m: Record<string, any>) {
     case 'reply': { const r = replies.get(m.ref); if (r) { replies.delete(m.ref); r(m); } return; }
     case 'replaced': a.set({ status: 'replaced', error: 'Combat Arena opened in another window.' }); stopped = true; return;
     case 'pong': live.rtt = performance.now() - m.n; return;
+    // What the account owns changed (a purchase was confirmed, or reversed).
+    case 'owned': a.set({ owned: Array.isArray(m.owned) ? m.owned : [] }); return;
+    case 'loadoutReset': {
+      a.set({ loadout: m.loadout, loadouts: a.loadouts.map(l => (JSON.stringify(l) === JSON.stringify(a.loadout) ? m.loadout : l)) });
+      banner({ text: 'Loadout changed', sub: 'A weapon in it is no longer yours; a free loadout is used from your next deployment.', tone: 'info', ms: 4200 });
+      return;
+    }
     case 'match': return enterMatch(m.match, m.you, m.loadout, !!m.rejoined);
     case 's': return snapshot(m);
     case 'e': for (const ev of m.l) event(ev); return;
@@ -340,11 +352,19 @@ export function tickInput(dt: number) {
   const a = useArena.getState();
   if (!live.sim || !live.ctx || a.phase !== 'match' || socket?.readyState !== WebSocket.OPEN) { live.acc = 0; return; }
   live.acc = Math.min(live.acc + dt, .25);
-  const paused = a.menu || a.editor || a.settingsOpen || document.hidden;
+  const paused = inputPaused(a) || document.hidden;
+  const auto = a.settings.autoFire && a.match?.autoFire !== false;
   while (live.acc >= DT) {
     live.acc -= DT;
     const { mx, mz } = paused ? { mx: 0, mz: 0 } : axes();
     let b = paused ? 0 : buttons();
+    // Auto-fire only ever adds the trigger, and only while the player's own aim is on a visible enemy.
+    live.autoFiring = false;
+    if (auto && !paused && live.alive) {
+      const d = autoFireDecision({ sim: live.sim, view: { yaw: controls.yaw, pitch: controls.pitch }, targets: autoTargets(), world: live.world, team: live.team, held: b });
+      live.autoFiring = d.fire; live.autoReason = d.reason;
+      if (d.fire) b |= B.FIRE;
+    }
     if (a.match?.state === 'ended') b = 0;
     const cmd = quantize({ seq: ++live.seq, b, mx, mz, yaw: controls.yaw, pitch: controls.pitch }) as Cmd;
     live.outgoing.push(encodeCommand(cmd));
@@ -390,6 +410,18 @@ function local(ev: Record<string, any>) {
   else if (ev.kind === 'throw') sfx.swing();
 }
 
+/** Other players as they are drawn right now, for auto-fire (only those in the latest snapshots count as visible). */
+function autoTargets() {
+  const now = performance.now(), out = [];
+  for (const r of live.remotes.values()) out.push({ team: r.team, alive: !!(r.flags & 1) && !r.deadAt, visible: !!r.seenAt && now - r.seenAt < 250, x: r.pos.x, y: r.pos.y, z: r.pos.z, flags: r.flags });
+  return out;
+}
+/** Switch auto-fire on or off (the F key, the touch switch, or settings). */
+export function toggleAutoFire() {
+  const a = useArena.getState(), on = !a.settings.autoFire;
+  a.setSettings({ autoFire: on });
+  banner({ text: `Auto-fire ${on ? 'on' : 'off'}`, sub: on ? (a.match?.autoFire === false ? 'Not allowed in this playlist' : 'Fires while your aim is on a visible enemy') : undefined, tone: 'info', ms: 1600 });
+}
 /** Use an earned reward (the server checks it is earned and available). */
 export function useStreak(id: string) { if (useArena.getState().hud.earned.includes(id)) raw({ t: 'streak', id }); else banner({ text: `${STREAK_BY_ID.get(id)?.name ?? 'That reward'} is not ready yet`, tone: 'info', ms: 1500 }); }
 export const send = raw;
@@ -410,7 +442,9 @@ export { direction, B };
 if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arena = {
   state: () => { const a = useArena.getState(); return { phase: a.phase, status: a.status, match: a.match && { id: a.match.id, kind: a.match.kind, code: a.match.code, state: a.match.state, players: a.match.players.length }, you: a.you, hud: a.hud }; },
   remotes: () => [...live.remotes.values()].filter(r => (r.flags & 1) && r.seenAt).map(r => ({ num: r.num, team: r.team, x: r.pos.x, z: r.pos.z })),
+  /** Re-read what the account owns (as the Armory does after a purchase). */
+  refreshOwned: async () => { const r = await request({ t: 'owned' }); if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); return r.owned; },
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
-  self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, pending: live.pending.length } : null),
+  self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, pending: live.pending.length, autoFiring: live.autoFiring, autoReason: live.autoReason } : null),
 };

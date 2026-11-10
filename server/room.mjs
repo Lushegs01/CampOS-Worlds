@@ -87,7 +87,10 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  const joined=()=>[...clients.values()].filter(c=>c.joined);
  // The campus store (server/shop.mjs): a paid item is granted only from a verified Bachs webhook; a player
  // who is here when that happens can wear it at once.
- const shop=createShop({...shopSettings,accounts,granted:(account,item)=>{for(const c of clients.values())if(c.account?.id===account){if(!c.owned.includes(item))c.owned=[...c.owned,item];send(c.ws,{type:'shopGranted',item});}}});
+ // Combat Arena connections of the same account learn about Armory weapons at once too (server/arena/service.mjs).
+ const shop=createShop({...shopSettings,accounts,
+  granted:(account,item)=>{for(const c of clients.values())if(c.account?.id===account){if(!c.owned.includes(item))c.owned=[...c.owned,item];send(c.ws,{type:'shopGranted',item});}arena.granted(account,item);},
+  revoked:(account,item)=>{for(const c of clients.values())if(c.account?.id===account){c.owned=c.owned.filter(i=>i!==item);send(c.ws,{type:'shopRevoked',item});}arena.revoked(account,item);}});
  const worldState=()=>{const w=world.snapshot();return {type:'world',doors:w.doors,seats:w.seats};};
  // State snapshots can be superseded, but auth/result acknowledgements must not be dropped.
  // Tolerate a short burst, then reconnect a persistently slow consumer with a bounded queue.
@@ -121,6 +124,13 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    if(!adminToken||expected.length!==actual.length||!timingSafeEqual(expected,actual)){res.writeHead(403);res.end('{}');return;}
    if(req.url==='/admin/status'&&req.method==='GET'){res.end(JSON.stringify({ready,room:roomId,uptimeSeconds:Math.floor((Date.now()-startedAt)/1000),players:joined().length,connections:clients.size,capacity,pendingReports,pendingAccountCalls:accountJobs.size,bans:moderation.list().length,npcsOnDuty:npcs.director.npcs.size,npc:npcs.metrics,...metrics,memory:process.memoryUsage(),cpu:process.cpuUsage()}));return;}
    if(req.url==='/admin/arena'&&req.method==='GET'){res.end(JSON.stringify(arena.status()));return;}
+   // Refunds and chargebacks: reverse what one paid order granted (server/shop.mjs, shop_revoke). Idempotent.
+   if(req.url==='/admin/shop/revoke'&&req.method==='POST'){
+    let body='';try{for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>2048)throw Error('size');}}catch{res.writeHead(400);res.end('{}');return;}
+    let m;try{m=JSON.parse(body);}catch{m=null;}
+    const r=await shop.revoke(m?.order,typeof m?.reason==='string'?m.reason:'refund');
+    res.writeHead(r.status);res.end(JSON.stringify(r.body));return;
+   }
    if(req.url==='/admin/bans'&&req.method==='GET'){res.end(JSON.stringify({bans:moderation.list()}));return;}
    // Building completion (shared/buildings.mjs) and the campus characters on duty because of it. A change
    // applies to the live room until it restarts; set BUILDING_COMPLETION (or the defaults) to keep it.

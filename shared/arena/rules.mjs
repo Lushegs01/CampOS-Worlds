@@ -3,7 +3,7 @@
 // unlocks) and mirrored in the database (supabase/migrations/*_combat_arena.sql recomputes
 // experience from the validated statistics; tests keep the two formulas identical).
 
-import { WEAPONS, WEAPON_BY_ID, LETHALS, TACTICALS, PERKS, PERK_BY_ID, STREAKS, SKINS, SKIN_BY_ID, EMBLEMS, EQUIPMENT_BY_ID } from './weapons.mjs';
+import { WEAPONS, WEAPON_BY_ID, LETHALS, TACTICALS, PERKS, PERK_BY_ID, STREAKS, SKINS, SKIN_BY_ID, EMBLEMS, EQUIPMENT_BY_ID, weaponOwned, damageAt, isFirearm } from './weapons.mjs';
 import { MAP_BY_ID } from './maps.mjs';
 
 /**
@@ -54,14 +54,24 @@ export const weaponLevel=xp=>Math.min(10,1+Math.floor(xp/500));
 
 /** What a player level unlocks (weapons, equipment, perks, streaks, emblems). */
 export function unlocksAt(level){
- const items=[...WEAPONS,...LETHALS,...TACTICALS,...PERKS,...STREAKS].filter(i=>i.unlock===level).map(i=>i.id);
+ // Premium Armory weapons are bought, not unlocked by level.
+ const items=[...WEAPONS.filter(w=>w.access!=='premium'),...LETHALS,...TACTICALS,...PERKS,...STREAKS].filter(i=>i.unlock===level).map(i=>i.id);
  return [...items,...EMBLEMS.filter(e=>e.level===level).map(e=>'emblem:'+e.id)];
 }
 export const unlocked=(item,level)=>(WEAPON_BY_ID.get(item)??EQUIPMENT_BY_ID.get(item)??PERK_BY_ID.get(item)??STREAKS.find(s=>s.id===item))?.unlock<=level;
 
 // ---------------------------------------------------------------- loadouts
 export const LOADOUT_SLOTS = 5;
+/** Starting loadouts: free weapons only, so every player (and every guest) can use them. */
 export const PRESETS = [
+ {name:'Assault',primary:'vanguard',secondary:'knife',lethal:'frag',tactical:'flash',perks:['fleet','steady']},
+ {name:'Close quarters',primary:'wasp',secondary:'knife',lethal:'frag',tactical:'flash',perks:['fleet','steady']},
+ {name:'Rifleman',primary:'vanguard',secondary:'knife',lethal:'frag',tactical:'flash',perks:['steady','fleet']},
+ {name:'Skirmisher',primary:'wasp',secondary:'knife',lethal:'frag',tactical:'flash',perks:['steady','fleet']},
+ {name:'Custom',primary:'vanguard',secondary:'knife',lethal:'frag',tactical:'flash',perks:['fleet','steady']},
+];
+/** Training bots (SIM units, server-side only) carry the whole catalogue so practice covers every matchup. */
+export const BOT_PRESETS = [
  {name:'Assault',primary:'vanguard',secondary:'sparrow',lethal:'frag',tactical:'flash',perks:['fleet','steady']},
  {name:'Close quarters',primary:'wasp',secondary:'knife',lethal:'frag',tactical:'flash',perks:['fleet','steady']},
  {name:'Marksman',primary:'longbow',secondary:'sparrow',lethal:'frag',tactical:'flash',perks:['steady','fleet']},
@@ -70,9 +80,12 @@ export const PRESETS = [
 ];
 /**
  * Check a loadout against the catalogue and what `level` has unlocked; weapon finishes against
- * `weaponLevels` ({ weapon: level }). Returns { ok, loadout } with a normalised copy, or { ok:false, reason }.
+ * `weaponLevels` ({ weapon: level }); premium Armory weapons against `owned` (the account's store items,
+ * e.g. ['weapon-halcyon']; nothing for guests). Returns { ok, loadout } with a normalised copy, or
+ * { ok:false, reason }. The arena server and the database both apply it: a client cannot equip a weapon
+ * it does not own, whatever it sends.
  */
-export function validateLoadout(l,level=1,weaponLevels={}){
+export function validateLoadout(l,level=1,weaponLevels={},owned=[]){
  if(!l||typeof l!=='object')return {ok:false,reason:'Choose a loadout.'};
  const p=WEAPON_BY_ID.get(l.primary),s=WEAPON_BY_ID.get(l.secondary),le=EQUIPMENT_BY_ID.get(l.lethal),ta=EQUIPMENT_BY_ID.get(l.tactical);
  if(!p||p.slot!=='primary')return {ok:false,reason:'Choose a primary weapon.'};
@@ -81,6 +94,7 @@ export function validateLoadout(l,level=1,weaponLevels={}){
  if(!ta||ta.kind!=='tactical')return {ok:false,reason:'Choose tactical equipment.'};
  const perks=Array.isArray(l.perks)?l.perks.filter(x=>typeof x==='string'):[];
  if(perks.length!==2||perks[0]===perks[1]||!perks.every(x=>PERK_BY_ID.has(x)))return {ok:false,reason:'Choose two different perks.'};
+ for(const w of [p,s])if(!weaponOwned(w.id,owned))return {ok:false,reason:`${w.name} is in the Armory. Buy it to use it.`,locked:w.id};
  for(const item of [p,s,le,ta,...perks.map(x=>PERK_BY_ID.get(x))])if(item.unlock>level)return {ok:false,reason:`${item.name} unlocks at level ${item.unlock}.`};
  const skins=/** @type {Record<string,string>} */ ({});
  if(l.skins&&typeof l.skins==='object'&&!Array.isArray(l.skins))for(const [weapon,skin] of Object.entries(l.skins)){
@@ -104,3 +118,37 @@ export function balanceTeam(counts,scores){
 
 /** Medal names shown in the interface (the server awards them). */
 export const MEDALS={headshot:'Headshot',double:'Double Elimination',triple:'Triple Elimination',first:'First Blood',revenge:'Revenge',longshot:'Longshot',defend:'Defender',capture:'Captured',assist:'Assist',payback:'Payback',streak5:'Five in a Row',streak10:'Unstoppable'};
+
+// ---------------------------------------------------------------- fairness (premium weapons are not stronger)
+/** Seconds to eliminate a full-health player at `distance` with body shots that all hit (0 = instant). */
+export function timeToKill(w,distance,health=MATCH.maxHealth){
+ if(!isFirearm(w))return distance<=w.reach?0:Infinity;
+ const per=damageAt(w,distance)*w.pellets;if(per<=0)return Infinity;
+ const shots=Math.ceil(health/per);if(shots<=1)return 0;
+ if(w.fire==='burst'){let t=0;for(let i=1;i<shots;i++)t+=60/(i%w.burst===0?w.rpm:w.burstRpm);return t;}
+ return (shots-1)*60/w.rpm;
+}
+/**
+ * True when `a` is at least as good as `b` in every respect the game measures (time to kill at every
+ * distance b can reach, movement, aiming speed, magazine, reload) and better in at least one: a weapon
+ * that no player should ever choose `b` over. Used by tests to keep premium weapons from dominating the
+ * free ones.
+ */
+export function dominates(a,b){
+ if(!isFirearm(a)||!isFirearm(b))return false;
+ const ge=[],gt=[];
+ for(let d=0;d<=Math.min(b.range,90);d+=3){const ta=timeToKill(a,d),tb=timeToKill(b,d);ge.push(ta<=tb);gt.push(ta<tb);}
+ const handling=[[a.moveMul,b.moveMul,1],[a.adsMoveMul,b.adsMoveMul,1],[a.ads,b.ads,-1],[a.swap,b.swap,-1],[a.mag,b.mag,1],[a.reload,b.reload,-1]];
+ for(const [x,y,dir] of handling){ge.push(dir>0?x>=y:x<=y);gt.push(dir>0?x>y:x<y);}
+ return ge.every(Boolean)&&gt.some(Boolean);
+}
+
+// ---------------------------------------------------------------- auto-fire policy per match kind
+/**
+ * Auto-fire (a player setting, off by default) is an accessibility aid: it only presses the trigger while
+ * the player's own aim is on a visible enemy, and every shot is simulated and validated by the server
+ * exactly like a manual one. The policy is public and the same for everyone in a match: `true` allows it.
+ * A future ranked playlist adds an entry here (e.g. ranked:false) and the server sends it in the match view.
+ */
+export const AUTO_FIRE_POLICY = {quick:true,private:true,training:true};
+export const autoFireAllowed = kind => AUTO_FIRE_POLICY[kind] === true;

@@ -2,7 +2,7 @@
 // chunk). While it is open the campus scene stops rendering and campus controls are paused; the player
 // keeps their campus connection, account and identity, and returns to the same spot.
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { X, Play, Settings2, Backpack, LogOut, Home, Users } from 'lucide-react';
+import { X, Play, Settings2, Backpack, LogOut, Home, Users, LayoutDashboard, Crosshair, Zap } from 'lucide-react';
 import { stopAmbience } from '../audio/ambience';
 import { closeSocial } from '../social/store';
 import { useCommunity } from '../community/store';
@@ -15,12 +15,18 @@ import Hud from './Hud';
 import Results from './Results';
 import TouchControls from './Touch';
 import LoadoutEditor from './Loadout';
+import { toggleAutoFire } from './net';
+import { recommendQuality } from './device';
 import './arena.css';
 
 const Scene = lazy(() => import('./Scene'));
+// Opened rarely: their code downloads only when first opened.
+const HudEditor = lazy(() => import('./HudEditor'));
+const Armory = lazy(() => import('./Armory'));
 
 export default function ArenaApp() {
   const phase = useArena(s => s.phase), map = useArena(s => s.match?.map), editor = useArena(s => s.editor), menu = useArena(s => s.menu), settings = useArena(s => s.settingsOpen), status = useArena(s => s.status);
+  const hudEditor = useArena(s => s.hudEditor), armory = useArena(s => s.armory);
   useEffect(() => {
     useArena.getState().set({ open: true, phase: 'lobby', error: '', hud: emptyHud() });
     stopAmbience(); closeSocial(); useCommunity.getState().toggle(false); connect();
@@ -28,11 +34,12 @@ export default function ArenaApp() {
     const esc = (e: KeyboardEvent) => {
       if (e.code !== 'Escape') return;
       const a = useArena.getState();
-      if (a.settingsOpen) a.set({ settingsOpen: false }); else if (a.editor) a.set({ editor: false });
+      if (a.hudEditor) return; // the studio asks about unsaved changes itself
+      if (a.armory !== null) a.set({ armory: null }); else if (a.settingsOpen) a.set({ settingsOpen: false }); else if (a.editor) a.set({ editor: false });
       else if (a.phase === 'match' && !controls.locked) a.set({ menu: !a.menu });
     };
     window.addEventListener('keydown', esc);
-    return () => { window.removeEventListener('keydown', esc); disconnect(); releaseAll(); useArena.getState().set({ open: false, phase: 'lobby', menu: false, editor: false, settingsOpen: false }); };
+    return () => { window.removeEventListener('keydown', esc); disconnect(); releaseAll(); useArena.getState().set({ open: false, phase: 'lobby', menu: false, editor: false, settingsOpen: false, hudEditor: false, armory: null }); };
   }, []);
   const exit = () => { document.exitPointerLock?.(); useGame.getState().set({ panel: null }); };
   return <div className="ar-root" data-phase={phase}>
@@ -40,13 +47,15 @@ export default function ArenaApp() {
     {phase === 'match' && <SceneLoading />}
     {phase === 'match' && <Hud />}
     {phase === 'match' && <TouchControls />}
-    {phase === 'match' && !menu && !editor && !settings && <ClickToPlay />}
+    {phase === 'match' && !menu && !editor && !settings && !hudEditor && armory === null && <ClickToPlay />}
     {phase === 'lobby' && <Lobby />}
     {phase === 'results' && <Results onExit={exit} />}
     {phase === 'lobby' && <button className="ar-exit" onClick={exit} aria-label="Return to campus"><X size={18} /><span>Campus</span></button>}
     {menu && phase === 'match' && <PauseMenu onExit={exit} />}
     {editor && <LoadoutEditor />}
     {settings && <ArenaSettings />}
+    {armory !== null && <Suspense fallback={<div className="ar-loading">Opening the Armory…</div>}><Armory /></Suspense>}
+    {hudEditor && <Suspense fallback={<div className="ar-loading">Opening HUD customization…</div>}><HudEditor /></Suspense>}
     {status === 'replaced' && <div className="ar-modal"><div className="ar-sheet small"><h2>Combat Arena is open in another window</h2><p>Only one window can play at a time.</p><button className="ar-primary" onClick={exit}>Return to campus</button></div></div>}
   </div>;
 }
@@ -79,6 +88,9 @@ function PauseMenu({ onExit }: { onExit: () => void }) {
     <button className="ar-primary" onClick={close}><Play size={16} />Resume</button>
     {host && <button className="ar-secondary" onClick={async () => { const r = await request({ t: 'private', action: 'start' }); if (r.ok) close(); else alert(String(r.reason)); }}><Users size={16} />Start match</button>}
     <button className="ar-secondary" onClick={() => useArena.getState().set({ editor: true })}><Backpack size={16} />Loadouts</button>
+    <button className="ar-secondary" onClick={() => useArena.getState().set({ armory: '' })}><Crosshair size={16} />Armory</button>
+    <button className="ar-secondary" onClick={() => useArena.getState().set({ hudEditor: true })}><LayoutDashboard size={16} />HUD customization</button>
+    <button className="ar-secondary" onClick={toggleAutoFire}><Zap size={16} />Auto-fire: {useArena.getState().settings.autoFire ? 'ON' : 'OFF'}</button>
     <button className="ar-secondary" onClick={() => useArena.getState().set({ settingsOpen: true })}><Settings2 size={16} />Settings</button>
     <button className="ar-secondary" onClick={leave}><LogOut size={16} />Leave match</button>
     <button className="ar-secondary" onClick={onExit}><Home size={16} />Return to campus</button>
@@ -91,8 +103,18 @@ function ArenaSettings() {
     <label className="ar-setting"><span>{label}<b>{fmt(s[key])}</b></span><input type="range" min={min} max={max} step={stepv} value={s[key]} onChange={e => set({ [key]: Number(e.target.value) })} /></label>;
   return <div className="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-settings-title"><div className="ar-sheet ar-settings">
     <header><h2 id="ar-settings-title">Arena settings</h2><button className="ar-icon" aria-label="Close settings" onClick={() => useArena.getState().set({ settingsOpen: false })}><X size={18} /></button></header>
-    <fieldset><legend>Graphics</legend><div className="ar-chips">{(['low', 'medium', 'high'] as const).map(q => <button key={q} className={s.quality === q ? 'on' : ''} aria-pressed={s.quality === q} onClick={() => set({ quality: q })}>{q[0].toUpperCase() + q.slice(1)}</button>)}</div>
-      <p className="ar-fine">Low suits most phones (no shadows, simple materials, fewer effects); High adds real-time shadows and full resolution. Chosen automatically on first visit.</p>
+    <fieldset className="ar-autofire"><legend>Auto-fire</legend>
+      <div className="ar-chips" role="radiogroup" aria-label="Auto-fire">{([[false, 'OFF'], [true, 'ON']] as const).map(([v, label]) => <button key={label} role="radio" aria-checked={s.autoFire === v} className={s.autoFire === v ? 'on' : ''} onClick={() => set({ autoFire: v })}>{label}</button>)}</div>
+      <p className="ar-fine">When enabled, your weapon automatically fires when your manually controlled aim is over a visible enemy. It never aims for you, never fires through cover or at teammates, and the server checks every shot exactly like a manual one. Switch it quickly with <kbd>F</kbd>, the AUTO touch button, or the pause menu.</p>
+    </fieldset>
+    <fieldset><legend>HUD</legend>
+      <button className="ar-secondary" onClick={() => useArena.getState().set({ hudEditor: true, settingsOpen: false })}><LayoutDashboard size={16} />HUD customization</button>
+      <p className="ar-fine">Move, resize, hide and restyle every part of the HUD and the touch controls, with separate layouts for desktop, phone landscape and phone portrait.</p>
+      <label className="ar-setting check"><span>Touch: fixed movement stick (instead of following your thumb)</span><input type="checkbox" checked={s.fixedStick} onChange={e => set({ fixedStick: e.target.checked })} /></label>
+    </fieldset>
+    <fieldset><legend>Graphics</legend><div className="ar-chips">{(['low', 'medium', 'high'] as const).map(q => <button key={q} className={s.quality === q ? 'on' : ''} aria-pressed={s.quality === q} onClick={() => set({ quality: q })}>{q[0].toUpperCase() + q.slice(1)}{recommendQuality().quality === q ? ' · recommended' : ''}</button>)}</div>
+      <p className="ar-fine">Every profile uses the same models and materials. Low (phones) keeps a static sun shadow and no post-processing; Medium adds bloom, grading and sharper shadows; High adds ambient occlusion, full-rate 4K shadows and full resolution. Recommended for this device from its GPU, memory and screen{recommendQuality().gpu ? ` (${recommendQuality().gpu.slice(0, 60)})` : ''}.</p>
+      <label className="ar-setting check"><span>Adaptive performance: lower the resolution, then the profile, if the frame rate drops</span><input type="checkbox" checked={s.adaptive} onChange={e => set({ adaptive: e.target.checked })} /></label>
       {slider('Field of view', 'fov', 60, 100, 1, v => `${v}°`)}
       <label className="ar-setting check"><span>Show frame rate</span><input type="checkbox" checked={s.showFps} onChange={e => set({ showFps: e.target.checked })} /></label></fieldset>
     <fieldset><legend>Controls</legend>

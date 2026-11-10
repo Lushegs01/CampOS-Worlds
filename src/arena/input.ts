@@ -3,7 +3,7 @@
 // reads it to build an input command (src/arena/net.ts). Presses that are shorter than a tick
 // (a tap on a phone, a quick key press) are latched until a tick has seen them.
 import { B, PITCH_LIMIT } from '../../shared/arena/sim.mjs';
-import { useArena } from './store';
+import { useArena, inputPaused } from './store';
 
 export const controls = {
   /** Movement axes: mx right, mz forward, each −1…1. */
@@ -15,13 +15,15 @@ export const controls = {
   yaw: 0, pitch: 0,
   /** Touch: the movement stick and its sprint lock; crouch is a toggle on touch. */
   touchMx: 0, touchMz: 0, touchSprint: false, touchCrouch: false, touchAds: false,
+  /** Touch: the sprint button (held on until the stick is released). */
+  touchSprintLock: false,
   gamepad: false, locked: false,
 };
 const keys = new Set<string>();
 const KEYMAP: Record<string, number> = { Space: B.JUMP, ShiftLeft: B.SPRINT, ShiftRight: B.SPRINT, KeyC: B.CROUCH, ControlLeft: B.CROUCH, KeyR: B.RELOAD, Digit1: B.SLOT1, Digit2: B.SLOT2, KeyV: B.MELEE, KeyG: B.LETHAL, KeyQ: B.TACTICAL, KeyX: B.SWAP };
 const STREAK_KEYS: Record<string, string> = { Digit3: 'recon', Digit4: 'supply', Digit5: 'strike' };
 let mouseButtons = 0;
-type Hooks = { streak: (id: string) => void; scoreboard: (open: boolean) => void; menu: () => void };
+type Hooks = { streak: (id: string) => void; scoreboard: (open: boolean) => void; menu: () => void; autoFire?: () => void };
 let hooks: Hooks | null = null;
 
 /** Point the camera (radians; pitch clamped). */
@@ -43,7 +45,7 @@ export function buttons() {
   for (const k of keys) b |= KEYMAP[k] ?? 0;
   if (controls.touchCrouch) b |= B.CROUCH;
   if (controls.touchAds) b |= B.ADS;
-  if (controls.touchSprint) b |= B.SPRINT;
+  if (controls.touchSprint || (controls.touchSprintLock && (controls.touchMx || controls.touchMz))) b |= B.SPRINT;
   controls.latched = 0;
   return b;
 }
@@ -96,12 +98,13 @@ export function pollGamepad(dt: number, ads: number, zoom: number) {
 /** Attach desktop input to the canvas. Returns a detach function. */
 export function attachDesktop(canvas: HTMLCanvasElement, h: Hooks, zoomOf: () => { ads: number; zoom: number }) {
   hooks = h;
-  const playing = () => { const a = useArena.getState(); return a.open && a.phase === 'match' && !a.menu && !a.editor && !a.settingsOpen; };
+  const playing = () => { const a = useArena.getState(); return a.open && a.phase === 'match' && !inputPaused(a); };
   const down = (e: KeyboardEvent) => {
     if (!playing() || (e.target as HTMLElement)?.tagName === 'INPUT') return;
     if (e.code === 'Tab') { e.preventDefault(); h.scoreboard(true); return; }
     if (e.code === 'Escape') return; // pointer lock release opens the menu
     if (STREAK_KEYS[e.code]) { h.streak(STREAK_KEYS[e.code]); return; }
+    if (e.code === 'KeyF' && !e.repeat) { h.autoFire?.(); return; }
     if (KEYMAP[e.code] !== undefined) { e.preventDefault(); controls.latched |= KEYMAP[e.code]; }
     keys.add(e.code);
   };
@@ -139,4 +142,4 @@ export function attachDesktop(canvas: HTMLCanvasElement, h: Hooks, zoomOf: () =>
     clear(); hooks = null;
   };
 }
-export function releaseAll() { keys.clear(); mouseButtons = 0; Object.assign(controls, { held: 0, latched: 0, touchMx: 0, touchMz: 0, touchSprint: false, touchCrouch: false, touchAds: false, mx: 0, mz: 0 }); }
+export function releaseAll() { keys.clear(); mouseButtons = 0; Object.assign(controls, { held: 0, latched: 0, touchMx: 0, touchMz: 0, touchSprint: false, touchSprintLock: false, touchCrouch: false, touchAds: false, mx: 0, mz: 0 }); }

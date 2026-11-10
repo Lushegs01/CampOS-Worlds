@@ -4,7 +4,9 @@
 // the arena server validates the one in use either way.
 import { useMemo, useState } from 'react';
 import { X, Lock, Check } from 'lucide-react';
-import { WEAPONS, LETHALS, TACTICALS, PERKS, SKINS, CATEGORIES, WEAPON_BY_ID, damageAt } from '../../shared/arena/weapons.mjs';
+import { WEAPONS, LETHALS, TACTICALS, PERKS, SKINS, CATEGORIES, WEAPON_BY_ID, damageAt, weaponOwned, weaponItem } from '../../shared/arena/weapons.mjs';
+import { formatNaira, priceOf } from '../../shared/shop.mjs';
+import { useShop } from '../account/shop';
 import { validateLoadout, PRESETS } from '../../shared/arena/rules.mjs';
 import { useArena, saveDeviceLoadouts, type Loadout } from './store';
 import { request } from './net';
@@ -13,7 +15,7 @@ import { sfx } from './audio';
 
 type Weapon = typeof WEAPONS[number];
 /** Comparable 0–100 ratings from the real numbers. */
-function ratings(w: Weapon) {
+export function ratings(w: Weapon) {
   if (w.fire === 'melee') return { damage: 100, rate: 30, range: 4, mobility: Math.round(w.moveMul * 90), control: 100 };
   const dps = damageAt(w, 10) * w.pellets * (w.fire === 'burst' ? (w.burstRpm ?? w.rpm ?? 0) * .7 : w.rpm ?? 0) / 60;
   return {
@@ -26,14 +28,14 @@ function ratings(w: Weapon) {
 }
 
 export default function LoadoutEditor() {
-  const me = useArena(s => s.me), stored = useArena(s => s.loadouts), active = useArena(s => s.loadout), inMatch = useArena(s => s.phase === 'match');
+  const me = useArena(s => s.me), stored = useArena(s => s.loadouts), active = useArena(s => s.loadout), inMatch = useArena(s => s.phase === 'match'), owned = useArena(s => s.owned), prices = useShop(s => s.prices);
   const level = me?.level ?? 1, weaponLevels = me?.weaponLevels ?? {};
   const [slots, setSlots] = useState<Loadout[]>(() => Array.from({ length: 5 }, (_, i) => ({ ...(stored[i] ?? PRESETS[i] ?? PRESETS[0]) })));
   const [index, setIndex] = useState(() => Math.max(0, stored.findIndex(l => JSON.stringify(l) === JSON.stringify(active))));
   const [msg, setMsg] = useState(''), [saving, setSaving] = useState(false);
   const cur = slots[index];
   const patch = (v: Partial<Loadout>) => { setSlots(list => list.map((l, i) => (i === index ? { ...l, ...v } : l))); setMsg(''); };
-  const check = useMemo(() => validateLoadout(cur, level, weaponLevels), [cur, level, weaponLevels]);
+  const check = useMemo(() => validateLoadout(cur, level, weaponLevels, owned), [cur, level, weaponLevels, owned]);
   const close = () => useArena.getState().set({ editor: false });
   async function equip() {
     if (!check.ok) { setMsg(check.reason ?? 'Check this loadout.'); return; }
@@ -53,9 +55,10 @@ export default function LoadoutEditor() {
   const pick = (kind: 'primary' | 'secondary') => <div className="ar-weapons">{Object.entries(CATEGORIES).map(([cat, label]) => {
     const list = WEAPONS.filter(w => w.slot === kind && w.category === cat); if (!list.length) return null;
     return <div key={cat}><span className="ar-eyebrow">{label}</span>{list.map(w => {
-      const locked = w.unlock > level, on = cur[kind] === w.id, r = ratings(w);
-      return <button key={w.id} className={`ar-wcard${on ? ' on' : ''}`} disabled={locked} aria-pressed={on} onClick={() => patch({ [kind]: w.id })}>
-        <b>{w.name}{locked && <span className="ar-lock"><Lock size={12} />Level {w.unlock}</span>}</b>
+      const premium = !weaponOwned(w.id, owned), locked = premium || w.unlock > level, on = cur[kind] === w.id, r = ratings(w);
+      // Premium weapons not yet owned open the Armory (preview, numbers, purchase) instead of being equipped.
+      return <button key={w.id} className={`ar-wcard${on ? ' on' : ''}${premium ? ' premium' : ''}`} disabled={!premium && locked} aria-pressed={on} onClick={() => (premium ? useArena.getState().set({ armory: w.id, editor: false }) : patch({ [kind]: w.id }))}>
+        <b>{w.name}{premium ? <span className="ar-lock"><Lock size={12} />Armory · {formatNaira(priceOf(weaponItem(w.id), prices) ?? 0)}</span> : locked && <span className="ar-lock"><Lock size={12} />Level {w.unlock}</span>}</b>
         {w.fire !== 'melee' ? <small>{w.fire === 'auto' ? 'Automatic' : w.fire === 'burst' ? `${w.burst}-round burst` : w.fire === 'bolt' ? 'Bolt action' : 'Semi-automatic'} · {w.rpm} rpm · {w.mag} rounds{w.pellets > 1 ? ` · ${w.pellets} pellets` : ''}{w.penetration >= .5 ? ' · penetrates cover' : ''}</small> : <small>One hit eliminates · {w.reach} m reach</small>}
         <span className="ar-bars">{Object.entries(r).map(([k, v]) => <i key={k} title={`${k}: ${v}`}><em style={{ width: `${v}%` }} /><span>{k}</span></i>)}</span>
       </button>;

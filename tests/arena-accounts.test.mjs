@@ -103,7 +103,8 @@ test('loadouts: saved per account, checked against unlocks and weapon levels, pr
   const loadout = { name: 'Rush', primary: 'wasp', secondary: 'knife', lethal: 'frag', tactical: 'flash', perks: ['fleet', 'steady'] };
   const saved = await rpc(db.pool, 'save_arena_loadout', { p_slot: 1, p_loadout: loadout }, a);
   assert.equal(saved.name, 'Rush'); assert.deepEqual(saved.perks, ['fleet', 'steady']);
-  await rejects(rpc(db.pool, 'save_arena_loadout', { p_slot: 2, p_loadout: { ...loadout, primary: 'talon' } }, a), /not unlocked/, 'level-10 weapon at level 1');
+  await rejects(rpc(db.pool, 'save_arena_loadout', { p_slot: 2, p_loadout: { ...loadout, secondary: 'hammer' } }, a), /not unlocked/, 'level-7 melee weapon at level 1');
+  await rejects(rpc(db.pool, 'save_arena_loadout', { p_slot: 2, p_loadout: { ...loadout, primary: 'talon' } }, a), /Armory weapon you do not own/, 'premium weapon not bought');
   await rejects(rpc(db.pool, 'save_arena_loadout', { p_slot: 2, p_loadout: { ...loadout, primary: 'sparrow' } }, a), /primary weapon/);
   await rejects(rpc(db.pool, 'save_arena_loadout', { p_slot: 2, p_loadout: { ...loadout, perks: ['fleet', 'fleet'] } }, a), /two different perks/);
   await rejects(rpc(db.pool, 'save_arena_loadout', { p_slot: 2, p_loadout: { ...loadout, skins: { wasp: 'gilded' } } }, a), /higher weapon level/);
