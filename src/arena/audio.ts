@@ -158,6 +158,8 @@ const audioTime = () => audio()?.ctx.currentTime ?? 0;
 /** Outdoor wind while a match is open (the campus' recorded loop). */
 export function startAmbience() { loadSounds(); wind ??= loop('wind', { gain: .2 * envVolume(), bus: 'ambience' }); }
 export function stopArenaAmbience() { wind?.stop(.5); wind = null; }
+/** The match's sounds end with it (scheduled reload sounds included). */
+export function stopMatchSounds() { cancelReload(); engine.stopAll(); }
 
 // QA builds only: the sound API for the browser audio suite (tests/browser-arena-audio.mjs).
 if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arenaSfx = sfx;

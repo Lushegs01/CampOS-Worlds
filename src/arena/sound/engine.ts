@@ -119,6 +119,15 @@ function teardown() {
   engine.deafen.disconnect(); engine.reverbIn.disconnect(); engine.limiter.disconnect();
   engine = null;
 }
+/** Leaving a match: fade out every arena sound still playing (tails, distant fire) so nothing follows the player out. */
+export function stopAll(fade = .08) {
+  const e = engine; if (!e) return;
+  const t = e.ctx.currentTime;
+  for (const v of [...e.spatial, ...e.flat]) if (v.busy) {
+    if (v.gain) { v.gain.gain.cancelScheduledValues(t); v.gain.gain.setTargetAtTime(0, t, fade / 3); }
+    try { v.src?.stop(t + fade); } catch { /* not started */ }
+  }
+}
 /** Leaving the arena: stop everything and release the graph and rendered sounds. */
 export function shutdown() { teardown(); recent.length = 0; stats.bufferBytes = 0; }
 
@@ -255,18 +264,34 @@ export function tones(notes: [number, number, number?][], gain = .14, type: Osci
 export function contextState() { return engine?.ctx.state ?? audio()?.ctx.state ?? 'none'; }
 export function activeVoices() { return engine ? engine.spatial.filter(v => v.busy).length + engine.flat.filter(v => v.busy).length : 0; }
 if (QA_HOOKS && typeof window !== 'undefined') {
-  (window as unknown as Record<string, unknown>).__arenaSound = () => ({ state: contextState(), voices: activeVoices(), max: maxVoices, hrtf, ...stats, volumes: { ...volumes }, recent: log.slice(-60) });
+  (window as unknown as Record<string, unknown>).__arenaSound = () => ({ state: contextState(), voices: activeVoices(), max: maxVoices, hrtf, ...stats, volumes: { ...volumes }, ear: { ...ear }, recent: log.slice(-60) });
   // The game's final output (after the player's master volume): peak, clipped samples and loudness while running.
-  let tap: { an: AnalyserNode; buf: Float32Array<ArrayBuffer>; timer: ReturnType<typeof setInterval>; peak: number; clipped: number; sum: number; n: number; voices: number } | null = null;
+  // A 0.74 s analyser window read every 150 ms, so main-thread stalls shorter than the window lose nothing; `coverage`
+  // says what share of the audio time was actually inspected.
+  let tap: { an: AnalyserNode; buf: Float32Array<ArrayBuffer>; timer: ReturnType<typeof setInterval>; peak: number; clipped: number; sum: number; n: number; voices: number; last: number; start: number; seen: number } | null = null;
   (window as unknown as Record<string, unknown>).__arenaSoundTap = {
     /** `where`: 'master' (everything the player hears, campus ambience included) or 'arena' (the arena's own mix). */
     start(where: 'master' | 'arena' = 'master') {
       const e = build(); if (!e) return false;
-      const an = e.ctx.createAnalyser(); an.fftSize = 2048; (where === 'arena' ? e.limiter : e.m.master).connect(an);
-      const t = { an, buf: new Float32Array(2048), timer: setInterval(() => { an.getFloatTimeDomainData(t.buf); for (const x of t.buf) { const a = Math.abs(x); if (a > t.peak) t.peak = a; if (a >= .999) t.clipped++; t.sum += x * x; t.n++; } t.voices = Math.max(t.voices, activeVoices()); }, 20), peak: 0, clipped: 0, sum: 0, n: 0, voices: 0 };
+      const an = e.ctx.createAnalyser(); an.fftSize = 32768; (where === 'arena' ? e.limiter : e.m.master).connect(an);
+      const win = an.fftSize / e.ctx.sampleRate;
+      const read = () => {
+        const now = e.ctx.currentTime, fresh = Math.min(win, now - t.last); t.last = now; t.seen += fresh;
+        an.getFloatTimeDomainData(t.buf);
+        const from = Math.max(0, t.buf.length - Math.round(fresh * e.ctx.sampleRate));
+        for (let i = 0; i < t.buf.length; i++) { const x = t.buf[i], a = Math.abs(x); if (a > t.peak) t.peak = a; if (i >= from) { if (a >= .999) t.clipped++; t.sum += x * x; t.n++; } }
+        t.voices = Math.max(t.voices, activeVoices());
+      };
+      const t = { an, buf: new Float32Array(an.fftSize), timer: setInterval(read, 150), peak: 0, clipped: 0, sum: 0, n: 0, voices: 0, last: e.ctx.currentTime, start: e.ctx.currentTime, seen: 0 };
+      (t as unknown as { read: () => void }).read = read;
       tap = t; return true;
     },
-    stop() { if (!tap) return null; clearInterval(tap.timer); tap.an.disconnect(); const r = { peak: tap.peak, peakDb: 20 * Math.log10(tap.peak || 1e-9), clipped: tap.clipped, rmsDb: 10 * Math.log10(tap.sum / Math.max(1, tap.n) || 1e-12), maxVoices: tap.voices }; tap = null; return r; },
+    stop() {
+      if (!tap) return null; (tap as unknown as { read: () => void }).read(); clearInterval(tap.timer); tap.an.disconnect();
+      const span = Math.max(1e-6, tap.an.context.currentTime - tap.start);
+      const r = { peak: tap.peak, peakDb: 20 * Math.log10(tap.peak || 1e-9), clipped: tap.clipped, rmsDb: 10 * Math.log10(tap.sum / Math.max(1, tap.n) || 1e-12), maxVoices: tap.voices, coverage: Math.min(1, tap.seen / span) };
+      tap = null; return r;
+    },
   };
   (window as unknown as Record<string, unknown>).__arenaSoundProbe = (at: Vec3) => probe?.(at) ?? null;
   (window as unknown as Record<string, unknown>).__arenaSoundSuspend = () => build()?.ctx.suspend();

@@ -8,7 +8,7 @@
 //
 // Everything in the frame loop is imperative and pooled: the environment is a few merged meshes and
 // instanced props, soldiers are created once per player, and effects come from fixed particle pools.
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, RenderPass, EffectPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode, BloomEffect, VignetteEffect, BrightnessContrastEffect, HueSaturationEffect } from 'postprocessing';
@@ -26,24 +26,50 @@ import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, loadDecor, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
 import { buildEnvironment, surfaceOf } from './scene/environment';
-import { weaponModel, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons } from './scene/weapons';
-import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, type SoldierLike } from './scene/soldiers';
-import { forgetAssets } from '../world/assets';
+import { weaponModel, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
+import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
+import { forgetAssets, cachedAssets } from '../world/assets';
+import { trackDisposeListeners } from './scene/gpuListeners';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
 import { Effects, Casings } from './scene/fx';
-import { sfx, setIndoor, startAmbience, stopArenaAmbience, prepareLoadout, prepareWeapon, forgetPrepared, setLoopVolumes, engine as soundEngine, type Ground } from './audio';
+import { sfx, setIndoor, startAmbience, stopArenaAmbience, stopMatchSounds, prepareLoadout, prepareWeapon, forgetPrepared, setLoopVolumes, engine as soundEngine, type Ground } from './audio';
 import { QA_HOOKS } from '../qa';
 
 const EQUIP_IDS = [...EQUIPMENT_BY_ID.keys()];
 const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), q1 = new THREE.Quaternion(), e1 = new THREE.Euler();
 const scratch = { t: 0, box: null as { i: number } | null, normal: [0, 0, 0], ground: false };
+const frustum = new THREE.Frustum(), cullM = new THREE.Matrix4(), cullS = new THREE.Sphere();
 
 /** Leaving the arena: let go of its parsed models and textures (the HTTP cache keeps the files for next time). */
 export function releaseArena() { releaseWeapons(); releaseSoldiers(); forgetAssets('arena/'); clearMaterialCache(); soundEngine.shutdown(); soundEngine.setProbe(null); forgetPrepared(); }
 
+/** Free the GPU side of every geometry, material and texture under these roots (see the world clean-up). */
+function releaseGpu(...roots: THREE.Object3D[]) {
+  const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
+  const texturesOf = (m: THREE.Material) => {
+    for (const v of Object.values(m)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture);
+    const u = (m as THREE.ShaderMaterial).uniforms; if (u) for (const x of Object.values(u)) if (x?.value && (x.value as THREE.Texture).isTexture) textures.add(x.value as THREE.Texture);
+  };
+  for (const root of roots) root.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (m.geometry) geometries.add(m.geometry);
+    if (m.material) for (const x of Array.isArray(m.material) ? m.material : [m.material]) { materials.add(x); texturesOf(x); }
+    if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
+    if ((o as THREE.SkinnedMesh).isSkinnedMesh) (o as THREE.SkinnedMesh).skeleton?.dispose();
+  });
+  geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
+}
+
+/** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
+const matchTier = { id: '', mobile: false };
+function tierFor(matchId: string, mobile: boolean) { if (matchTier.id !== matchId) { matchTier.id = matchId; matchTier.mobile = mobile; } return matchTier.mobile; }
+
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
-  const quality = useArena(s => s.settings.quality), q = ARENA_QUALITY[quality];
+  const quality = useArena(s => s.settings.quality), matchId = useArena(s => s.match?.id ?? '');
+  const q = useMemo(() => { const base = ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId]);
+  // Old renderers must not stay reachable through three.js's shared objects (see scene/gpuListeners.ts).
+  useLayoutEffect(() => trackDisposeListeners(), []);
   const dpr = Math.min(q.dpr, window.devicePixelRatio || 1);
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
   // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
@@ -85,7 +111,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const soldiers = (n: number): void => { loadSoldiers(q.mobileAssets, ctrl.signal).then(k => { if (on) setKits(k); }).catch(e => { if (!on || (e as Error).name === 'AbortError') return; console.warn('Arena soldiers deferred:', what(e)); if (n < 4) setTimeout(() => on && soldiers(n + 1), 8000 * (n + 1)); }); };
     soldiers(0);
     startAmbience();
-    return () => { on = false; ctrl.abort(); stopArenaAmbience(); setIndoor(0); };
+    return () => { on = false; ctrl.abort(); stopArenaAmbience(); stopMatchSounds(); setIndoor(0); };
   }, [gl, q, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { deploy.pending([...(lib ? [] : ['environment']), ...(gunReady ? [] : ['weapon']), ...(kits ? [] : ['soldiers'])]); }, [lib, gunReady, kits]);
 
@@ -124,11 +150,19 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     waitPlayable();
     return () => {
       on = false; ctrl.abort();
-      scene.remove(world.group); scene.environment = null; scene.fog = null;
-      world.group.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && !m.name.startsWith('prop:')) m.geometry.dispose(); });
+      // Release everything this renderer uploaded, shared cached assets included: three.js keeps a 'dispose' listener
+      // on every texture, geometry and material a renderer has used, and those listeners would keep this renderer
+      // (and its WebGL context) alive for as long as the cached assets live. Cached objects stay usable: the next
+      // match's renderer uploads them again.
+      const shared = cachedAssets('arena/'), weapons = weaponResources();
+      releaseGpu(scene, vm.vmScene, world.group, ...shared.scenes, ...weapons.scenes, ...Object.values(lib.props).map(p => p!.scene));
+      for (const t of [lib.env, lib.sky, lib.hdr, softTexture(), ...shared.textures]) t.dispose();
+      for (const r of standInResources()) { r.geometry.dispose(); r.material.dispose(); }
+      for (const m of weapons.materials) m.dispose();
+      scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null;
       clearMaterialCache();
     };
-  }, [scene, world, lib, q]);
+  }, [scene, world, lib, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------- sound levels and the acoustic probe
   useEffect(() => {
@@ -191,7 +225,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => { if (!lib) return; for (const g of fx.crates) { g.clear(); const c = lib.props.milCrate.scene.clone(); c.scale.setScalar(.8); g.add(c); } }, [lib, fx]);
 
   // ---------------------------------------------------------------- players
-  const soldiers = useRef(new Map<number, { s: SoldierLike; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string; standIn: boolean }>());
+  const soldiers = useRef(new Map<number, { s: SoldierLike; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string; standIn: boolean; animDt?: number }>());
   const dropSoldier = (e: { s: SoldierLike; tag: THREE.Sprite | null }) => { if (e.tag) { (e.tag.material as THREE.SpriteMaterial).map?.dispose(); e.tag.material.dispose(); e.tag = null; } scene.remove(e.s.root); e.s.dispose(); };
   useEffect(() => () => { for (const e of soldiers.current.values()) dropSoldier(e); soldiers.current.clear(); }, [scene, kits]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -353,6 +387,11 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (world && q.shadows && q.shadowEvery && frameNo.current % q.shadowEvery === 0) world.sun.shadow.needsUpdate = true;
     // ---- players
     const t = live.playback.time(now), seenNums = new Set<number>();
+    // Soldiers are skinned meshes with culling off (their bones move them outside their bounds), so cull them here:
+    // a sphere around each soldier against the view frustum (wider when sun shadows are drawn live, so a shadow cast
+    // into view from just outside it stays).
+    cullM.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); frustum.setFromProjectionMatrix(cullM);
+    const cullR = q.shadows && q.shadowEvery ? 3.2 : 1.4;
     // Where everyone is comes from the network, whether or not their soldier model has downloaded yet.
     if (t != null) for (const r of live.remotes.values()) if (!r.deadAt) { r.track.sample(t, sample); r.pos.x = sample.x; r.pos.y = sample.y; r.pos.z = sample.z; r.pos.yaw = sample.yaw; }
     if (lib) for (const r of live.remotes.values()) {
@@ -364,10 +403,17 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       if (!e) { if (!visible || r.team < 0) continue; e = { s: kits ? new Soldier(kits[model], r.team, lib, softTexture()) : new StandInSoldier(r.team), tag: null, tagKey: '', flashAt: 0, model, standIn: !kits }; soldiers.current.set(r.num, e); scene.add(e.s.root); }
       seenNums.add(r.num);
       e.s.root.visible = !!visible; if (!visible) continue;
+      const inView = frustum.intersectsSphere(cullS.set(v3.set(r.pos.x, r.pos.y + .95, r.pos.z), cullR));
       if (t != null && !dead) r.track.sample(t, sample); // (for the footstep cadence below)
       const w = WEAPONS[r.weapon]; if (w) { e.s.setWeapon(w.id); prepareWeapon(w.id); }
       const far = Math.hypot(r.pos.x - cam.position.x, r.pos.z - cam.position.z);
-      e.s.update(dt, v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw, r.pitch, r.flags, dead, now - e.flashAt < 55, q.ik && far < 45);
+      // Out of view: placed but not posed or drawn. Far away: posed at a lower rate (every 2nd frame beyond 25 m, every
+      // 3rd beyond 50 m on Low), with the skipped time carried into the next pose so animation speed is unchanged.
+      e.s.root.visible = inView;
+      const every = !inView ? 0 : far > 50 ? (q.mobileAssets ? 3 : 2) : far > 25 ? 2 : 1;
+      e.animDt = (e.animDt ?? 0) + dt;
+      if (every && (frameNo.current + r.num) % every === 0) { e.s.update(e.animDt, v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw, r.pitch, r.flags, dead, now - e.flashAt < 55, q.ik && far < 45); e.animDt = 0; }
+      else e.s.place(v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw);
       // Footsteps of others within earshot.
       if (!dead && (r.flags & 256) && !(r.flags & 2) && far < (r.team !== live.team ? 30 : 24)) { const sp = (r.flags & 8) ? 300 : 430; if (now - r.stepAt > sp && Math.hypot(sample.x - (e.s.root.userData.lx ?? sample.x), sample.z - (e.s.root.userData.lz ?? sample.z)) / Math.max(dt, 1e-3) > 1.4) { r.stepAt = now; sfx.step([r.pos.x, r.pos.y, r.pos.z], .3, groundAt(r.pos.x, r.pos.y, r.pos.z), { enemy: r.team !== live.team, run: !!(r.flags & 8) }); } }
       e.s.root.userData.lx = sample.x; e.s.root.userData.lz = sample.z;

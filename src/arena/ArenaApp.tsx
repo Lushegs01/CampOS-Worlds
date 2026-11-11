@@ -11,6 +11,7 @@ import { useArena, emptyHud } from './store';
 import { connect, disconnect, request, leaveMatch, onRetryAssets } from './net';
 import DeployScreen from './Deploy';
 import * as deploy from './deploy';
+import { recentDeployments } from './deploy';
 import { endSession } from '../world/fetcher';
 import { releaseAll, controls } from './input';
 import Lobby from './Lobby';
@@ -139,7 +140,17 @@ function ArenaSettings() {
       <label className="ar-setting check"><span>Invert vertical look</span><input type="checkbox" checked={s.invertY} onChange={e => set({ invertY: e.target.checked })} /></label>
       <label className="ar-setting check"><span>Touch: push the stick to the top to sprint</span><input type="checkbox" checked={s.autoSprint} onChange={e => set({ autoSprint: e.target.checked })} /></label></fieldset>
     <fieldset><legend>Sound</legend>
-      <label className="ar-setting"><span>Volume<b>{Math.round(volume * 100)}%</b></span><input type="range" min={0} max={1} step={.05} value={volume} onChange={e => useGame.getState().set({ volume: Number(e.target.value) })} /></label>
-      <button className="ar-secondary" onClick={() => useGame.getState().set({ volume: volume ? 0 : .7 })}>{volume ? 'Mute' : 'Unmute'}</button></fieldset>
+      <div className="ar-mix">
+        <label className="ar-setting"><span>Master volume<b>{Math.round(volume * 100)}%</b></span><input type="range" min={0} max={1} step={.05} value={volume} onChange={e => useGame.getState().set({ volume: Number(e.target.value) })} /></label>
+        {([['volWeapons', 'Weapons'], ['volExplosions', 'Explosions'], ['volFootsteps', 'Footsteps'], ['volEnvironment', 'Environment and impacts'], ['volCharacter', 'Character and reloads'], ['volUi', 'Interface and announcements']] as const).map(([key, label]) =>
+          <label key={key} className="ar-setting"><span>{label}<b>{Math.round(s[key] * 100)}%</b></span><input type="range" min={0} max={1} step={.05} value={s[key]} onChange={e => set({ [key]: Number(e.target.value) })} /></label>)}
+        <label className="ar-setting"><span>Voice chat<b>—</b></span><input type="range" disabled min={0} max={1} value={0} aria-describedby="ar-voice-note" /><small id="ar-voice-note" className="ar-fine">Combat Arena has no voice chat yet.</small></label>
+      </div>
+      <button className="ar-secondary" onClick={() => useGame.getState().set({ volume: volume ? 0 : .7 })}>{volume ? 'Mute' : 'Unmute'}</button>
+      <p className="ar-fine">Footsteps of other players carry gameplay information: lowering them makes enemies harder to hear. The mix is limited, so loud firefights never distort.</p></fieldset>
+    <fieldset><legend>Diagnostics</legend>
+      <p className="ar-fine">Your last deployments on this device (stage timings in milliseconds). Nothing personal is included; you can share it if support asks.</p>
+      <pre className="ar-diag">{recentDeployments().slice(-3).map(d => `${d.ok ? 'OK ' : 'FAIL'} ${d.kind ?? ''} ${(d.total / 1000).toFixed(1)} s · ${(d.bytes / 1e6).toFixed(1)} MB · ${d.files} files${d.retries ? ` · ${d.retries} retries` : ''}${d.failure ? ` · ${d.failure}` : ''}\n  ${Object.entries(d.stages).map(([k, v]) => `${k} ${v}`).join(' · ')}`).join('\n') || 'No deployments yet.'}</pre>
+    </fieldset>
   </div></div>;
 }

@@ -19,7 +19,7 @@ async function start(accounts = { enabled: false }, extra = {}) {
   const room = createRoom({ port: 0, accounts, arena: { rules: RULES, minRecordMs: 0, ...extra } }); rooms.push(room);
   return { room, url: `ws://127.0.0.1:${(await room.start()).port}/arena` };
 }
-after(async () => { for (const r of rooms) await r.close(); });
+after(async () => { const t0 = Date.now(); await Promise.all(rooms.map(r => r.close())); if (process.env.DEBUG_CLOSE) console.log("rooms closed in", Date.now() - t0, "ms"); });
 afterEach(() => { for (const r of rooms) for (const m of [...r.arena.matches.values()]) m.close('test'); });
 
 async function client(url, name, { access, caps, hello = true } = {}) {

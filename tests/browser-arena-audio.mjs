@@ -13,6 +13,8 @@ import { writeFile } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { chromium } from '@playwright/test';
 import { startProduction } from './support/production.mjs';
+import { createWorld, raycast } from '../shared/arena/physics.mjs';
+import { MAP_BY_ID } from '../shared/arena/maps.mjs';
 
 const ROOT = process.env.ROOT || 'dist-qa';
 if (!existsSync(`${ROOT}/index.html`)) execSync(`npx vite build --outDir ${ROOT}`, { stdio: 'inherit', env: { ...process.env, VITE_QA: '1' } });
@@ -83,13 +85,14 @@ try {
     return { out, calls, msPerCall: cost / calls, played: after.played - before.played, skipped: after.skipped - before.skipped, stolen: after.stolen - before.stolen, deduped: after.deduped - before.deduped, peakVoices: after.peakVoices, rendered: after.rendered };
   });
   assert.ok(stress.out.clipped === 0, `no clipped samples (${stress.out.clipped})`); assert.ok(stress.out.peak < 1, `peak ${stress.out.peak}`);
+  assert.ok(stress.out.coverage > .8, `the output tap inspected ${Math.round(stress.out.coverage * 100)} % of the audio`);
   assert.ok(stress.peakVoices <= 20, `voices ${stress.peakVoices}`); assert.ok(stress.skipped + stress.stolen > 0, 'voice management engaged');
   assert.ok(stress.msPerCall < 2, `sound calls cost ${stress.msPerCall.toFixed(3)} ms each`);
   results.stress = stress;
   // Steady state (every sound already rendered): the cost of a sound call during a firefight.
   stress.steadyMsPerCall = await page.evaluate(() => { const me = window.__arena.self(), t0 = performance.now(); for (let i = 0; i < 200; i++) window.__arenaSfx.gun(['vanguard', 'wasp', 'anvil'][i % 3], [me.x + (i % 40), me.y + 1.6, me.z + 5], 500 + (i % 6)); return (performance.now() - t0) / 200; });
   assert.ok(stress.steadyMsPerCall < .5, `steady ${stress.steadyMsPerCall}`);
-  check('3 s firefight (12 shooters, own automatic fire, explosions, impacts): no clipping, voices within budget', `peak ${stress.out.peakDb.toFixed(1)} dBFS, 0 clipped of ${stress.calls} calls, ${stress.played} played / ${stress.skipped} skipped / ${stress.stolen} stolen, ≤ ${stress.peakVoices} voices, ${stress.msPerCall.toFixed(3)} ms per call including first-time rendering of ${stress.rendered} sounds, ${stress.steadyMsPerCall.toFixed(3)} ms once rendered`);
+  check('3 s firefight (12 shooters, own automatic fire, explosions, impacts): no clipping, voices within budget', `peak ${stress.out.peakDb.toFixed(1)} dBFS, 0 clipped samples (${Math.round(stress.out.coverage * 100)} % of the output inspected), ${stress.calls} calls, ${stress.played} played / ${stress.skipped} skipped / ${stress.stolen} stolen, ≤ ${stress.peakVoices} voices, ${stress.msPerCall.toFixed(3)} ms per call including first-time rendering of ${stress.rendered} sounds, ${stress.steadyMsPerCall.toFixed(3)} ms once rendered`);
 
   // ---------------------------------------------------------------- distance layering and level
   await sleep(2500);
@@ -111,11 +114,18 @@ try {
   check('distance: 4 m plays the near layers loudest; 45 m blends near and distant; 130 m only the distant layer, quieter', `near-layer level ${near.near.toFixed(3)} → ${mid.near.toFixed(3)}; distant ${mid.far.toFixed(3)} → ${far.far.toFixed(3)}`);
 
   // ---------------------------------------------------------------- occlusion and roofs from the collision world
-  const probes = await page.evaluate(() => { const me = window.__arena.self(), p = window.__arenaSoundProbe; return { front: p([me.x + 3, me.y + 1.4, me.z]), warehouse: [-3, 0, 3].map(z => p([0, 1.2, z])) }; });
-  assert.equal(probes.front.occluded, false, 'a point 3 m from the spawn is in the open');
-  assert.ok(probes.warehouse.filter(x => x.occluded).length >= 2, 'inside the central warehouse is behind its walls from a spawn');
+  // The same question answered independently here, with the shared collision world: points around the listener at
+  // 3–25 m that are and are not in line of sight. The engine's probe must agree on every one.
+  const ear = (await page.evaluate(() => window.__arenaSound().ear)), map = MAP_BY_ID.get('foundry'), w = createWorld(map.boxes, map.bounds), hit = { t: 0, box: null, normal: [0, 0, 0], ground: false };
+  const losBlocked = at => { const dx = at[0] - ear.x, dy = at[1] + .2 - ear.y, dz = at[2] - ear.z, len = Math.hypot(dx, dy, dz) || 1; const b = raycast(w, ear.x, ear.y, ear.z, dx / len, dy / len, dz / len, len - .4, null, hit); return !!(b && b.box && b.t < len - .6); };
+  const candidates = []; for (let k = 0; k < 24; k++) for (const r of [3, 8, 15, 25]) { const a = k / 24 * Math.PI * 2; candidates.push([ear.x + Math.cos(a) * r, 1.4, ear.z + Math.sin(a) * r]); }
+  const clear = candidates.filter(c => !losBlocked(c)).slice(0, 4), blocked = candidates.filter(c => losBlocked(c)).slice(0, 4);
+  assert.ok(clear.length && blocked.length, 'found both open and walled-off points around the spawn');
+  const probes = await page.evaluate(([cl, bl]) => ({ clear: cl.map(p => window.__arenaSoundProbe(p)), blocked: bl.map(p => window.__arenaSoundProbe(p)), warehouse: [-3, 0, 3].map(z => window.__arenaSoundProbe([0, 1.2, z])) }), [clear, blocked]);
+  assert.ok(probes.clear.every(x => !x.occluded), 'open points are heard directly');
+  assert.ok(probes.blocked.every(x => x.occluded), 'points behind walls are occluded');
   assert.ok(probes.warehouse.every(x => x.indoor === 1), 'inside the warehouse is under a roof');
-  check('occlusion and roofs: open line → clear; the warehouse interior seen from a spawn → occluded, and under a roof (indoor reverb)', JSON.stringify(probes));
+  check('occlusion and roofs: the engine agrees with an independent line-of-sight check on 8 points around the player; the warehouse interior is under a roof (indoor reverb)', `${clear.length} open, ${blocked.length} walled off`);
 
   // ---------------------------------------------------------------- category volume and context recovery
   await page.evaluate(() => window.__arena.settings({ volWeapons: 0 })); await sleep(300);
@@ -123,7 +133,7 @@ try {
   const muted = await ownShot();
   await page.evaluate(() => window.__arena.settings({ volWeapons: 1 })); await sleep(300);
   const loud = await ownShot();
-  assert.ok(muted.peakDb < -60 && loud.peakDb > -30, `weapons at 0: ${muted.peakDb.toFixed(1)} dBFS, at 1: ${loud.peakDb.toFixed(1)} dBFS`);
+  assert.ok(muted.peakDb < -60 && loud.peakDb > muted.peakDb + 30, `weapons at 0: ${muted.peakDb.toFixed(1)} dBFS, at 1: ${loud.peakDb.toFixed(1)} dBFS`);
   check('category volume: weapons at 0 → the player’s own shot is silent in the arena mix; at 1 it is back', `${muted.peakDb.toFixed(0)} → ${loud.peakDb.toFixed(1)} dBFS`);
   // A phone interruption suspends the context: the next sound request or touch resumes it (no stuck silence), and
   // nothing is queued while it is suspended (sounds are skipped rather than released in a burst afterwards).

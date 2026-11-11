@@ -124,6 +124,14 @@ Sketchfab works are fetched from the [Objaverse](https://huggingface.co/datasets
 
 Weapon anchors (grips, sights, ejection ports) and hand frames are authored in `src/arena/scene/weapons.ts`; the arms are posed by inverse kinematics at run time.
 
+### Phone texture tier and arena sound
+
+- `public/assets/arena/mobile/` holds the same environment textures, props and soldiers as above with each KTX2
+  texture's largest mip level removed (`scripts/assets/build-arena-mobile.mjs`): derived files under the same
+  licences, no new sources.
+- Combat Arena's weapon, impact, flyby, explosion, handling and interface sounds are original designs synthesised in
+  the browser (`src/arena/sound/designs.ts`); no recordings are used except the campus' CC0 footsteps and wind above.
+
 ## Authored for this project
 
 - Campus architecture, doors, benches, tables, desks, counters, signage, sculpture, water and landscaping layout are procedural geometry (`src/world/architecture/`), textured with the CC0 materials above.

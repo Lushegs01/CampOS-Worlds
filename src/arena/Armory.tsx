@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { X, ShoppingBag, Lock, Check, Receipt, Crosshair, RotateCw } from 'lucide-react';
+import { WeaponGlyph } from './WeaponGlyph';
 import { WEAPONS, WEAPON_BY_ID, CATEGORIES, weaponItem, weaponOwned, isFirearm } from '../../shared/arena/weapons.mjs';
 import { formatNaira, SHOP_BY_ID } from '../../shared/shop.mjs';
 import { timeToKill } from '../../shared/arena/rules.mjs';
@@ -58,6 +59,7 @@ function access(w: Weapon, owned: string[], level: number): { label: string; cls
 function WeaponCard({ w, owned, level, on, onClick }: { w: Weapon; owned: string[]; level: number; on: boolean; onClick: () => void }) {
   const a = access(w, owned, level), price = usePrice(weaponItem(w.id));
   return <button className={`ar-acard${on ? ' on' : ''}`} aria-pressed={on} onClick={onClick}>
+    <WeaponGlyph id={w.id} width={120} className="ar-acard-glyph" />
     <header><b>{w.name}</b><span className={`ar-tag ${a.cls}`}>{a.cls === 'price' ? <><Lock size={10} /> {formatNaira(price ?? 0)}</> : a.label}</span></header>
     <small className="ar-fine">{w.armory}</small>
     <span>{w.role}</span>

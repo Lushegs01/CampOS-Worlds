@@ -53,6 +53,8 @@ function request(file: string, fetch: FetchOptions = ON_DEMAND) {
 }
 /** Start downloading a weapon (and its third-person LOD). Resolves when the first-person model is usable. */
 export function preloadWeapon(id: string, lod = false, fetch?: FetchOptions) { return request(lod ? `${id}-lod` : id, fetch); }
+/** Skin-tinted materials and parsed models (released with a match's renderer). */
+export const weaponResources = () => ({ materials: [...tints.values()], scenes: [...ready.values()] });
 /** Leaving the arena: forget the parsed models (the HTTP cache keeps the files). */
 export function releaseWeapons() { loads.clear(); ready.clear(); tints.forEach(m => m.dispose()); tints.clear(); armsLoad = null; }
 export function weaponLoaded(id: string, lod = false) { return ready.has(lod ? `${id}-lod` : id); }

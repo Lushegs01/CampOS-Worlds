@@ -11,6 +11,8 @@ export { assetUrl };
 // (transcoded to BC/ETC2/ASTC on the GPU) and geometry is meshopt-compressed.
 let ktx2: KTX2Loader | null = null, gltf: GLTFLoader | null = null, anisotropy = 4;
 const textures = new Map<string, Promise<THREE.Texture>>(), models = new Map<string, Promise<GLTF>>();
+/** What has finished loading (for releasing GPU resources: see cachedAssets). */
+const loadedTextures = new Map<string, THREE.Texture>(), loadedModels = new Map<string, GLTF>();
 
 /**
  * A failed download (a dropped mobile connection) is forgotten after a few seconds, so a later attempt
@@ -45,7 +47,7 @@ export function loadTexture(path: string, fetch?: FetchOptions): Promise<THREE.T
   if (!p) {
     const loader = ktx2;
     const raw = fetch ? fetchBytes(assetUrl(path), fetch).then(b => deadline(new Promise<THREE.Texture>((resolve, reject) => loader.parse(b, resolve, reject)), 45000, `decoding ${path} took too long`)) : loader.loadAsync(assetUrl(path));
-    p = raw.then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; return t; });
+    p = raw.then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; loadedTextures.set(path, t); return t; });
     textures.set(path, forgetOnFailure(textures, path, p, fetch ? 0 : 5000));
   }
   return p;
@@ -56,7 +58,7 @@ export function loadModel(path: string, fetch?: FetchOptions): Promise<GLTF> {
   let p = models.get(path);
   if (!p) {
     const loader = gltf;
-    p = fetch ? fetchBytes(assetUrl(path), fetch).then(b => deadline(loader.parseAsync(b, ''), 45000, `decoding ${path} took too long`)) : loader.loadAsync(assetUrl(path));
+    p = (fetch ? fetchBytes(assetUrl(path), fetch).then(b => deadline(loader.parseAsync(b, ''), 45000, `decoding ${path} took too long`)) : loader.loadAsync(assetUrl(path))).then(g => { loadedModels.set(path, g); return g; });
     models.set(path, forgetOnFailure(models, path, p, fetch ? 0 : 5000));
   }
   return p;
@@ -67,7 +69,11 @@ export function loadModel(path: string, fetch?: FetchOptions): Promise<GLTF> {
  * the HTTP cache still has the files, so coming back does not download them again).
  */
 export function forgetAssets(prefix: string) {
-  for (const cache of [textures, models] as Map<string, unknown>[]) for (const key of [...cache.keys()]) if (key.startsWith(prefix)) cache.delete(key);
+  for (const cache of [textures, models, loadedTextures, loadedModels] as Map<string, unknown>[]) for (const key of [...cache.keys()]) if (key.startsWith(prefix)) cache.delete(key);
+}
+/** Loaded models' scenes and loaded textures whose path starts with `prefix`. */
+export function cachedAssets(prefix: string) {
+  return { scenes: [...loadedModels].filter(([k]) => k.startsWith(prefix)).map(([, g]) => g.scene), textures: [...loadedTextures].filter(([k]) => k.startsWith(prefix)).map(([, t]) => t) };
 }
 
 /** Through the fetcher when given options: the bytes are handed to three.js as a local blob. */

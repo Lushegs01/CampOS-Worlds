@@ -73,6 +73,8 @@ try {
   const [sa, sb] = [await arenaState(pa), await arenaState(pb)];
   assert.equal(sa.match.id, sb.match.id, 'matched into the same match'); assert.notEqual(sa.you.team, sb.you.team, 'on opposite teams');
   await pa.waitForFunction(() => window.__arena.state().hud.matchState === 'playing', null, { timeout: 30000 });
+  // Both players are in the match only once their scenes have loaded (until then the server keeps them out of combat).
+  for (const p of [pa, pb]) await p.waitForFunction(() => window.__arenaDeploy?.().stage === 'deployed' && window.__arena.state().hud.alive, null, { timeout: 120000 });
   check('Quick Play matches both players into one Team Deathmatch on opposite teams', sa.match.id);
   const m = matchOf(sa.match.id), A = m.players.find(p => p.num === sa.you.num), B = m.players.find(p => p.num === sb.you.num);
 

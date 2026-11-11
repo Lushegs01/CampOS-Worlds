@@ -40,11 +40,15 @@ export function loadSoldiers(mobile = false, signal?: AbortSignal): Promise<Reco
   kits.catch(() => { if (kitsByTier.get(mobile) === kits) kitsByTier.delete(mobile); });
   return kits;
 }
+/** The stand-in figures' shared geometry and materials (released with a match's renderer). */
+export const standInResources = () => [...standIn.values()];
 /** Leaving the arena: forget the parsed soldiers (the HTTP cache keeps the files). */
 export function releaseSoldiers() { kitsByTier.clear(); standIn.forEach(v => { v.geometry.dispose(); v.material.dispose(); }); standIn.clear(); }
 
 /** What the scene needs from a drawn player, real model or stand-in. */
-export interface SoldierLike { root: THREE.Group; team: number; setWeapon(id: string): void; update(dt: number, pos: THREE.Vector3, yaw: number, pitch: number, flags: number, dead: boolean, flashOn: boolean, ik: boolean): void; dispose(): void }
+export interface SoldierLike { root: THREE.Group; team: number; setWeapon(id: string): void; update(dt: number, pos: THREE.Vector3, yaw: number, pitch: number, flags: number, dead: boolean, flashOn: boolean, ik: boolean): void;
+  /** Move without re-posing (frames where a distant soldier's animation is skipped). */
+  place(pos: THREE.Vector3, yaw: number): void; dispose(): void }
 
 // ---------------------------------------------------------------- stand-in while the soldier models download
 const standIn = new Map<number, { geometry: THREE.BufferGeometry; material: THREE.MeshStandardMaterial }>();
@@ -79,6 +83,7 @@ export class StandInSoldier implements SoldierLike {
     this.root.add(this.body, this.gun);
   }
   setWeapon(id: string) { if (this.weapon === id) return; const g = weaponThirdPerson(id); if (!g) return; this.weapon = id; this.gun.clear(); this.gun.add(g); }
+  place(pos: THREE.Vector3, yaw: number) { this.root.position.copy(pos); this.root.rotation.set(0, yaw, 0); }
   update(dt: number, pos: THREE.Vector3, yaw: number, pitch: number, flags: number, dead: boolean) {
     this.root.position.copy(pos); this.root.rotation.set(0, yaw, 0);
     const crouch = !!(flags & 6);
@@ -91,6 +96,10 @@ export class StandInSoldier implements SoldierLike {
 }
 
 const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpM = new THREE.Matrix4();
+// Per-frame scratch (nothing is allocated while posing soldiers).
+const sRight = new THREE.Vector3(), sGunAt = new THREE.Vector3(), sOrigin = new THREE.Vector3(), sUp = new THREE.Vector3(0, 1, 0), sAnchor = new THREE.Vector3(), sPole = new THREE.Vector3();
+const kS = new THREE.Vector3(), kE = new THREE.Vector3(), kW = new THREE.Vector3(), kDir = new THREE.Vector3(), kBend = new THREE.Vector3(), kElbow = new THREE.Vector3(), kTmp = new THREE.Vector3(), kTmp2 = new THREE.Vector3();
+const kQ = new THREE.Quaternion(), kParent = new THREE.Quaternion(), kWorld = new THREE.Quaternion();
 /** One soldier instance. */
 export class Soldier implements SoldierLike {
   root = new THREE.Group(); private rig: THREE.Object3D; private mixer: THREE.AnimationMixer; private actions: Record<string, THREE.AnimationAction> = {};
@@ -132,6 +141,8 @@ export class Soldier implements SoldierLike {
     const g = weaponThirdPerson(id); if (!g) return; // still downloading: try again next frame
     this.weapon = id; this.gun.clear(); this.gun.add(g);
   }
+  // (lastPos is left alone: the next pose measures speed over the whole skipped interval.)
+  place(pos: THREE.Vector3, yaw: number) { this.root.position.copy(pos); this.root.rotation.set(0, yaw + Math.PI, 0); }
   /** Pose for this frame. flags: crouch 2, slide 4, sprint 8, ads 16. */
   update(dt: number, pos: THREE.Vector3, yaw: number, pitch: number, flags: number, dead: boolean, flashOn: boolean, ik: boolean) {
     this.root.position.copy(pos);
@@ -158,37 +169,42 @@ export class Soldier implements SoldierLike {
     // The rifle: held at the chest, pointing where the player aims.
     const chest = spine ? spine.getWorldPosition(tmpV2) : tmpV2.set(pos.x, pos.y + 1.35, pos.z);
     const fwd = tmpV.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
-    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const right = sRight.set(Math.cos(yaw), 0, -Math.sin(yaw));
     // Worked out in world space, then expressed in the soldier's own (yawed) frame, since the gun is its child.
-    const gunAt = chest.clone().addScaledVector(right, .14).addScaledVector(fwd, .34).add(tmpV2.set(0, dead ? -.5 : -.12, 0));
+    const gunAt = sGunAt.copy(chest).addScaledVector(right, .14).addScaledVector(fwd, .34); gunAt.y += dead ? -.5 : -.12;
     this.gun.position.copy(this.root.worldToLocal(gunAt));
-    this.gun.quaternion.setFromRotationMatrix(tmpM.lookAt(new THREE.Vector3(), fwd, new THREE.Vector3(0, 1, 0))).premultiply(this.root.getWorldQuaternion(tmpQ).invert()); // −z (the muzzle) along the aim
+    this.gun.quaternion.setFromRotationMatrix(tmpM.lookAt(sOrigin.set(0, 0, 0), fwd, sUp)).premultiply(this.root.getWorldQuaternion(tmpQ).invert()); // −z (the muzzle) along the aim
     this.gun.visible = !dead || this.fall < .5;
     this.gun.updateMatrixWorld(true);
     const muzzle = this.gun.getObjectByName('muzzle');
     this.flash.visible = flashOn && !dead; if (muzzle && this.flash.visible) { muzzle.getWorldPosition(this.flash.position); this.root.worldToLocal(this.flash.position); this.flash.material.rotation = Math.random() * 6; }
     if (ik && !dead) for (const side of ['R', 'L'] as const) {
-      const anchor = this.gun.getObjectByName(side === 'R' ? 'gripR' : 'gripL'); if (!anchor) continue;
-      this.solveArm(side, anchor.getWorldPosition(new THREE.Vector3()), side === 'R' ? right.clone().multiplyScalar(.3).add(tmpV2.set(0, -.6, 0)) : right.clone().multiplyScalar(-.4).add(tmpV2.set(0, -.6, 0)));
+      const anchor = this.grip(side); if (!anchor) continue;
+      this.solveArm(side, anchor.getWorldPosition(sAnchor), sPole.copy(right).multiplyScalar(side === 'R' ? .3 : -.4).setY(-.6));
     }
   }
-  /** Two-bone IK on the Biped arm (rotations applied in world space, then converted to local). */
+  private grips: Partial<Record<string, { weapon: string; node: THREE.Object3D | undefined }>> = {};
+  /** The current weapon's grip anchor (looked up once per weapon, not every frame). */
+  private grip(side: 'R' | 'L') {
+    const hit = this.grips[side]; if (hit && hit.weapon === this.weapon) return hit.node;
+    const node = this.gun.getObjectByName(side === 'R' ? 'gripR' : 'gripL'); this.grips[side] = { weapon: this.weapon, node }; return node;
+  }
+  /** Two-bone IK on the Biped arm (rotations applied in world space, then converted to local). Allocation-free. */
   private solveArm(side: 'R' | 'L', target: THREE.Vector3, poleOffset: THREE.Vector3) {
     const up = this.bones[`Bip01_${side}_UpperArm`], fore = this.bones[`Bip01_${side}_Forearm`], hand = this.bones[`Bip01_${side}_Hand`]; if (!up || !fore || !hand) return;
-    const s = up.getWorldPosition(new THREE.Vector3()), e = fore.getWorldPosition(new THREE.Vector3()), w = hand.getWorldPosition(new THREE.Vector3());
-    const l1 = this.lenUpper, l2 = this.lenFore, d = Math.min(target.distanceTo(s), l1 + l2 - 1e-3), dir = target.clone().sub(s).normalize();
-    const pole = s.clone().add(poleOffset), bend = pole.sub(s); bend.sub(dir.clone().multiplyScalar(bend.dot(dir))).normalize();
+    const s = up.getWorldPosition(kS), e = fore.getWorldPosition(kE);
+    const l1 = this.lenUpper, l2 = this.lenFore, d = Math.min(target.distanceTo(s), l1 + l2 - 1e-3), dir = kDir.copy(target).sub(s).normalize();
+    const bend = kBend.copy(poleOffset); bend.sub(kTmp.copy(dir).multiplyScalar(bend.dot(dir))).normalize();
     const a = Math.acos(THREE.MathUtils.clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1));
-    const elbow = s.clone().addScaledVector(dir, Math.cos(a) * l1).addScaledVector(bend, Math.sin(a) * l1);
+    const elbow = kElbow.copy(s).addScaledVector(dir, Math.cos(a) * l1).addScaledVector(bend, Math.sin(a) * l1);
     const aim = (bone: THREE.Bone, from: THREE.Vector3, current: THREE.Vector3, want: THREE.Vector3) => {
-      const q = tmpQ.setFromUnitVectors(current.clone().sub(from).normalize(), want.clone().sub(from).normalize());
-      const parentQ = bone.parent!.getWorldQuaternion(new THREE.Quaternion()), worldQ = bone.getWorldQuaternion(new THREE.Quaternion());
+      const q = kQ.setFromUnitVectors(kTmp.copy(current).sub(from).normalize(), kTmp2.copy(want).sub(from).normalize());
+      const parentQ = bone.parent!.getWorldQuaternion(kParent), worldQ = bone.getWorldQuaternion(kWorld);
       bone.quaternion.copy(parentQ.invert().multiply(q.multiply(worldQ))); bone.updateMatrixWorld(true);
     };
     aim(up, s, e, elbow);
-    const e2 = fore.getWorldPosition(new THREE.Vector3()), w2 = hand.getWorldPosition(new THREE.Vector3());
+    const e2 = fore.getWorldPosition(kE), w2 = hand.getWorldPosition(kW);
     aim(fore, e2, w2, target);
-    void w;
   }
   dispose() { this.mixer.stopAllAction(); this.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); }
 }
