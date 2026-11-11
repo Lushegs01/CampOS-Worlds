@@ -1,144 +1,165 @@
-// Combat Arena sound: every sound is synthesised here (filtered noise and tones shaped by envelopes),
-// so there are no recordings to license or download. Sounds go through the game's mixer (Settings →
-// Sound sets the volume; 0 turns sound off) and world sounds are positioned around the listener.
-import { audio, play as playRecorded, loop, loadSounds, type Loop } from '../audio/mixer';
+// Combat Arena sound: what each game event sounds like, on the arena audio engine (src/arena/sound/engine.ts) with
+// designs from src/arena/sound/designs.ts. Sounds go through the game's mixer (Settings → Sound sets the master
+// volume; 0 turns sound off) and each category has its own level (arena Settings → Sound).
+import { loop, loadSounds, play as playRecorded, ear, audio, type Loop } from '../audio/mixer';
+import * as engine from './sound/engine';
+import { profileOf, GUNS, BY_CLASS, type Surface } from './sound/designs';
+import { WEAPON_BY_ID } from '../../shared/arena/weapons.mjs';
+import { QA_HOOKS } from '../qa';
 
-type Ctx = AudioContext;
-const cache = new Map<string, AudioBuffer>();
-let lastCtx: Ctx | null = null;
-
-function noise(ctx: Ctx, seconds: number, shape: (t: number, i: number) => number, color = 0) {
-  const n = Math.max(1, Math.floor(ctx.sampleRate * seconds)), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
-  let last = 0, seed = 1234567;
-  for (let i = 0; i < n; i++) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    const white = seed / 0x3fffffff - 1;
-    last = color ? last + (white - last) * (1 - color) : white; // simple low-pass for darker noise
-    d[i] = last * shape(i / ctx.sampleRate, i);
-  }
-  return buf;
-}
-const env = (attack: number, decay: number) => (t: number) => (t < attack ? t / attack : Math.exp(-(t - attack) / decay));
-
-/** Each weapon class's report: a sharp transient, a body and a tail, all distinct. */
-const GUNS: Record<string, { len: number; crack: number; body: number; color: number; tone?: number }> = {
-  rifle: { len: .32, crack: .004, body: .06, color: .55, tone: 110 },
-  burst: { len: .28, crack: .003, body: .05, color: .5, tone: 130 },
-  smg: { len: .2, crack: .003, body: .035, color: .45, tone: 160 },
-  shotgun: { len: .55, crack: .006, body: .14, color: .72, tone: 70 },
-  sniper: { len: .9, crack: .005, body: .2, color: .7, tone: 60 },
-  dmr: { len: .5, crack: .004, body: .1, color: .62, tone: 85 },
-  lmg: { len: .34, crack: .004, body: .07, color: .6, tone: 95 },
-  pistol: { len: .22, crack: .003, body: .04, color: .4, tone: 180 },
-  magnum: { len: .5, crack: .004, body: .11, color: .6, tone: 90 },
-};
-function buffer(name: string): AudioBuffer | null {
-  const m = audio(); if (!m) return null;
-  if (lastCtx !== m.ctx) { cache.clear(); lastCtx = m.ctx; }
-  const hit = cache.get(name); if (hit) return hit;
-  const ctx = m.ctx; let b: AudioBuffer;
-  const g = GUNS[name];
-  if (g) b = noise(ctx, g.len, t => .9 * env(.0008, g.crack)(t) + .55 * env(.002, g.body)(t) + (g.tone ? .25 * Math.sin(t * g.tone * 6.283) * env(.001, g.body * 1.4)(t) : 0), g.color);
-  else switch (name) {
-    case 'click': b = noise(ctx, .05, env(.0005, .008), .2); break;
-    case 'mag': b = noise(ctx, .12, t => env(.001, .02)(t) + .6 * env(.001, .015)(Math.max(0, t - .06)) * (t > .06 ? 1 : 0), .5); break;
-    case 'swing': b = noise(ctx, .25, t => Math.sin(Math.PI * Math.min(1, t / .25)) * .6, .8); break;
-    case 'step': b = noise(ctx, .09, env(.004, .025), .85); break;
-    case 'land': b = noise(ctx, .18, env(.004, .05), .9); break;
-    case 'boom': b = noise(ctx, 1.6, t => env(.004, .35)(t) * (1 + .4 * Math.sin(t * 38)), .93); break;
-    case 'thud': b = noise(ctx, .3, env(.002, .07), .92); break;
-    case 'hiss': b = noise(ctx, 1.2, t => Math.min(1, t * 6) * Math.exp(-t * 1.6) * .5, .1); break;
-    default: b = noise(ctx, .05, env(.001, .01));
-  }
-  cache.set(name, b);
-  return b;
-}
-
-/** Play a buffer, optionally at a world position (relative to the listener set by the scene). */
-export function play(name: string, opts: { at?: [number, number, number]; gain?: number; rate?: number; delay?: number } = {}) {
-  const m = audio(); const b = buffer(name); if (!m || !b) return;
-  const src = m.ctx.createBufferSource(); src.buffer = b; src.playbackRate.value = opts.rate ?? (0.94 + Math.random() * .12);
-  const gain = m.ctx.createGain(); gain.gain.value = opts.gain ?? 1;
-  let node: AudioNode = src.connect(gain);
-  if (opts.at) {
-    const p = m.ctx.createPanner(); p.panningModel = 'equalpower'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.1; p.maxDistance = 150;
-    p.positionX.value = opts.at[0]; p.positionY.value = opts.at[1]; p.positionZ.value = opts.at[2];
-    node = node.connect(p);
-  }
-  node.connect(m.effects);
-  // Indoors, a share of every sound also goes through the room reverb.
-  const wet = reverb(m.ctx, m.effects); if (wet) node.connect(wet);
-  src.start(m.ctx.currentTime + (opts.delay ?? 0));
-}
-
-// ---------------------------------------------------------------- room reverb and ambience
-let verb: { ctx: Ctx; input: GainNode } | null = null, indoor = 0;
-/** A convolution reverb with a synthesised impulse (a short, dense hall tail). Its send follows `setIndoor`. */
-function reverb(ctx: Ctx, out: AudioNode) {
-  if (verb?.ctx === ctx) return verb.input;
-  try {
-    const len = Math.floor(ctx.sampleRate * 1.1), ir = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); let seed = 9001 + ch * 77; for (let i = 0; i < len; i++) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; d[i] = (seed / 0x3fffffff - 1) * Math.pow(1 - i / len, 2.6) * (i < 400 ? i / 400 : 1); } }
-    const conv = ctx.createConvolver(); conv.buffer = ir;
-    const input = ctx.createGain(); input.gain.value = indoor * .55; input.connect(conv).connect(out);
-    verb = { ctx, input };
-    return input;
-  } catch { return null; }
-}
-/** 0 outdoors … 1 under a roof: sets how much reverb sounds carry. */
-export function setIndoor(amount: number) { indoor = amount; const m = audio(); if (verb && m && verb.ctx === m.ctx) verb.input.gain.setTargetAtTime(amount * .55, m.ctx.currentTime, .25); if (wind) wind.gain.setTargetAtTime(.22 * (1 - amount * .7), audio()?.ctx.currentTime ?? 0, .4); }
-let wind: Loop | null = null;
-/** Outdoor wind while a match is open (the campus' recorded loop). */
-export function startAmbience() { loadSounds(); wind ??= loop('wind', { gain: .22, bus: 'ambience' }); }
-export function stopArenaAmbience() { wind?.stop(.5); wind = null; }
 export type Ground = 'concrete' | 'metal' | 'wood' | 'sand' | 'brick' | 'dirt' | 'foliage';
-/** A short tone sequence (interface cues: hit markers, captures, rewards, countdown). */
-export function tones(notes: [number, number, number?][], gain = .18, type: OscillatorType = 'triangle') {
-  const m = audio(); if (!m) return;
-  const t0 = m.ctx.currentTime;
-  for (const [freq, at, len = .09] of notes) {
-    const o = m.ctx.createOscillator(), g = m.ctx.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(0, t0 + at); g.gain.linearRampToValueAtTime(gain, t0 + at + .005); g.gain.exponentialRampToValueAtTime(.0001, t0 + at + len);
-    o.connect(g).connect(m.effects); o.start(t0 + at); o.stop(t0 + at + len + .02);
-  }
+type V = [number, number, number];
+export { engine };
+export const tones = engine.tones;
+
+// ---------------------------------------------------------------- variation without repetition
+const turns = new Map<string, number>();
+/** Round-robin over `n` variants, never the same one twice in a row. */
+function variant(key: string, n: number) { const last = turns.get(key) ?? -1; let v = Math.floor(Math.random() * n); if (v === last) v = (v + 1) % n; turns.set(key, v); return v; }
+const jitter = (amount: number) => 1 + (Math.random() * 2 - 1) * amount;
+const dist = (at: V) => Math.hypot(at[0] - ear.x, at[1] - ear.y, at[2] - ear.z);
+const gunId = (id: string) => (GUNS[id] ? id : BY_CLASS[id] ?? 'vanguard');
+const family = (id: string) => (WEAPON_BY_ID.get(id)?.fire === 'melee' ? 'blade' : profileOf(gunId(id)).family);
+
+const prepared = new Set<string>();
+/** Another player was seen holding `id`: render its shots in idle time, before the first one is heard. */
+export function prepareWeapon(id: string) {
+  if (prepared.has(id) || WEAPON_BY_ID.get(id)?.fire === 'melee') return; prepared.add(id);
+  const g = gunId(id); engine.prepare([0, 1, 2, 3].map(v => `gun:${g}:near:${v}`).concat(`gun:${g}:far:0`, `gun:${g}:far:1`, `gun:${g}:tail:0`, `gun:${g}:tail:1`));
 }
+export function forgetPrepared() { prepared.clear(); }
+// The sounds the player's own loadout needs, rendered ahead of time (idle slices) at deployment.
+export function prepareLoadout(ids: string[]) {
+  ids.forEach(id => prepared.add(id));
+  const names: string[] = [];
+  for (const raw of ids) {
+    if (WEAPON_BY_ID.get(raw)?.fire === 'melee') { names.push('whoosh:0', 'whoosh:1'); continue; }
+    const id = gunId(raw), f = family(raw);
+    for (let v = 0; v < 4; v++) names.push(`gun:${id}:near:${v}`);
+    names.push(`gun:${id}:tail:0`, `gun:${id}:tail:1`, `gun:${id}:far:0`, `mech:${f}:magout`, `mech:${f}:magin`, `mech:${f}:charge`, `mech:${f}:dry`, `mech:${f}:draw`);
+    if (f === 'pump') names.push('mech:pump:pump', 'mech:pump:shell'); if (f === 'bolt') names.push('mech:bolt:boltaction');
+  }
+  names.push('impact:concrete:0', 'impact:metal:0', 'impact:flesh:0', 'body:0', 'land:0', 'casing:0');
+  engine.prepare(names);
+}
+
+// ---------------------------------------------------------------- reload choreography
+// Reload sounds follow the first-person animation (Scene.tsx updateViewmodel): magazine out at ~18 % of the reload,
+// in at ~60 %, the action at ~84 % (rifles and SMGs after an empty magazine; pistols release the slide).
+let reloadTimers: ReturnType<typeof setTimeout>[] = [];
+function cancelReload() { reloadTimers.forEach(clearTimeout); reloadTimers = []; }
+
+let shotsBy = new Map<number, number>();
 export const sfx = {
-  gun: (sound: string, at?: [number, number, number]) => play(sound, { at, gain: at ? .9 : .55 }),
-  hit: () => tones([[1900, 0, .04]], .12, 'square'),
-  headshot: () => tones([[2600, 0, .05], [3400, .03, .08]], .12, 'square'),
-  kill: () => tones([[880, 0, .07], [1320, .06, .12]], .16),
-  hurt: () => play('thud', { gain: .7, rate: .7 }),
-  reload: (empty = false) => { play('mag', { gain: .5 }); play('click', { gain: .45, delay: empty ? .9 : .6 }); },
-  switch: () => play('click', { gain: .4, rate: .7 }),
-  dry: () => play('click', { gain: .5, rate: 1.4 }),
-  swing: (at?: [number, number, number]) => play('swing', { at, gain: .5 }),
-  /** A footstep on a surface: recorded steps (hard, wood, soft) with a metallic ring on steel. */
-  step: (at?: [number, number, number], gain = .25, ground: Ground = 'concrete') => {
+  /** A gunshot: the player's own (no position) or another player's, layered by distance. */
+  gun: (weapon: string, at?: V, shooter = 0) => {
+    const id = gunId(weapon), g = profileOf(id);
+    if (!at) {
+      engine.play(`gun:${id}:near:${variant('own' + id, 4)}`, { cat: 'weapons', gain: .7 * g.loud, priority: 100, rate: jitter(.015), direct: true, send: .08, group: 'shot', emitter: 'own', perEmitter: 3 });
+      engine.play(`gun:${id}:tail:${variant('ownt' + id, 2)}`, { cat: 'weapons', gain: g.tail.gain * 1.05, priority: 60, direct: true, send: .02, group: 'tail', emitter: 'own', perEmitter: 1 });
+      engine.duck(.55, .2);
+      return;
+    }
+    const d = dist(at);
+    // Near layer fades out between 25 and 75 m while the distant layer fades in.
+    const far = Math.min(1, Math.max(0, (d - 25) / 50));
+    const em = 's' + shooter;
+    if (far < 1) engine.play(`gun:${id}:near:${variant('n' + shooter, 4)}`, { cat: 'weapons', at, gain: .95 * g.loud * (1 - far), priority: 86, ref: 5, rolloff: .9, rate: jitter(.02), group: 'shot', send: .07, emitter: em, perEmitter: 2 });
+    if (far > 0 || d > 15) {
+      // A busy distant automatic weapon: one rumble per ~70 ms is enough (the rest would only smear).
+      const last = shotsBy.get(shooter) ?? 0, now = performance.now();
+      if (far > .3 && now - last < 70) return;
+      shotsBy.set(shooter, now); if (shotsBy.size > 64) shotsBy = new Map([...shotsBy].slice(-32));
+      // Fades in between 15 and 40 m, then only falls with distance (its own gentle curve: distant fire carries).
+      const fadeIn = Math.min(1, Math.max(.2, (d - 15) / 25));
+      engine.play(`gun:${id}:far:${variant('f' + shooter, 2)}`, { cat: 'weapons', at, gain: g.far * .75 * fadeIn, priority: 72, ref: 30, rolloff: .5, group: 'far', send: .04, emitter: em, perEmitter: 1 });
+    }
+    if (d < 60) engine.play(`gun:${id}:tail:${variant('t' + shooter, 2)}`, { cat: 'weapons', at, gain: g.tail.gain * .9, priority: 55, ref: 8, rolloff: .7, group: 'tail', send: .02, emitter: em, perEmitter: 1 });
+  },
+  /** A round passing close by: a supersonic snap (rifles) or a whiz (pistol and SMG rounds). */
+  flyby: (weapon: string, from: V, to: V) => {
+    const dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2], len = Math.hypot(dx, dy, dz) || 1;
+    const t = Math.max(0, Math.min(1, ((ear.x - from[0]) * dx + (ear.y - from[1]) * dy + (ear.z - from[2]) * dz) / (len * len)));
+    const px = from[0] + dx * t, py = from[1] + dy * t, pz = from[2] + dz * t, miss = Math.hypot(px - ear.x, py - ear.y, pz - ear.z);
+    if (miss > 3.2 || t <= 0 || t >= 1) return;
+    const g = profileOf(gunId(weapon)), kind = g.crack > .4 ? 'snap' : 'whiz';
+    engine.play(`flyby:${kind}:${variant('fly', 3)}`, { cat: 'weapons', at: [px, py, pz], gain: (1 - miss / 3.2) * (kind === 'snap' ? .55 : .45), priority: 90, ref: 1, rolloff: .5, direct: true, group: 'flyby' });
+  },
+  /** Magazine out, in, and the action, timed to the reload animation. `frames` is the reload's length at 60 Hz. */
+  reload: (weapon: string, empty: boolean, frames: number) => {
+    cancelReload();
+    const f = family(weapon), ms = frames * 1000 / 60, w = WEAPON_BY_ID.get(weapon);
+    const at = (k: number, name: string, gain = .55) => reloadTimers.push(setTimeout(() => engine.play(name, { cat: 'character', gain, priority: 65, direct: true, group: 'mech', rate: jitter(.03) }), k * ms));
+    if (w?.reloadMode === 'shell') { at(0, `mech:${f}:draw`, .3); return; } // each shell sounds as it goes in
+    if (f === 'revolver') { at(.08, `mech:${f}:cylinder`); at(.55, `mech:${f}:magin`, .5); at(.85, `mech:${f}:cylinder`, .5); return; }
+    at(.16, `mech:${f}:magout`); at(.6, `mech:${f}:magin`, .7);
+    if (empty || f === 'lmg') at(.83, f === 'bolt' ? `mech:${f}:boltaction` : `mech:${f}:charge`, .65);
+  },
+  /** One shell into a tube magazine. */
+  shell: (weapon: string) => engine.play(`mech:${family(weapon)}:shell`, { cat: 'character', gain: .55, priority: 62, direct: true, group: 'mech', rate: jitter(.04) }),
+  /** The pump or bolt cycled between shots. */
+  cycle: (weapon: string) => { const f = family(weapon); if (f === 'pump' || f === 'bolt') setTimeout(() => engine.play(f === 'pump' ? 'mech:pump:pump' : 'mech:bolt:boltaction', { cat: 'character', gain: .6, priority: 70, direct: true, group: 'mech' }), f === 'pump' ? 180 : 260); },
+  switch: (weapon = 'vanguard') => { cancelReload(); engine.play(`mech:${family(weapon)}:draw`, { cat: 'character', gain: .5, priority: 55, direct: true, group: 'mech', rate: jitter(.04) }); },
+  dry: (weapon = 'vanguard') => engine.play(`mech:${family(weapon)}:dry`, { cat: 'character', gain: .7, priority: 70, direct: true, group: 'mech' }),
+  ads: (weapon = 'vanguard') => engine.play(`mech:${family(weapon)}:ads`, { cat: 'character', gain: .35, priority: 30, direct: true, group: 'character' }),
+  swing: (at?: V) => engine.play(`whoosh:${variant('sw', 3)}`, { cat: 'character', at, gain: .6, priority: 60, ref: 2, rolloff: 1.2, range: 25, direct: !at, rate: jitter(.08) }),
+  throw: () => { engine.play('pin:0', { cat: 'character', gain: .45, priority: 50, direct: true }); engine.play(`whoosh:${variant('sw', 3)}`, { cat: 'character', gain: .5, priority: 50, direct: true, delay: .12 }); },
+  /**
+   * A footstep on a surface: the campus' recorded steps (hard, wood, soft) with a ringing plate on steel and gear
+   * rattle when running. Enemies' steps are gameplay information: high priority and heard further.
+   */
+  step: (at?: V, gain = .25, ground: Ground = 'concrete', opts: { run?: boolean; enemy?: boolean } = {}) => {
     const name = ground === 'wood' ? 'step-wood' : ground === 'dirt' || ground === 'sand' || ground === 'foliage' ? 'step-grass' : 'step-hard';
-    const ok = playRecorded(name, { at: at ? { x: at[0], y: at[1], z: at[2] } : undefined, gain: gain * 2.2, rate: ground === 'metal' ? 1.25 : 1, range: 26 });
-    if (!ok) play('step', { at, gain });
-    if (ground === 'metal') play('click', { at, gain: gain * .9, rate: .55 });
+    const range = opts.enemy ? 30 : 24;
+    if (at && dist(at) > range) return;
+    playRecorded(name, { at: at ? { x: at[0], y: at[1], z: at[2] } : undefined, gain: gain * 2.2 * stepVolume() * (at ? 1.2 : .85), rate: (ground === 'metal' ? 1.15 : ground === 'sand' ? .9 : 1) * jitter(.04), range, ref: at ? 2.5 : 2 });
+    if (ground === 'metal') engine.play(`metalstep:${variant('ms', 4)}`, { cat: 'footsteps', at, gain: gain * 1.4, priority: opts.enemy ? 75 : 35, ref: 2, rolloff: 1.4, range, direct: !at, group: 'step', rate: jitter(.05) });
+    if (opts.run && Math.random() < .55) engine.play(`gear:${variant('gr', 4)}`, { cat: 'footsteps', at, gain: gain * .9, priority: opts.enemy ? 70 : 20, ref: 2, rolloff: 1.5, range: 18, direct: !at, group: 'step', rate: jitter(.08) });
   },
+  slide: () => engine.play(`slide:${variant('sl', 2)}`, { cat: 'footsteps', gain: .5, priority: 45, direct: true, group: 'step' }),
+  jump: () => engine.play(`jump:${variant('jp', 2)}`, { cat: 'footsteps', gain: .35, priority: 30, direct: true, group: 'step' }),
+  land: (speed = 7) => { const k = Math.min(1, Math.max(.3, (speed - 5) / 8)); engine.play(`land:${variant('ld', 3)}`, { cat: 'footsteps', gain: .45 + .45 * k, priority: 45, direct: true, group: 'step' }); if (k > .5) engine.play(`gear:${variant('gr', 4)}`, { cat: 'footsteps', gain: .5 * k, priority: 20, direct: true, group: 'step', delay: .03 }); },
   /** A round striking a surface, heard from where it landed. */
-  impact: (ground: Ground, at: [number, number, number]) => {
-    if (ground === 'metal') { play('click', { at, gain: .9, rate: 1.6 + Math.random() * .8 }); play('click', { at, gain: .5, rate: 3.2, delay: .012 }); }
-    else if (ground === 'wood') play('thud', { at, gain: .5, rate: 2.2 });
-    else if (ground === 'sand' || ground === 'dirt' || ground === 'foliage') play('step', { at, gain: .7, rate: .7 });
-    else play('land', { at, gain: .55, rate: 2.4 + Math.random() * .6 });
+  impact: (ground: Ground, at: V) => engine.play(`impact:${ground as Surface}:${variant('im' + ground, 4)}`, { cat: 'environment', at, gain: ground === 'metal' ? .7 : .6, priority: 35, ref: 3, rolloff: 1.2, range: 60, group: 'impact', key: 'imp' + ground, rate: jitter(.06) }),
+  flesh: (at: V) => engine.play(`impact:flesh:${variant('fl', 4)}`, { cat: 'character', at, gain: .7, priority: 70, ref: 3, rolloff: 1.1, range: 60, group: 'impact', key: 'flesh' }),
+  casing: (ground: Ground = 'concrete') => engine.play(`casing:${variant('cs', 4)}`, { cat: 'environment', gain: ground === 'dirt' || ground === 'sand' || ground === 'foliage' ? .06 : .16, priority: 10, direct: true, delay: .3 + Math.random() * .12, group: 'casing', rate: jitter(.12) }),
+  bolt: (weapon = 'longbow') => sfx.cycle(weapon),
+  hurt: () => engine.play(`body:${variant('bd', 3)}`, { cat: 'character', gain: .75, priority: 92, direct: true, group: 'character' }),
+  boom: (at: V) => {
+    const d = dist(at), far = Math.min(1, Math.max(0, (d - 20) / 40));
+    if (far < 1) engine.play(`boom:near:${variant('bn', 3)}`, { cat: 'explosions', at, gain: 1.15 * (1 - far * .7), priority: 95, ref: 6, rolloff: .8, send: .1 });
+    if (far > 0) engine.play(`boom:far:${variant('bf', 2)}`, { cat: 'explosions', at, gain: .9 * far, priority: 88, ref: 20, rolloff: .5 });
+    if (d < 25) engine.duck(.35, .6);
   },
-  flesh: (at: [number, number, number]) => play('thud', { at, gain: .45, rate: 1.5 }),
-  casing: () => play('click', { gain: .12, rate: 2.6 + Math.random(), delay: .32 + Math.random() * .1 }),
-  bolt: () => { play('click', { gain: .4, rate: .8 }); play('click', { gain: .4, rate: 1, delay: .22 }); },
-  land: () => play('land', { gain: .4 }),
-  boom: (at: [number, number, number]) => play('boom', { at, gain: 1.4, rate: .8 + Math.random() * .1 }),
-  flash: (at: [number, number, number]) => { play('click', { at, gain: 1, rate: .5 }); tones([[3800, .02, .9]], .05, 'sine'); },
-  smoke: (at: [number, number, number]) => play('hiss', { at, gain: .5 }),
-  capture: (good: boolean) => tones(good ? [[523, 0], [659, .09], [784, .18, .2]] : [[392, 0], [311, .12, .25]], .14),
-  streak: () => tones([[660, 0], [880, .08], [1175, .16, .25]], .15),
-  alarm: () => tones([[740, 0, .12], [740, .25, .12], [740, .5, .12], [740, .75, .12]], .1, 'square'),
-  beep: (high = false) => tones([[high ? 1240 : 820, 0, .12]], .12, 'sine'),
-  victory: () => tones([[523, 0, .3], [659, .12, .3], [784, .24, .3], [1047, .4, .6]], .16),
-  defeat: () => tones([[392, 0, .35], [349, .2, .35], [262, .45, .7]], .14),
-  ui: () => tones([[1100, 0, .03]], .06, 'sine'),
+  flash: (at: V) => engine.play('flashbang:0', { cat: 'explosions', at, gain: 1, priority: 94, ref: 5, rolloff: .8 }),
+  /** Blinded by a flashbang: the world goes dull and rings for a while. */
+  deafen: (ms: number) => engine.deafen(ms),
+  smoke: (at: V) => engine.play('hiss:0', { cat: 'explosions', at, gain: .55, priority: 40, ref: 3, rolloff: 1 }),
+  // ---------------------------------------------------------------- interface and announcements (UI bus)
+  hit: () => { engine.tones([[2100, 0, .028]], .07, 'square'); engine.tones([[1050, 0, .04]], .08, 'sine'); },
+  headshot: () => { engine.tones([[2900, 0, .05], [3800, .028, .09]], .08, 'square'); engine.tones([[1450, 0, .06]], .07, 'sine'); },
+  kill: () => { engine.tones([[880, 0, .06], [1320, .055, .12]], .11); engine.tones([[110, 0, .12]], .14, 'sine'); },
+  capture: (good: boolean) => engine.tones(good ? [[523, 0, .14], [659, .09, .14], [784, .18, .3]] : [[392, 0, .18], [311, .13, .32]], .1),
+  streak: () => engine.tones([[660, 0, .1], [880, .08, .1], [1175, .16, .28]], .1),
+  alarm: () => engine.tones([[740, 0, .12], [740, .25, .12], [740, .5, .12], [740, .75, .12]], .07, 'square'),
+  beep: (high = false) => engine.tones([[high ? 1240 : 820, 0, .13]], .1, 'sine'),
+  victory: () => { engine.tones([[523, 0, .4], [659, .14, .4], [784, .28, .45], [1047, .44, .9]], .1); engine.tones([[131, 0, 1.1]], .1, 'sine'); },
+  defeat: () => { engine.tones([[392, 0, .45], [349, .24, .45], [262, .5, 1]], .09); engine.tones([[98, 0, 1.2]], .1, 'sine'); },
+  ui: () => engine.tones([[1150, 0, .03]], .045, 'sine'),
 };
+
+// ---------------------------------------------------------------- surroundings
+/** 0 outdoors … 1 under a roof: the listener's share of reverb (and quieter wind). */
+export function setIndoor(amount: number) { engine.setListenerIndoor(amount); wind?.gain.setTargetAtTime(.2 * (1 - amount * .7) * envVolume(), audioTime(), .4); }
+let wind: Loop | null = null, envVolume = () => 1, stepVolume = () => 1;
+/** The volumes the recorded footsteps and the wind loop follow (they play through the campus mixer). */
+export function setLoopVolumes(env: () => number, steps: () => number) { envVolume = env; stepVolume = steps; wind?.gain.setTargetAtTime(.2 * env(), audioTime(), .2); }
+const audioTime = () => audio()?.ctx.currentTime ?? 0;
+/** Outdoor wind while a match is open (the campus' recorded loop). */
+export function startAmbience() { loadSounds(); wind ??= loop('wind', { gain: .2 * envVolume(), bus: 'ambience' }); }
+export function stopArenaAmbience() { wind?.stop(.5); wind = null; }
+/** The match's sounds end with it (scheduled reload sounds included). */
+export function stopMatchSounds() { cancelReload(); engine.stopAll(); }
+
+// QA builds only: the sound API for the browser audio suite (tests/browser-arena-audio.mjs).
+if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arenaSfx = sfx;

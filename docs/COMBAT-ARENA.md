@@ -334,7 +334,7 @@ credited in the lobby under **Art credits**). Nothing is drawn with untextured p
 | Weapon animation | Driven by the simulation's own timers, so it always matches gameplay: idle breathing, look sway, walk bob, sprint carry, jump and landing springs, slide cant, recoil kick and recovery, ADS blend, reload (tilt, magazine out and in, hand to magazine, charge), weapon switch, melee swing, grenade throw, pump/bolt/slide cycling | `Scene.tsx` (`updateViewmodel`) |
 | Characters | Rocketbox military avatars with helmets, vests and team camouflage (woodland vs desert), motion-captured locomotion blended by speed (idle/walk/jog/run/crouch), spine and head follow aim pitch, both hands put on the third-person weapon by IK, a fall on elimination; teammates carry blue names, enemies a small red marker | `soldiers.ts` |
 | Effects | Instanced particle pools (sparks, dust, debris, blood mist), impacts that differ by surface (concrete, metal, wood, sand, brick, dirt, foliage), decals, streak tracers, muzzle flashes with a flash light, ejected casings, explosion light and smoke, flashbang | `fx.ts` |
-| Audio | Wind ambience, surface footsteps (hard, wood, grass), surface impact and casing sounds, convolution reverb that rises indoors, 3D-positioned weapons | `audio.ts` |
+| Audio | Original layered designs per weapon (action, report, low punch, supersonic crack, reflection; outdoor tail; distant layer; four variants), reloads per mechanism, surface impacts, flybys, explosions, footsteps by surface; category buses with their own volumes, compressor and limiter, pooled voices with priorities, distance filtering, speed of sound, occlusion, indoor reverb | `audio.ts`, `sound/` |
 | HUD | Compass strip with teammate and firing-enemy bearings, angled score panels, monospace timer and ammunition, magazine round bar, segmented health, minimap, kill feed, streak buttons; compact layout on phones | `Hud.tsx`, `arena.css` |
 
 ### Graphics profiles
@@ -360,18 +360,33 @@ regardless.
 
 Defaults come from the device as before (touch or ≤ 4 GB / ≤ 4 cores → Low).
 
-### Loading
+### Loading and deployment
 
-Only the free weapons' third-person models (and the knife) download with the soldiers; any other weapon's
-model streams in the first time someone is seen holding it. On Medium and High the rest are fetched in idle
-time after the match is on screen; on Low or with data saver on, never. The player's own first-person weapons
-load when equipped, the Armory's inspection model when inspected, and the Armory and HUD studio code only when
-opened.
+Deployment is an explicit lifecycle (`src/arena/deploy.ts`): **requesting → loading-code → preparing →
+synchronizing → deployed**, plus **recovering** (connection lost while deploying) and **failed** (with the reason
+and a Retry). Each stage has a time budget checked every second; preparing is judged by the time since the last
+byte arrived, so a slow phone on a slow network is allowed as long as data flows. The deployment screen
+(`src/arena/Deploy.tsx`) shows the real stages, the required files and megabytes received, slow-connection
+guidance, Leave and Retry. Full diagnosis and measurements: [ARENA-DEPLOYMENT-AUDIO-UI-REPORT.md](ARENA-DEPLOYMENT-AUDIO-UI-REPORT.md).
 
-A match shows a loading screen until the world, the player's weapon, the arms and the soldiers can be
-drawn (capped at 15 s, after which play starts and late models stream in). The client then tells the
-server it has loaded; **Training** holds its countdown until then (`rules.loadWaitMs`, 20 s cap) so the
-bots never shoot at a loading screen. Remote players' positions never wait for their models.
+Downloads go through `src/world/fetcher.ts`: a strict priority queue, stall and overall timeouts, retries with
+backoff and jitter for transient failures (none for missing files), cancellation when leaving, byte progress.
+
+| Priority | What | When |
+|---|---|---|
+| 1 — needed to play | every environment surface (colour maps essential; normal and AO/roughness maps fall back to flat ones), the props that are cover (crates, jersey barriers), the sky and its light, the player's own first-person weapon (queued first) and arms | before the match is shown |
+| 2 — nearby detail | soldiers with their animation libraries and the free weapons' third-person models (other players are drawn as soldier-shaped stand-ins in team colours until they arrive), the second weapon, set dressing (drums, cans, lamps, generators; added once the match is on screen) | in parallel, after every priority-1 file has finished |
+| 3 — optional | the other weapons' third-person models | idle time after 8 s, Medium and High only, never with data saver |
+
+The **Low** profile loads the phone texture tier (`public/assets/arena/mobile/`, built by
+`node scripts/assets/build-arena-mobile.mjs`): the same textures' 512² mip chain, made by dropping the top mip level
+of each KTX2 (no re-encoding), 18.9 MB → 8.8 MB. First-person weapons and arms stay full resolution. The tier is
+fixed for a match, so an adaptive drop from Medium to Low never re-downloads.
+
+The scene compiles its shaders (`compileAsync`) before revealing the match, then tells the server it has loaded.
+Clients that report this (`caps: ['loadgate']`) are held out of live combat until then (capped at
+`rules.loadWaitMs`, 20 s): joining a match in progress, starting a match, or reconnecting after a page reload never
+puts a player in front of enemies while their screen is still loading. **Training** also holds its countdown.
 
 ## Performance
 
@@ -379,6 +394,13 @@ bots never shoot at a loading screen. Remote players' positions never wait for t
   stops rendering.
 * Static geometry is merged per material with world-space UVs (about 60–110 draw calls on Low);
   props, sandbags and particles are instanced; nothing is allocated per shot.
+* Remote soldiers (skinned, so three.js cannot cull them) are culled per soldier against the view frustum, and
+  posed at a lower rate far away (every 2nd frame beyond 25 m, every 3rd beyond 50 m on Low); posing and arm IK
+  allocate nothing per frame.
+* Sound: 20 voices on phones (stereo panning), 32 elsewhere (HRTF); band-limited layers rendered at half the sample
+  rate; the loadout's sounds are rendered ahead of play, other weapons' when first seen.
+* Leaving a match disposes its renderer; leaving the arena cancels its downloads and releases its parsed models,
+  textures, materials and sounds (`releaseArena()`). Repeated matches: `tests/browser-arena-soak.mjs`.
 
 ### Rendering measurements
 
@@ -430,7 +452,15 @@ Physical phones were **not** available to test; the 30 fps mobile target is unve
 | `tests/arena-performance.test.mjs` | Adaptive rendering (resolution first, then profile; recovery; no oscillation); a match preloads only the free weapons' third-person models; the Armory and studio are separate chunks | 2 / 2 pass |
 | `tests/browser-arena-hud.mjs` | Chromium, desktop and phone: the studio drags, resizes, restyles and hides elements and saves them (device and account); kept after a reload and on another device; a damaged layout is repaired; on a phone the joystick is moved and the fire button enlarged by touch, and the firing range shows them exactly there and fires; auto-fire against a Training bot fires only while aimed at it and stops when the aim leaves | 9 / 9 checks pass |
 | `tests/browser-arena.mjs` | Two signed-in Chromium players open the arena from the campus, a premium weapon opens the Armory until owned, equip and save a loadout, are matched together, see each other, one eliminates the other twice through the server, Victory/Defeat, results and experience saved to the database, rankings, back to campus and walking; a phone (landscape, touch) plays Training: fire button fires, stick moves, controls on screen, no page scroll | 12 / 12 checks pass |
-| `npm test` (everything) | All campus suites plus the arena suites | 293 / 293 pass |
+| `tests/arena-deploy.test.mjs` | Real WebSockets: a hanging or failing account service still answers `ready` within the deadline (guest + notice); a player joining a match in progress is held out of combat until its scene loads, then spawned at once, or at the cap if it never reports; warm-up and older clients unchanged; a reconnecting player is held until loaded again; correlation-id traces; client timing percentiles | 8 / 8 pass |
+| `tests/fetcher.test.mjs` | The downloader against a real HTTP server: byte progress counted once; transient failures retried with backoff; missing files not retried; stalled responses aborted and retried; a request that never answers gives up; strict priority order; cancellation; decode deadline | 8 / 8 pass |
+| `tests/browser-arena-audio.mjs` | Chromium, phone profile: own gunfire, reload and footsteps through the game; a 3 s, 12-shooter firefight with explosions never clips and stays within 20 voices; distance layering; occlusion agrees with an independent line-of-sight check; category volume; recovery from a suspended context | 9 / 9 checks pass (`docs/arena-audio-results.json`) |
+| `tests/browser-arena-soak.mjs` | Five Training matches in one page, then leaving and re-entering the arena: heap, DOM, listeners, voices and deployment time per match | pass (`docs/performance/arena-soak.json`) |
+| `scripts/qa/arena-deploy.mjs` | Deployment benchmark (normal, 4G, 3G, failed and stalled downloads, dropped connection, repeats) | `docs/performance/arena-deploy-{before,after}.json` |
+| `scripts/qa/arena-sounds.mjs` | Every sound design rendered offline: peaks, spectra, distinctness, variants | `docs/performance/arena-sounds.json` |
+| `scripts/qa/arena-heap.mjs` | Heap snapshots across matches and arena visits: growth by type and retaining paths of live WebGL contexts | no per-match growth (see the report) |
+| `scripts/qa/arena-ui-shots.mjs` | Lobby, training, settings, deployment, HUD and results at five screen sizes; no horizontal scroll | `docs/screenshots/arena/premium/` |
+| `npm test` (everything) | All campus suites plus the arena suites | 309 / 309 pass |
 
 The fuzz test found a real defect during development (an oversized message raised an unhandled
 socket error that would have stopped the server); it is fixed and covered.
@@ -456,5 +486,10 @@ Proxy `/arena` like `/ws` ([deployment](DEPLOYMENT.md)). Apply the migration wit
   modelled props; the Wasp, Kestrel and Bastion magazines are fused to the gun (reloads move the hand
   but nothing drops); the Talon's third-person LOD stays at ~20k triangles (its source mesh does not
   simplify); bespoke animation clips for the first-person arms (reloads are procedural poses driven by
-  the simulation, not keyframed animation); a lighter streaming pack for phones on metered data (a
-  match downloads about 22–25 MB).
+  the simulation, not keyframed animation).
+* Phones on metered data: the Low profile now needs about 7 MB before play and about 14 MB in all (phone texture
+  tier); a smaller first-person weapon tier for phones was not made (weapons stay full resolution by choice).
+* Keeping one renderer across matches (a new match currently creates a new WebGL context, re-uploads textures and
+  recompiles shaders: about 6–8 s per re-deployment under software rendering; not measured on a GPU).
+* Weapon sounds are original synthesised designs, not recordings: no licensed recordings were available to this
+  build. Suppressed fire is not designed because no weapon has a suppressor.

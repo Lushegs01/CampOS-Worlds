@@ -24,6 +24,8 @@ export interface ArenaSettings {
   adaptive: boolean; renderScale: number; qualityChosen: boolean;
   /** Touch: the movement stick stays where the layout puts it instead of following the thumb. */
   fixedStick: boolean;
+  /** Sound levels per category, 0–1 (the master level is the campus Volume). */
+  volWeapons: number; volExplosions: number; volEnvironment: number; volFootsteps: number; volCharacter: number; volUi: number;
 }
 const SETTINGS_KEY = 'campos-arena-settings', LOADOUT_KEY = 'campos-arena-loadouts';
 function readSettings(): ArenaSettings {
@@ -50,6 +52,8 @@ export interface Hud {
 }
 interface Arena {
   open: boolean; phase: Phase; status: 'idle' | 'connecting' | 'ready' | 'offline' | 'replaced'; error: string;
+  /** Something the player should know about this session (accounts unavailable: playing as a guest). */
+  notice: string;
   me: { name: string; verified: boolean; handle: string | null; level: number; xp: number; emblem: string; weaponLevels: Record<string, number> } | null;
   /** Store items the account owns, as the arena server knows them (premium weapons: 'weapon-<id>'). */
   owned: string[];
@@ -71,7 +75,7 @@ interface Arena {
 export const emptyHud = (): Hud => ({ hp: 100, alive: false, respawnMs: 0, weapon: 'vanguard', slot: 0, mag: 0, reserve: 0, magSize: 0, phase: 'ready', reloadProgress: 0, ads: 0, lethal: 0, tactical: 0, spread: 0,
   earned: [], streakPts: 0, streak: 0, sprint: false, stance: 0, timeLeft: 0, scores: [0, 0], matchState: 'waiting', objectives: [], ping: 0, fps: 0 });
 export const useArena = create<Arena>()((set, get) => ({
-  open: false, phase: 'lobby', status: 'idle', error: '', me: null, owned: [], loadout: { ...PRESETS[0] }, loadouts: deviceLoadouts(), online: 0,
+  open: false, phase: 'lobby', status: 'idle', error: '', notice: '', me: null, owned: [], loadout: { ...PRESETS[0] }, loadouts: deviceLoadouts(), online: 0,
   match: null, you: null, feed: [], board: {}, result: null, progress: null, record: null,
   sceneReady: false, hud: emptyHud(), menu: false, scoreboard: false, editor: false, settingsOpen: false, hudEditor: false, armory: null, killedBy: null,
   settings: readSettings(),

@@ -7,9 +7,10 @@ import { createRoom } from '../../server/room.mjs';
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2',
-  '.ktx2': 'image/ktx2', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm', '.jpg': 'image/jpeg', '.ogg': 'audio/ogg' };
-export async function startProduction() {
-  const root = resolve('dist'), rules = [], headers = await readFile(resolve(root, '_headers'), 'utf8');
+  '.ktx2': 'image/ktx2', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm', '.jpg': 'image/jpeg', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.hdr': 'application/octet-stream' };
+/** `root`: the built bundle to serve (default dist/). `arena`: settings for the room's Combat Arena. */
+export async function startProduction({ root: dir = 'dist', arena = {} } = {}) {
+  const root = resolve(dir), rules = [], headers = await readFile(resolve(root, '_headers'), 'utf8');
   for (const line of headers.split('\n')) {
     if (!line.trim() || line.startsWith('#')) continue;
     if (!/^\s/.test(line)) rules.push({ pattern: line.trim(), values: {} });
@@ -37,7 +38,7 @@ export async function startProduction() {
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}`;
-  room = createRoom({ port: 0, origins: [url] }); await room.start();
+  room = createRoom({ port: 0, origins: [url], arena }); await room.start();
   server.on('upgrade', (req, socket, head) => room.http.emit('upgrade', req, socket, head));
   return { url, room,
     changeWorker() { workerRevision += '\n// release update test\n'; },

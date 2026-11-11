@@ -4,6 +4,7 @@
 // the arena server validates the one in use either way.
 import { useMemo, useState } from 'react';
 import { X, Lock, Check } from 'lucide-react';
+import { WeaponGlyph } from './WeaponGlyph';
 import { WEAPONS, LETHALS, TACTICALS, PERKS, SKINS, CATEGORIES, WEAPON_BY_ID, damageAt, weaponOwned, weaponItem } from '../../shared/arena/weapons.mjs';
 import { formatNaira, priceOf } from '../../shared/shop.mjs';
 import { useShop } from '../account/shop';
@@ -58,6 +59,7 @@ export default function LoadoutEditor() {
       const premium = !weaponOwned(w.id, owned), locked = premium || w.unlock > level, on = cur[kind] === w.id, r = ratings(w);
       // Premium weapons not yet owned open the Armory (preview, numbers, purchase) instead of being equipped.
       return <button key={w.id} className={`ar-wcard${on ? ' on' : ''}${premium ? ' premium' : ''}`} disabled={!premium && locked} aria-pressed={on} onClick={() => (premium ? useArena.getState().set({ armory: w.id, editor: false }) : patch({ [kind]: w.id }))}>
+        <WeaponGlyph id={w.id} width={78} className="ar-wcard-glyph" />
         <b>{w.name}{premium ? <span className="ar-lock"><Lock size={12} />Armory · {formatNaira(priceOf(weaponItem(w.id), prices) ?? 0)}</span> : locked && <span className="ar-lock"><Lock size={12} />Level {w.unlock}</span>}</b>
         {w.fire !== 'melee' ? <small>{w.fire === 'auto' ? 'Automatic' : w.fire === 'burst' ? `${w.burst}-round burst` : w.fire === 'bolt' ? 'Bolt action' : 'Semi-automatic'} · {w.rpm} rpm · {w.mag} rounds{w.pellets > 1 ? ` · ${w.pellets} pellets` : ''}{w.penetration >= .5 ? ' · penetrates cover' : ''}</small> : <small>One hit eliminates · {w.reach} m reach</small>}
         <span className="ar-bars">{Object.entries(r).map(([k, v]) => <i key={k} title={`${k}: ${v}`}><em style={{ width: `${v}%` }} /><span>{k}</span></i>)}</span>

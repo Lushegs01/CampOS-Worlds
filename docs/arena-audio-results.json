@@ -1,0 +1,106 @@
+{
+  "started": "2026-11-11T22:09:25.020Z",
+  "checks": [
+    {
+      "name": "phone profile: audio running with a 20-voice budget and stereo panning; the loadout’s sounds were rendered ahead of play",
+      "ok": true,
+      "detail": "20 sounds pre-rendered in 69 ms"
+    },
+    {
+      "name": "own gunfire through the game: the Vanguard’s own near and tail layers play on the weapons bus",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "reload: magazine out, then in, timed to the reload animation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "footsteps while walking (recorded surface steps)",
+      "ok": true,
+      "detail": "2 steps"
+    },
+    {
+      "name": "3 s firefight (12 shooters, own automatic fire, explosions, impacts): no clipping, voices within budget",
+      "ok": true,
+      "detail": "peak -2.2 dBFS, 0 clipped samples (97 % of the output inspected), 663 calls, 440 played / 308 skipped / 50 stolen, ≤ 20 voices, 0.516 ms per call including first-time rendering of 89 sounds, 0.093 ms once rendered"
+    },
+    {
+      "name": "distance: 4 m plays the near layers loudest; 45 m blends near and distant; 130 m only the distant layer, quieter",
+      "ok": true,
+      "detail": "near-layer level 0.560 → 0.041; distant 0.375 → 0.176"
+    },
+    {
+      "name": "occlusion and roofs: the engine agrees with an independent line-of-sight check on 8 points around the player; the warehouse interior is under a roof (indoor reverb)",
+      "ok": true,
+      "detail": "4 open, 4 walled off"
+    },
+    {
+      "name": "category volume: weapons at 0 → the player’s own shot is silent in the arena mix; at 1 it is back",
+      "ok": true,
+      "detail": "-81 → -1.7 dBFS"
+    },
+    {
+      "name": "a suspended audio context (phone interruption) is resumed by the next sound or touch; nothing queues up meanwhile",
+      "ok": true,
+      "detail": "back in 457 ms"
+    }
+  ],
+  "stress": {
+    "out": {
+      "peak": 0.7765201330184937,
+      "peakDb": -2.1969455947036773,
+      "clipped": 0,
+      "rmsDb": -22.76470575094955,
+      "maxVoices": 20,
+      "coverage": 0.9729729729729731
+    },
+    "calls": 663,
+    "msPerCall": 0.5162895927627095,
+    "played": 440,
+    "skipped": 308,
+    "stolen": 50,
+    "deduped": 135,
+    "peakVoices": 20,
+    "rendered": 89,
+    "steadyMsPerCall": 0.09349999999627472
+  },
+  "distance": {
+    "near": {
+      "d": 4,
+      "near": 0.5605,
+      "far": 0,
+      "tail": 0.171,
+      "occluded": true,
+      "played": [
+        "gun:talon:near:2@weapons#0.5605~occluded",
+        "gun:talon:tail:0@weapons#0.1710~occluded"
+      ]
+    },
+    "mid": {
+      "d": 45,
+      "near": 0.041,
+      "far": 0.375,
+      "tail": 0.0404,
+      "occluded": true,
+      "played": [
+        "gun:talon:near:1@weapons#0.0410~occluded",
+        "gun:talon:far:0@weapons#0.3750~occluded",
+        "gun:talon:tail:1@weapons#0.0404~occluded"
+      ]
+    },
+    "far": {
+      "d": 130,
+      "near": 0,
+      "far": 0.1758,
+      "tail": 0,
+      "occluded": true,
+      "played": [
+        "gun:talon:far:1@weapons#0.1758~occluded"
+      ]
+    }
+  },
+  "finished": "2026-11-11T22:10:18.889Z",
+  "passed": true
+}

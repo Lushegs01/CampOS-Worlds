@@ -9,6 +9,7 @@ import { Crosshair as CrosshairIcon, Radar, Package, Target, Wifi, RotateCw, Arr
 import { HUD_ELEMENT_BY_ID, drawnScale } from '../../shared/arena/hud.mjs';
 import { STREAKS, EMBLEM_BY_ID } from '../../shared/arena/weapons.mjs';
 import type { Layout } from './hudLayout';
+import { WeaponGlyph } from './WeaponGlyph';
 
 /** The size of the area slots are laid out in (the screen, or the editor's device frame). */
 export function useViewport(): { w: number; h: number } {
@@ -64,9 +65,10 @@ export function AmmoView({ mag, reserve, magSize, melee }: { mag: number; reserv
     {!melee && magSize > 0 && <div className={`ar-magbar${low ? ' low' : ''}`} aria-hidden="true">{magSize <= 40 ? Array.from({ length: magSize }, (_, i) => <i key={i} className={i < mag ? 'on' : ''} />) : <span style={{ width: `${mag / magSize * 100}%` }} />}</div>}
   </div>;
 }
-export function WeaponInfoView({ name, category, state, lethal, tactical, lethalName, tacticalName, keys }: { name: string; category: string; state: string; lethal: number; tactical: number; lethalName?: string; tacticalName?: string; keys: boolean }) {
+export function WeaponInfoView({ name, category, state, lethal, tactical, lethalName, tacticalName, keys, id }: { name: string; category: string; state: string; lethal: number; tactical: number; lethalName?: string; tacticalName?: string; keys: boolean; id?: string }) {
   return <div className="ar-winfo">
-    <div className="ar-wname">{name}<small>{category}</small></div>
+    {/* The silhouette sits on the name's line, so the element keeps its height in every saved layout. */}
+    <div className="ar-wname">{id && <WeaponGlyph id={id} width={42} className="ar-wglyph" />}{name}<small>{category}</small></div>
     <div className="ar-state">{state}</div>
     <div className="ar-equip"><span title={lethalName}>◆ {lethal}{keys && <kbd>G</kbd>}</span><span title={tacticalName}>◇ {tactical}{keys && <kbd>Q</kbd>}</span></div>
   </div>;
@@ -95,9 +97,9 @@ export function StreaksView({ earned, pts, level, hardline, onUse, keys }: { ear
     </button>;
   })}</div>;
 }
-export function KillfeedView({ rows }: { rows: { id: number | string; killer?: { text: string; tone: string } | null; victim?: { text: string; tone: string } | null; weapon: string; head: boolean }[] }) {
+export function KillfeedView({ rows }: { rows: { id: number | string; killer?: { text: string; tone: string } | null; victim?: { text: string; tone: string } | null; weapon: string; weaponId?: string | null; head: boolean }[] }) {
   return <ol className="ar-feed">{rows.map(f => <li key={f.id}>
-    {f.killer && <b className={f.killer.tone}>{f.killer.text}</b>}<span className="weapon">{f.head && <CrosshairIcon size={12} />}{f.weapon}</span><b className={f.victim?.tone}>{f.victim?.text}</b>
+    {f.killer && <b className={f.killer.tone}>{f.killer.text}</b>}<span className="weapon" title={f.weapon}>{f.head && <CrosshairIcon size={12} aria-label="Headshot" />}{f.weaponId ? <WeaponGlyph id={f.weaponId} width={42} title={f.weapon} /> : f.weapon}</span><b className={f.victim?.tone}>{f.victim?.text}</b>
   </li>)}</ol>;
 }
 export function BannerView({ list }: { list: { id: number | string; text: string; sub?: string; tone: string }[] }) {

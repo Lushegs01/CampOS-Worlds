@@ -1,5 +1,5 @@
 {
-  "started": "2026-11-10T19:27:58.687Z",
+  "started": "2026-11-11T22:22:16.037Z",
   "checks": [
     {
       "name": "both players open Combat Arena from the campus dock, signed in with their campus accounts",
@@ -19,7 +19,7 @@
     {
       "name": "Quick Play matches both players into one Team Deathmatch on opposite teams",
       "ok": true,
-      "detail": "46e54679-e575-4cc5-9e1b-413b96556444"
+      "detail": "6e00f1e0-f19a-4f4a-88ad-53bbf9c3bf46"
     },
     {
       "name": "each browser renders the other player where the server has them",
@@ -64,5 +64,5 @@
   ],
   "phoneFpsSoftwareRendering": 3,
   "ok": true,
-  "finished": "2026-11-10T19:32:42.778Z"
+  "finished": "2026-11-11T22:25:27.554Z"
 }
