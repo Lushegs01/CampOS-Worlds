@@ -533,5 +533,7 @@ if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<stri
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
   deploy: () => ({ ...deploy.useDeploy.getState(), recent: deploy.recentDeployments() }),
+  /** Change arena settings (QA: the audio suite sets category volumes). */
+  settings: (v: Record<string, unknown>) => { useArena.getState().setSettings(v); return useArena.getState().settings; },
   self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, pending: live.pending.length, autoFiring: live.autoFiring, autoReason: live.autoReason } : null),
 };

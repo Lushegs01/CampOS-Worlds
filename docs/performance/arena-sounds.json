@@ -1,0 +1,563 @@
+{
+ "sampleRate": 48000,
+ "weapons": {
+  "vanguard": {
+   "near": {
+    "ms": 276,
+    "peakDb": -1,
+    "rmsDb": -21.4,
+    "centroidHz": 1586,
+    "lowShare": 0.3,
+    "nan": false
+   },
+   "far": {
+    "ms": 1264,
+    "peakDb": -1,
+    "rmsDb": -22.3,
+    "centroidHz": 602,
+    "lowShare": 0.19,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1460,
+    "peakDb": -1.9,
+    "rmsDb": -24.4,
+    "centroidHz": 928,
+    "lowShare": 0.16,
+    "nan": false,
+    "stereo": -0.01
+   }
+  },
+  "halcyon": {
+   "near": {
+    "ms": 334,
+    "peakDb": -1,
+    "rmsDb": -22.6,
+    "centroidHz": 1218,
+    "lowShare": 0.36,
+    "nan": false
+   },
+   "far": {
+    "ms": 1300,
+    "peakDb": -1,
+    "rmsDb": -22.2,
+    "centroidHz": 494,
+    "lowShare": 0.23,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1570,
+    "peakDb": -1.9,
+    "rmsDb": -24.1,
+    "centroidHz": 816,
+    "lowShare": 0.18,
+    "nan": false,
+    "stereo": 0.01
+   }
+  },
+  "wasp": {
+   "near": {
+    "ms": 173,
+    "peakDb": -1,
+    "rmsDb": -22.3,
+    "centroidHz": 2008,
+    "lowShare": 0.29,
+    "nan": false
+   },
+   "far": {
+    "ms": 1250,
+    "peakDb": -1,
+    "rmsDb": -26,
+    "centroidHz": 609,
+    "lowShare": 0.18,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1127,
+    "peakDb": -1.9,
+    "rmsDb": -26.2,
+    "centroidHz": 829,
+    "lowShare": 0.23,
+    "nan": false,
+    "stereo": -0.03
+   }
+  },
+  "kestrel": {
+   "near": {
+    "ms": 244,
+    "peakDb": -1,
+    "rmsDb": -22,
+    "centroidHz": 1649,
+    "lowShare": 0.16,
+    "nan": false
+   },
+   "far": {
+    "ms": 1270,
+    "peakDb": -1,
+    "rmsDb": -25.9,
+    "centroidHz": 618,
+    "lowShare": 0.19,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1237,
+    "peakDb": -1.9,
+    "rmsDb": -25.5,
+    "centroidHz": 799,
+    "lowShare": 0.21,
+    "nan": false,
+    "stereo": -0.03
+   }
+  },
+  "bastion": {
+   "near": {
+    "ms": 546,
+    "peakDb": -1,
+    "rmsDb": -21,
+    "centroidHz": 710,
+    "lowShare": 0.48,
+    "nan": false
+   },
+   "far": {
+    "ms": 1269,
+    "peakDb": -1,
+    "rmsDb": -21.1,
+    "centroidHz": 333,
+    "lowShare": 0.38,
+    "nan": false
+   },
+   "tail": {
+    "ms": 2010,
+    "peakDb": -1.9,
+    "rmsDb": -25.4,
+    "centroidHz": 814,
+    "lowShare": 0.22,
+    "nan": false,
+    "stereo": 0.02
+   }
+  },
+  "rampart": {
+   "near": {
+    "ms": 473,
+    "peakDb": -1,
+    "rmsDb": -23.2,
+    "centroidHz": 801,
+    "lowShare": 0.41,
+    "nan": false
+   },
+   "far": {
+    "ms": 1266,
+    "peakDb": -1,
+    "rmsDb": -21.3,
+    "centroidHz": 403,
+    "lowShare": 0.32,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1834,
+    "peakDb": -1.9,
+    "rmsDb": -23.7,
+    "centroidHz": 792,
+    "lowShare": 0.25,
+    "nan": false,
+    "stereo": 0
+   }
+  },
+  "longbow": {
+   "near": {
+    "ms": 606,
+    "peakDb": -1,
+    "rmsDb": -21.8,
+    "centroidHz": 776,
+    "lowShare": 0.6,
+    "nan": false
+   },
+   "far": {
+    "ms": 1297,
+    "peakDb": -1,
+    "rmsDb": -22.4,
+    "centroidHz": 374,
+    "lowShare": 0.38,
+    "nan": false
+   },
+   "tail": {
+    "ms": 2670,
+    "peakDb": -1.9,
+    "rmsDb": -26.7,
+    "centroidHz": 834,
+    "lowShare": 0.2,
+    "nan": false,
+    "stereo": -0.02
+   }
+  },
+  "talon": {
+   "near": {
+    "ms": 450,
+    "peakDb": -1,
+    "rmsDb": -22.8,
+    "centroidHz": 1039,
+    "lowShare": 0.43,
+    "nan": false
+   },
+   "far": {
+    "ms": 1274,
+    "peakDb": -1,
+    "rmsDb": -22.7,
+    "centroidHz": 399,
+    "lowShare": 0.31,
+    "nan": false
+   },
+   "tail": {
+    "ms": 2120,
+    "peakDb": -1.9,
+    "rmsDb": -25.2,
+    "centroidHz": 785,
+    "lowShare": 0.24,
+    "nan": false,
+    "stereo": -0.03
+   }
+  },
+  "anvil": {
+   "near": {
+    "ms": 365,
+    "peakDb": -1,
+    "rmsDb": -24.1,
+    "centroidHz": 1068,
+    "lowShare": 0.32,
+    "nan": false
+   },
+   "far": {
+    "ms": 1290,
+    "peakDb": -1,
+    "rmsDb": -22.1,
+    "centroidHz": 450,
+    "lowShare": 0.31,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1790,
+    "peakDb": -1.9,
+    "rmsDb": -24.9,
+    "centroidHz": 910,
+    "lowShare": 0.19,
+    "nan": false,
+    "stereo": 0.01
+   }
+  },
+  "sparrow": {
+   "near": {
+    "ms": 186,
+    "peakDb": -1,
+    "rmsDb": -20.7,
+    "centroidHz": 2302,
+    "lowShare": 0.1,
+    "nan": false
+   },
+   "far": {
+    "ms": 1298,
+    "peakDb": -1,
+    "rmsDb": -25.3,
+    "centroidHz": 777,
+    "lowShare": 0.13,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1082,
+    "peakDb": -1.9,
+    "rmsDb": -26.4,
+    "centroidHz": 881,
+    "lowShare": 0.21,
+    "nan": false,
+    "stereo": -0.01
+   }
+  },
+  "thorn": {
+   "near": {
+    "ms": 425,
+    "peakDb": -1,
+    "rmsDb": -22.2,
+    "centroidHz": 1135,
+    "lowShare": 0.43,
+    "nan": false
+   },
+   "far": {
+    "ms": 1299,
+    "peakDb": -1,
+    "rmsDb": -22,
+    "centroidHz": 508,
+    "lowShare": 0.26,
+    "nan": false
+   },
+   "tail": {
+    "ms": 1900,
+    "peakDb": -1.9,
+    "rmsDb": -23,
+    "centroidHz": 833,
+    "lowShare": 0.18,
+    "nan": false,
+    "stereo": 0.02
+   }
+  }
+ },
+ "distinct": {
+  "vanguard": {
+   "closest": "halcyon",
+   "spectralDistance": 0.31
+  },
+  "halcyon": {
+   "closest": "thorn",
+   "spectralDistance": 0.298
+  },
+  "wasp": {
+   "closest": "vanguard",
+   "spectralDistance": 0.59
+  },
+  "kestrel": {
+   "closest": "halcyon",
+   "spectralDistance": 0.42
+  },
+  "bastion": {
+   "closest": "rampart",
+   "spectralDistance": 0.281
+  },
+  "rampart": {
+   "closest": "talon",
+   "spectralDistance": 0.226
+  },
+  "longbow": {
+   "closest": "talon",
+   "spectralDistance": 0.311
+  },
+  "talon": {
+   "closest": "rampart",
+   "spectralDistance": 0.226
+  },
+  "anvil": {
+   "closest": "talon",
+   "spectralDistance": 0.306
+  },
+  "sparrow": {
+   "closest": "wasp",
+   "spectralDistance": 0.604
+  },
+  "thorn": {
+   "closest": "talon",
+   "spectralDistance": 0.274
+  }
+ },
+ "variants": {
+  "vanguard": {
+   "waveformCorrelation": 0.04,
+   "spectralDistance": 0.361
+  },
+  "halcyon": {
+   "waveformCorrelation": 0.01,
+   "spectralDistance": 0.533
+  },
+  "wasp": {
+   "waveformCorrelation": 0.08,
+   "spectralDistance": 0.588
+  },
+  "kestrel": {
+   "waveformCorrelation": 0.05,
+   "spectralDistance": 0.573
+  },
+  "bastion": {
+   "waveformCorrelation": 0.07,
+   "spectralDistance": 0.377
+  },
+  "rampart": {
+   "waveformCorrelation": 0.07,
+   "spectralDistance": 0.283
+  },
+  "longbow": {
+   "waveformCorrelation": 0.07,
+   "spectralDistance": 0.263
+  },
+  "talon": {
+   "waveformCorrelation": 0.05,
+   "spectralDistance": 0.464
+  },
+  "anvil": {
+   "waveformCorrelation": 0.06,
+   "spectralDistance": 0.253
+  },
+  "sparrow": {
+   "waveformCorrelation": 0.01,
+   "spectralDistance": 0.572
+  },
+  "thorn": {
+   "waveformCorrelation": 0.06,
+   "spectralDistance": 0.245
+  }
+ },
+ "others": {
+  "impact:concrete:0": {
+   "ms": 134,
+   "peakDb": -1.9,
+   "rmsDb": -24.3,
+   "centroidHz": 3656,
+   "lowShare": 0,
+   "nan": false
+  },
+  "impact:metal:0": {
+   "ms": 404,
+   "peakDb": -1.9,
+   "rmsDb": -19.8,
+   "centroidHz": 3357,
+   "lowShare": 0.01,
+   "nan": false
+  },
+  "impact:wood:0": {
+   "ms": 104,
+   "peakDb": -1.9,
+   "rmsDb": -18,
+   "centroidHz": 805,
+   "lowShare": 0.01,
+   "nan": false
+  },
+  "impact:dirt:0": {
+   "ms": 164,
+   "peakDb": -1.9,
+   "rmsDb": -20,
+   "centroidHz": 873,
+   "lowShare": 0.1,
+   "nan": false
+  },
+  "impact:flesh:0": {
+   "ms": 125,
+   "peakDb": -1.9,
+   "rmsDb": -20.2,
+   "centroidHz": 187,
+   "lowShare": 0.9,
+   "nan": false
+  },
+  "boom:near:0": {
+   "ms": 2344,
+   "peakDb": -1,
+   "rmsDb": -27.2,
+   "centroidHz": 197,
+   "lowShare": 0.87,
+   "nan": false
+  },
+  "boom:far:0": {
+   "ms": 2600,
+   "peakDb": -1,
+   "rmsDb": -20.1,
+   "centroidHz": 77,
+   "lowShare": 0.95,
+   "nan": false
+  },
+  "flyby:snap:0": {
+   "ms": 50,
+   "peakDb": -1.4,
+   "rmsDb": -20.3,
+   "centroidHz": 6609,
+   "lowShare": 0,
+   "nan": false
+  },
+  "flyby:whiz:0": {
+   "ms": 320,
+   "peakDb": -3.1,
+   "rmsDb": -18.5,
+   "centroidHz": 1275,
+   "lowShare": 0,
+   "nan": false
+  },
+  "mech:rifle:magout": {
+   "ms": 161,
+   "peakDb": -3.1,
+   "rmsDb": -22.7,
+   "centroidHz": 1654,
+   "lowShare": 0.04,
+   "nan": false
+  },
+  "mech:rifle:magin": {
+   "ms": 191,
+   "peakDb": -3.1,
+   "rmsDb": -22.1,
+   "centroidHz": 2014,
+   "lowShare": 0.1,
+   "nan": false
+  },
+  "mech:rifle:charge": {
+   "ms": 277,
+   "peakDb": -3.1,
+   "rmsDb": -22.6,
+   "centroidHz": 2488,
+   "lowShare": 0.02,
+   "nan": false
+  },
+  "mech:pump:pump": {
+   "ms": 351,
+   "peakDb": -3.1,
+   "rmsDb": -21.1,
+   "centroidHz": 1602,
+   "lowShare": 0.02,
+   "nan": false
+  },
+  "mech:bolt:boltaction": {
+   "ms": 494,
+   "peakDb": -3.1,
+   "rmsDb": -21.2,
+   "centroidHz": 2020,
+   "lowShare": 0,
+   "nan": false
+  },
+  "mech:pistol:dry": {
+   "ms": 48,
+   "peakDb": -3.1,
+   "rmsDb": -20.2,
+   "centroidHz": 4490,
+   "lowShare": 0.17,
+   "nan": false
+  },
+  "metalstep:0": {
+   "ms": 300,
+   "peakDb": -3.1,
+   "rmsDb": -20.6,
+   "centroidHz": 565,
+   "lowShare": 0.03,
+   "nan": false
+  },
+  "gear:0": {
+   "ms": 124,
+   "peakDb": -4.4,
+   "rmsDb": -24.1,
+   "centroidHz": 2717,
+   "lowShare": 0,
+   "nan": false
+  },
+  "land:0": {
+   "ms": 249,
+   "peakDb": -1.4,
+   "rmsDb": -20,
+   "centroidHz": 104,
+   "lowShare": 0.98,
+   "nan": false
+  },
+  "casing:0": {
+   "ms": 194,
+   "peakDb": -6,
+   "rmsDb": -23.9,
+   "centroidHz": 5645,
+   "lowShare": 0,
+   "nan": false
+  },
+  "whoosh:0": {
+   "ms": 300,
+   "peakDb": -4.4,
+   "rmsDb": -18.4,
+   "centroidHz": 2286,
+   "lowShare": 0,
+   "nan": false
+  }
+ },
+ "summary": {
+  "sounds": 53,
+  "maxPeakDb": -1,
+  "anyNaN": false,
+  "minWeaponDistance": 0.226,
+  "maxVariantCorrelation": 0.08
+ }
+}

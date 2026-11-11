@@ -32,7 +32,7 @@ import { forgetAssets } from '../world/assets';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
 import { Effects, Casings } from './scene/fx';
-import { sfx, setIndoor, startAmbience, stopArenaAmbience, prepareLoadout, setLoopVolumes, engine as soundEngine, type Ground } from './audio';
+import { sfx, setIndoor, startAmbience, stopArenaAmbience, prepareLoadout, prepareWeapon, forgetPrepared, setLoopVolumes, engine as soundEngine, type Ground } from './audio';
 import { QA_HOOKS } from '../qa';
 
 const EQUIP_IDS = [...EQUIPMENT_BY_ID.keys()];
@@ -40,7 +40,7 @@ const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3
 const scratch = { t: 0, box: null as { i: number } | null, normal: [0, 0, 0], ground: false };
 
 /** Leaving the arena: let go of its parsed models and textures (the HTTP cache keeps the files for next time). */
-export function releaseArena() { releaseWeapons(); releaseSoldiers(); forgetAssets('arena/'); clearMaterialCache(); soundEngine.shutdown(); soundEngine.setProbe(null); }
+export function releaseArena() { releaseWeapons(); releaseSoldiers(); forgetAssets('arena/'); clearMaterialCache(); soundEngine.shutdown(); soundEngine.setProbe(null); forgetPrepared(); }
 
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   const quality = useArena(s => s.settings.quality), q = ARENA_QUALITY[quality];
@@ -365,7 +365,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       seenNums.add(r.num);
       e.s.root.visible = !!visible; if (!visible) continue;
       if (t != null && !dead) r.track.sample(t, sample); // (for the footstep cadence below)
-      const w = WEAPONS[r.weapon]; if (w) e.s.setWeapon(w.id);
+      const w = WEAPONS[r.weapon]; if (w) { e.s.setWeapon(w.id); prepareWeapon(w.id); }
       const far = Math.hypot(r.pos.x - cam.position.x, r.pos.z - cam.position.z);
       e.s.update(dt, v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw, r.pitch, r.flags, dead, now - e.flashAt < 55, q.ik && far < 45);
       // Footsteps of others within earshot.

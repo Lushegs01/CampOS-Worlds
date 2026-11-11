@@ -34,20 +34,25 @@ export interface PlayOptions {
   direct?: boolean;
   /** A sound with the same key within 30 ms and 2 m is a duplicate (several pellets on one wall). */
   key?: string;
+  /**
+   * Per-emitter limit: at most `perEmitter` voices of this group for this emitter (one shooter's automatic fire);
+   * a new one retriggers the oldest instead of piling up (the overlap would be masked anyway).
+   */
+  emitter?: string; perEmitter?: number;
 }
 export interface Probe { occluded: boolean; indoor: number }
 
 const GROUP_CAP: Record<string, number> = { shot: 14, impact: 6, step: 6, casing: 3, mech: 4, explosions: 4, ui: 5, character: 4, environment: 4, flyby: 3, tail: 6, far: 6 };
 
-interface Voice { filter: BiquadFilterNode; panner: PannerNode | null; send: GainNode; out: AudioNode; bus: AudioNode | null; src: AudioBufferSourceNode | null; gain: GainNode | null; busy: boolean; priority: number; started: number; ends: number; group: string }
+interface Voice { filter: BiquadFilterNode; panner: PannerNode | null; send: GainNode; out: AudioNode; bus: AudioNode | null; sendBus: AudioNode | null; src: AudioBufferSourceNode | null; gain: GainNode | null; busy: boolean; priority: number; started: number; ends: number; group: string; emitter: string }
 interface Engine {
-  m: Mixer; ctx: AudioContext; buses: Record<Category, GainNode>; deafen: BiquadFilterNode; reverbIn: GainNode; limiter: DynamicsCompressorNode; spatial: Voice[]; flat: Voice[];
+  m: Mixer; ctx: AudioContext; buses: Record<Category, GainNode>; sends: Record<Category, GainNode>; deafen: BiquadFilterNode; reverbIn: GainNode; limiter: DynamicsCompressorNode; spatial: Voice[]; flat: Voice[];
   buffers: Map<string, AudioBuffer>; hrtf: boolean;
 }
 let engine: Engine | null = null, maxVoices = 32, hrtf = false;
 const volumes: Record<Category, number> = { weapons: 1, explosions: 1, environment: 1, footsteps: 1, character: 1, ui: 1 };
 let probe: ((at: Vec3) => Probe) | null = null, listenerIndoor = 0;
-export const stats = { played: 0, skipped: 0, stolen: 0, deduped: 0, culled: 0, peakVoices: 0, rendered: 0, renderMs: 0 };
+export const stats = { played: 0, skipped: 0, stolen: 0, deduped: 0, culled: 0, peakVoices: 0, rendered: 0, renderMs: 0, bufferBytes: 0 };
 
 /** Phones get fewer voices and plain stereo panning; desktops more voices and HRTF (front/back, above/below). */
 export function configure(opts: { voices: number; hrtf: boolean }) {
@@ -56,7 +61,7 @@ export function configure(opts: { voices: number; hrtf: boolean }) {
 }
 export function setVolumes(v: Partial<Record<Category, number>>) {
   Object.assign(volumes, v);
-  if (engine) for (const c of CATEGORIES) engine.buses[c].gain.setTargetAtTime(volumes[c], engine.ctx.currentTime, .05);
+  if (engine) for (const c of CATEGORIES) { engine.buses[c].gain.setTargetAtTime(volumes[c], engine.ctx.currentTime, .05); engine.sends[c].gain.setTargetAtTime(volumes[c], engine.ctx.currentTime, .05); }
 }
 /** The scene answers "is this point behind a wall from the listener, and under a roof?" (a few ray casts). */
 export function setProbe(fn: ((at: Vec3) => Probe) | null) { probe = fn; }
@@ -77,9 +82,10 @@ function impulse(ctx: AudioContext, seconds: number) {
   }
   return ir;
 }
-function voice(ctx: AudioContext, spatial: boolean, reverbIn: AudioNode): Voice {
+function voice(ctx: AudioContext, spatial: boolean): Voice {
   const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 20000; filter.Q.value = .5;
-  const send = ctx.createGain(); send.gain.value = 0; filter.connect(send).connect(reverbIn);
+  // The reverb send goes through its category's send level (connected at play time), so category volume applies to it too.
+  const send = ctx.createGain(); send.gain.value = 0; filter.connect(send);
   let panner: PannerNode | null = null, out: AudioNode = filter;
   if (spatial) {
     panner = ctx.createPanner(); panner.panningModel = hrtf ? 'HRTF' : 'equalpower';
@@ -87,7 +93,7 @@ function voice(ctx: AudioContext, spatial: boolean, reverbIn: AudioNode): Voice 
     panner.distanceModel = 'inverse'; panner.refDistance = 1; panner.rolloffFactor = 0;
     filter.connect(panner); out = panner;
   }
-  return { filter, panner, send, out, bus: null, src: null, gain: null, busy: false, priority: 0, started: 0, ends: 0, group: '' };
+  return { filter, panner, send, out, bus: null, sendBus: null, src: null, gain: null, busy: false, priority: 0, started: 0, ends: 0, group: '', emitter: '' };
 }
 function build(): Engine | null {
   const m = audio(); if (!m) return null;
@@ -100,30 +106,34 @@ function build(): Engine | null {
   deafen.connect(rumble).connect(glue).connect(limiter).connect(m.effects);
   const buses = Object.fromEntries(CATEGORIES.map(c => { const g = ctx.createGain(); g.gain.value = volumes[c]; g.connect(c === 'ui' ? rumble : deafen); return [c, g]; })) as Record<Category, GainNode>;
   const reverbIn = ctx.createGain(); reverbIn.gain.value = 1;
+  const sends = Object.fromEntries(CATEGORIES.map(c => { const g = ctx.createGain(); g.gain.value = volumes[c]; g.connect(reverbIn); return [c, g]; })) as Record<Category, GainNode>;
   try { const conv = ctx.createConvolver(); conv.buffer = impulse(ctx, maxVoices <= 20 ? .75 : 1.15); const wet = ctx.createGain(); wet.gain.value = .55; reverbIn.connect(conv).connect(wet).connect(deafen); } catch { /* no convolution: dry only */ }
   const spatialCount = Math.round(maxVoices * .75);
-  engine = { m, ctx, buses, deafen, reverbIn, limiter, spatial: Array.from({ length: spatialCount }, () => voice(ctx, true, reverbIn)), flat: Array.from({ length: maxVoices - spatialCount }, () => voice(ctx, false, reverbIn)), buffers: new Map(), hrtf };
+  engine = { m, ctx, buses, sends, deafen, reverbIn, limiter, spatial: Array.from({ length: spatialCount }, () => voice(ctx, true)), flat: Array.from({ length: maxVoices - spatialCount }, () => voice(ctx, false)), buffers: new Map(), hrtf };
   return engine;
 }
 function teardown() {
   if (!engine) return;
   for (const v of [...engine.spatial, ...engine.flat]) { try { v.src?.stop(); } catch { /* already stopped */ } v.out.disconnect(); v.filter.disconnect(); v.send.disconnect(); }
-  for (const b of Object.values(engine.buses)) b.disconnect();
+  for (const b of [...Object.values(engine.buses), ...Object.values(engine.sends)]) b.disconnect();
   engine.deafen.disconnect(); engine.reverbIn.disconnect(); engine.limiter.disconnect();
   engine = null;
 }
 /** Leaving the arena: stop everything and release the graph and rendered sounds. */
-export function shutdown() { teardown(); recent.length = 0; }
+export function shutdown() { teardown(); recent.length = 0; stats.bufferBytes = 0; }
 
 /** The rendered buffer for a sound name (rendered on first use, then cached for this context). */
 export function buffer(name: string): AudioBuffer | null {
   const e = build(); if (!e) return null;
   let b = e.buffers.get(name);
   if (!b) {
-    const t0 = performance.now(), r = render(name, e.ctx.sampleRate); if (!r) return null;
-    b = e.ctx.createBuffer(r.channels.length, Math.max(...r.channels.map(c => c.length)), e.ctx.sampleRate);
+    // Layers with nothing above a few kilohertz (outdoor tails, distant fire, distant blasts, smoke) are rendered at
+    // half the sample rate: half the memory and rendering time, no audible difference.
+    const rate = /^(gun:[a-z]+:(tail|far)|boom:far|hiss)/.test(name) ? Math.round(e.ctx.sampleRate / 2) : e.ctx.sampleRate;
+    const t0 = performance.now(), r = render(name, rate); if (!r) return null;
+    b = e.ctx.createBuffer(r.channels.length, Math.max(...r.channels.map(c => c.length)), rate);
     r.channels.forEach((c, i) => b!.copyToChannel(c as Float32Array<ArrayBuffer>, i));
-    e.buffers.set(name, b); stats.rendered++; stats.renderMs += performance.now() - t0;
+    e.buffers.set(name, b); stats.rendered++; stats.renderMs += performance.now() - t0; stats.bufferBytes += b.length * b.numberOfChannels * 4;
   }
   return b;
 }
@@ -176,14 +186,20 @@ export function play(name: string, o: PlayOptions): boolean {
   }
   // Distance makes a sound less important (a far shot gives way to a near footstep).
   const priority = o.priority - (o.at ? Math.min(40, d * .35) : 0);
-  if (busy(e, group) >= (GROUP_CAP[group] ?? 8)) {
+  let reuse: Voice | null = null;
+  if (o.emitter) {
+    // The same emitter's earlier sounds of this group: retrigger the oldest once over its limit.
+    const mine = [...e.spatial, ...e.flat].filter(v => v.busy && v.group === group && v.emitter === o.emitter).sort((a, b) => a.started - b.started);
+    if (mine.length >= (o.perEmitter ?? 2)) { reuse = mine[0]; stop(reuse); }
+  }
+  if (!reuse && busy(e, group) >= (GROUP_CAP[group] ?? 8)) {
     // Over its group's cap: replace the least important voice of the same group, or skip.
     const pool = [...e.spatial, ...e.flat].filter(v => v.busy && v.group === group).sort((a, b) => a.priority - b.priority || a.started - b.started)[0];
     if (!pool || pool.priority >= priority) { stats.skipped++; return false; }
     stop(pool); stats.stolen++;
   }
   const b = buffer(name); if (!b) return false;
-  const v = claim(e, !!o.at, priority, group); if (!v) { stats.skipped++; return false; }
+  const v = reuse && !!reuse.panner === !!o.at ? reuse : claim(e, !!o.at, priority, group); if (!v) { stats.skipped++; return false; }
   if (o.at && !o.direct) prb = probe?.(o.at) ?? null;
   // Level and colour from distance, occlusion and the speed of sound.
   let level = (o.gain ?? 1) * (o.at ? distanceGain(d, o.ref ?? 4, o.rolloff ?? 1) : 1);
@@ -196,15 +212,16 @@ export function play(name: string, o: PlayOptions): boolean {
   const room = Math.max(listenerIndoor, prb?.indoor ?? 0);
   v.send.gain.setValueAtTime(Math.min(.9, (o.send ?? .06) + room * .4), start);
   if (v.bus !== e.buses[o.cat]) { if (v.bus) v.out.disconnect(v.bus); v.out.connect(e.buses[o.cat]); v.bus = e.buses[o.cat]; }
+  if (v.sendBus !== e.sends[o.cat]) { if (v.sendBus) v.send.disconnect(v.sendBus); v.send.connect(e.sends[o.cat]); v.sendBus = e.sends[o.cat]; }
   const src = e.ctx.createBufferSource(), gain = e.ctx.createGain();
   src.buffer = b; src.playbackRate.value = o.rate ?? 1; gain.gain.value = level;
   src.connect(gain).connect(v.filter);
-  v.busy = true; v.src = src; v.gain = gain; v.priority = priority; v.group = group; v.started = now; v.ends = start + b.duration / (o.rate ?? 1);
+  v.busy = true; v.src = src; v.gain = gain; v.priority = priority; v.group = group; v.emitter = o.emitter ?? ''; v.started = now; v.ends = start + b.duration / (o.rate ?? 1);
   src.onended = () => { if (v.src === src) release(v); src.disconnect(); gain.disconnect(); };
   src.start(start);
   stats.played++;
   const active = e.spatial.filter(x => x.busy).length + e.flat.filter(x => x.busy).length; if (active > stats.peakVoices) stats.peakVoices = active;
-  if (QA_HOOKS) { log.push(`${name}@${o.cat}`); if (log.length > 400) log.shift(); }
+  if (QA_HOOKS) { log.push(`${name}@${o.cat}#${level.toFixed(4)}${prb?.occluded ? '~occluded' : ''}`); if (log.length > 400) log.shift(); }
   return true;
 }
 const log: string[] = [];
@@ -237,4 +254,20 @@ export function tones(notes: [number, number, number?][], gain = .14, type: Osci
 }
 export function contextState() { return engine?.ctx.state ?? audio()?.ctx.state ?? 'none'; }
 export function activeVoices() { return engine ? engine.spatial.filter(v => v.busy).length + engine.flat.filter(v => v.busy).length : 0; }
-if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arenaSound = () => ({ state: contextState(), voices: activeVoices(), max: maxVoices, hrtf, ...stats, volumes: { ...volumes }, recent: log.slice(-60) });
+if (QA_HOOKS && typeof window !== 'undefined') {
+  (window as unknown as Record<string, unknown>).__arenaSound = () => ({ state: contextState(), voices: activeVoices(), max: maxVoices, hrtf, ...stats, volumes: { ...volumes }, recent: log.slice(-60) });
+  // The game's final output (after the player's master volume): peak, clipped samples and loudness while running.
+  let tap: { an: AnalyserNode; buf: Float32Array<ArrayBuffer>; timer: ReturnType<typeof setInterval>; peak: number; clipped: number; sum: number; n: number; voices: number } | null = null;
+  (window as unknown as Record<string, unknown>).__arenaSoundTap = {
+    /** `where`: 'master' (everything the player hears, campus ambience included) or 'arena' (the arena's own mix). */
+    start(where: 'master' | 'arena' = 'master') {
+      const e = build(); if (!e) return false;
+      const an = e.ctx.createAnalyser(); an.fftSize = 2048; (where === 'arena' ? e.limiter : e.m.master).connect(an);
+      const t = { an, buf: new Float32Array(2048), timer: setInterval(() => { an.getFloatTimeDomainData(t.buf); for (const x of t.buf) { const a = Math.abs(x); if (a > t.peak) t.peak = a; if (a >= .999) t.clipped++; t.sum += x * x; t.n++; } t.voices = Math.max(t.voices, activeVoices()); }, 20), peak: 0, clipped: 0, sum: 0, n: 0, voices: 0 };
+      tap = t; return true;
+    },
+    stop() { if (!tap) return null; clearInterval(tap.timer); tap.an.disconnect(); const r = { peak: tap.peak, peakDb: 20 * Math.log10(tap.peak || 1e-9), clipped: tap.clipped, rmsDb: 10 * Math.log10(tap.sum / Math.max(1, tap.n) || 1e-12), maxVoices: tap.voices }; tap = null; return r; },
+  };
+  (window as unknown as Record<string, unknown>).__arenaSoundProbe = (at: Vec3) => probe?.(at) ?? null;
+  (window as unknown as Record<string, unknown>).__arenaSoundSuspend = () => build()?.ctx.suspend();
+}

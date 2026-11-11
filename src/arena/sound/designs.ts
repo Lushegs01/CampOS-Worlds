@@ -103,14 +103,14 @@ function gunTail(sr: number, g: GunProfile, seed: number): Float32Array[] {
 }
 function gunFar(sr: number, g: GunProfile, seed: number): Float32Array {
   // Distance strips the crack and the click: a dull report, a low thump and a rolling rumble.
-  const len = 1.8, out = new Float32Array(Math.round(sr * len));
+  const len = 1.3, out = new Float32Array(Math.round(sr * len));
   // The distant "pop": the report's mid-band survives (air takes the highs), centred lower for bigger calibres.
   const pop = Math.max(320, g.report.f * .42);
   const report = noiseBurst(sr, .5, seed, t => ad(t, .003, g.report.decay * 2.2), [new Biquad(sr, 'lp', 1500, .8), new Biquad(sr, 'peak', pop, 1, 10), new Biquad(sr, 'hp', 140, .7)]);
   mixInto(out, report, sr, 0, 4.5);
   mixInto(out, thump(sr, .6, 80, 36, .1, g.body.decay * 1.6, 1.4), sr, .004, .25 * g.body.gain);
   const r = rng(seed + 9), rate = 3 + Math.abs(r()) * 3;
-  const rumble = noiseBurst(sr, len, seed + 5, t => ad(t, .06, .5) * (.6 + .4 * Math.sin(t * rate * 6.283)), [new Biquad(sr, 'lp', 600, .7), new Biquad(sr, 'hp', 90, .7)]);
+  const rumble = noiseBurst(sr, len, seed + 5, t => ad(t, .06, .38) * (.6 + .4 * Math.sin(t * rate * 6.283)), [new Biquad(sr, 'lp', 600, .7), new Biquad(sr, 'hp', 90, .7)]);
   mixInto(out, rumble, sr, .05, 1.6);
   return trim(finish(out, sr), sr);
 }

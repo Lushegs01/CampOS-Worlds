@@ -33,7 +33,7 @@ export default function DeployScreen() {
   const filePct = d.files.total ? Math.min(100, Math.round(d.files.done / d.files.total * 100)) : 0;
   const kind = match?.kind === 'training' ? 'Training' : match?.kind === 'private' ? `Private match · ${match.code}` : 'Quick Play';
   const copy = async () => { try { await navigator.clipboard.writeText(JSON.stringify(recentDeployments().slice(-3), null, 1)); setCopied(true); } catch { setCopied(false); } };
-  return <div className="ar-deploy" data-deploy-overlay data-stage={d.stage} role="dialog" aria-modal="true" aria-labelledby="ar-deploy-title" aria-describedby="ar-deploy-status">
+  return <div className="ar-deploy ar-scene-loading" data-deploy-overlay data-stage={d.stage} role="dialog" aria-modal="true" aria-labelledby="ar-deploy-title" aria-describedby="ar-deploy-status">
     {match && <MapPlan mapId={match.map} zones={match.mode === 'dom'} className="ar-deploy-plan" />}
     <div className="ar-deploy-card">
       <header>

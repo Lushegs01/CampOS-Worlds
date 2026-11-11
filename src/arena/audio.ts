@@ -5,6 +5,7 @@ import { loop, loadSounds, play as playRecorded, ear, audio, type Loop } from '.
 import * as engine from './sound/engine';
 import { profileOf, GUNS, BY_CLASS, type Surface } from './sound/designs';
 import { WEAPON_BY_ID } from '../../shared/arena/weapons.mjs';
+import { QA_HOOKS } from '../qa';
 
 export type Ground = 'concrete' | 'metal' | 'wood' | 'sand' | 'brick' | 'dirt' | 'foliage';
 type V = [number, number, number];
@@ -20,8 +21,16 @@ const dist = (at: V) => Math.hypot(at[0] - ear.x, at[1] - ear.y, at[2] - ear.z);
 const gunId = (id: string) => (GUNS[id] ? id : BY_CLASS[id] ?? 'vanguard');
 const family = (id: string) => (WEAPON_BY_ID.get(id)?.fire === 'melee' ? 'blade' : profileOf(gunId(id)).family);
 
+const prepared = new Set<string>();
+/** Another player was seen holding `id`: render its shots in idle time, before the first one is heard. */
+export function prepareWeapon(id: string) {
+  if (prepared.has(id) || WEAPON_BY_ID.get(id)?.fire === 'melee') return; prepared.add(id);
+  const g = gunId(id); engine.prepare([0, 1, 2, 3].map(v => `gun:${g}:near:${v}`).concat(`gun:${g}:far:0`, `gun:${g}:far:1`, `gun:${g}:tail:0`, `gun:${g}:tail:1`));
+}
+export function forgetPrepared() { prepared.clear(); }
 // The sounds the player's own loadout needs, rendered ahead of time (idle slices) at deployment.
 export function prepareLoadout(ids: string[]) {
+  ids.forEach(id => prepared.add(id));
   const names: string[] = [];
   for (const raw of ids) {
     if (WEAPON_BY_ID.get(raw)?.fire === 'melee') { names.push('whoosh:0', 'whoosh:1'); continue; }
@@ -46,23 +55,26 @@ export const sfx = {
   gun: (weapon: string, at?: V, shooter = 0) => {
     const id = gunId(weapon), g = profileOf(id);
     if (!at) {
-      engine.play(`gun:${id}:near:${variant('own' + id, 4)}`, { cat: 'weapons', gain: .7 * g.loud, priority: 100, rate: jitter(.015), direct: true, send: .08, group: 'shot' });
-      engine.play(`gun:${id}:tail:${variant('ownt' + id, 2)}`, { cat: 'weapons', gain: g.tail.gain * 1.05, priority: 60, direct: true, send: .02, group: 'tail' });
+      engine.play(`gun:${id}:near:${variant('own' + id, 4)}`, { cat: 'weapons', gain: .7 * g.loud, priority: 100, rate: jitter(.015), direct: true, send: .08, group: 'shot', emitter: 'own', perEmitter: 3 });
+      engine.play(`gun:${id}:tail:${variant('ownt' + id, 2)}`, { cat: 'weapons', gain: g.tail.gain * 1.05, priority: 60, direct: true, send: .02, group: 'tail', emitter: 'own', perEmitter: 1 });
       engine.duck(.55, .2);
       return;
     }
     const d = dist(at);
     // Near layer fades out between 25 and 75 m while the distant layer fades in.
     const far = Math.min(1, Math.max(0, (d - 25) / 50));
-    if (far < 1) engine.play(`gun:${id}:near:${variant('n' + shooter, 4)}`, { cat: 'weapons', at, gain: .95 * g.loud * (1 - far), priority: 86, ref: 5, rolloff: .9, rate: jitter(.02), group: 'shot', send: .07 });
+    const em = 's' + shooter;
+    if (far < 1) engine.play(`gun:${id}:near:${variant('n' + shooter, 4)}`, { cat: 'weapons', at, gain: .95 * g.loud * (1 - far), priority: 86, ref: 5, rolloff: .9, rate: jitter(.02), group: 'shot', send: .07, emitter: em, perEmitter: 2 });
     if (far > 0 || d > 15) {
       // A busy distant automatic weapon: one rumble per ~70 ms is enough (the rest would only smear).
       const last = shotsBy.get(shooter) ?? 0, now = performance.now();
       if (far > .3 && now - last < 70) return;
       shotsBy.set(shooter, now); if (shotsBy.size > 64) shotsBy = new Map([...shotsBy].slice(-32));
-      engine.play(`gun:${id}:far:${variant('f' + shooter, 2)}`, { cat: 'weapons', at, gain: g.far * .75 * Math.max(far, .25), priority: 72, ref: 25, rolloff: .55, group: 'far', send: .04 });
+      // Fades in between 15 and 40 m, then only falls with distance (its own gentle curve: distant fire carries).
+      const fadeIn = Math.min(1, Math.max(.2, (d - 15) / 25));
+      engine.play(`gun:${id}:far:${variant('f' + shooter, 2)}`, { cat: 'weapons', at, gain: g.far * .75 * fadeIn, priority: 72, ref: 30, rolloff: .5, group: 'far', send: .04, emitter: em, perEmitter: 1 });
     }
-    if (d < 60) engine.play(`gun:${id}:tail:${variant('t' + shooter, 2)}`, { cat: 'weapons', at, gain: g.tail.gain * .9, priority: 55, ref: 8, rolloff: .7, group: 'tail', send: .02 });
+    if (d < 60) engine.play(`gun:${id}:tail:${variant('t' + shooter, 2)}`, { cat: 'weapons', at, gain: g.tail.gain * .9, priority: 55, ref: 8, rolloff: .7, group: 'tail', send: .02, emitter: em, perEmitter: 1 });
   },
   /** A round passing close by: a supersonic snap (rifles) or a whiz (pistol and SMG rounds). */
   flyby: (weapon: string, from: V, to: V) => {
@@ -146,3 +158,6 @@ const audioTime = () => audio()?.ctx.currentTime ?? 0;
 /** Outdoor wind while a match is open (the campus' recorded loop). */
 export function startAmbience() { loadSounds(); wind ??= loop('wind', { gain: .2 * envVolume(), bus: 'ambience' }); }
 export function stopArenaAmbience() { wind?.stop(.5); wind = null; }
+
+// QA builds only: the sound API for the browser audio suite (tests/browser-arena-audio.mjs).
+if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arenaSfx = sfx;
