@@ -1,0 +1,118 @@
+{
+  "started": "2026-11-11T22:20:16.495Z",
+  "cycles": [
+    {
+      "label": "lobby, before any match",
+      "heapMB": 23.7,
+      "nodes": 1897,
+      "listeners": 32,
+      "jsListeners": 286,
+      "voices": 0,
+      "bufferKB": 0
+    },
+    {
+      "label": "after match 1",
+      "heapMB": 29.4,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 294,
+      "voices": 0,
+      "bufferKB": 4095,
+      "deployMs": 6242,
+      "inMatch": {
+        "voices": 0,
+        "gl": {
+          "calls": 64,
+          "textures": 71,
+          "geometries": 43
+        }
+      }
+    },
+    {
+      "label": "after match 2",
+      "heapMB": 30.3,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 294,
+      "voices": 0,
+      "bufferKB": 4338,
+      "deployMs": 6635,
+      "inMatch": {
+        "voices": 0,
+        "gl": {
+          "calls": 77,
+          "textures": 143,
+          "geometries": 72
+        }
+      }
+    },
+    {
+      "label": "after match 3",
+      "heapMB": 30.7,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 294,
+      "voices": 0,
+      "bufferKB": 6140,
+      "deployMs": 7299,
+      "inMatch": {
+        "voices": 5,
+        "gl": {
+          "calls": 87,
+          "textures": 155,
+          "geometries": 76
+        }
+      }
+    },
+    {
+      "label": "after match 4",
+      "heapMB": 30.9,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 321,
+      "voices": 0,
+      "bufferKB": 6871,
+      "deployMs": 7163,
+      "inMatch": {
+        "voices": 5,
+        "gl": {
+          "calls": 79,
+          "textures": 159,
+          "geometries": 77
+        }
+      }
+    },
+    {
+      "label": "after match 5",
+      "heapMB": 31,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 294,
+      "voices": 0,
+      "bufferKB": 6893,
+      "deployMs": 7418,
+      "inMatch": {
+        "voices": 0,
+        "gl": {
+          "calls": 100,
+          "textures": 147,
+          "geometries": 73
+        }
+      }
+    },
+    {
+      "label": "campus, after leaving the arena",
+      "heapMB": 28.7,
+      "nodes": 1910,
+      "listeners": 31,
+      "jsListeners": 280,
+      "voices": 0,
+      "bufferKB": 0
+    }
+  ],
+  "renderer": "SwiftShader (software WebGL)",
+  "reentryDeployMs": 5879,
+  "heapGrowthMB": 1.6,
+  "finished": "2026-11-11T22:22:14.608Z",
+  "passed": true
+}

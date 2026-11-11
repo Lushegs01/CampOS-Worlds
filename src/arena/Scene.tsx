@@ -61,6 +61,10 @@ function releaseGpu(...roots: THREE.Object3D[]) {
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
 }
 
+// Module-level (not created inside the scene): a long-lived callback made inside the component would keep its whole
+// closure context — renderer and scene included — alive after the match.
+const environmentLevel = () => useArena.getState().settings.volEnvironment, footstepLevel = () => useArena.getState().settings.volFootsteps;
+
 /** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
 const matchTier = { id: '', mobile: false };
 function tierFor(matchId: string, mobile: boolean) { if (matchTier.id !== matchId) { matchTier.id = matchId; matchTier.mobile = mobile; } return matchTier.mobile; }
@@ -168,7 +172,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => {
     const apply = (st: typeof settings) => soundEngine.setVolumes({ weapons: st.volWeapons, explosions: st.volExplosions, environment: st.volEnvironment, footsteps: st.volFootsteps, character: st.volCharacter, ui: st.volUi });
     apply(useArena.getState().settings);
-    setLoopVolumes(() => useArena.getState().settings.volEnvironment, () => useArena.getState().settings.volFootsteps);
+    setLoopVolumes(environmentLevel, footstepLevel);
     return useArena.subscribe((a, b) => { if (a.settings !== b.settings) apply(a.settings); });
   }, []);
   // Is a sound behind a wall from the listener, and is its source under a roof? (Two ray casts in the collision world.)
@@ -337,6 +341,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), stepDist = useRef(0), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
   useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
   useEffect(() => { gl.info.autoReset = false; if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaGL = gl; return () => { gl.info.autoReset = true; }; }, [gl]);
+  // QA builds: the inspection hooks hold this match's renderer, scene and assets; drop them with the scene.
+  useEffect(() => () => { if (QA_HOOKS) for (const k of ['__arenaGL', '__arenaDebug', '__arenaBreakdown', '__arenaStats']) delete (window as unknown as Record<string, unknown>)[k]; }, []);
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
     frameNo.current++;

@@ -1,5 +1,5 @@
 {
-  "started": "2026-11-11T21:21:45.034Z",
+  "started": "2026-11-11T22:25:39.097Z",
   "checks": [
     {
       "name": "desktop: drag, resize, restyle the crosshair, hide an element and save",
@@ -48,5 +48,5 @@
     }
   ],
   "ok": true,
-  "finished": "2026-11-11T21:24:24.288Z"
+  "finished": "2026-11-11T22:28:14.948Z"
 }
