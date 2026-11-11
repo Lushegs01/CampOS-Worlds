@@ -21,6 +21,7 @@ import { syncFromAccount } from './hudLayout';
 import { controls, buttons, axes } from './input';
 import { sfx } from './audio';
 import { QA_HOOKS } from '../qa';
+import * as deploy from './deploy';
 
 type Sim = ReturnType<typeof spawnState>;
 type Cmd = { seq: number; b: number; mx: number; mz: number; yaw: number; pitch: number };
@@ -52,6 +53,8 @@ export const live = {
   kick: 0, shake: 0, firedAt: 0, reloadStart: 0, reloadTotal: 0, rtt: 0, loadout: null as Loadout | null, perks: new Set<string>(),
   /** Auto-fire is holding the trigger this tick (and why not, for the QA hooks). */
   autoFiring: false, autoReason: '',
+  /** The scene for the current match has what it needs to draw and play (sent to the server as 'loaded'). */
+  sceneReady: false, loadedSent: '', haveState: false, syncRetries: 0,
 };
 const fxListeners = new Set<(f: Fx) => void>();
 export function onFx(fn: (f: Fx) => void) { fxListeners.add(fn); return () => { fxListeners.delete(fn); }; }
@@ -59,6 +62,9 @@ const fx = (f: Fx) => { for (const l of fxListeners) l(f); };
 const banner = useBanners.getState().push;
 
 let socket: WebSocket | null = null, stopped = true, retry = 0, retryTimer: ReturnType<typeof setTimeout> | undefined, pingTimer: ReturnType<typeof setInterval> | undefined;
+let helloTimer: ReturnType<typeof setTimeout> | undefined, watchTimer: ReturnType<typeof setInterval> | undefined;
+/** What the client supports: the server holds it out of live combat until its scene has loaded, and takes its deployment timings. */
+const CAPS = ['loadgate', 'diag'];
 let ref = 0;
 const replies = new Map<number, (m: Record<string, unknown>) => void>();
 const REJOIN = 'campos-arena-rejoin';
@@ -83,6 +89,7 @@ export function request(data: Record<string, unknown>, timeout = 8000): Promise<
 
 export function connect() {
   stopped = false; clearTimeout(retryTimer);
+  clearInterval(watchTimer); watchTimer = setInterval(deploy.watchdog, 1000);
   if (socket && socket.readyState < 2) return;
   const a = useArena.getState(); a.set({ status: 'connecting', error: '' });
   let ws: WebSocket;
@@ -93,12 +100,16 @@ export function connect() {
     const access = await accountAccess().catch(() => null);
     if (socket !== ws) return;
     const g = useGame.getState();
-    ws.send(JSON.stringify({ t: 'hello', name: g.name, avatar: g.avatar, ...(access ? { access } : {}) }));
+    ws.send(JSON.stringify({ t: 'hello', name: g.name, avatar: g.avatar, caps: CAPS, ...(access ? { access } : {}) }));
+    // No answer to hello (a stuck server, a half-open connection): close and reconnect rather than wait forever.
+    clearTimeout(helloTimer);
+    helloTimer = setTimeout(() => { if (socket === ws && useArena.getState().status === 'connecting') { useArena.getState().set({ error: 'The arena is taking a while to answer. Reconnecting…' }); ws.close(); } }, 12000);
   };
   ws.onmessage = e => { if (socket !== ws) return; let m; try { m = JSON.parse(e.data); } catch { return; } receive(m); };
   ws.onclose = e => {
     if (socket !== ws) return;
-    socket = null; clearInterval(pingTimer);
+    socket = null; clearInterval(pingTimer); clearTimeout(helloTimer);
+    deploy.lost();
     const s = useArena.getState();
     if (e.code === 4004) { s.set({ status: 'replaced', error: 'Combat Arena opened in another window.' }); return; }
     s.set({ status: 'offline' });
@@ -109,7 +120,8 @@ export function connect() {
   ws.onerror = () => {};
 }
 export function disconnect() {
-  stopped = true; clearTimeout(retryTimer); clearInterval(pingTimer);
+  stopped = true; clearTimeout(retryTimer); clearInterval(pingTimer); clearTimeout(helloTimer); clearInterval(watchTimer);
+  deploy.reset();
   if (socket) { raw({ t: 'leave' }); socket.close(); socket = null; }
   resetMatch(); useArena.getState().set({ status: 'idle' });
 }
@@ -119,7 +131,7 @@ export function pendingRejoin(): { match: string; key: string } | null {
 function saveRejoin(match: string | null, key = '') { try { if (match) sessionStorage.setItem(REJOIN, JSON.stringify({ match, key, at: Date.now() })); else sessionStorage.removeItem(REJOIN); } catch { /* storage denied */ } }
 
 function resetMatch() {
-  Object.assign(live, { sim: null, ctx: null, alive: false, life: 0, num: 0, pending: [], outgoing: [], acc: 0, radar: [], reconUntil: 0, enemyReconUntil: 0, blindUntil: 0 });
+  Object.assign(live, { sim: null, ctx: null, alive: false, life: 0, num: 0, pending: [], outgoing: [], acc: 0, radar: [], reconUntil: 0, enemyReconUntil: 0, blindUntil: 0, sceneReady: false, loadedSent: '', haveState: false, syncRetries: 0 });
   live.remotes.clear(); live.grenades.clear(); live.smokes = []; live.supplies = []; live.strikes = []; live.playback.reset();
   useArena.getState().set({ match: null, you: null, feed: [], board: {}, hud: emptyHud(), killedBy: null, scoreboard: false });
 }
@@ -129,7 +141,8 @@ function receive(m: Record<string, any>) {
   const a = useArena.getState();
   switch (m.t) {
     case 'ready': {
-      retry = 0;
+      retry = 0; clearTimeout(helloTimer);
+      a.set({ notice: m.notice === 'accounts-unavailable' ? 'Your account could not be checked just now, so you are playing as a guest: progress from these matches is not saved. Reopen the arena to try again.' : '', error: a.error.startsWith('The arena is taking') ? '' : a.error });
       a.set({ status: 'ready', me: { name: m.name, verified: m.verified, handle: m.handle, level: m.level, xp: m.xp, emblem: m.emblem, weaponLevels: m.weaponLevels ?? {} }, online: m.online, owned: Array.isArray(m.owned) ? m.owned : [] });
       if (m.verified) void syncFromAccount();
       if (m.verified && Array.isArray(m.loadouts) && m.loadouts.length) a.set({ loadouts: m.loadouts, loadout: m.loadout });
@@ -137,7 +150,13 @@ function receive(m: Record<string, any>) {
       clearInterval(pingTimer); pingTimer = setInterval(() => raw({ t: 'ping', n: performance.now() }), 2000);
       // Back after a dropped connection (or a reload) during a match: take our place again.
       const back = a.match ? { match: a.match.id, key: a.you!.key } : pendingRejoin();
-      if (back) void request({ t: 'rejoin', ...back }).then(r => { if (!r.ok) { saveRejoin(null); if (useArena.getState().phase === 'match') { resetMatch(); useArena.getState().set({ phase: 'lobby', error: String(r.reason ?? '') }); } } else banner({ text: 'Reconnected', tone: 'good', ms: 1800 }); });
+      if (back) {
+        const cid = deploy.useDeploy.getState().stage === 'recovering' ? deploy.useDeploy.getState().cid : null;
+        void request({ t: 'rejoin', ...back, ...(cid ? { cid } : {}) }).then(r => {
+          if (!r.ok) { saveRejoin(null); deploy.reset(); if (useArena.getState().phase === 'match') { resetMatch(); useArena.getState().set({ phase: 'lobby', error: String(r.reason ?? '') }); } }
+          else banner({ text: 'Reconnected', tone: 'good', ms: 1800 });
+        });
+      } else if (deploy.useDeploy.getState().stage === 'recovering') deploy.fail('The connection dropped before the match could start.', 'request');
       return;
     }
     case 'reply': { const r = replies.get(m.ref); if (r) { replies.delete(m.ref); r(m); } return; }
@@ -150,7 +169,7 @@ function receive(m: Record<string, any>) {
       banner({ text: 'Loadout changed', sub: 'A weapon in it is no longer yours; a free loadout is used from your next deployment.', tone: 'info', ms: 4200 });
       return;
     }
-    case 'match': return enterMatch(m.match, m.you, m.loadout, !!m.rejoined);
+    case 'match': enterMatch(m.match, m.you, m.loadout, !!m.rejoined); if (live.sceneReady) sceneLoaded(true); return;
     case 's': return snapshot(m);
     case 'e': for (const ev of m.l) event(ev); return;
     case 'record': a.set({ record: { state: m.state, reason: m.reason ?? null } }); return;
@@ -164,7 +183,11 @@ function receive(m: Record<string, any>) {
 
 function enterMatch(view: MatchView, you: { num: number; team: number; key: string }, loadout: Loadout, rejoined: boolean) {
   const a = useArena.getState();
-  if (!rejoined || a.match?.id !== view.id) { resetMatch(); a.set({ result: null, progress: null, record: null }); }
+  const same = rejoined && a.match?.id === view.id;
+  if (!same) { resetMatch(); a.set({ result: null, progress: null, record: null }); }
+  // Deployment: assigned to a match. After a reconnect to the same match, carry on from where it stood.
+  if (same && deploy.useDeploy.getState().stage === 'recovering') deploy.resumed(); else if (!same || deploy.useDeploy.getState().stage !== 'deployed') deploy.assigned();
+  live.loadedSent = ''; live.haveState = false; live.syncRetries = 0;
   const map = MAP_BY_ID.get(view.map)!;
   live.world = createWorld(map.boxes, map.bounds); live.mapId = view.map; live.num = you.num; live.team = you.team;
   live.loadout = loadout; live.perks = new Set(loadout.perks);
@@ -216,7 +239,10 @@ function snapshot(m: Record<string, any>) {
       live.prev.x -= ex; live.prev.y -= ey; live.prev.z -= ez;
     }
     live.alive = me.alive;
+    live.haveState = true;
   }
+  // Deployed: the scene is ready and the server has given us our own state (spawned, or dead and waiting to respawn).
+  if (live.sceneReady && live.haveState && live.sim) deploy.deployed();
   // ---- interface (React) values, only when they change
   const prev = a.hud, s = live.sim;
   const w = s ? weaponOf(s) : null;
@@ -240,6 +266,7 @@ function event(ev: Record<string, any>) {
   const a = useArena.getState(), now = performance.now(), mine = (n: number | null) => n === live.num, team = (n: number | null) => teamOf(n ?? -1);
   switch (ev.k) {
     case 'spawn': {
+      live.haveState = true;
       live.loadout = ev.loadout; live.perks = new Set(ev.loadout.perks); if (live.ctx) live.ctx.perks = live.perks;
       live.sim = spawnState({ x: ev.x, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true;
       live.pending = []; live.smooth = { x: 0, y: 0, z: 0 }; live.prev = { x: ev.x, y: eyeOf(live.sim), z: ev.z }; controls.yaw = ev.yaw; controls.pitch = 0;
@@ -271,7 +298,11 @@ function event(ev: Record<string, any>) {
         fx({ type: 'impact', at: to, normal, flesh: !!e[3], mat });
       }
       fx({ type: 'muzzle', num: ev.num });
-      if (w) sfx.gun(w.sound, [from[0], from[1], from[2]]);
+      if (w) {
+        sfx.gun(w.id, [from[0], from[1], from[2]], ev.num);
+        // A round from the other team passing close: the snap or whiz that tells you you are being shot at.
+        if (team(ev.num) !== live.team && ev.e[0]) sfx.flyby(w.id, from as [number, number, number], [ev.e[0][0] / 100, ev.e[0][1] / 100, ev.e[0][2] / 100]);
+      }
       return;
     }
     case 'act': {
@@ -313,7 +344,7 @@ function event(ev: Record<string, any>) {
       sfx.beep(true); return;
     }
     case 'supply': live.supplies.push({ id: ev.id, team: ev.team, x: ev.x / 100, y: ev.y / 100, z: ev.z / 100, until: now + ev.ms }); if (ev.team === live.team) banner({ text: 'Supply Drop', sub: 'Walk over the crate to refill ammunition and equipment', tone: 'good', ms: 2400 }); return;
-    case 'resupplied': banner({ text: 'Resupplied', tone: 'good', ms: 1400 }); sfx.reload(); return;
+    case 'resupplied': banner({ text: 'Resupplied', tone: 'good', ms: 1400 }); sfx.switch(live.sim ? weaponOf(live.sim).id : undefined); return;
     case 'strike': {
       live.strikes.push({ x: ev.x / 100, y: ev.y / 100, z: ev.z / 100, r: ev.r, at: now + ev.ms, team: ev.team });
       banner({ text: ev.team === live.team ? 'Tactical Strike inbound' : 'Enemy Tactical Strike!', sub: ev.team === live.team ? 'Marked target' : 'Get clear of the red zone', tone: ev.team === live.team ? 'good' : 'bad', ms: 2600 });
@@ -327,7 +358,7 @@ function event(ev: Record<string, any>) {
     }
     case 'smoke': { const at = [ev.x / 100, ev.y / 100, ev.z / 100]; live.smokes.push({ x: at[0], y: at[1], z: at[2], r: ev.r, until: now + ev.ms }); fx({ type: 'smoke', at, r: ev.r, ms: ev.ms }); sfx.smoke(at as [number, number, number]); return; }
     case 'flashbang': { const at = [ev.x / 100, ev.y / 100, ev.z / 100]; fx({ type: 'flash', at }); sfx.flash(at as [number, number, number]); return; }
-    case 'blind': live.blindUntil = now + ev.ms; live.blindMs = ev.ms; return;
+    case 'blind': live.blindUntil = now + ev.ms; live.blindMs = ev.ms; sfx.deafen(ev.ms); return;
     case 'capture': case 'neutral': {
       const ours = ev.team === live.team, inIt = ev.by?.includes(live.num);
       banner({ text: ev.k === 'capture' ? `${ours ? 'We' : 'Enemy'} captured ${ev.id}` : `${ev.id} ${ours ? 'neutralised' : 'lost'}`, sub: inIt ? '+150' : undefined, tone: ours ? 'good' : 'bad', ms: 2200 });
@@ -372,8 +403,13 @@ export function tickInput(dt: number) {
       live.prev.x = live.sim.x; live.prev.y = eyeOf(live.sim); live.prev.z = live.sim.z;
       live.pending.push(cmd);
       if (live.pending.length > 240) live.pending.shift();
+      const before = live.sim.phase === 'reload' ? live.sim.wpn[live.sim.slot].mag : -1, adsBefore = live.sim.ads;
       const events = step(live.sim, cmd, live.ctx);
       for (const ev of events) local(ev);
+      // Sounds the simulation has no event for: a shell going into a tube magazine, raising the sights.
+      const wNow = weaponOf(live.sim);
+      if (before >= 0 && wNow.reloadMode === 'shell' && live.sim.wpn[live.sim.slot].mag > before) sfx.shell(wNow.id);
+      if (adsBefore === 0 && live.sim.ads > 0 && wNow.fire !== 'melee') sfx.ads(wNow.id);
     }
   }
   const now = performance.now();
@@ -400,14 +436,15 @@ function local(ev: Record<string, any>) {
       if (hit) fx({ type: 'impact', at: to, normal: [...hit.normal], flesh: false, mat: hit.box ? matOf(hit.box) : undefined });
     }
     fx({ type: 'shot', weapon: w.id });
-    sfx.gun(w.sound);
-  } else if (ev.kind === 'reload') { const w = weaponOf(s); live.reloadStart = performance.now(); live.reloadTotal = s.pt; sfx.reload(ev.empty); void w; }
-  else if (ev.kind === 'switch') sfx.switch();
-  else if (ev.kind === 'dry') sfx.dry();
+    sfx.gun(w.id);
+  } else if (ev.kind === 'reload') { const w = weaponOf(s); live.reloadStart = performance.now(); live.reloadTotal = s.pt; sfx.reload(w.id, ev.empty, s.pt); }
+  else if (ev.kind === 'switch') sfx.switch(ev.weapon);
+  else if (ev.kind === 'dry') sfx.dry(weaponOf(s).id);
   else if (ev.kind === 'melee') sfx.swing();
-  else if (ev.kind === 'land') { sfx.land(); fx({ type: 'land', speed: ev.speed }); }
-  else if (ev.kind === 'jump') fx({ type: 'jump' });
-  else if (ev.kind === 'throw') sfx.swing();
+  else if (ev.kind === 'land') { sfx.land(ev.speed); fx({ type: 'land', speed: ev.speed }); }
+  else if (ev.kind === 'jump') { sfx.jump(); fx({ type: 'jump' }); }
+  else if (ev.kind === 'slide') sfx.slide();
+  else if (ev.kind === 'throw') sfx.throw();
 }
 
 /** Other players as they are drawn right now, for auto-fire (only those in the latest snapshots count as visible). */
@@ -425,6 +462,54 @@ export function toggleAutoFire() {
 /** Use an earned reward (the server checks it is earned and available). */
 export function useStreak(id: string) { if (useArena.getState().hud.earned.includes(id)) raw({ t: 'streak', id }); else banner({ text: `${STREAK_BY_ID.get(id)?.name ?? 'That reward'} is not ready yet`, tone: 'info', ms: 1500 }); }
 export const send = raw;
+
+// ---------------------------------------------------------------- deployment
+/** Enter a match (Quick Play, a private match, Training). Duplicate presses while one is running are ignored. */
+let lastRequest: Record<string, unknown> | null = null;
+export async function deployTo(kind: 'queue' | 'private' | 'training', data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const cid = deploy.begin(kind);
+  if (!cid) return { ok: false, reason: '', busy: true };
+  lastRequest = { ...data };
+  const r = await request({ ...data, cid }, 12000);
+  if (!r.ok) {
+    // A refusal (full, wrong code) goes back to the lobby with its reason; no answer is a failure to retry.
+    if (String(r.reason ?? '').startsWith('The arena did not answer')) deploy.fail(String(r.reason), 'request'); else deploy.reset();
+  } else if (deploy.useDeploy.getState().stage === 'requesting') deploy.assigned();
+  return r;
+}
+/** The deployment screen's Retry. */
+export function retryDeploy() {
+  const f = deploy.useDeploy.getState().failure;
+  if (f?.retry === 'request' && lastRequest) { deploy.reset(); useArena.getState().set({ phase: 'lobby' }); const d = lastRequest; void deployTo(d.t === 'queue' ? 'queue' : d.t === 'private' ? 'private' : 'training', d); return; }
+  if (f?.retry === 'rejoin') { const a = useArena.getState(); deploy.reset(); deploy.begin('rejoin', true); deploy.assigned(); if (a.match && a.you) void request({ t: 'rejoin', match: a.match.id, key: a.you.key }).then(r => { if (!r.ok) { deploy.reset(); resetMatch(); useArena.getState().set({ phase: 'lobby', error: String(r.reason ?? '') }); } }); else connect(); return; }
+  if (f?.retry === 'assets') { const s = deploy.useDeploy.getState(); useDeploy_retryAssets(); deploy.useDeploy.setState({ ...s, stage: 'loading-code', failure: null, slow: false }); deploy.enter('preparing'); }
+}
+const assetRetries = new Set<() => void>();
+/** The scene registers how to re-attempt its failed downloads. */
+export function onRetryAssets(fn: () => void) { assetRetries.add(fn); return () => { assetRetries.delete(fn); }; }
+function useDeploy_retryAssets() { assetRetries.forEach(f => f()); }
+/** Leave a match that is still deploying (or playing). */
+export async function leaveMatch() { deploy.reset(); await request({ t: 'leave' }, 4000); saveRejoin(null); resetMatch(); useArena.getState().set({ phase: 'lobby', menu: false, match: null, result: null }); }
+/** The scene can draw and play: tell the server (it brings a held player into the match) once per match and connection. */
+export function sceneLoaded(ready: boolean) {
+  live.sceneReady = ready;
+  const id = useArena.getState().match?.id;
+  if (!ready || !id) return;
+  if (live.loadedSent !== id && raw({ t: 'loaded' })) { live.loadedSent = id; deploy.enter('synchronizing'); }
+  if (live.haveState && live.sim) deploy.deployed();
+}
+deploy.onStageTimeout(stage => {
+  if (stage === 'requesting') deploy.fail('The arena did not answer. Check your connection and try again.', 'request');
+  else if (stage === 'loading-code') deploy.fail('The arena’s 3D code could not be downloaded.', 'assets');
+  else if (stage === 'preparing') deploy.fail('The download stopped. Your connection may have dropped.', 'assets');
+  else if (stage === 'synchronizing') {
+    // Once: ask the server again (rejoin re-sends our state); then give up with a way to retry.
+    const a = useArena.getState();
+    if (live.syncRetries++ < 1 && a.match && a.you) { live.loadedSent = ''; void request({ t: 'rejoin', match: a.match.id, key: a.you.key }).then(() => sceneLoaded(live.sceneReady)); deploy.useDeploy.setState({ stageAt: performance.now(), slow: true }); }
+    else deploy.fail('The match did not confirm your arrival.', 'rejoin');
+  } else if (stage === 'recovering') deploy.fail('The connection to the arena was lost.', 'rejoin');
+});
+deploy.onReport(t => raw({ t: 'diag', d: { cid: t.cid, ok: t.ok, total: t.total, bytes: t.bytes, retries: t.retries, tier: t.tier, failed: t.ok ? null : t.stage, stages: t.stages } }));
 /** The current spread cone for the crosshair. */
 export function currentSpread() { const s = live.sim; return s ? spreadOf(s, weaponOf(s), live.perks) : 0; }
 /** Where the camera is (eye, plus the decaying correction offset). */
@@ -439,6 +524,7 @@ export function eye(out: { x: number; y: number; z: number }) {
 export { direction, B };
 
 // QA builds only: read-only inspection for the browser suite (tests/browser-arena.mjs).
+if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arenaDeploy = () => { const d = deploy.useDeploy.getState(); return { stage: d.stage, marks: d.marks, files: d.files, bytes: d.bytes, retries: d.retries, slow: d.slow, failure: d.failure, pending: d.pending }; };
 if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arena = {
   state: () => { const a = useArena.getState(); return { phase: a.phase, status: a.status, match: a.match && { id: a.match.id, kind: a.match.kind, code: a.match.code, state: a.match.state, players: a.match.players.length }, you: a.you, hud: a.hud }; },
   remotes: () => [...live.remotes.values()].filter(r => (r.flags & 1) && r.seenAt).map(r => ({ num: r.num, team: r.team, x: r.pos.x, z: r.pos.z })),
@@ -446,5 +532,6 @@ if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<stri
   refreshOwned: async () => { const r = await request({ t: 'owned' }); if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); return r.owned; },
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
+  deploy: () => ({ ...deploy.useDeploy.getState(), recent: deploy.recentDeployments() }),
   self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, pending: live.pending.length, autoFiring: live.autoFiring, autoReason: live.autoReason } : null),
 };

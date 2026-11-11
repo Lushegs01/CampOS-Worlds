@@ -24,9 +24,10 @@ const CODE = /^[A-HJ-NP-Z2-9]{6}$/;
 /** Store item ids an account owns, as sent by account_snapshot (anything malformed is dropped). */
 const ownedList = v => (Array.isArray(v) ? [...new Set(v.filter(i => typeof i === 'string' && /^[a-z0-9-]{1,32}$/.test(i)))].slice(0, 200) : []);
 
-export function createArena({ accounts = { enabled: false }, capacity = 400, maxMatches = 60, rules = {}, logDir = null, log = console, clock = () => Date.now(), minRecordMs = 60000, autoTick = true, slowCloseMs = 6000 } = {}) {
+export function createArena({ accounts = { enabled: false }, capacity = 400, maxMatches = 60, rules = {}, logDir = null, log = console, clock = () => Date.now(), minRecordMs = 60000, autoTick = true, slowCloseMs = 6000, identifyMs = 9000, deployLog = false } = {}) {
   const connections = new Map(), matches = new Map(), codes = new Map();
-  const metrics = { matchesCreated: 0, matchesFinished: 0, recorded: 0, recordFailures: 0, rejected: 0 };
+  const metrics = { matchesCreated: 0, matchesFinished: 0, recorded: 0, recordFailures: 0, rejected: 0, identifyDegraded: 0 };
+  const deploys = createDeployTraces({ clock, log, enabled: deployLog });
   let closing = false;
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_HELLO, perMessageDeflate: { threshold: 512, zlibDeflateOptions: { level: 1, memLevel: 7 }, clientNoContextTakeover: true } });
 
@@ -62,9 +63,11 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     return m;
   }
   function enter(c, m) {
-    const p = m.join({ id: c.id, name: c.name, account: c.account?.id ?? null, handle: c.account?.handle ?? null, level: c.level, emblem: c.emblem, conn: c, loadout: c.loadout });
+    // Clients that report when their scene has loaded (caps 'loadgate') are not put into live combat before then.
+    const p = m.join({ id: c.id, name: c.name, account: c.account?.id ?? null, handle: c.account?.handle ?? null, level: c.level, emblem: c.emblem, conn: c, loadout: c.loadout, gated: !!c.caps?.loadgate });
     if (p.error) return { ok: false, reason: p.error };
     c.match = m; c.player = p;
+    deploys.step(c, 'assigned', { match: m.id, kind: m.kind, state: m.state, held: !p.alive });
     send(c, { t: 'match', match: m.view(), you: { num: p.num, team: p.team, key: p.key }, loadout: p.loadout });
     m.flush();
     return { ok: true };
@@ -123,13 +126,22 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
   }
 
   // ---------------------------------------------------------------- identity
+  /** Resolve within `ms`, or settle as `fallback` (a slow account service must not hold a player at the door). */
+  const within = (p, ms, fallback) => Promise.race([p, new Promise(r => { const t = setTimeout(() => r(fallback), ms); t.unref?.(); })]);
   async function identify(c, m) {
     c.name = guestName(m.name); c.account = null; c.level = 1; c.xp = 0; c.weaponLevels = {}; c.loadouts = []; c.owned = [];
+    c.caps = Object.fromEntries((Array.isArray(m.caps) ? m.caps : []).filter(x => typeof x === 'string' && x.length < 24).slice(0, 8).map(x => [x, true]));
+    let notice = null;
+    const started = clock();
     if (typeof m.access === 'string' && accounts.enabled) {
-      const who = await accounts.verify(m.access);
+      const who = await within(accounts.verify(m.access), identifyMs, { error: 'unavailable' });
+      if (who.error === 'unavailable') notice = 'accounts-unavailable';
       if (!who.error) {
         try {
-          const snap = await accounts.snapshot(who.id), arena = await accounts.arenaSnapshot(who.id).catch(() => null);
+          // Profile and arena progress are independent: ask for both at once, within what is left of the deadline.
+          const left = Math.max(1000, identifyMs - (clock() - started));
+          const [snap, arena] = await within(Promise.all([accounts.snapshot(who.id), accounts.arenaSnapshot(who.id).catch(() => null)]), left, [undefined, null]);
+          if (snap === undefined) notice = 'accounts-unavailable';
           if (snap) {
             c.account = { id: who.id, handle: snap.handle };
             c.name = cleanText(snap.display_name, 32) || 'Explorer';
@@ -140,18 +152,24 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
             c.loadouts = (arena?.loadouts ?? []).map(l => validateLoadout(l, c.level, c.weaponLevels, c.owned)).filter(r => r.ok).map(r => r.loadout);
             c.emblem = typeof arena?.emblem === 'string' ? arena.emblem : 'recruit';
           }
-        } catch { /* keep playing as a guest */ }
+        } catch { notice = 'accounts-unavailable'; /* keep playing as a guest */ }
       }
     }
+    if (notice) metrics.identifyDegraded++;
+    ready(c, notice);
+  }
+  /** Tell the client who it is (always: even when identification failed it can play as a guest). */
+  function ready(c, notice = null) {
+    if (c.ready || c.ws.readyState !== WebSocket.OPEN) return;
     // Another arena window of the same account replaces the older connection.
     if (c.account) for (const o of connections.values()) if (o !== c && o.account?.id === c.account.id && o.ready) { send(o, { t: 'replaced' }); o.ws.close(4004, 'Opened in another window'); }
     const emblem = EMBLEMS.filter(e => e.level <= c.level).find(e => e.id === c.emblem) ?? EMBLEMS[0];
     c.emblem = emblem.id;
-    c.loadout = c.loadouts[0] ?? PRESETS[0];
+    c.loadout = c.loadouts?.[0] ?? PRESETS[0];
     c.ready = true;
-    send(c, { t: 'ready', id: c.id, name: c.name, verified: !!c.account, handle: c.account?.handle ?? null, level: c.level, xp: c.xp, weaponLevels: c.weaponLevels, emblem: c.emblem, owned: c.owned,
-      loadout: c.loadout, loadouts: c.loadouts, modes: MODES.map(({ id, name, text }) => ({ id, name, text })), maps: MAPS.map(({ id, name, blurb }) => ({ id, name, blurb })),
-      online: [...connections.values()].filter(o => o.ready).length, matches: matches.size });
+    send(c, { t: 'ready', id: c.id, name: c.name, verified: !!c.account, handle: c.account?.handle ?? null, level: c.level, xp: c.xp, weaponLevels: c.weaponLevels ?? {}, emblem: c.emblem, owned: c.owned ?? [],
+      loadout: c.loadout, loadouts: c.loadouts ?? [], modes: MODES.map(({ id, name, text }) => ({ id, name, text })), maps: MAPS.map(({ id, name, blurb }) => ({ id, name, blurb })),
+      online: [...connections.values()].filter(o => o.ready).length, matches: matches.size, ...(notice ? { notice } : {}) });
   }
 
   // ---------------------------------------------------------------- connections
@@ -183,13 +201,15 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     });
   });
   function handle(c, m, rate) {
-    if (m.t === 'hello') { if (!c.ready && !c.helloSent && rate('hello', 2, 10000)) { c.helloSent = true; identify(c, m).catch(() => { c.ready = true; }); } return; }
+    if (m.t === 'hello') { if (!c.ready && !c.helloSent && rate('hello', 2, 10000)) { c.helloSent = true; identify(c, m).catch(e => { log.warn?.(`Arena identify failed: ${e?.message ?? e}`); metrics.identifyDegraded++; ready(c, 'accounts-unavailable'); }); } return; }
     if (!c.ready) return;
-    const reply = (ref, data) => send(c, { t: 'reply', ref: Number.isInteger(ref) ? ref : null, ...data });
+    const reply = (ref, data) => { if (data?.ok === false && c.deploy) deploys.step(c, 'refused', { reason: String(data.reason ?? '').slice(0, 60) }); send(c, { t: 'reply', ref: Number.isInteger(ref) ? ref : null, ...data }); };
     switch (m.t) {
       case 'c': if (c.match && c.player?.conn === c) c.match.commands(c.player, m.c, typeof m.rt === 'number' ? m.rt : NaN); return;
       case 'ping': if (rate('ping', 4)) send(c, { t: 'pong', n: m.n, at: clock() }); return;
-      case 'loaded': if (c.match && c.player?.conn === c && rate('loaded', 2)) c.match.loaded(c.player); return;
+      case 'loaded': if (c.match && c.player?.conn === c && rate('loaded', 2)) { const spawned = c.match.loaded(c.player); deploys.step(c, 'loaded', { spawned }); } return;
+      // The client's own measurements of a deployment (stage timings, bytes): aggregated for operators, never stored per player.
+      case 'diag': if (rate('diag', 2, 10000)) deploys.report(c, m.d); return;
       case 'streak': if (c.match && c.player && rate('streak', 4)) c.match.useStreak(c.player, str(m.id)); return;
       case 'loadout': {
         if (!rate('loadout', 6, 5000)) return reply(m.ref, { ok: false, reason: 'Wait a moment before changing your loadout again.' });
@@ -201,12 +221,14 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
       }
       case 'queue': {
         if (!rate('queue', 4, 5000)) return reply(m.ref, { ok: false, reason: 'Wait a moment.' });
+        deploys.begin(c, m.cid, m.t);
         if (!validChoice(str(m.mode), str(m.map) || 'any')) return reply(m.ref, { ok: false, reason: 'Choose a mode and map.' });
         leaveMatch(c);
         return reply(m.ref, quickPlay(c, m.mode, str(m.map) || 'any'));
       }
       case 'private': {
         if (!rate('private', 4, 5000)) return reply(m.ref, { ok: false, reason: 'Wait a moment.' });
+        if (m.action !== 'start') deploys.begin(c, m.cid, m.t);
         if (m.action === 'create') {
           const mode = str(m.mode), map = str(m.map);
           if (!MODE_BY_ID.has(mode) || !MAP_BY_ID.has(map)) return reply(m.ref, { ok: false, reason: 'Choose a mode and map.' });
@@ -227,6 +249,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
       }
       case 'training': {
         if (!rate('training', 3, 5000)) return reply(m.ref, { ok: false, reason: 'Wait a moment.' });
+        deploys.begin(c, m.cid, m.t);
         // 0 bots is the firing range: the player's own loadout and HUD on a real map, nobody shooting back.
         const mode = str(m.mode), map = str(m.map), bots = Number.isInteger(m.bots) ? Math.max(0, Math.min(9, m.bots)) : 5;
         const difficulty = ['easy', 'normal', 'hard'].includes(m.difficulty) ? m.difficulty : 'normal';
@@ -239,10 +262,12 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
         if (!rate('rejoin', 3, 5000)) return;
         const match = matches.get(str(m.match)), key = str(m.key);
         const p = match && /^[a-f0-9]{36}$/.test(key) ? match.rejoin(key, c) : null;
+        deploys.begin(c, m.cid, 'rejoin');
         if (!p) return reply(m.ref, { ok: false, reason: 'That match is no longer running.' });
         // The match holds the player's identity: the account must match the one that joined it.
         if (p.account && p.account !== c.account?.id) { match.disconnect(p); return reply(m.ref, { ok: false, reason: 'Sign in with the account you played with.' }); }
         leaveMatchKeep(c, match); c.match = match; c.player = p; p.conn = c;
+        deploys.step(c, 'assigned', { match: match.id, kind: match.kind, state: match.state, held: !p.alive });
         send(c, { t: 'match', match: match.view(), you: { num: p.num, team: p.team, key: p.key }, loadout: p.loadout, rejoined: true });
         match.flush();
         return reply(m.ref, { ok: true });
@@ -281,10 +306,10 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
   const granted = (accountId, item) => { for (const c of connections.values()) if (c.account?.id === accountId && !c.owned.includes(item)) { setOwned(accountId, ownedList([...c.owned, item])); return; } };
   const revoked = (accountId, item) => { for (const c of connections.values()) if (c.account?.id === accountId) { setOwned(accountId, c.owned.filter(i => i !== item)); return; } };
 
-  const heartbeat = setInterval(() => { for (const c of connections.values()) { if (!c.alive) c.ws.terminate(); else { c.alive = false; c.ws.ping(); } if (!c.ready && Date.now() - c.openedAt > 15000) c.ws.close(4000, 'Say hello'); } }, 10000);
+  const heartbeat = setInterval(() => { for (const c of connections.values()) { if (!c.alive) c.ws.terminate(); else { c.alive = false; c.ws.ping(); } if (!c.ready && !c.helloSent && Date.now() - c.openedAt > 15000) c.ws.close(4000, 'Say hello'); } }, 10000);
   heartbeat.unref?.();
   function status() {
-    return { connections: connections.size, capacity, matches: [...matches.values()].map(m => m.summary()), ...metrics };
+    return { connections: connections.size, capacity, matches: [...matches.values()].map(m => m.summary()), ...metrics, deployments: deploys.summary() };
   }
   async function close() {
     if (closing) return; closing = true; clearInterval(heartbeat);
@@ -294,5 +319,50 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     for (const c of connections.values()) c.ws.terminate();
     await new Promise(r => wss.close(() => r()));
   }
-  return { handleUpgrade, status, close, matches, connections, wss, metrics, granted, revoked };
+  return { handleUpgrade, status, close, matches, connections, wss, metrics, granted, revoked, deploys };
+}
+
+/**
+ * Deployment traces: one per request to enter a match, keyed by the client's correlation id (`cid`, random,
+ * generated per attempt). Records when the request arrived, when a match was assigned, when the client reported
+ * its scene loaded and whether that spawned it. With `enabled`, each finished trace is one JSON log line. The
+ * client's own stage timings (`diag`) are kept in a rolling window for percentiles. No names, accounts or
+ * addresses are recorded: only the correlation id, a short connection tag, match id and timings.
+ */
+export function createDeployTraces({ clock = () => Date.now(), log = console, enabled = false, keep = 200 } = {}) {
+  const recent = [], client = [], counts = { requests: 0, assigned: 0, refused: 0, loaded: 0, reports: 0 };
+  const CID = /^[a-z0-9]{6,24}$/;
+  const tag = c => String(c.id).slice(0, 8);
+  function begin(c, cid, kind) {
+    counts.requests++;
+    c.deploy = { cid: typeof cid === 'string' && CID.test(cid) ? cid : null, conn: tag(c), kind, at: clock(), steps: [] };
+  }
+  function step(c, name, data = {}) {
+    const d = c.deploy; if (!d) return;
+    if (name in counts) counts[name]++;
+    d.steps.push({ s: name, ms: clock() - d.at, ...data });
+    if (name === 'refused' || name === 'loaded') { finish(c); }
+  }
+  function finish(c) {
+    const d = c.deploy; if (!d) return; c.deploy = null;
+    recent.push(d); if (recent.length > keep) recent.shift();
+    if (enabled) log.info?.(JSON.stringify({ evt: 'arena.deploy', ...d }));
+  }
+  const num = v => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 600000 ? Math.round(v) : null);
+  function report(c, d) {
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return;
+    const stages = {};
+    if (d.stages && typeof d.stages === 'object') for (const [k, v] of Object.entries(d.stages).slice(0, 16)) if (/^[a-z-]{2,24}$/.test(k) && num(v) != null) stages[k] = num(v);
+    const row = { cid: typeof d.cid === 'string' && CID.test(d.cid) ? d.cid : null, ok: d.ok === true, total: num(d.total), bytes: num(d.bytes / 1000), retries: num(d.retries), tier: d.tier === 'mobile' ? 'mobile' : 'full', failed: typeof d.failed === 'string' ? d.failed.slice(0, 40) : null, stages };
+    counts.reports++; client.push(row); if (client.length > keep) client.shift();
+    if (enabled) log.info?.(JSON.stringify({ evt: 'arena.deploy.client', conn: tag(c), ...row }));
+  }
+  const pct = (xs, p) => { const s = xs.filter(x => x != null).sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.ceil(p / 100 * s.length) - 1)] : null; };
+  function summary() {
+    const ok = client.filter(r => r.ok), totals = ok.map(r => r.total), serverAssign = recent.map(d => d.steps.find(s => s.s === 'assigned')?.ms ?? null);
+    const stages = {}; for (const r of ok) for (const [k, v] of Object.entries(r.stages)) (stages[k] ??= []).push(v);
+    return { ...counts, samples: ok.length, failures: client.length - ok.length, totalMs: { p50: pct(totals, 50), p95: pct(totals, 95), p99: pct(totals, 99) },
+      assignMs: { p50: pct(serverAssign, 50), p95: pct(serverAssign, 95) }, stagesP50: Object.fromEntries(Object.entries(stages).map(([k, v]) => [k, pct(v, 50)])), recent: recent.slice(-5) };
+  }
+  return { begin, step, finish, report, summary, recent, client };
 }

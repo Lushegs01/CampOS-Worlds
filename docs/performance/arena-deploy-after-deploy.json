@@ -1,0 +1,750 @@
+{
+  "label": "after-deploy",
+  "root": "dist-qa",
+  "started": "2026-11-11T20:32:27.086Z",
+  "renderer": "SwiftShader (software WebGL, no GPU)",
+  "stuckMs": 120000,
+  "runs": [
+    {
+      "scenario": "normal",
+      "i": 0,
+      "t0": 1794429159393,
+      "match": 152,
+      "gun": 3745,
+      "lib": 5867,
+      "arms": 6992,
+      "ready": 6992,
+      "playable": 8283,
+      "stuck": false,
+      "bytes": 14523011,
+      "requests": 154,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 52,
+          "preparing": 479,
+          "synchronizing": 6477,
+          "deployed": 6477
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 12886156,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"1d0d1t214u3g\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6477,\"stages\":{\"requesting\":0,\"loading-code\":52,\"preparing\":479,\"synchronizing\":6477,\"deployed\":6477},\"files\":65,\"failed\":0,\"retries\":0,\"bytes\":12886156,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "i": 1,
+      "t0": 1794429180421,
+      "match": 138,
+      "gun": 3472,
+      "lib": 5632,
+      "arms": 6282,
+      "ready": 6475,
+      "playable": 7632,
+      "stuck": false,
+      "bytes": 14545851,
+      "requests": 156,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 18,
+          "preparing": 447,
+          "synchronizing": 6252,
+          "deployed": 6252
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 12846220,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"1a471p5k1624\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6253,\"stages\":{\"requesting\":0,\"loading-code\":18,\"preparing\":447,\"synchronizing\":6252,\"deployed\":6252},\"files\":65,\"failed\":0,\"retries\":0,\"bytes\":12846220,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "i": 2,
+      "t0": 1794429201353,
+      "match": 152,
+      "gun": 3331,
+      "lib": 5343,
+      "arms": 6114,
+      "ready": 6369,
+      "playable": 9113,
+      "stuck": false,
+      "bytes": 15614639,
+      "requests": 202,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 13,
+          "preparing": 442,
+          "synchronizing": 6086,
+          "deployed": 6086
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 13143820,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"4l0j2921291j\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6086,\"stages\":{\"requesting\":0,\"loading-code\":13,\"preparing\":442,\"synchronizing\":6086,\"deployed\":6086},\"files\":65,\"failed\":0,\"retries\":0,\"bytes\":13143820,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "i": 3,
+      "t0": 1794429223576,
+      "match": 148,
+      "gun": 3550,
+      "lib": 5637,
+      "arms": 6076,
+      "ready": 6604,
+      "playable": 7910,
+      "stuck": false,
+      "bytes": 14701929,
+      "requests": 158,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 12,
+          "preparing": 445,
+          "synchronizing": 6305,
+          "deployed": 6305
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 13064296,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"6x0h03664p18\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6305,\"stages\":{\"requesting\":0,\"loading-code\":12,\"preparing\":445,\"synchronizing\":6305,\"deployed\":6305},\"files\":66,\"failed\":0,\"retries\":0,\"bytes\":13064296,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "i": 4,
+      "t0": 1794429244193,
+      "match": 150,
+      "gun": 3363,
+      "lib": 5415,
+      "arms": 6112,
+      "ready": 6362,
+      "playable": 7607,
+      "stuck": false,
+      "bytes": 14465052,
+      "requests": 152,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 11,
+          "preparing": 441,
+          "synchronizing": 6070,
+          "deployed": 6070
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 12683700,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"2q2e6r1b266o\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6070,\"stages\":{\"requesting\":0,\"loading-code\":11,\"preparing\":441,\"synchronizing\":6070,\"deployed\":6070},\"files\":64,\"failed\":0,\"retries\":0,\"bytes\":12683700,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "4g",
+      "i": 0,
+      "t0": 1794429265003,
+      "match": 154,
+      "lib": 8817,
+      "gun": 13180,
+      "ready": 13457,
+      "playable": 14954,
+      "stuck": false,
+      "bytes": 14119115,
+      "requests": 161,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 12,
+          "preparing": 449,
+          "synchronizing": 13135,
+          "deployed": 13135
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 13196197,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"5a0f6l4v4015\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":13136,\"stages\":{\"requesting\":0,\"loading-code\":12,\"preparing\":449,\"synchronizing\":13135,\"deployed\":13135},\"files\":64,\"failed\":0,\"retries\":0,\"bytes\":13196197,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "4g",
+      "i": 1,
+      "t0": 1794429293505,
+      "match": 152,
+      "lib": 9132,
+      "gun": 12647,
+      "ready": 12940,
+      "playable": 14752,
+      "stuck": false,
+      "bytes": 14550142,
+      "requests": 182,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 10,
+          "preparing": 429,
+          "synchronizing": 12604,
+          "deployed": 12604
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 12499489,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"4i5f1e2r6p1u\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":12604,\"stages\":{\"requesting\":0,\"loading-code\":10,\"preparing\":429,\"synchronizing\":12604,\"deployed\":12604},\"files\":64,\"failed\":0,\"retries\":0,\"bytes\":12499489,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "3g",
+      "i": 0,
+      "t0": 1794429321066,
+      "match": 169,
+      "lib": 34279,
+      "arms": 50155,
+      "gun": 81892,
+      "ready": 82090,
+      "playable": 83153,
+      "stuck": false,
+      "bytes": 10627168,
+      "requests": 147,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 22,
+          "preparing": 965,
+          "synchronizing": 81841,
+          "deployed": 81841
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 12021849,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"6k2w424e601l\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":81841,\"stages\":{\"requesting\":0,\"loading-code\":22,\"preparing\":965,\"synchronizing\":81841,\"deployed\":81841},\"files\":64,\"failed\":0,\"retries\":0,\"bytes\":12021849,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "abort-texture",
+      "i": 0,
+      "t0": 1794429416622,
+      "match": 144,
+      "kits": 2839,
+      "gun": 7075,
+      "arms": 7075,
+      "lib": 9775,
+      "ready": 10757,
+      "playable": 12235,
+      "stuck": false,
+      "bytes": 15168404,
+      "requests": 175,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 12,
+          "preparing": 440,
+          "synchronizing": 10427,
+          "deployed": 10427
+        },
+        "files": {
+          "done": 48,
+          "total": 48,
+          "failed": 1
+        },
+        "bytes": 13470668,
+        "retries": 3,
+        "slow": false,
+        "failure": null,
+        "pending": []
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"6b48631d5y28\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":10427,\"stages\":{\"requesting\":0,\"loading-code\":12,\"preparing\":440,\"synchronizing\":10427,\"deployed\":10427},\"files\":67,\"failed\":1,\"retries\":3,\"bytes\":13470668,\"tier\":\"mobile\",\"failures\":[{\"url\":\"arena/mobile/textures/brick/normal.ktx2\",\"reason\":\"Failed to fetch\"},{\"url\":\"arena/mobile/textures/brick/normal.ktx2"
+      ]
+    },
+    {
+      "scenario": "abort-essential",
+      "i": 0,
+      "t0": 1794429441949,
+      "failedAt": 4400,
+      "failureText": "The training ground could not be downloaded.arena/mobile/textures/brick/color.ktx2: Failed to fetch",
+      "retriedAt": 5797,
+      "match": 163,
+      "kits": 2767,
+      "gun": 7097,
+      "arms": 7097,
+      "lib": 9862,
+      "ready": 10926,
+      "playable": 12568,
+      "stuck": false,
+      "bytes": 15587661,
+      "requests": 201,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 13,
+          "preparing": 4425,
+          "failed": 4208,
+          "synchronizing": 10557,
+          "deployed": 10557
+        },
+        "files": {
+          "done": 50,
+          "total": 50,
+          "failed": 1
+        },
+        "bytes": 13509202,
+        "retries": 3,
+        "slow": false,
+        "failure": null,
+        "pending": []
+      },
+      "logs": [
+        "Arena assets could not load. FetchError: arena/mobile/textures/brick/color.ktx2: Failed to fetch\n    at Ft (http://127.0.0.1:40575/assets/surface-CGLjR9yX.js:1:3986)",
+        "[arena-deploy] {\"cid\":\"4c6m6l3i0u11\",\"kind\":\"training\",\"ok\":false,\"stage\":\"preparing\",\"total\":4208,\"stages\":{\"requesting\":0,\"loading-code\":13,\"preparing\":439,\"failed\":4208},\"files\":65,\"failed\":1,\"retries\":3,\"bytes\":13184803,\"tier\":\"mobile\",\"failures\":[{\"url\":\"arena/mobile/textures/brick/color.ktx2\",\"reason\":\"Failed to fetch\"},{\"url\":\"arena/mobile/textures/brick/color.ktx2\",\"reason\":\"Failed to fetc",
+        "[arena-deploy] {\"cid\":\"4c6m6l3i0u11\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":10557,\"stages\":{\"requesting\":0,\"loading-code\":13,\"preparing\":4425,\"failed\":4208,\"synchronizing\":10557,\"deployed\":10557},\"files\":68,\"failed\":1,\"retries\":3,\"bytes\":13509202,\"tier\":\"mobile\",\"failures\":[{\"url\":\"arena/mobile/textures/brick/color.ktx2\",\"reason\":\"Failed to fetch\"},{\"url\":\"arena/mobile/textures/bri"
+      ]
+    },
+    {
+      "scenario": "stall-prop",
+      "i": 0,
+      "t0": 1794429467512,
+      "match": 151,
+      "gun": 3605,
+      "lib": 5745,
+      "arms": 6261,
+      "ready": 6507,
+      "playable": 9192,
+      "stuck": false,
+      "bytes": 15406034,
+      "requests": 197,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 12,
+          "preparing": 448,
+          "synchronizing": 6222,
+          "deployed": 6222
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 13228188,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"0f0h1v2w1f33\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6222,\"stages\":{\"requesting\":0,\"loading-code\":12,\"preparing\":448,\"synchronizing\":6222,\"deployed\":6222},\"files\":65,\"failed\":0,\"retries\":0,\"bytes\":13228188,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "stall-soldier",
+      "i": 0,
+      "t0": 1794429490434,
+      "match": 148,
+      "gun": 3556,
+      "lib": 5637,
+      "arms": 6726,
+      "ready": 6726,
+      "playable": 8022,
+      "stuck": false,
+      "bytes": 13923802,
+      "requests": 151,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 12,
+          "preparing": 446,
+          "synchronizing": 6216,
+          "deployed": 6216
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 12483584,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"1k6s0a54625d\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6216,\"stages\":{\"requesting\":0,\"loading-code\":12,\"preparing\":446,\"synchronizing\":6216,\"deployed\":6216},\"files\":65,\"failed\":0,\"retries\":0,\"bytes\":12483584,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "drop-ws",
+      "i": 0,
+      "t0": 1794429510793,
+      "match": 107,
+      "gun": 3992,
+      "lib": 6077,
+      "arms": 6816,
+      "ready": 6816,
+      "playable": 7981,
+      "stuck": false,
+      "bytes": 14971806,
+      "requests": 187,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 11,
+          "recovering": 256,
+          "preparing": 360,
+          "synchronizing": 6420,
+          "deployed": 6420
+        },
+        "files": {
+          "done": 49,
+          "total": 49,
+          "failed": 0
+        },
+        "bytes": 12870536,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": [
+          "soldiers"
+        ]
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"4k2f5a6u3y0o\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6420,\"stages\":{\"requesting\":0,\"loading-code\":11,\"recovering\":256,\"preparing\":360,\"synchronizing\":6420,\"deployed\":6420},\"files\":65,\"failed\":0,\"retries\":0,\"bytes\":12870536,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    },
+    {
+      "scenario": "repeat",
+      "i": 0,
+      "attempts": [
+        {
+          "match": 150,
+          "gun": 3471,
+          "lib": 5594,
+          "arms": 6253,
+          "ready": 6493,
+          "playable": 7722,
+          "stuck": false,
+          "bytes": 14645839,
+          "requests": 155,
+          "lastOverlay": "",
+          "deploy": {
+            "stage": "deployed",
+            "marks": {
+              "requesting": 0,
+              "loading-code": 12,
+              "preparing": 431,
+              "synchronizing": 6213,
+              "deployed": 6214
+            },
+            "files": {
+              "done": 49,
+              "total": 49,
+              "failed": 0
+            },
+            "bytes": 12946208,
+            "retries": 0,
+            "slow": false,
+            "failure": null,
+            "pending": [
+              "soldiers"
+            ]
+          }
+        },
+        {
+          "lib": 43,
+          "gun": 43,
+          "arms": 43,
+          "match": 147,
+          "kits": 3190,
+          "ready": 7262,
+          "playable": 9505,
+          "stuck": false,
+          "bytes": 460898,
+          "requests": 16,
+          "lastOverlay": "",
+          "deploy": {
+            "stage": "deployed",
+            "marks": {
+              "requesting": 0,
+              "loading-code": 13,
+              "preparing": 418,
+              "synchronizing": 6790,
+              "deployed": 6790
+            },
+            "files": {
+              "done": 1,
+              "total": 1,
+              "failed": 0
+            },
+            "bytes": 517590,
+            "retries": 0,
+            "slow": false,
+            "failure": null,
+            "pending": []
+          }
+        },
+        {
+          "lib": 42,
+          "kits": 42,
+          "gun": 42,
+          "arms": 42,
+          "match": 146,
+          "ready": 6825,
+          "playable": 9038,
+          "stuck": false,
+          "bytes": 118866,
+          "requests": 7,
+          "lastOverlay": "",
+          "deploy": {
+            "stage": "deployed",
+            "marks": {
+              "requesting": 0,
+              "loading-code": 12,
+              "preparing": 421,
+              "synchronizing": 6439,
+              "deployed": 6439
+            },
+            "files": {
+              "done": 1,
+              "total": 1,
+              "failed": 0
+            },
+            "bytes": 175558,
+            "retries": 0,
+            "slow": false,
+            "failure": null,
+            "pending": []
+          }
+        }
+      ],
+      "t0": 1794429557248,
+      "lib": 42,
+      "kits": 42,
+      "gun": 42,
+      "arms": 42,
+      "match": 146,
+      "ready": 6825,
+      "playable": 9038,
+      "stuck": false,
+      "bytes": 118866,
+      "requests": 7,
+      "lastOverlay": "",
+      "deploy": {
+        "stage": "deployed",
+        "marks": {
+          "requesting": 0,
+          "loading-code": 12,
+          "preparing": 421,
+          "synchronizing": 6439,
+          "deployed": 6439
+        },
+        "files": {
+          "done": 1,
+          "total": 1,
+          "failed": 0
+        },
+        "bytes": 175558,
+        "retries": 0,
+        "slow": false,
+        "failure": null,
+        "pending": []
+      },
+      "logs": [
+        "[arena-deploy] {\"cid\":\"6s3z374c3k0f\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6214,\"stages\":{\"requesting\":0,\"loading-code\":12,\"preparing\":431,\"synchronizing\":6213,\"deployed\":6214},\"files\":65,\"failed\":0,\"retries\":0,\"bytes\":12946208,\"tier\":\"mobile\",\"failures\":[]}",
+        "[arena-deploy] {\"cid\":\"3g1t2l2c4e5h\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6790,\"stages\":{\"requesting\":0,\"loading-code\":13,\"preparing\":418,\"synchronizing\":6790,\"deployed\":6790},\"files\":2,\"failed\":0,\"retries\":0,\"bytes\":517590,\"tier\":\"mobile\",\"failures\":[]}",
+        "[arena-deploy] {\"cid\":\"364o1m2f315u\",\"kind\":\"training\",\"ok\":true,\"stage\":\"deployed\",\"total\":6439,\"stages\":{\"requesting\":0,\"loading-code\":12,\"preparing\":421,\"synchronizing\":6439,\"deployed\":6439},\"files\":2,\"failed\":0,\"retries\":0,\"bytes\":175558,\"tier\":\"mobile\",\"failures\":[]}"
+      ]
+    }
+  ],
+  "summary": {
+    "normal": {
+      "runs": 5,
+      "stuck": 0,
+      "p50": 7910,
+      "p95": 9113,
+      "p99": 9113,
+      "meanMB": 14.8
+    },
+    "4g": {
+      "runs": 2,
+      "stuck": 0,
+      "p50": 14752,
+      "p95": 14954,
+      "p99": 14954,
+      "meanMB": 14.3
+    },
+    "3g": {
+      "runs": 1,
+      "stuck": 0,
+      "p50": 83153,
+      "p95": 83153,
+      "p99": 83153,
+      "meanMB": 10.6
+    },
+    "abort-texture": {
+      "runs": 1,
+      "stuck": 0,
+      "p50": 12235,
+      "p95": 12235,
+      "p99": 12235,
+      "meanMB": 15.2
+    },
+    "abort-essential": {
+      "runs": 1,
+      "stuck": 0,
+      "p50": 12568,
+      "p95": 12568,
+      "p99": 12568,
+      "meanMB": 15.6
+    },
+    "stall-prop": {
+      "runs": 1,
+      "stuck": 0,
+      "p50": 9192,
+      "p95": 9192,
+      "p99": 9192,
+      "meanMB": 15.4
+    },
+    "stall-soldier": {
+      "runs": 1,
+      "stuck": 0,
+      "p50": 8022,
+      "p95": 8022,
+      "p99": 8022,
+      "meanMB": 13.9
+    },
+    "drop-ws": {
+      "runs": 1,
+      "stuck": 0,
+      "p50": 7981,
+      "p95": 7981,
+      "p99": 7981,
+      "meanMB": 15
+    },
+    "repeat": {
+      "runs": 1,
+      "stuck": 0,
+      "p50": 9038,
+      "p95": 9038,
+      "p99": 9038,
+      "meanMB": 0.1
+    }
+  },
+  "finished": "2026-11-11T20:39:31.424Z"
+}

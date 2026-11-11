@@ -7,21 +7,22 @@ import { MODES, xpForLevel, MAX_LEVEL } from '../../shared/arena/rules.mjs';
 import { MAPS } from '../../shared/arena/maps.mjs';
 import { WEAPON_BY_ID, EQUIPMENT_BY_ID, PERK_BY_ID, EMBLEM_BY_ID, EMBLEMS } from '../../shared/arena/weapons.mjs';
 import { useArena } from './store';
-import { request } from './net';
+import { deployTo } from './net';
 import { getCommunityService } from '../services/community';
 import { useAccount } from '../account/store';
 import { sfx } from './audio';
 
 type Tab = 'play' | 'private' | 'training' | 'rankings';
 export default function Lobby() {
-  const me = useArena(s => s.me), status = useArena(s => s.status), error = useArena(s => s.error), loadout = useArena(s => s.loadout), online = useArena(s => s.online);
+  const me = useArena(s => s.me), status = useArena(s => s.status), error = useArena(s => s.error), notice = useArena(s => s.notice), loadout = useArena(s => s.loadout), online = useArena(s => s.online);
   const [tab, setTab] = useState<Tab>('play'), [map, setMap] = useState('any'), [busy, setBusy] = useState(''), [msg, setMsg] = useState('');
   const [code, setCode] = useState(''), [privMode, setPrivMode] = useState('tdm'), [privMap, setPrivMap] = useState('foundry'), [size, setSize] = useState(4);
   const [tMode, setTMode] = useState('tdm'), [tMap, setTMap] = useState('foundry'), [bots, setBots] = useState(5), [difficulty, setDifficulty] = useState('normal');
   const run = async (label: string, data: Record<string, unknown>) => {
+    if (busy) return;
     setBusy(label); setMsg(''); sfx.ui();
-    const r = await request(data); setBusy('');
-    if (!r.ok) setMsg(String(r.reason ?? 'That did not work. Try again.'));
+    const r = await deployTo(data.t === 'queue' ? 'queue' : data.t === 'private' ? 'private' : 'training', data); setBusy('');
+    if (!r.ok && !r.busy) setMsg(String(r.reason || 'That did not work. Try again.'));
   };
   const ready = status === 'ready';
   const level = me?.level ?? 1, xp = me?.xp ?? 0, floor = xpForLevel(level), ceil = xpForLevel(level + 1), pct = level >= MAX_LEVEL ? 100 : Math.round((xp - floor) / Math.max(1, ceil - floor) * 100);
@@ -40,6 +41,7 @@ export default function Lobby() {
       </div>
     </header>
     {!me?.verified && ready && <p className="ar-note"><Shield size={15} /> Playing as a guest: matches work fully, but experience, statistics and loadouts are kept only for signed-in accounts. Sign in from the campus to keep your progress.</p>}
+    {notice && <p className="ar-note" role="status"><Shield size={15} /> {notice}</p>}
     {(error || msg) && <p className="ar-error" role="alert">{msg || error}</p>}
     <nav className="ar-tabs" role="tablist">
       {([['play', 'Quick Play', Swords], ['private', 'Private match', KeyRound], ['training', 'Training', Bot], ['rankings', 'Rankings', Trophy]] as const).map(([id, label, Icon]) =>

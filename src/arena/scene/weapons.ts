@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadModel } from '../../world/assets';
+import type { FetchOptions } from '../../world/fetcher';
 import { SKIN_BY_ID } from '../../../shared/arena/weapons.mjs';
 
 /** Hand placement style: how each hand wraps what it holds. */
@@ -37,10 +38,12 @@ const specOf = (id: string) => SPECS[id] ?? SPECS.vanguard;
 const MOVING = ['mag', 'bolt', 'slide', 'pump', 'cylinder'];
 
 const loads = new Map<string, Promise<THREE.Group>>(), ready = new Map<string, THREE.Group>();
-function request(file: string) {
+/** On-demand downloads (a weapon first seen in someone's hands) are priority 2: nearby detail. */
+const ON_DEMAND: FetchOptions = { priority: 2, retries: 3, stallMs: 20000, timeoutMs: 180000 };
+function request(file: string, fetch: FetchOptions = ON_DEMAND) {
   let p = loads.get(file);
   if (!p) {
-    p = loadModel(`arena/weapons/${file}.glb`).then(g => {
+    p = loadModel(`arena/weapons/${file}.glb`, fetch).then(g => {
       g.scene.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; const mat = m.material as THREE.MeshStandardMaterial; mat.envMapIntensity = 1; } });
       ready.set(file, g.scene); return g.scene;
     });
@@ -49,7 +52,9 @@ function request(file: string) {
   return p;
 }
 /** Start downloading a weapon (and its third-person LOD). Resolves when the first-person model is usable. */
-export function preloadWeapon(id: string, lod = false) { return request(lod ? `${id}-lod` : id); }
+export function preloadWeapon(id: string, lod = false, fetch?: FetchOptions) { return request(lod ? `${id}-lod` : id, fetch); }
+/** Leaving the arena: forget the parsed models (the HTTP cache keeps the files). */
+export function releaseWeapons() { loads.clear(); ready.clear(); tints.forEach(m => m.dispose()); tints.clear(); armsLoad = null; }
 export function weaponLoaded(id: string, lod = false) { return ready.has(lod ? `${id}-lod` : id); }
 
 const tints = new Map<string, THREE.Material>();
@@ -116,7 +121,7 @@ const UPPER_STRETCH = 1.32, FORE_STRETCH = 1.27;
 /** Shoulder midpoint in camera space and the stance turn (left shoulder forward, as when shouldering a rifle). */
 const SHOULDERS = new THREE.Vector3(0, -.3, -.03), STANCE = -.3;
 let armsLoad: Promise<THREE.Group> | null = null;
-export function preloadArms() { return (armsLoad ??= loadModel('arena/weapons/arms.glb').then(g => g.scene)); }
+export function preloadArms(fetch?: FetchOptions) { const p = (armsLoad ??= loadModel('arena/weapons/arms.glb', fetch).then(g => g.scene)); p.catch(() => { if (armsLoad === p) armsLoad = null; }); return p; }
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4();

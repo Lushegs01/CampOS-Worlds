@@ -1,14 +1,17 @@
 // Combat Arena, loaded only when a player opens it from the campus (its code and assets are a separate
 // chunk). While it is open the campus scene stops rendering and campus controls are paused; the player
 // keeps their campus connection, account and identity, and returns to the same spot.
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Component, Suspense, lazy, useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { X, Play, Settings2, Backpack, LogOut, Home, Users, LayoutDashboard, Crosshair, Zap } from 'lucide-react';
 import { stopAmbience } from '../audio/ambience';
 import { closeSocial } from '../social/store';
 import { useCommunity } from '../community/store';
 import { useGame } from '../state';
 import { useArena, emptyHud } from './store';
-import { connect, disconnect, request } from './net';
+import { connect, disconnect, request, leaveMatch, onRetryAssets } from './net';
+import DeployScreen from './Deploy';
+import * as deploy from './deploy';
+import { endSession } from '../world/fetcher';
 import { releaseAll, controls } from './input';
 import Lobby from './Lobby';
 import Hud from './Hud';
@@ -19,7 +22,19 @@ import { toggleAutoFire } from './net';
 import { recommendQuality } from './device';
 import './arena.css';
 
-const Scene = lazy(() => import('./Scene'));
+// The 3D scene's code: a failed download is reported to the deployment (with Retry) instead of closing the arena,
+// and a retry makes a fresh lazy component (React keeps a failed one failed).
+let sceneCode: Promise<{ default: ComponentType<{ mapId: string }>; releaseArena: () => void }> | null = null;
+const sceneModule = () => (sceneCode ??= import('./Scene').catch(e => { sceneCode = null; throw e; }));
+class SceneBoundary extends Component<{ children: (Scene: ComponentType<{ mapId: string }>) => ReactNode }, { error: boolean; Scene: ComponentType<{ mapId: string }> }> {
+  state = { error: false, Scene: lazy(sceneModule) };
+  private off: (() => void) | null = null;
+  static getDerivedStateFromError() { return { error: true }; }
+  componentDidCatch(e: Error) { console.error('Arena scene could not load.', e); deploy.fail('The arena’s 3D code could not be downloaded.', 'assets', String(e?.message ?? e).slice(0, 160)); }
+  componentDidMount() { this.off = onRetryAssets(() => { if (this.state.error) this.setState({ error: false, Scene: lazy(sceneModule) }); }); }
+  componentWillUnmount() { this.off?.(); }
+  render() { return this.state.error ? null : this.props.children(this.state.Scene); }
+}
 // Opened rarely: their code downloads only when first opened.
 const HudEditor = lazy(() => import('./HudEditor'));
 const Armory = lazy(() => import('./Armory'));
@@ -39,12 +54,17 @@ export default function ArenaApp() {
       else if (a.phase === 'match' && !controls.locked) a.set({ menu: !a.menu });
     };
     window.addEventListener('keydown', esc);
-    return () => { window.removeEventListener('keydown', esc); disconnect(); releaseAll(); useArena.getState().set({ open: false, phase: 'lobby', menu: false, editor: false, settingsOpen: false, hudEditor: false, armory: null }); };
+    return () => {
+      window.removeEventListener('keydown', esc); disconnect(); releaseAll();
+      // Leaving the arena: cancel its downloads and let go of its models and textures (the HTTP cache keeps the files).
+      endSession(); void sceneCode?.then(m => m.releaseArena(), () => null);
+      useArena.getState().set({ open: false, phase: 'lobby', menu: false, editor: false, settingsOpen: false, hudEditor: false, armory: null, sceneReady: false });
+    };
   }, []);
   const exit = () => { document.exitPointerLock?.(); useGame.getState().set({ panel: null }); };
   return <div className="ar-root" data-phase={phase}>
-    {phase === 'match' && map && <Suspense fallback={<div className="ar-loading">Loading the simulation…</div>}><Scene mapId={map} /></Suspense>}
-    {phase === 'match' && <SceneLoading />}
+    {phase === 'match' && map && <SceneBoundary>{Scene => <Suspense fallback={null}><Scene mapId={map} /></Suspense>}</SceneBoundary>}
+    {phase === 'match' && <DeployScreen />}
     {phase === 'match' && <Hud />}
     {phase === 'match' && <TouchControls />}
     {phase === 'match' && !menu && !editor && !settings && !hudEditor && armory === null && <ClickToPlay />}
@@ -60,17 +80,13 @@ export default function ArenaApp() {
   </div>;
 }
 
-/** Shown over the match until the arena's models and textures have arrived. */
-function SceneLoading() {
-  const ready = useArena(s => s.sceneReady);
-  return ready ? null : <div className="ar-loading ar-scene-loading"><span className="ar-eyebrow">COMBAT ARENA</span><strong>Deploying…</strong><i /><small>Loading the training ground</small></div>;
-}
 /** Desktop: a click captures the mouse (pointer lock) before play starts; the hint hides once it has. */
 function ClickToPlay() {
   const touch = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
   const [locked, setLocked] = useState(() => !!document.pointerLockElement);
+  const deployed = deploy.useDeploy(d => d.stage === 'deployed' || d.stage === 'idle');
   useEffect(() => { const on = () => setLocked(!!document.pointerLockElement); document.addEventListener('pointerlockchange', on); return () => document.removeEventListener('pointerlockchange', on); }, []);
-  if (touch || locked || controls.gamepad) return null;
+  if (touch || locked || controls.gamepad || !deployed) return null;
   return <LockHint />;
 }
 function LockHint() {
@@ -82,7 +98,7 @@ function PauseMenu({ onExit }: { onExit: () => void }) {
   const match = useArena(s => s.match), you = useArena(s => s.you);
   const host = match?.kind === 'private' && match.players[0]?.num === you?.num && match.state === 'waiting';
   const close = () => { useArena.getState().set({ menu: false }); const c = document.querySelector<HTMLCanvasElement>('.ar-canvas canvas'); if (c && !matchMedia('(pointer: coarse)').matches) void c.requestPointerLock?.(); };
-  const leave = async () => { await request({ t: 'leave' }); useArena.getState().set({ phase: 'lobby', menu: false, match: null, result: null }); };
+  const leave = () => leaveMatch();
   return <div className="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-menu-title"><div className="ar-sheet small ar-menu">
     <h2 id="ar-menu-title">Paused<small>The match keeps running while you are in this menu.</small></h2>
     <button className="ar-primary" onClick={close}><Play size={16} />Resume</button>

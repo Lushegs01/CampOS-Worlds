@@ -73,17 +73,19 @@ class Props {
   }
   /** Fill an axis-aligned volume with one prop scaled to it (long side along the volume's long side). */
   fit(lib: Library, key: PropKey, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
-    const s = lib.props[key].size, w = x1 - x0, d = z1 - z0, h = y1 - y0, alongX = w >= d;
+    const s = lib.props[key]!.size, w = x1 - x0, d = z1 - z0, h = y1 - y0, alongX = w >= d;
     const L = alongX ? w : d, D = alongX ? d : w;
     const long = s.x >= s.z ? s.x : s.z, short = s.x >= s.z ? s.z : s.x, propAlongX = s.x >= s.z;
     const yaw = alongX === propAlongX ? 0 : Math.PI / 2;
     const sxLocal = (propAlongX ? L / long : D / short), szLocal = (propAlongX ? D / short : L / long);
     this.place(key, (x0 + x1) / 2, y0, (z0 + z1) / 2, yaw, sxLocal, h / s.y, szLocal);
   }
-  meshes(lib: Library, shadows: boolean) {
+  /** Instanced meshes for the placed props whose models are in the library (all, or those `only` accepts). */
+  meshes(lib: Library, shadows: boolean, only?: (key: PropKey) => boolean) {
     const out: THREE.Object3D[] = [];
     for (const [key, list] of this.slots) {
-      const root = lib.props[key].scene; root.updateMatrixWorld(true);
+      const src = lib.props[key]; if (!src || (only && !only(key))) continue;
+      const root = src.scene; root.updateMatrixWorld(true);
       root.traverse(o => {
         const m = o as THREE.Mesh; if (!m.isMesh) return;
         const inst = new THREE.InstancedMesh(m.geometry, m.material, list.length);
@@ -472,12 +474,15 @@ export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality) {
   for (const d of map.deco ?? []) frame(b, m, d);
   dressing(props, map, q.detail);
   backdrop(b, m, props, map, lights);
-  const objects: THREE.Object3D[] = [...b.meshes(q.shadows), ...props.meshes(lib, q.shadows), ground(lib, map, q)];
+  // Cover props are in the library already; set dressing arrives later and is added by `decor()`.
+  const present = new Set(Object.keys(lib.props));
+  const objects: THREE.Object3D[] = [...b.meshes(q.shadows), ...props.meshes(lib, q.shadows, k => present.has(k)), ground(lib, map, q)];
+  const decor = (keys: PropKey[]) => props.meshes(lib, q.shadows, k => keys.includes(k) && !present.has(k));
   if (bags.length) {
     const inst = new THREE.InstancedMesh(bagGeometry(q.detail), m.sandbag, bags.length);
     bags.forEach((M, i) => inst.setMatrixAt(i, M)); inst.castShadow = q.shadows; inst.receiveShadow = true; inst.computeBoundingSphere(); objects.push(inst);
   }
-  return { objects, lights };
+  return { objects, lights, decor };
 }
 
 /** What a bullet hits, by the material of the box (for impact effects and sounds). */

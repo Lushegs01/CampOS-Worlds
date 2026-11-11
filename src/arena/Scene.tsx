@@ -19,22 +19,28 @@ import { weaponOf, eyeOf } from '../../shared/arena/sim.mjs';
 import { raycast } from '../../shared/arena/physics.mjs';
 import { setListener } from '../audio/mixer';
 import { useArena, useBanners } from './store';
-import { live, onFx, tickInput, eye, useStreak, matOf, send, toggleAutoFire, type Fx } from './net';
+import { live, onFx, tickInput, eye, useStreak, matOf, toggleAutoFire, sceneLoaded, onRetryAssets, type Fx } from './net';
+import * as deploy from './deploy';
+import { deadline } from '../world/fetcher';
 import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
-import { loadLibrary, skyDome, clearMaterialCache, type Library } from './scene/library';
+import { loadLibrary, loadDecor, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
 import { buildEnvironment, surfaceOf } from './scene/environment';
-import { weaponModel, FirstPersonArms, preloadArms } from './scene/weapons';
-import { loadSoldiers, Soldier, soldierModelFor, prefetchRemainingWeapons } from './scene/soldiers';
+import { weaponModel, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons } from './scene/weapons';
+import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, type SoldierLike } from './scene/soldiers';
+import { forgetAssets } from '../world/assets';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
 import { Effects, Casings } from './scene/fx';
-import { sfx, setIndoor, startAmbience, stopArenaAmbience, type Ground } from './audio';
+import { sfx, setIndoor, startAmbience, stopArenaAmbience, prepareLoadout, setLoopVolumes, engine as soundEngine, type Ground } from './audio';
 import { QA_HOOKS } from '../qa';
 
 const EQUIP_IDS = [...EQUIPMENT_BY_ID.keys()];
 const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), q1 = new THREE.Quaternion(), e1 = new THREE.Euler();
 const scratch = { t: 0, box: null as { i: number } | null, normal: [0, 0, 0], ground: false };
+
+/** Leaving the arena: let go of its parsed models and textures (the HTTP cache keeps the files for next time). */
+export function releaseArena() { releaseWeapons(); releaseSoldiers(); forgetAssets('arena/'); clearMaterialCache(); soundEngine.shutdown(); soundEngine.setProbe(null); }
 
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   const quality = useArena(s => s.settings.quality), q = ARENA_QUALITY[quality];
@@ -53,23 +59,35 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const { scene, camera, gl, size } = useThree(), setDpr = useThree(s => s.setDpr), dprNow = useThree(s => s.viewport.dpr);
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
-  const worldAt = useRef(0), loadedFor = useRef('');
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
+  const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
+  useEffect(() => onRetryAssets(() => setAttempt(n => n + 1)), []);
+  // ---------------------------------------------------------------- staged loading
+  // Priority 1 (needed to play): every environment surface, the props that are cover, the sky and its light, the
+  // player's own weapon and arms. Priority 2, in parallel but behind them in the download queue: the soldiers (other
+  // players are drawn as stand-ins until they arrive), the second weapon. Set dressing waits until the match is on
+  // screen. A failure of something needed to play stops the deployment with the reason and a Retry; anything else
+  // falls back and carries on.
   useEffect(() => {
-    let live2 = true;
-    useArena.getState().set({ sceneReady: false });
-    loadLibrary(gl, q).then(l => { if (live2) setLib(l); })
-      .catch(e => { console.error('Arena assets could not load.', e); useArena.getState().set({ error: 'The arena’s graphics could not be downloaded. Check your connection and try again.' }); });
+    let on = true; const ctrl = new AbortController();
+    useArena.getState().set({ sceneReady: false }); sceneLoaded(false); setCompiled(false);
+    deploy.enter('preparing'); deploy.setTier(q.mobileAssets ? 'mobile' : 'full');
+    const what = (e: unknown) => String((e as Error)?.message ?? e).replace(/^.*\/assets\//, '').slice(0, 160);
+    const primary = live.loadout?.primary ?? 'vanguard', secondary = live.loadout?.secondary;
+    // The player's own weapon is queued first: it is one file with a dozen textures to transcode.
+    preloadWeapon(primary, false, P1).then(() => { if (on) setGunReady(true); }).catch(e => { console.error('Arena weapon could not load.', e); if (on) deploy.fail('Your weapon could not be downloaded.', 'assets', what(e)); });
+    loadLibrary(gl, q).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) deploy.fail('The training ground could not be downloaded.', 'assets', what(e)); });
+    if (secondary && secondary !== primary) void preloadWeapon(secondary, false, P2).catch(() => null);
+    // Sound: phones get fewer voices and plain panning; the player's own weapons are rendered ahead of their first shot.
+    soundEngine.configure({ voices: q.mobileAssets ? 20 : 32, hrtf: !q.mobileAssets });
+    prepareLoadout([primary, ...(secondary ? [secondary] : [])]);
+    // Soldiers: stand-ins until they arrive; a failure is retried quietly in the background.
+    const soldiers = (n: number): void => { loadSoldiers(q.mobileAssets, ctrl.signal).then(k => { if (on) setKits(k); }).catch(e => { if (!on || (e as Error).name === 'AbortError') return; console.warn('Arena soldiers deferred:', what(e)); if (n < 4) setTimeout(() => on && soldiers(n + 1), 8000 * (n + 1)); }); };
+    soldiers(0);
     startAmbience();
-    return () => { live2 = false; stopArenaAmbience(); setIndoor(0); };
-  }, [gl, q]);
-  // Characters load after the world so the map appears first; the kits are cached for the page's lifetime.
-  useEffect(() => {
-    if (!lib) return;
-    let on = true;
-    loadSoldiers().then(k => { if (on) setKits(k); }).catch(e => console.error('Arena characters could not load.', e));
-    return () => { on = false; };
-  }, [lib]);
+    return () => { on = false; ctrl.abort(); stopArenaAmbience(); setIndoor(0); };
+  }, [gl, q, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { deploy.pending([...(lib ? [] : ['environment']), ...(gunReady ? [] : ['weapon']), ...(kits ? [] : ['soldiers'])]); }, [lib, gunReady, kits]);
 
   // ---------------------------------------------------------------- environment, sky and lighting
   const world = useMemo(() => {
@@ -90,19 +108,48 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // Warm fittings under roofs (unshadowed point lights), nearest the middle of the map first.
     const lamps = [...env.lights].filter(p => p.y < 9).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)).slice(0, q.lights).map(p => { const l = new THREE.PointLight('#ffe2b4', 55, 15, 2); l.position.copy(p).y -= .2; group.add(l); return l; });
     void lamps;
-    return { group, sun };
+    return { group, sun, decor: env.decor };
   }, [lib, map, q]);
   useEffect(() => {
     if (!world || !lib) return;
     scene.add(world.group); scene.environment = lib.env; scene.environmentIntensity = 1.5;
     const fog = lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, 55, q.fogFar * 3.2); scene.background = fog;
-    worldAt.current = performance.now();
+    // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
+    let on = true;
+    deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').catch(() => null).then(() => { if (on) setCompiled(true); });
+    // Set dressing streams in once the match is playable (priority 2); a static sun shadow is redrawn once for it.
+    const ctrl = new AbortController();
+    const decorate = () => loadDecor(lib, ctrl.signal).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
+    const waitPlayable = () => { if (!on) return; if (useArena.getState().sceneReady) void decorate(); else setTimeout(waitPlayable, 500); };
+    waitPlayable();
     return () => {
+      on = false; ctrl.abort();
       scene.remove(world.group); scene.environment = null; scene.fog = null;
       world.group.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && !m.name.startsWith('prop:')) m.geometry.dispose(); });
       clearMaterialCache();
     };
   }, [scene, world, lib, q]);
+
+  // ---------------------------------------------------------------- sound levels and the acoustic probe
+  useEffect(() => {
+    const apply = (st: typeof settings) => soundEngine.setVolumes({ weapons: st.volWeapons, explosions: st.volExplosions, environment: st.volEnvironment, footsteps: st.volFootsteps, character: st.volCharacter, ui: st.volUi });
+    apply(useArena.getState().settings);
+    setLoopVolumes(() => useArena.getState().settings.volEnvironment, () => useArena.getState().settings.volFootsteps);
+    return useArena.subscribe((a, b) => { if (a.settings !== b.settings) apply(a.settings); });
+  }, []);
+  // Is a sound behind a wall from the listener, and is its source under a roof? (Two ray casts in the collision world.)
+  useEffect(() => {
+    const probeHit = { t: 0, box: null as { i: number } | null, normal: [0, 0, 0], ground: false };
+    soundEngine.setProbe(at => {
+      const w = live.world; if (!w) return { occluded: false, indoor: 0 };
+      const c = camera.position, dx = at[0] - c.x, dy = at[1] + .2 - c.y, dz = at[2] - c.z, len = Math.hypot(dx, dy, dz) || 1;
+      const block = raycast(w, c.x, c.y, c.z, dx / len, dy / len, dz / len, len - .4, null, probeHit);
+      const occluded = !!(block && block.box && block.t < len - .6);
+      const up = raycast(w, at[0], at[1] + .5, at[2], 0, 1, 0, 12, null, probeHit);
+      return { occluded, indoor: up && up.box ? 1 : 0 };
+    });
+    return () => soundEngine.setProbe(null);
+  }, [camera]);
 
   // ---------------------------------------------------------------- objectives (Domination)
   const objectives = useMemo(() => {
@@ -144,8 +191,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => { if (!lib) return; for (const g of fx.crates) { g.clear(); const c = lib.props.milCrate.scene.clone(); c.scale.setScalar(.8); g.add(c); } }, [lib, fx]);
 
   // ---------------------------------------------------------------- players
-  const soldiers = useRef(new Map<number, { s: Soldier; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string }>());
-  useEffect(() => () => { for (const e of soldiers.current.values()) { scene.remove(e.s.root); e.s.dispose(); } soldiers.current.clear(); }, [scene, kits]);
+  const soldiers = useRef(new Map<number, { s: SoldierLike; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string; standIn: boolean }>());
+  const dropSoldier = (e: { s: SoldierLike; tag: THREE.Sprite | null }) => { if (e.tag) { (e.tag.material as THREE.SpriteMaterial).map?.dispose(); e.tag.material.dispose(); e.tag = null; } scene.remove(e.s.root); e.s.dispose(); };
+  useEffect(() => () => { for (const e of soldiers.current.values()) dropSoldier(e); soldiers.current.clear(); }, [scene, kits]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------- first-person weapon
   const vm = useMemo(() => {
@@ -165,7 +213,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     };
   }, [q]);
   useEffect(() => { if (lib) { vm.vmScene.environment = lib.env; vm.vmScene.environmentIntensity = .9; vm.gunId = ''; } }, [lib, vm]);
-  useEffect(() => { let on = true; preloadArms().then(src => { if (on) { vm.armsSrc = src; vm.armsTeam = -1; } }).catch(e => console.error('Arena arms could not load.', e)); return () => { on = false; }; }, [vm]);
+  // The arms are drawn with the weapon; if they cannot be downloaded the weapon is drawn on its own (retried on Retry).
+  useEffect(() => { let on = true; preloadArms(P1).then(src => { if (on) { vm.armsSrc = src; vm.armsTeam = -1; } }).catch(e => console.warn('Arena arms could not load.', e?.message ?? e)); return () => { on = false; }; }, [vm, attempt]);
 
   // ---------------------------------------------------------------- post-processing
   const composer = useMemo(() => {
@@ -230,7 +279,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     } else if (f.type === 'impact') {
       const at = v1.fromArray(f.at), n = v2.fromArray(f.normal), kind = surfaceOf(f.mat);
       fx.effects.impact(at, n, kind, f.flesh);
-      if (f.flesh) sfx.flesh([at.x, at.y, at.z]); else if (Math.random() < .7) sfx.impact(kind as Ground, [at.x, at.y, at.z]);
+      if (f.flesh) sfx.flesh([at.x, at.y, at.z]); else sfx.impact(kind as Ground, [at.x, at.y, at.z]);
     } else if (f.type === 'boom') fx.effects.explosion(v1.fromArray(f.at), f.r);
     else if (f.type === 'smoke') fx.effects.smokeCloud(v1.fromArray(f.at), f.r, f.ms / 1000);
     else if (f.type === 'flash') fx.effects.flashbang(v1.fromArray(f.at));
@@ -242,10 +291,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       const w = WEAPONS.find(x => x.id === f.weapon)!, heavy = w.category === 'sniper' || w.category === 'shotgun' ? 1 : w.category === 'lmg' ? .55 : w.category === 'pistol' ? .5 : .38, ads = live.sim?.ads ?? 0;
       vm.flashAt = now; vm.kickZ += .028 * heavy * (1 - ads * .35) + .008; vm.kickPitch += .05 * heavy * (1 - ads * .5) + .008; vm.kickRoll += (Math.random() - .5) * .03 * heavy; vm.slideKick = 1;
       const port = vm.gun?.getObjectByName('ejection');
-      if (port && w.fire !== 'bolt' && w.id !== 'bastion' && w.id !== 'thorn') { vm.casings.eject(port.getWorldPosition(v1)); sfx.casing(); }
+      if (port && w.fire !== 'bolt' && w.id !== 'bastion' && w.id !== 'thorn') { vm.casings.eject(port.getWorldPosition(v1)); if (live.sim) sfx.casing(groundAt(live.sim.x, live.sim.y, live.sim.z)); }
       const muzzle = vm.gun?.getObjectByName('muzzle');
       if (muzzle) { muzzle.getWorldPosition(v1).applyMatrix4(camera.matrixWorld); camera.getWorldDirection(v2); fx.effects.muzzle(v1, v2); fx.muzzleLight.position.copy(v1); fx.muzzleLight.intensity = 28; }
-      if (w.fire === 'bolt' || w.id === 'bastion') sfx.bolt();
+      if (w.fire === 'bolt' || w.id === 'bastion') sfx.cycle(w.id);
     }
   }), [fx, vm, camera, q, objectives]);
 
@@ -279,7 +328,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       // Footsteps on whatever is underfoot.
       if (s.grounded && s.stance !== 2) {
         stepDist.current += speed * dt;
-        if (stepDist.current > (s.sprint ? 2.1 : 1.7)) { stepDist.current = 0; sfx.step(undefined, s.stance === 1 ? .1 : s.sprint ? .26 : .2, groundAt(s.x, s.y, s.z)); }
+        if (stepDist.current > (s.sprint ? 2.1 : 1.7)) { stepDist.current = 0; sfx.step(undefined, s.stance === 1 ? .1 : s.sprint ? .26 : .2, groundAt(s.x, s.y, s.z), { run: s.sprint }); }
       }
     } else if (s) {
       const d = deathCam.current ??= { x: s.x, y: s.y + 1.4, z: s.z, at: now };
@@ -306,12 +355,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const t = live.playback.time(now), seenNums = new Set<number>();
     // Where everyone is comes from the network, whether or not their soldier model has downloaded yet.
     if (t != null) for (const r of live.remotes.values()) if (!r.deadAt) { r.track.sample(t, sample); r.pos.x = sample.x; r.pos.y = sample.y; r.pos.z = sample.z; r.pos.yaw = sample.yaw; }
-    if (kits && lib) for (const r of live.remotes.values()) {
+    if (lib) for (const r of live.remotes.values()) {
       const dead = !!r.deadAt, visible = ((r.flags & 1) && r.seenAt && now - r.seenAt < 3000) || (dead && now - r.deadAt < 2600);
       let e = soldiers.current.get(r.num);
       const model = soldierModelFor(r.num);
-      if (e && (e.s.team !== r.team || e.model !== model)) { scene.remove(e.s.root); e.s.dispose(); soldiers.current.delete(r.num); e = undefined; }
-      if (!e) { if (!visible || r.team < 0) continue; e = { s: new Soldier(kits[model], r.team, lib, softTexture()), tag: null, tagKey: '', flashAt: 0, model }; soldiers.current.set(r.num, e); scene.add(e.s.root); }
+      // Until the soldier models arrive a player is drawn as a stand-in, never left invisible.
+      if (e && (e.s.team !== r.team || e.model !== model || (e.standIn && kits))) { dropSoldier(e); soldiers.current.delete(r.num); e = undefined; }
+      if (!e) { if (!visible || r.team < 0) continue; e = { s: kits ? new Soldier(kits[model], r.team, lib, softTexture()) : new StandInSoldier(r.team), tag: null, tagKey: '', flashAt: 0, model, standIn: !kits }; soldiers.current.set(r.num, e); scene.add(e.s.root); }
       seenNums.add(r.num);
       e.s.root.visible = !!visible; if (!visible) continue;
       if (t != null && !dead) r.track.sample(t, sample); // (for the footstep cadence below)
@@ -319,7 +369,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       const far = Math.hypot(r.pos.x - cam.position.x, r.pos.z - cam.position.z);
       e.s.update(dt, v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw, r.pitch, r.flags, dead, now - e.flashAt < 55, q.ik && far < 45);
       // Footsteps of others within earshot.
-      if (!dead && (r.flags & 256) && !(r.flags & 2) && far < 24) { const sp = (r.flags & 8) ? 300 : 430; if (now - r.stepAt > sp && Math.hypot(sample.x - (e.s.root.userData.lx ?? sample.x), sample.z - (e.s.root.userData.lz ?? sample.z)) / Math.max(dt, 1e-3) > 1.4) { r.stepAt = now; sfx.step([r.pos.x, r.pos.y, r.pos.z], .3, groundAt(r.pos.x, r.pos.y, r.pos.z)); } }
+      if (!dead && (r.flags & 256) && !(r.flags & 2) && far < (r.team !== live.team ? 30 : 24)) { const sp = (r.flags & 8) ? 300 : 430; if (now - r.stepAt > sp && Math.hypot(sample.x - (e.s.root.userData.lx ?? sample.x), sample.z - (e.s.root.userData.lz ?? sample.z)) / Math.max(dt, 1e-3) > 1.4) { r.stepAt = now; sfx.step([r.pos.x, r.pos.y, r.pos.z], .3, groundAt(r.pos.x, r.pos.y, r.pos.z), { enemy: r.team !== live.team, run: !!(r.flags & 8) }); } }
       e.s.root.userData.lx = sample.x; e.s.root.userData.lz = sample.z;
       // Identification: teammates carry a blue name; enemies a small red marker (hidden behind cover).
       const info = a.match?.players.find(p => p.num === r.num), friend = r.team === live.team;
@@ -330,7 +380,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
         if (key) { const { texture, aspect } = labelTexture(key, friend ? TEAM_COLORS.friend : TEAM_COLORS.enemy, 44, false); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: !friend, transparent: true, toneMapped: false, opacity: friend ? 1 : .9 })); const h = friend ? .3 : .16; sp.scale.set(h * aspect, h, 1); sp.position.y = 2.12; sp.renderOrder = 9; e.s.root.add(sp); e.tag = sp; }
       }
     }
-    for (const [num, e] of soldiers.current) if (!seenNums.has(num)) { if (!live.remotes.has(num)) { scene.remove(e.s.root); e.s.dispose(); soldiers.current.delete(num); } else e.s.root.visible = false; }
+    for (const [num, e] of soldiers.current) if (!seenNums.has(num)) { if (!live.remotes.has(num)) { dropSoldier(e); soldiers.current.delete(num); } else e.s.root.visible = false; }
     // ---- effects
     fx.effects.update(dt); vm.casings.update(dt);
     if (fx.muzzleLight.intensity > 0) fx.muzzleLight.intensity = Math.max(0, fx.muzzleLight.intensity - dt * 600);
@@ -354,14 +404,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       });
     } else objectives.g.visible = false;
     updateViewmodel(dt, now);
-    // The match is shown once the player's weapon, arms and the soldiers can be drawn (or after 15 s regardless).
-    if (!a.sceneReady && worldAt.current && ((kits && vm.gun && vm.arms) || now - worldAt.current > 15000)) {
-      a.set({ sceneReady: true });
+    // Playable once the world is built and its shaders compiled and the player's own weapon is here. Then the server
+    // is told (it brings a held player into the match), and the remaining weapons stream in idle time.
+    if (!a.sceneReady && world && compiled && gunReady) {
+      a.set({ sceneReady: true }); sceneLoaded(true);
       const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
       prefetchRemainingWeapons(q.detail > 0 && !saveData);
-    }
-    // Tell the server once per match that this player can see and play (Training waits for it).
-    if (a.sceneReady && a.match && loadedFor.current !== a.match.id && send({ t: 'loaded' })) loadedFor.current = a.match.id;
+    } else if (a.sceneReady && a.match && live.loadedSent !== a.match.id) sceneLoaded(true);
     const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); if (a.sceneReady && !document.hidden) adaptFps(fps); }
   }, -1);
 

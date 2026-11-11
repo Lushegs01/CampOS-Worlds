@@ -7,14 +7,16 @@ import type { Quality } from '../../world/quality';
 export interface ArenaQuality {
   dpr: number; antialias: boolean; shadows: boolean; shadowSize: number; shadowEvery: number; post: boolean; ao: boolean; bloom: boolean;
   effects: number; anisotropy: number; detail: number; fogFar: number; decals: number; casings: number; ik: boolean; lights: number;
+  /** Load the 512² texture tier (public/assets/arena/mobile): same art, a third of the download. */
+  mobileAssets: boolean;
 }
 export const ARENA_QUALITY: Record<Quality, ArenaQuality> = {
   // Phones: native-ish resolution, a static sun shadow, no post stack, fewer particles.
-  low: { dpr: 1, antialias: true, shadows: true, shadowSize: 1024, shadowEvery: 0, post: false, ao: false, bloom: false, effects: .5, anisotropy: 2, detail: 0, fogFar: 140, decals: 24, casings: 10, ik: true, lights: 0 },
+  low: { dpr: 1, antialias: true, shadows: true, shadowSize: 1024, shadowEvery: 0, post: false, ao: false, bloom: false, effects: .5, anisotropy: 2, detail: 0, fogFar: 140, decals: 24, casings: 10, ik: true, lights: 0, mobileAssets: true },
   // Ordinary laptops: SMAA, restrained bloom, a sharper shadow refreshed every other frame.
-  medium: { dpr: 1.5, antialias: false, shadows: true, shadowSize: 2048, shadowEvery: 2, post: true, ao: false, bloom: true, effects: 1, anisotropy: 4, detail: 1, fogFar: 190, decals: 64, casings: 24, ik: true, lights: 2 },
+  medium: { dpr: 1.5, antialias: false, shadows: true, shadowSize: 2048, shadowEvery: 2, post: true, ao: false, bloom: true, effects: 1, anisotropy: 4, detail: 1, fogFar: 190, decals: 64, casings: 24, ik: true, lights: 2, mobileAssets: false },
   // Desktop GPUs: ambient occlusion, full-rate 4K shadows, every effect.
-  high: { dpr: 2, antialias: false, shadows: true, shadowSize: 4096, shadowEvery: 1, post: true, ao: true, bloom: true, effects: 1, anisotropy: 8, detail: 1, fogFar: 240, decals: 120, casings: 40, ik: true, lights: 4 },
+  high: { dpr: 2, antialias: false, shadows: true, shadowSize: 4096, shadowEvery: 1, post: true, ao: true, bloom: true, effects: 1, anisotropy: 8, detail: 1, fogFar: 240, decals: 120, casings: 40, ik: true, lights: 4, mobileAssets: false },
 };
 
 /** A soft round sprite texture (smoke, flashes, sparks). */

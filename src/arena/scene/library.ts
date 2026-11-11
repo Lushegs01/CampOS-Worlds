@@ -2,58 +2,99 @@
 // scripts/assets/build-arena.mjs) plus the campus HDR sky. Loaded only when a match opens; every
 // texture is Basis KTX2 and every model meshopt-compressed.
 import * as THREE from 'three';
-import { initLoaders, loadTexture, loadModel, loadHDR, loadImage, assetUrl } from '../../world/assets';
+import { initLoaders, loadTexture, loadModel, loadHDR, loadImage, cached } from '../../world/assets';
+import { assetUrl as assetUrlOf } from '../../world/assetUrl';
+import type { FetchOptions } from '../../world/fetcher';
 import type { ArenaQuality } from './world';
 
 export type SurfaceKey = 'concreteWall' | 'concreteFloor' | 'road' | 'gravel' | 'dirt' | 'brick' | 'corrugated' | 'rustyCorrugated' | 'paintedMetal' | 'metalPlate' | 'plywood' | 'planks' | 'plaster' | 'sandbag';
 export const SURFACE_KEYS: SurfaceKey[] = ['concreteWall', 'concreteFloor', 'road', 'gravel', 'dirt', 'brick', 'corrugated', 'rustyCorrugated', 'paintedMetal', 'metalPlate', 'plywood', 'planks', 'plaster', 'sandbag'];
 export type PropKey = 'jersey' | 'milCrate' | 'oldCrate' | 'ammo' | 'barrel' | 'jerrycan' | 'generator' | 'wallLamp' | 'securityLight' | 'powerBox' | 'utilityBox' | 'tyre' | 'propane' | 'crate';
 export const PROP_KEYS: PropKey[] = ['jersey', 'milCrate', 'oldCrate', 'ammo', 'barrel', 'jerrycan', 'generator', 'wallLamp', 'securityLight', 'powerBox', 'utilityBox', 'tyre', 'propane', 'crate'];
+/** Props that ARE cover (crates and jersey barriers fill collision boxes): needed before anyone can play. */
+export const COVER_PROPS: PropKey[] = ['jersey', 'milCrate', 'oldCrate', 'crate'];
+/** Set dressing (drums, cans, lamps, generators): streamed in after the match is on screen. */
+export const DECOR_PROPS: PropKey[] = PROP_KEYS.filter(k => !COVER_PROPS.includes(k));
 export interface SurfaceSet { color: THREE.Texture; normal: THREE.Texture; arm: THREE.Texture }
 export interface Library {
   surfaces: Record<SurfaceKey, SurfaceSet>;
-  props: Record<PropKey, { scene: THREE.Group; size: THREE.Vector3 }>;
+  /** Cover props always; decorative props once loadDecor() has added them. */
+  props: Partial<Record<PropKey, { scene: THREE.Group; size: THREE.Vector3 }>> & Record<'jersey' | 'milCrate' | 'oldCrate' | 'crate', { scene: THREE.Group; size: THREE.Vector3 }>;
   env: THREE.Texture; sky: THREE.Texture; skyScale: number; skyCoverage: number; horizon: THREE.Color;
   sun: { dir: THREE.Vector3; color: THREE.Color; irradiance: number };
+  mobile: boolean;
+}
+
+/** Where an arena file is: phones (the Low profile) use the 512² texture tier built by scripts/assets/build-arena-mobile.mjs. */
+export const arenaPath = (rel: string, mobile: boolean) => (mobile ? `arena/mobile/${rel}` : `arena/${rel}`);
+/** Download policy by priority: 1 gameplay-critical, 2 nearby detail, 3 optional. */
+export const P1: FetchOptions = { priority: 1, retries: 3, stallMs: 15000, timeoutMs: 120000 };
+export const P2: FetchOptions = { priority: 2, retries: 3, stallMs: 20000, timeoutMs: 180000 };
+export const P3: FetchOptions = { priority: 3, retries: 1, stallMs: 30000, timeoutMs: 240000 };
+
+async function prop(key: PropKey, mobile: boolean, fetch: FetchOptions) {
+  const g = await loadModel(arenaPath(`props/${key}.glb`, mobile), fetch);
+  g.scene.traverse(o => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.castShadow = true; m.receiveShadow = true;
+    // Transmission (lamp glass) makes three.js draw the whole scene a second time every frame: use plain transparency.
+    const mat = m.material as THREE.MeshPhysicalMaterial; if (mat.transmission) { mat.transmission = 0; mat.transparent = true; mat.opacity = .4; mat.depthWrite = false; }
+  });
+  const size = new THREE.Box3().setFromObject(g.scene).getSize(new THREE.Vector3());
+  return [key, { scene: g.scene, size }] as const;
+}
+
+/** 1×1 stand-ins: a flat normal, and full AO / 0.9 roughness / no metal. */
+const flats: Partial<Record<'normal' | 'arm', THREE.DataTexture>> = {};
+function flat(slot: 'normal' | 'arm') {
+  return flats[slot] ??= Object.assign(new THREE.DataTexture(new Uint8Array(slot === 'normal' ? [128, 128, 255, 255] : [255, 230, 0, 255]), 1, 1), { wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, needsUpdate: true });
 }
 
 const pending = new WeakMap<THREE.WebGLRenderer, Promise<Library>>();
-let hdrOnce: Promise<THREE.DataTexture> | null = null;
-/** Load everything the arena scene draws. Downloads are shared; GPU-side results are per renderer. */
+/**
+ * Everything the arena needs before anyone can play: every surface set, the props that form cover, the sky and its
+ * lighting. Downloads are shared (and retried, time-limited, prioritised); GPU-side results are per renderer.
+ */
 export function loadLibrary(gl: THREE.WebGLRenderer, q: ArenaQuality): Promise<Library> {
   const hit = pending.get(gl); if (hit) return hit;
   initLoaders(gl, q.anisotropy);
+  const mobile = q.mobileAssets;
+  // Colour maps are essential; a normal or AO/roughness/metal map that cannot be downloaded falls back to a flat one
+  // (the surface loses some relief, the match goes on) and the deployment trace records it.
   const surfaces = Promise.all(SURFACE_KEYS.map(async key => {
-    const [color, normal, arm] = await Promise.all(['color', 'normal', 'arm'].map(slot => loadTexture(`arena/textures/${key}/${slot}.ktx2`)));
+    const [color, normal, arm] = await Promise.all(['color', 'normal', 'arm'].map(slot => {
+      const t = loadTexture(arenaPath(`textures/${key}/${slot}.ktx2`, mobile), P1);
+      return slot === 'color' ? t : t.catch(e => { console.warn(`Arena ${key}/${slot} map unavailable, using a flat one:`, (e as Error).message); return flat(slot as 'normal' | 'arm'); });
+    }));
     color.colorSpace = THREE.SRGBColorSpace;
     return [key, { color, normal, arm }] as const;
   }));
-  const props = Promise.all(PROP_KEYS.map(async key => {
-    const g = await loadModel(`arena/props/${key}.glb`);
-    g.scene.traverse(o => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.castShadow = true; m.receiveShadow = true;
-      // Transmission (lamp glass) makes three.js draw the whole scene a second time every frame: use plain transparency.
-      const mat = m.material as THREE.MeshPhysicalMaterial; if (mat.transmission) { mat.transmission = 0; mat.transparent = true; mat.opacity = .4; mat.depthWrite = false; }
-    });
-    const size = new THREE.Box3().setFromObject(g.scene).getSize(new THREE.Vector3());
-    return [key, { scene: g.scene, size }] as const;
-  }));
-  const info = fetch(assetUrl('sky/sky.json')).then(r => r.json()).catch(() => null);
-  const env = (hdrOnce ??= loadHDR('sky/environment.hdr')).then(hdr => {
-    hdr.mapping = THREE.EquirectangularReflectionMapping;
+  const props = Promise.all(COVER_PROPS.map(key => prop(key, mobile, P1)));
+  const info = fetch(assetUrlOf('sky/sky.json')).then(r => r.json()).catch(() => null);
+  // The campus has usually decoded the sky already (same cache key as src/world/Sky.tsx).
+  const env = cached('sky:hdr', () => loadHDR('sky/environment.hdr', P1)).then(hdr => {
     const pmrem = new THREE.PMREMGenerator(gl); const rt = pmrem.fromEquirectangular(hdr); pmrem.dispose();
     return rt.texture;
   });
-  const sky = loadImage(q.detail ? 'sky/sky.jpg' : 'sky/sky-low.jpg').then(t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return t; });
+  const sky = loadImage(q.detail ? 'sky/sky.jpg' : 'sky/sky-low.jpg', P1).then(t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return t; });
   const p = Promise.all([surfaces, props, env, sky, info]).then(([s, pr, e, sk, i]) => ({
     surfaces: Object.fromEntries(s) as Record<SurfaceKey, SurfaceSet>,
     props: Object.fromEntries(pr) as Library['props'],
     env: e, sky: sk, skyScale: i?.skyScale ?? 4, skyCoverage: i?.skyCoverage ?? .544, horizon: new THREE.Color().setRGB(...((i?.horizon ?? [.43, .46, .56]) as [number, number, number]), THREE.LinearSRGBColorSpace),
     sun: { dir: new THREE.Vector3(...((i?.sunDirection ?? [.55, .74, .38]) as [number, number, number])).normalize(), color: new THREE.Color().setRGB(...((i?.sunColor ?? [1, .98, .9]) as [number, number, number]), THREE.LinearSRGBColorSpace), irradiance: i?.sunIrradiance ?? 4 },
+    mobile,
   }));
   pending.set(gl, p); p.catch(() => pending.delete(gl));
   return p;
 }
-
+/**
+ * Set dressing, after the match is on screen. Each prop that arrives is added to the library; one that cannot be
+ * downloaded is simply left out (it is decoration). Resolves with the keys that loaded.
+ */
+export async function loadDecor(lib: Library, signal?: AbortSignal): Promise<PropKey[]> {
+  const got = await Promise.all(DECOR_PROPS.map(key => prop(key, lib.mobile, { ...P2, signal }).catch(e => { if ((e as Error).name !== 'AbortError') console.warn(`Arena prop ${key} skipped:`, (e as Error).message); return null; })));
+  const keys: PropKey[] = [];
+  for (const r of got) if (r) { lib.props[r[0]] = r[1]; keys.push(r[0]); }
+  return keys;
+}
 /** The photographic sky on a dome (the campus' Poly Haven HDRI, decoded to linear radiance). */
 export function skyDome(lib: Library) {
   const material = new THREE.ShaderMaterial({
