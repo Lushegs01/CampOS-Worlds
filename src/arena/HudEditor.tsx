@@ -224,11 +224,11 @@ function PreviewContent({ id, layout, touch }: { id: string; layout: Layout; tou
     case 'score': return <ScoreView ours={14} theirs={11} limit={40} />;
     case 'compass': return <CompassStatic />;
     case 'objectives': return <ObjectivesView objectives={[[0, 100, -1, 0], [-1, 40, 1, 1], [1, 100, -1, 0]]} team={0} />;
-    case 'killfeed': return <KillfeedView rows={[{ id: 1, killer: { text: me?.name ?? 'You', tone: 'me' }, victim: { text: 'SIM-Unit 04 [SIM]', tone: 'enemy' }, weapon: 'Vanguard AR-7', head: true }, { id: 2, killer: { text: 'SIM-Unit 02 [SIM]', tone: 'enemy' }, victim: { text: 'Teammate', tone: 'friend' }, weapon: 'Wasp SMG-9', head: false }]} />;
+    case 'killfeed': return <KillfeedView rows={[{ id: 1, killer: { text: me?.name ?? 'You', tone: 'me' }, victim: { text: 'SIM-Unit 04 [SIM]', tone: 'enemy' }, weapon: 'Vanguard AR-7', weaponId: 'vanguard', head: true }, { id: 2, killer: { text: 'SIM-Unit 02 [SIM]', tone: 'enemy' }, victim: { text: 'Teammate', tone: 'friend' }, weapon: 'Wasp SMG-9', weaponId: 'wasp', head: false }]} />;
     case 'minimap': return <MinimapPreview />;
     case 'health': return <HealthView hp={76} alive name={me?.name ?? 'Explorer'} emblem={me?.emblem ?? 'recruit'} />;
     case 'weaponSlots': return <WeaponSlotsView slot={0} primary="Vanguard AR-7" secondary="Combat Knife" />;
-    case 'weaponInfo': return <WeaponInfoView name="Vanguard AR-7" category="Assault rifle" state="" lethal={1} tactical={2} keys={!touch} />;
+    case 'weaponInfo': return <WeaponInfoView id="vanguard" name="Vanguard AR-7" category="Assault rifle" state="" lethal={1} tactical={2} keys={!touch} />;
     case 'ammo': return <AmmoView mag={18} reserve={90} magSize={30} melee={false} />;
     case 'streaks': return <StreaksView earned={['recon']} pts={2} level={5} hardline={false} keys={!touch} />;
     case 'killNotify': return <BannerView list={[{ id: 1, text: 'Eliminated SIM-Unit 04', sub: 'Headshot · +125', tone: 'good' }]} />;

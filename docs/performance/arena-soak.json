@@ -1,0 +1,82 @@
+{
+  "started": "2026-11-12T07:17:56.391Z",
+  "cycles": [
+    {
+      "label": "lobby, before any match",
+      "heapMB": 23.8,
+      "nodes": 1897,
+      "listeners": 32,
+      "jsListeners": 289,
+      "voices": 0,
+      "bufferKB": 1592
+    },
+    {
+      "label": "after match 1",
+      "heapMB": 29.5,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 300,
+      "voices": 0,
+      "bufferKB": 34870,
+      "deployMs": 8655,
+      "inMatch": {
+        "voices": 7,
+        "gl": {
+          "calls": 76,
+          "textures": 71,
+          "geometries": 43
+        }
+      }
+    },
+    {
+      "label": "after match 2",
+      "heapMB": 30.5,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 327,
+      "voices": 0,
+      "bufferKB": 32122,
+      "deployMs": 9124,
+      "inMatch": {
+        "voices": 0,
+        "gl": {
+          "calls": 77,
+          "textures": 158,
+          "geometries": 77
+        }
+      }
+    },
+    {
+      "label": "after match 3",
+      "heapMB": 30.8,
+      "nodes": 1968,
+      "listeners": 32,
+      "jsListeners": 300,
+      "voices": 0,
+      "bufferKB": 35137,
+      "deployMs": 9225,
+      "inMatch": {
+        "voices": 6,
+        "gl": {
+          "calls": 85,
+          "textures": 155,
+          "geometries": 76
+        }
+      }
+    },
+    {
+      "label": "campus, after leaving the arena",
+      "heapMB": 30.8,
+      "nodes": 1919,
+      "listeners": 31,
+      "jsListeners": 308,
+      "voices": 0,
+      "bufferKB": 0
+    }
+  ],
+  "renderer": "SwiftShader (software WebGL)",
+  "reentryDeployMs": 8056,
+  "heapGrowthMB": 1.3,
+  "finished": "2026-11-12T07:19:36.498Z",
+  "passed": true
+}

@@ -28,7 +28,7 @@ test('adaptive rendering: lowers resolution first, then asks for a lighter profi
 
 test('asset budget: a match preloads only the starting weapons’ third-person models; the rest stream on demand', () => {
   const soldiers = readFileSync('src/arena/scene/soldiers.ts', 'utf8');
-  assert.match(soldiers, /\['vanguard', 'wasp', 'knife'\]\.map\(id => preloadWeapon\(id, true\)/);
+  assert.match(soldiers, /\[\.\.\.FREE_FIREARMS, 'knife'\]\.map\(id => preloadWeapon\(id, true(, \{ \.\.\.P2, signal \})?\)/);
   assert.doesNotMatch(soldiers, /WEAPONS as \{ id: string \}\[\]\)\.map\(w => preloadWeapon\(w\.id, true\)\.catch\(\(\) => null\)\)\)/, 'no longer every LOD before play');
   const manifest = JSON.parse(readFileSync('public/assets/arena/manifest.json', 'utf8'));
   const lod = id => manifest.weapons.find(w => w.id === id)?.lodBytes ?? 0;

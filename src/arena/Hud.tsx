@@ -136,7 +136,7 @@ function KillFeed() {
   const feed = useArena(s => s.feed), players = useArena(s => s.match?.players), me = useArena(s => s.you?.num), team = useArena(s => s.you?.team);
   const name = (n: number | null) => { if (n == null) return null; const p = players?.find(x => x.num === n); return p ? { text: p.name + (p.bot ? ' [SIM]' : ''), tone: n === me ? 'me' : p.team === team ? 'friend' : 'enemy' } : { text: 'Player', tone: 'enemy' }; };
   const now = performance.now();
-  return <KillfeedView rows={feed.filter(f => now - f.at < 7000).map(f => ({ id: f.id, killer: f.killer !== f.victim ? name(f.killer) : null, victim: name(f.victim), weapon: weaponName(f.weapon), head: f.head }))} />;
+  return <KillfeedView rows={feed.filter(f => now - f.at < 7000).map(f => ({ id: f.id, killer: f.killer !== f.victim ? name(f.killer) : null, victim: name(f.victim), weapon: weaponName(f.weapon), weaponId: f.weapon && WEAPON_BY_ID.has(f.weapon) ? f.weapon : null, head: f.head }))} />;
 }
 
 /** North-up tactical map: teammates always; enemies only while visible and firing, or revealed by Recon Pulse. */
@@ -192,10 +192,9 @@ function WeaponSlots() {
 function WeaponInfo({ keys }: { keys: boolean }) {
   const h = useWeaponHud(), loadout = useArena(s => s.loadout);
   const w = WEAPON_BY_ID.get(h.weapon), melee = w?.fire === 'melee', low = !melee && h.mag <= Math.ceil(h.magSize * .25);
-  const state = h.phase === 'reload' ? 'RELOADING' : h.phase === 'inspect' ? 'INSPECTING' : h.phase === 'switch' ? 'SWITCHING' : !melee && h.mag === 0 && h.reserve === 0 ? 'NO AMMO' : !melee && low ? (keys ? 'RELOAD [R]' : 'RELOAD') : '';
-  return <><WeaponInfoView name={w?.name ?? ''} category={w ? CATEGORIES[w.category as keyof typeof CATEGORIES] : ''} state={state} lethal={h.lethal} tactical={h.tactical}
-    lethalName={EQUIPMENT_BY_ID.get(loadout.lethal)?.name} tacticalName={EQUIPMENT_BY_ID.get(loadout.tactical)?.name} keys={keys} />
-    {keys && w?.id === 'm7' && <div className="ar-m7-actions"><button onClick={() => press(B.MODE)} aria-label="Change fire mode">{h.fireMode === 'semi' ? 'SEMI' : 'AUTO'}{keys ? ' [B]' : ' ⇄'}</button><button onClick={() => press(B.INSPECT)} aria-label="Inspect weapon">Inspect{keys ? ' [I]' : ''}</button></div>}</>;
+  const state = h.phase === 'reload' ? 'RELOADING' : h.phase === 'switch' ? 'SWITCHING' : !melee && h.mag === 0 && h.reserve === 0 ? 'NO AMMO' : !melee && low ? (keys ? 'RELOAD [R]' : 'RELOAD') : '';
+  return <WeaponInfoView id={w?.id} name={w?.name ?? ''} category={w ? CATEGORIES[w.category as keyof typeof CATEGORIES] : ''} state={state} lethal={h.lethal} tactical={h.tactical}
+    lethalName={EQUIPMENT_BY_ID.get(loadout.lethal)?.name} tacticalName={EQUIPMENT_BY_ID.get(loadout.tactical)?.name} keys={keys} />;
 }
 function Ammo() {
   const h = useWeaponHud(), w = WEAPON_BY_ID.get(h.weapon);

@@ -72,14 +72,16 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       loadout: who.loadout ?? PRESETS[0], pendingLoadout: null, perks: new Set((who.loadout ?? PRESETS[0]).perks),
       sim: null, alive: false, hp: R.maxHealth, respawnAt: 0, diedAt: 0, life: 0, lastSeq: who.lastSeq ?? 0,
       tokens: R.commandBurst, tokensAt: clock(), rt: 0, history: [], damageLog: [], lastDamageAt: 0, protectUntil: 0, blindUntil: 0, firedAt: 0,
-      streak: 0, streakPts: 0, earned: new Set(), streakUsedAt: {}, recentKills: [], lastKiller: null, joinedAt: clock(), leftAt: 0, loaded: !!who.bot, seen: new Map(),
+      // A gated client (one that reports when its scene has loaded) is loaded only once it says so; others are taken as loaded.
+      streak: 0, streakPts: 0, earned: new Set(), streakUsedAt: {}, recentKills: [], lastKiller: null, joinedAt: clock(), leftAt: 0, loaded: !!who.bot || !who.gated, gated: !!who.gated, sceneReady: !!who.bot, held: false, seen: new Map(),
       stats: freshStats(), weaponKills: {},
     };
     players.push(p);
     if (p.bot) p.brain = createBrain({ match: api, player: p, difficulty, random });
     record({ type: 'join', player: p.num, name: p.name, team: p.team, bot: p.bot, account: p.account });
-    // Players are in the map at once: before the match starts they can warm up (no damage until it does).
-    spawn(p);
+    // Players are in the map at once: before the match starts they can warm up (no damage until it does). Joining a
+    // match in progress, a player still loading is held out of combat until their scene is ready (or loadWaitMs).
+    if (state === 'playing' && !p.loaded) hold(p); else spawn(p);
     announceRoster();
     lifecycle();
     return p;
@@ -103,6 +105,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     if (!p || state === 'ended' || closed) return null;
     p.conn = conn; p.connected = true; p.leftAt = 0; p.tokens = R.commandBurst; p.tokensAt = clock();
     if (!p.alive) { p.respawnAt = clock() + 500; }
+    // A gated client reconnecting may have reloaded the page: it reports again when its scene is ready.
+    if (p.gated && conn?.caps?.loadgate) { p.loaded = false; p.sceneReady = false; p.joinedAt = clock(); if (!p.alive && state === 'playing') hold(p); }
     record({ type: 'reconnect', player: p.num });
     announceRoster(); lifecycle();
     return p;
@@ -126,7 +130,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     const now = clock(), present = connected().length;
     if (state === 'waiting') {
       // Training waits for its player's scene to load (or loadWaitMs), so the bots never open fire on a loading screen.
-      const enough = kind === 'training' ? connected().some(p => p.loaded || now - p.joinedAt >= R.loadWaitMs) : present >= R.minToStart;
+      const enough = kind === 'training' ? connected().some(p => p.sceneReady || now - p.joinedAt >= R.loadWaitMs) : present >= R.minToStart;
       const full = players.length >= maxPerTeam * 2;
       if (kind === 'private') return; // the host starts a private match
       if (enough && (full || kind === 'training' || now - (api.enoughAt ??= now) >= R.fillWaitMs)) setState('countdown');
@@ -157,7 +161,11 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     startedAt = clock(); scores[0] = scores[1] = 0; firstBlood = false; scoreTickAt = startedAt;
     projectiles.length = smokes.length = supplies.length = strikes.length = 0;
     for (const o of objectives) Object.assign(o, { owner: -1, progress: 0, capTeam: -1, contested: false });
-    for (const p of players) { p.stats = freshStats(); p.streak = p.streakPts = 0; p.earned.clear(); p.weaponKills = {}; p.joinedAt = startedAt; if (p.bot || p.connected) spawn(p); }
+    for (const p of players) {
+      p.stats = freshStats(); p.streak = p.streakPts = 0; p.earned.clear(); p.weaponKills = {};
+      if (p.bot || (p.connected && p.loaded)) spawn(p); else if (p.connected) hold(p);
+      p.joinedAt = startedAt;
+    }
     setState('playing');
   }
   function finish(winner, outcome) {
@@ -189,11 +197,16 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   }
 
   // ---------------------------------------------------------------- spawning
+  /** Out of combat until the player's scene has loaded; spawned by loaded(), or by the respawn loop at the cap. */
+  function hold(p) {
+    p.alive = false; p.held = true; p.respawnAt = Math.max(clock() + 250, p.joinedAt + R.loadWaitMs);
+    record({ type: 'hold', player: p.num });
+  }
   function spawn(p) {
     if (p.pendingLoadout) { p.loadout = p.pendingLoadout; p.pendingLoadout = null; p.perks = new Set(p.loadout.perks); }
     const at = pickSpawn(p);
     p.sim = spawnState(at, p.loadout, p.perks);
-    p.alive = true; p.hp = R.maxHealth; p.life++; p.damageLog = []; p.lastDamageAt = 0;
+    p.alive = true; p.held = false; p.hp = R.maxHealth; p.life++; p.damageLog = []; p.lastDamageAt = 0;
     p.protectUntil = clock() + R.spawnProtectMs; p.history = []; p.respawnAt = 0;
     p.brain?.reset();
     remember(p, clock());
@@ -285,7 +298,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       if (ev.kind === 'shot') resolveShot(p, ev, now, false);
       else if (ev.kind === 'melee') resolveMelee(p, ev, now);
       else if (ev.kind === 'throw') throwEquipment(p, ev);
-      else if (ev.kind === 'reload' || ev.kind === 'switch' || ev.kind === 'slide') emitAll({ k: 'act', num: p.num, a: ev.kind, w: ev.weapon ?? null }, o => o !== p);
+      // `e`: a reload from an empty magazine (others hear the action worked as well).
+      else if (ev.kind === 'reload' || ev.kind === 'switch' || ev.kind === 'slide') emitAll({ k: 'act', num: p.num, a: ev.kind, w: ev.weapon ?? null, ...(ev.kind === 'reload' && ev.empty ? { e: 1 } : {}) }, o => o !== p);
     }
     if (supplies.length) touchSupplies(p, now);
   }
@@ -329,13 +343,13 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       ends.push([cm(ev.ox + dx * hitT), cm(ev.oy + dy * hitT), cm(ev.oz + dz * hitT), hit ? 1 : 0]);
       if (!hit) continue;
       const base = damageAt(w, hitT) * (head ? w.head : legs ? w.legs : 1) * (penetrated ? keep : 1);
-      const d = damage.get(hit) ?? { amount: 0, head: false, dist: hitT };
-      d.amount += base; d.head ||= head; damage.set(hit, d);
+      const d = damage.get(hit) ?? { amount: 0, head: false, legs: true, dist: hitT };
+      d.amount += base; d.head ||= head; d.legs &&= legs; damage.set(hit, d);
     }
     emitAll({ k: 'shot', num: p.num, w: WEAPON_INDEX.get(w.id), o: [cm(ev.ox), cm(ev.oy), cm(ev.oz)], e: ends.slice(0, 4) }, o => o !== p);
     for (const [o, d] of damage) {
       p.stats.hits++; p.stats.weapons[w.id].hits++;
-      hurt(o, Math.round(d.amount), p, { weapon: w.id, head: d.head, dist: d.dist, trade });
+      hurt(o, Math.round(d.amount), p, { weapon: w.id, head: d.head, legs: d.legs && !d.head, dist: d.dist, trade });
     }
   }
   function resolveMelee(p, ev, now) {
@@ -366,9 +380,11 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     if (by && by !== o) { o.damageLog.push({ from: by, amount, at: now }); by.stats.damage += amount; }
     record({ type: 'damage', from: by?.num ?? null, to: o.num, amount, cause: cause.weapon ?? cause.equipment ?? cause.streak, head: !!cause.head });
     const kill = o.hp <= 0;
-    if (by && by !== o) emit(by, { k: 'hit', num: o.num, dmg: amount, hs: !!cause.head, kill });
+    // For sound: where it struck (head, legs) and what it was (a round, a blade or butt, an explosion).
+    const c = cause.equipment || cause.streak ? 'x' : cause.weapon === 'melee' || WEAPON_BY_ID.get(cause.weapon)?.fire === 'melee' ? 'm' : 'b';
+    if (by && by !== o) emit(by, { k: 'hit', num: o.num, dmg: amount, hs: !!cause.head, kill, ...(cause.legs ? { lg: 1 } : {}), c });
     const from = by?.sim ? [cm(by.sim.x), cm(by.sim.z)] : cause.at ?? null;
-    emit(o, { k: 'dmg', dmg: amount, hp: Math.max(0, o.hp), from });
+    emit(o, { k: 'dmg', dmg: amount, hp: Math.max(0, o.hp), from, ...(cause.head ? { hs: 1 } : {}), ...(cause.legs ? { lg: 1 } : {}), c });
     if (kill) eliminate(o, by, cause);
   }
   function eliminate(v, k, cause) {
@@ -655,7 +671,14 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     setState('countdown'); return { ok: true };
   }
   /** The client has its scene drawn and can play. */
-  function loaded(p) { if (p && !p.bot) p.loaded = true; }
+  /** The player's scene is ready. Returns true when that brought them into the match now. */
+  function loaded(p) {
+    if (!p || p.bot) return false;
+    p.sceneReady = true; p.loaded = true;
+    if (p.held && p.connected && state !== 'ended' && !closed) { balance(p); spawn(p); lifecycle(); flush(); return true; }
+    lifecycle();
+    return false;
+  }
   function setLoadout(p, loadout) { p.pendingLoadout = loadout; if (state !== 'playing' && p.alive) spawn(p); }
 
   const interval = autoTick ? setInterval(tick, 1000 / R.tickHz) : null;

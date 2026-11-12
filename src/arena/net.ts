@@ -19,8 +19,10 @@ import { useArena, useBanners, emptyHud, inputPaused, type Loadout, type MatchVi
 import { autoFireDecision } from '../../shared/arena/autofire.mjs';
 import { syncFromAccount } from './hudLayout';
 import { controls, buttons, axes } from './input';
-import { preloadM7Audio, sfx } from './audio';
+import { sfx, actions, remoteActions, announcer, countdown, ground } from './audio';
+import { soldierModelFor } from './models';
 import { QA_HOOKS } from '../qa';
+import * as deploy from './deploy';
 
 type Sim = ReturnType<typeof spawnState>;
 type Cmd = { seq: number; b: number; mx: number; mz: number; yaw: number; pitch: number };
@@ -49,9 +51,11 @@ export const live = {
   strikes: [] as { x: number; y: number; z: number; r: number; at: number; team: number }[],
   radar: [] as number[][], reconUntil: 0, enemyReconUntil: 0,
   hit: { at: 0, kill: false, head: false }, damage: [] as { angle: number; at: number }[], hurtAt: 0, blindUntil: 0, blindMs: 0,
-  kick: 0, shake: 0, firedAt: 0, reloadStart: 0, reloadTotal: 0, rtt: 0, loadout: null as Loadout | null, perks: new Set<string>(),
+  kick: 0, shake: 0, firedAt: 0, reloadStart: 0, reloadTotal: 0, reloadEmpty: false, rtt: 0, loadout: null as Loadout | null, perks: new Set<string>(),
   /** Auto-fire is holding the trigger this tick (and why not, for the QA hooks). */
   autoFiring: false, autoReason: '',
+  /** The scene for the current match has what it needs to draw and play (sent to the server as 'loaded'). */
+  sceneReady: false, loadedSent: '', haveState: false, syncRetries: 0,
 };
 const fxListeners = new Set<(f: Fx) => void>();
 export function onFx(fn: (f: Fx) => void) { fxListeners.add(fn); return () => { fxListeners.delete(fn); }; }
@@ -59,6 +63,9 @@ const fx = (f: Fx) => { for (const l of fxListeners) l(f); };
 const banner = useBanners.getState().push;
 
 let socket: WebSocket | null = null, stopped = true, retry = 0, retryTimer: ReturnType<typeof setTimeout> | undefined, pingTimer: ReturnType<typeof setInterval> | undefined;
+let helloTimer: ReturnType<typeof setTimeout> | undefined, watchTimer: ReturnType<typeof setInterval> | undefined;
+/** What the client supports: the server holds it out of live combat until its scene has loaded, and takes its deployment timings. */
+const CAPS = ['loadgate', 'diag'];
 let ref = 0;
 const replies = new Map<number, (m: Record<string, unknown>) => void>();
 const REJOIN = 'campos-arena-rejoin';
@@ -83,6 +90,7 @@ export function request(data: Record<string, unknown>, timeout = 8000): Promise<
 
 export function connect() {
   stopped = false; clearTimeout(retryTimer);
+  clearInterval(watchTimer); watchTimer = setInterval(deploy.watchdog, 1000);
   if (socket && socket.readyState < 2) return;
   const a = useArena.getState(); a.set({ status: 'connecting', error: '' });
   let ws: WebSocket;
@@ -93,12 +101,16 @@ export function connect() {
     const access = await accountAccess().catch(() => null);
     if (socket !== ws) return;
     const g = useGame.getState();
-    ws.send(JSON.stringify({ t: 'hello', name: g.name, avatar: g.avatar, ...(access ? { access } : {}) }));
+    ws.send(JSON.stringify({ t: 'hello', name: g.name, avatar: g.avatar, caps: CAPS, ...(access ? { access } : {}) }));
+    // No answer to hello (a stuck server, a half-open connection): close and reconnect rather than wait forever.
+    clearTimeout(helloTimer);
+    helloTimer = setTimeout(() => { if (socket === ws && useArena.getState().status === 'connecting') { useArena.getState().set({ error: 'The arena is taking a while to answer. Reconnecting…' }); ws.close(); } }, 12000);
   };
   ws.onmessage = e => { if (socket !== ws) return; let m; try { m = JSON.parse(e.data); } catch { return; } receive(m); };
   ws.onclose = e => {
     if (socket !== ws) return;
-    socket = null; clearInterval(pingTimer);
+    socket = null; clearInterval(pingTimer); clearTimeout(helloTimer);
+    deploy.lost();
     const s = useArena.getState();
     if (e.code === 4004) { s.set({ status: 'replaced', error: 'Combat Arena opened in another window.' }); return; }
     s.set({ status: 'offline' });
@@ -109,7 +121,8 @@ export function connect() {
   ws.onerror = () => {};
 }
 export function disconnect() {
-  stopped = true; clearTimeout(retryTimer); clearInterval(pingTimer);
+  stopped = true; clearTimeout(retryTimer); clearInterval(pingTimer); clearTimeout(helloTimer); clearInterval(watchTimer);
+  deploy.reset();
   if (socket) { raw({ t: 'leave' }); socket.close(); socket = null; }
   resetMatch(); useArena.getState().set({ status: 'idle' });
 }
@@ -119,7 +132,7 @@ export function pendingRejoin(): { match: string; key: string } | null {
 function saveRejoin(match: string | null, key = '') { try { if (match) sessionStorage.setItem(REJOIN, JSON.stringify({ match, key, at: Date.now() })); else sessionStorage.removeItem(REJOIN); } catch { /* storage denied */ } }
 
 function resetMatch() {
-  Object.assign(live, { sim: null, ctx: null, alive: false, life: 0, num: 0, pending: [], outgoing: [], acc: 0, radar: [], reconUntil: 0, enemyReconUntil: 0, blindUntil: 0 });
+  Object.assign(live, { sim: null, ctx: null, alive: false, life: 0, num: 0, pending: [], outgoing: [], acc: 0, radar: [], reconUntil: 0, enemyReconUntil: 0, blindUntil: 0, sceneReady: false, loadedSent: '', haveState: false, syncRetries: 0 });
   live.remotes.clear(); live.grenades.clear(); live.smokes = []; live.supplies = []; live.strikes = []; live.playback.reset();
   useArena.getState().set({ match: null, you: null, feed: [], board: {}, hud: emptyHud(), killedBy: null, scoreboard: false });
 }
@@ -129,7 +142,8 @@ function receive(m: Record<string, any>) {
   const a = useArena.getState();
   switch (m.t) {
     case 'ready': {
-      retry = 0;
+      retry = 0; clearTimeout(helloTimer);
+      a.set({ notice: m.notice === 'accounts-unavailable' ? 'Your account could not be checked just now, so you are playing as a guest: progress from these matches is not saved. Reopen the arena to try again.' : '', error: a.error.startsWith('The arena is taking') ? '' : a.error });
       a.set({ status: 'ready', me: { name: m.name, verified: m.verified, handle: m.handle, level: m.level, xp: m.xp, emblem: m.emblem, weaponLevels: m.weaponLevels ?? {} }, online: m.online, owned: Array.isArray(m.owned) ? m.owned : [] });
       if (m.verified) void syncFromAccount();
       if (m.verified && Array.isArray(m.loadouts) && m.loadouts.length) a.set({ loadouts: m.loadouts, loadout: m.loadout });
@@ -137,7 +151,13 @@ function receive(m: Record<string, any>) {
       clearInterval(pingTimer); pingTimer = setInterval(() => raw({ t: 'ping', n: performance.now() }), 2000);
       // Back after a dropped connection (or a reload) during a match: take our place again.
       const back = a.match ? { match: a.match.id, key: a.you!.key } : pendingRejoin();
-      if (back) void request({ t: 'rejoin', ...back }).then(r => { if (!r.ok) { saveRejoin(null); if (useArena.getState().phase === 'match') { resetMatch(); useArena.getState().set({ phase: 'lobby', error: String(r.reason ?? '') }); } } else banner({ text: 'Reconnected', tone: 'good', ms: 1800 }); });
+      if (back) {
+        const cid = deploy.useDeploy.getState().stage === 'recovering' ? deploy.useDeploy.getState().cid : null;
+        void request({ t: 'rejoin', ...back, ...(cid ? { cid } : {}) }).then(r => {
+          if (!r.ok) { saveRejoin(null); deploy.reset(); if (useArena.getState().phase === 'match') { resetMatch(); useArena.getState().set({ phase: 'lobby', error: String(r.reason ?? '') }); } }
+          else banner({ text: 'Reconnected', tone: 'good', ms: 1800 });
+        });
+      } else if (deploy.useDeploy.getState().stage === 'recovering') deploy.fail('The connection dropped before the match could start.', 'request');
       return;
     }
     case 'reply': { const r = replies.get(m.ref); if (r) { replies.delete(m.ref); r(m); } return; }
@@ -150,7 +170,7 @@ function receive(m: Record<string, any>) {
       banner({ text: 'Loadout changed', sub: 'A weapon in it is no longer yours; a free loadout is used from your next deployment.', tone: 'info', ms: 4200 });
       return;
     }
-    case 'match': return enterMatch(m.match, m.you, m.loadout, !!m.rejoined);
+    case 'match': enterMatch(m.match, m.you, m.loadout, !!m.rejoined); if (live.sceneReady) sceneLoaded(true); return;
     case 's': return snapshot(m);
     case 'e': for (const ev of m.l) event(ev); return;
     case 'record': a.set({ record: { state: m.state, reason: m.reason ?? null } }); return;
@@ -164,7 +184,11 @@ function receive(m: Record<string, any>) {
 
 function enterMatch(view: MatchView, you: { num: number; team: number; key: string }, loadout: Loadout, rejoined: boolean) {
   const a = useArena.getState();
-  if (!rejoined || a.match?.id !== view.id) { resetMatch(); a.set({ result: null, progress: null, record: null }); }
+  const same = rejoined && a.match?.id === view.id;
+  if (!same) { resetMatch(); a.set({ result: null, progress: null, record: null }); }
+  // Deployment: assigned to a match. After a reconnect to the same match, carry on from where it stood.
+  if (same && deploy.useDeploy.getState().stage === 'recovering') deploy.resumed(); else if (!same || deploy.useDeploy.getState().stage !== 'deployed') deploy.assigned();
+  live.loadedSent = ''; live.haveState = false; live.syncRetries = 0;
   const map = MAP_BY_ID.get(view.map)!;
   live.world = createWorld(map.boxes, map.bounds); live.mapId = view.map; live.num = you.num; live.team = you.team;
   live.loadout = loadout; live.perks = new Set(loadout.perks);
@@ -189,11 +213,16 @@ function snapshot(m: Record<string, any>) {
     seen.add(num);
     let r = live.remotes.get(num);
     if (!r) { r = { num, team: teamOf(num), track: createTrack(10), pitch: 0, flags, weapon, hp, seenAt: now, deadAt: 0, pos: { x: x / 100, y: y / 100, z: z / 100, yaw: yaw / 1000 }, stepAt: 0 }; live.remotes.set(num, r); }
-    if (!(flags & 1)) { if (!r.deadAt) r.deadAt = now; } else if (r.deadAt && now - r.deadAt > 300) { r.deadAt = 0; r.track = createTrack(10); }
+    // Sound from the server's own state: a drop in a living player's health is a validated hit (their reaction);
+    // alive again after an elimination is a respawn.
+    const at: [number, number, number] = [x / 100, y / 100 + 1.5, z / 100];
+    if ((r.flags & 1) && !r.deadAt && (flags & 1) && hp < r.hp) sfx.hurt(num, r.hp - hp, hp, at, soldierModelFor(num));
+    if (!(flags & 1)) { if (!r.deadAt) r.deadAt = now; } else if (r.deadAt && now - r.deadAt > 300) { r.deadAt = 0; r.track = createTrack(10); sfx.spawn([x / 100, y / 100 + .2, z / 100]); }
     r.track.push(m.at, x / 100, y / 100, z / 100, yaw / 1000); r.pitch = pitch / 1000; r.flags = flags; r.weapon = weapon; r.hp = hp; r.seenAt = now; r.team = teamOf(num);
   }
   for (const [num, r] of live.remotes) if (!seen.has(num) && !r.deadAt) { r.flags &= ~1; r.seenAt = 0; }
   live.radar = m.r ?? [];
+  contested(m.o); progress(m.tl, m.sc);
   // ---- grenades, interpolated lightly between snapshots
   const g = new Set<number>();
   for (const [id, kind, x, y, z] of m.g as number[][]) { g.add(id); live.grenades.set(id, { kind, x: x / 100, y: y / 100, z: z / 100, at: now }); }
@@ -216,7 +245,10 @@ function snapshot(m: Record<string, any>) {
       live.prev.x -= ex; live.prev.y -= ey; live.prev.z -= ez;
     }
     live.alive = me.alive;
+    live.haveState = true;
   }
+  // Deployed: the scene is ready and the server has given us our own state (spawned, or dead and waiting to respawn).
+  if (live.sceneReady && live.haveState && live.sim) deploy.deployed();
   // ---- interface (React) values, only when they change
   const prev = a.hud, s = live.sim;
   const w = s ? weaponOf(s) : null;
@@ -229,6 +261,29 @@ function snapshot(m: Record<string, any>) {
   if (a.match && m.st !== a.match.state) a.set({ match: { ...a.match, state: m.st, scores: m.sc } });
 }
 const teamOf = (num: number) => useArena.getState().match?.players.find(p => p.num === num)?.team ?? -1;
+/** Where another player is now (their chest), for sounds that follow them (a reload, a bolt worked). */
+const posOf = (num: number): [number, number, number] | null => { const r = live.remotes.get(num); return r && r.seenAt && !r.deadAt ? [r.pos.x, r.pos.y + 1.2, r.pos.z] : null; };
+/** The living player a round's end point lies on (within the hitbox), if any. */
+function victimNear(p: number[]) {
+  let best: Remote | null = null, bd = .9;
+  for (const r of live.remotes.values()) { if (r.deadAt) continue; const d = Math.hypot(r.pos.x - p[0], r.pos.z - p[2]); if (d < bd && p[1] > r.pos.y - .1 && p[1] < r.pos.y + 2) { bd = d; best = r; } }
+  return best;
+}
+/** Match progress: a notice with a minute left, and the radio when the enemy nears the score limit ahead of us. */
+let lastTimeLeft = Infinity;
+function progress(timeLeft: number | undefined, scores: number[] | undefined) {
+  const a = useArena.getState(); if (a.match?.state !== 'playing') { lastTimeLeft = Infinity; return; }
+  if (typeof timeLeft === 'number') { if (lastTimeLeft > 60000 && timeLeft <= 60000 && timeLeft > 0) sfx.ui('notify'); lastTimeLeft = timeLeft; }
+  const limit = a.match.scoreLimit, ours = scores?.[live.team] ?? 0, theirs = scores?.[1 - live.team] ?? 0;
+  if (limit && theirs >= limit * .8 && theirs > ours) announcer.say('losing', { gap: 60 });
+}
+/** Domination: one of our objectives coming under enemy capture is announced (not more than every 15 s). */
+let lastObjectives: number[][] = [];
+function contested(o: number[][] | undefined) {
+  if (!Array.isArray(o)) return;
+  o.forEach((x, i) => { const [owner, , cap] = x, was = lastObjectives[i]; if (owner === live.team && cap >= 0 && cap !== live.team && !(was && was[2] === cap)) announcer.say('contested', { gap: 15 }); });
+  lastObjectives = o.map(x => [...x]);
+}
 const nameOf = (num: number | null) => (num == null ? 'The arena' : useArena.getState().match?.players.find(p => p.num === num)?.name ?? 'A player');
 function hudWeapon(s: Sim, w: ReturnType<typeof weaponOf>) {
   const cur = s.wpn[s.slot];
@@ -240,23 +295,23 @@ function event(ev: Record<string, any>) {
   const a = useArena.getState(), now = performance.now(), mine = (n: number | null) => n === live.num, team = (n: number | null) => teamOf(n ?? -1);
   switch (ev.k) {
     case 'spawn': {
-      if (ev.loadout.primary === 'm7') void preloadM7Audio();
+      live.haveState = true;
       live.loadout = ev.loadout; live.perks = new Set(ev.loadout.perks); if (live.ctx) live.ctx.perks = live.perks;
-      live.sim = spawnState({ x: ev.x, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true;
+      live.sim = spawnState({ x: ev.x, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true; sfx.spawn();
       live.pending = []; live.smooth = { x: 0, y: 0, z: 0 }; live.prev = { x: ev.x, y: eyeOf(live.sim), z: ev.z }; controls.yaw = ev.yaw; controls.pitch = 0;
       a.set({ killedBy: null, loadout: ev.loadout });
       return;
     }
     case 'roster': if (a.match) a.set({ match: { ...a.match, players: ev.players } }); for (const r of live.remotes.values()) r.team = teamOf(r.num); { const me = ev.players.find((p: { num: number }) => p.num === live.num); if (me && a.you && me.team !== a.you.team) { a.set({ you: { ...a.you, team: me.team } }); live.team = me.team; } } return;
-    case 'balanced': banner({ text: 'Teams balanced', sub: 'You moved to the other team.', tone: 'info', ms: 3000 }); return;
+    case 'balanced': banner({ text: 'Teams balanced', sub: 'You moved to the other team.', tone: 'info', ms: 3000 }); sfx.ui('notify'); return;
     case 'state': {
       if (a.match) a.set({ match: { ...a.match, state: ev.state } });
-      if (ev.state === 'countdown') { banner({ text: 'Match starting', sub: 'Get ready', tone: 'big', ms: 2500 }); sfx.beep(); }
-      if (ev.state === 'playing') { banner({ text: 'Fight', sub: MODE_BY_ID.get(a.match?.mode ?? '')?.text, tone: 'big', ms: 3000 }); sfx.beep(true); }
+      if (ev.state === 'countdown') { banner({ text: 'Match starting', sub: 'Get ready', tone: 'big', ms: 2500 }); countdown(ev.countdownMs || 3000); }
+      if (ev.state === 'playing') { banner({ text: 'Fight', sub: MODE_BY_ID.get(a.match?.mode ?? '')?.text, tone: 'big', ms: 3000 }); announcer.say('go', { gap: 2 }); }
       if (ev.state === 'waiting') banner({ text: 'Waiting for players', tone: 'info', ms: 2500 });
       return;
     }
-    case 'left': live.remotes.delete(ev.num); return;
+    case 'left': live.remotes.delete(ev.num); remoteActions.forget(ev.num); return;
     case 'board': a.set({ board: Object.fromEntries(ev.rows.map((r: number[]) => [r[0], r.slice(1)])) }); return;
     case 'shot': {
       const w = WEAPONS[ev.w]; const r = live.remotes.get(ev.num);
@@ -270,19 +325,33 @@ function event(ev: Record<string, any>) {
         const hit = live.world && !e[3] ? raycast(live.world, from[0], from[1], from[2], dx / len, dy / len, dz / len, len + .4, null, hitScratch) : null;
         if (hit && hit.t > len - .6) { normal = [...hit.normal]; mat = hit.box ? matOf(hit.box) : undefined; }
         fx({ type: 'impact', at: to, normal, flesh: !!e[3], mat });
+        // A round that stopped in a player: the helmet, the plate carrier or cloth, by where on them it struck.
+        if (e[3]) { const v = victimNear(to); if (v) sfx.bodyHit(sfx.partAt(to[1], v.pos.y, !!(v.flags & 2)), to as [number, number, number]); }
       }
       fx({ type: 'muzzle', num: ev.num });
-      if (w) sfx.gun(w.sound, [from[0], from[1], from[2]]);
+      if (w) {
+        sfx.gun(w.id, [from[0], from[1], from[2]], ev.num);
+        // The pump or bolt worked after the shot, from where they are.
+        if (w.id === 'bastion' || w.fire === 'bolt') remoteActions.cycle(ev.num, w.id, () => posOf(ev.num));
+        // A round from the other team passing close: the snap or whiz that tells you you are being shot at.
+        if (team(ev.num) !== live.team && ev.e[0]) sfx.flyby(w.id, from as [number, number, number], [ev.e[0][0] / 100, ev.e[0][1] / 100, ev.e[0][2] / 100]);
+      }
       return;
     }
     case 'act': {
-      const r = live.remotes.get(ev.num), at: [number, number, number] | undefined = r ? [r.pos.x, r.pos.y + 1, r.pos.z] : undefined;
-      if (ev.a === 'melee') sfx.swing(at);
+      const r = live.remotes.get(ev.num), at: [number, number, number] | undefined = r ? [r.pos.x, r.pos.y + 1.2, r.pos.z] : undefined;
+      if (ev.a === 'melee') sfx.swing(ev.w === 'knife' ? 'knife' : ev.w === 'hammer' ? 'axe' : 'butt', at);
+      else if (ev.a === 'reload' && r) { const w = WEAPONS[r.weapon]; if (w) remoteActions.reload(ev.num, w.id, !!ev.e, () => posOf(ev.num)); }
+      else if (ev.a === 'switch') { remoteActions.interrupt(ev.num); if (at) sfx.remoteSwap(at); }
+      else if (ev.a === 'slide' && r) sfx.slide(ground(r.pos.x, r.pos.y, r.pos.z).surface, [r.pos.x, r.pos.y + .2, r.pos.z]);
       return;
     }
     case 'hit': {
       live.hit = { at: now, kill: ev.kill, head: ev.hs };
       if (ev.kill) sfx.kill(); else if (ev.hs) sfx.headshot(); else if (!ev.flash) sfx.hit();
+      // Our round (or blade) striking them, heard from them: helmet, plate carrier or cloth, as the server judged it.
+      const r = live.remotes.get(ev.num);
+      if (r && !ev.flash && ev.dmg > 0) { const at: [number, number, number] = [r.pos.x, r.pos.y + (ev.hs ? 1.62 : ev.lg ? .55 : 1.2), r.pos.z]; if (ev.c === 'm') sfx.meleeHit(at); else if (ev.c !== 'x') sfx.bodyHit(ev.hs ? 'helmet' : ev.lg ? 'flesh' : 'armour', at); }
       return;
     }
     case 'dmg': {
@@ -290,13 +359,21 @@ function event(ev: Record<string, any>) {
         const dx = ev.from[0] / 100 - live.sim.x, dz = ev.from[1] / 100 - live.sim.z;
         live.damage.push({ angle: Math.atan2(-dx, -dz) - controls.yaw, at: now }); live.damage = live.damage.filter(d => now - d.at < 1500);
       }
-      live.hurtAt = now; live.shake = Math.min(1, live.shake + ev.dmg / 80); sfx.hurt();
+      live.hurtAt = now; live.shake = Math.min(1, live.shake + ev.dmg / 80);
+      sfx.hurt(null, ev.dmg, ev.hp);
+      // The impact on us, placed a little toward the attacker: the hit itself says where it came from.
+      if (ev.c !== 'x' && live.sim) {
+        const ey = eyeOf(live.sim); let at: [number, number, number] = [live.sim.x, ey - .35, live.sim.z];
+        if (ev.from) { const dx = ev.from[0] / 100 - live.sim.x, dz = ev.from[1] / 100 - live.sim.z, l = Math.hypot(dx, dz) || 1; at = [live.sim.x + dx / l * 1.2, ey - .35, live.sim.z + dz / l * 1.2]; }
+        sfx.bodyHit(ev.hs ? 'helmet' : ev.lg ? 'flesh' : 'armour', at, true);
+      }
       a.set({ hud: { ...a.hud, hp: ev.hp } });
       return;
     }
     case 'kill': {
       a.set({ feed: [...a.feed.slice(-5), { id: now + Math.random(), killer: ev.a, victim: ev.v, weapon: ev.w, head: ev.hs, at: now }] });
-      const r = live.remotes.get(ev.v); if (r) { r.deadAt = now; r.flags &= ~1; fx({ type: 'death', num: ev.v }); }
+      const r = live.remotes.get(ev.v); if (r) { r.deadAt = now; r.flags &= ~1; fx({ type: 'death', num: ev.v }); sfx.death(ev.v, [r.pos.x, r.pos.y + 1.5, r.pos.z], soldierModelFor(ev.v), r.deadAt); remoteActions.forget(ev.v); }
+      else if (mine(ev.v)) sfx.death(null, undefined, '', live.life);
       if (mine(ev.a) && !mine(ev.v)) banner({ text: `Eliminated ${nameOf(ev.v)}`, sub: ev.hs ? 'Headshot · +125' : '+100', tone: 'good', ms: 1800 });
       if (ev.as?.includes(live.num)) banner({ text: 'Assist', sub: `${nameOf(ev.v)} · +40`, tone: 'medal', ms: 1500 });
       return;
@@ -305,20 +382,21 @@ function event(ev: Record<string, any>) {
       live.alive = false; a.set({ killedBy: { num: ev.by, weapon: ev.w }, scoreboard: false, hud: { ...a.hud, alive: false, hp: 0 } });
       return;
     }
-    case 'medal': if (ev.id !== 'assist') banner({ text: MEDALS[ev.id as keyof typeof MEDALS] ?? ev.id, tone: 'medal', ms: 1600 }); return;
-    case 'earned': { const s = STREAK_BY_ID.get(ev.id); banner({ text: `${s?.name ?? 'Reward'} ready`, sub: `Press ${ev.id === 'recon' ? 3 : ev.id === 'supply' ? 4 : 5} (or its button) to use it`, tone: 'good', ms: 2600 }); sfx.streak(); return; }
+    case 'medal': if (ev.id !== 'assist') { banner({ text: MEDALS[ev.id as keyof typeof MEDALS] ?? ev.id, tone: 'medal', ms: 1600 }); sfx.ui('medal'); } return;
+    case 'earned': { const s = STREAK_BY_ID.get(ev.id); banner({ text: `${s?.name ?? 'Reward'} ready`, sub: `Press ${ev.id === 'recon' ? 3 : ev.id === 'supply' ? 4 : 5} (or its button) to use it`, tone: 'good', ms: 2600 }); sfx.ui('streak'); return; }
     case 'streakResult': if (!ev.ok) banner({ text: ev.reason, tone: 'bad', ms: 2200 }); return;
     case 'recon': {
       if (ev.team === live.team) { live.reconUntil = now + ev.until; banner({ text: 'Recon Pulse active', sub: `${nameOf(ev.by)} revealed the enemy team`, tone: 'good', ms: 2200 }); }
       else { live.enemyReconUntil = now + ev.until; banner({ text: 'Enemy Recon Pulse', sub: 'Your positions are revealed', tone: 'bad', ms: 2200 }); }
-      sfx.beep(true); return;
+      if (ev.team === live.team) sfx.ui('ping'); else announcer.say('uav', { gap: 10 });
+      return;
     }
-    case 'supply': live.supplies.push({ id: ev.id, team: ev.team, x: ev.x / 100, y: ev.y / 100, z: ev.z / 100, until: now + ev.ms }); if (ev.team === live.team) banner({ text: 'Supply Drop', sub: 'Walk over the crate to refill ammunition and equipment', tone: 'good', ms: 2400 }); return;
-    case 'resupplied': banner({ text: 'Resupplied', tone: 'good', ms: 1400 }); sfx.reload(); return;
+    case 'supply': live.supplies.push({ id: ev.id, team: ev.team, x: ev.x / 100, y: ev.y / 100, z: ev.z / 100, until: now + ev.ms }); if (ev.team === live.team) { banner({ text: 'Supply Drop', sub: 'Walk over the crate to refill ammunition and equipment', tone: 'good', ms: 2400 }); announcer.say('supply'); } sfx.crate([ev.x / 100, ev.y / 100 + .3, ev.z / 100]); return;
+    case 'resupplied': banner({ text: 'Resupplied', tone: 'good', ms: 1400 }); sfx.resupplied(); return;
     case 'strike': {
       live.strikes.push({ x: ev.x / 100, y: ev.y / 100, z: ev.z / 100, r: ev.r, at: now + ev.ms, team: ev.team });
       banner({ text: ev.team === live.team ? 'Tactical Strike inbound' : 'Enemy Tactical Strike!', sub: ev.team === live.team ? 'Marked target' : 'Get clear of the red zone', tone: ev.team === live.team ? 'good' : 'bad', ms: 2600 });
-      sfx.alarm(); return;
+      announcer.say(ev.team === live.team ? 'strikeOurs' : 'strikeTheirs'); sfx.strikeWarning([ev.x / 100, ev.y / 100 + .5, ev.z / 100]); return;
     }
     case 'boom': {
       const at = [ev.x / 100, ev.y / 100, ev.z / 100]; fx({ type: 'boom', at, r: ev.r }); sfx.boom(at as [number, number, number]);
@@ -326,19 +404,22 @@ function event(ev: Record<string, any>) {
       live.strikes = live.strikes.filter(s => now < s.at - 200);
       return;
     }
-    case 'smoke': { const at = [ev.x / 100, ev.y / 100, ev.z / 100]; live.smokes.push({ x: at[0], y: at[1], z: at[2], r: ev.r, until: now + ev.ms }); fx({ type: 'smoke', at, r: ev.r, ms: ev.ms }); sfx.smoke(at as [number, number, number]); return; }
+    case 'smoke': { const at = [ev.x / 100, ev.y / 100, ev.z / 100]; live.smokes.push({ x: at[0], y: at[1], z: at[2], r: ev.r, until: now + ev.ms }); fx({ type: 'smoke', at, r: ev.r, ms: ev.ms }); sfx.smoke(at as [number, number, number], ev.ms); return; }
     case 'flashbang': { const at = [ev.x / 100, ev.y / 100, ev.z / 100]; fx({ type: 'flash', at }); sfx.flash(at as [number, number, number]); return; }
-    case 'blind': live.blindUntil = now + ev.ms; live.blindMs = ev.ms; return;
+    case 'blind': live.blindUntil = now + ev.ms; live.blindMs = ev.ms; sfx.deafen(ev.ms); return;
     case 'capture': case 'neutral': {
       const ours = ev.team === live.team, inIt = ev.by?.includes(live.num);
       banner({ text: ev.k === 'capture' ? `${ours ? 'We' : 'Enemy'} captured ${ev.id}` : `${ev.id} ${ours ? 'neutralised' : 'lost'}`, sub: inIt ? '+150' : undefined, tone: ours ? 'good' : 'bad', ms: 2200 });
-      sfx.capture(ours); if (ev.k === 'capture') fx({ type: 'capture', id: ev.id, team: ev.team }); return;
+      // Radio: ours secured; ours neutralised by them, lost; theirs captured, losing ground.
+      if (ev.k === 'capture') announcer.say(ours ? 'secured' : 'losing', { gap: 6 }); else if (!ours) announcer.say('lost', { gap: 6 });
+      sfx.ui(ours ? 'confirm' : 'notify');
+      if (ev.k === 'capture') fx({ type: 'capture', id: ev.id, team: ev.team }); return;
     }
     case 'end': {
       const result = ev.result, won = result.winner === live.team, draw = result.winner === null;
       saveRejoin(null);
       banner({ text: draw ? 'Draw' : won ? 'Victory' : 'Defeat', sub: result.outcome === 'forfeit' ? 'The other team left' : result.outcome === 'abandoned' ? 'Match abandoned' : undefined, tone: 'big', ms: 3200 });
-      if (won) sfx.victory(); else sfx.defeat();
+      announcer.say(draw ? 'draw' : won ? 'win' : 'lose', { gap: 0 });
       document.exitPointerLock?.();
       a.set({ result, hud: { ...a.hud, alive: false } });
       setTimeout(() => { if (useArena.getState().result?.id === result.id) useArena.getState().set({ phase: 'results', menu: false, scoreboard: false }); }, 2600);
@@ -373,8 +454,12 @@ export function tickInput(dt: number) {
       live.prev.x = live.sim.x; live.prev.y = eyeOf(live.sim); live.prev.z = live.sim.z;
       live.pending.push(cmd);
       if (live.pending.length > 240) live.pending.shift();
+      const adsBefore = live.sim.ads;
       const events = step(live.sim, cmd, live.ctx);
       for (const ev of events) local(ev);
+      // Raising the sights (the simulation has no event for it): cloth and grip.
+      const wNow = weaponOf(live.sim);
+      if (adsBefore === 0 && live.sim.ads > 0 && wNow.fire !== 'melee') sfx.ads();
     }
   }
   const now = performance.now();
@@ -401,16 +486,17 @@ function local(ev: Record<string, any>) {
       if (hit) fx({ type: 'impact', at: to, normal: [...hit.normal], flesh: false, mat: hit.box ? matOf(hit.box) : undefined });
     }
     fx({ type: 'shot', weapon: w.id });
-    sfx.gun(w.sound);
-  } else if (ev.kind === 'reload') { const w = weaponOf(s); live.reloadStart = performance.now(); live.reloadTotal = s.pt; if (w.id !== 'm7') sfx.reload(ev.empty); }
-  else if (ev.kind === 'switch') { if (ev.weapon === 'm7') sfx.m7('m7-switch'); else sfx.switch(); }
-  else if (ev.kind === 'dry') { if (weaponOf(s).id === 'm7') sfx.m7('m7-dry'); else sfx.dry(); }
-  else if (ev.kind === 'inspect') sfx.m7('m7-inspect');
-  else if (ev.kind === 'mode') sfx.m7('m7-ready');
-  else if (ev.kind === 'melee') sfx.swing();
-  else if (ev.kind === 'land') { sfx.land(); fx({ type: 'land', speed: ev.speed }); }
-  else if (ev.kind === 'jump') fx({ type: 'jump' });
-  else if (ev.kind === 'throw') sfx.swing();
+    sfx.gun(w.id);
+    // A pump or bolt worked after the shot: its cues follow the cooldown, as the animation does.
+    if (w.id === 'bastion' || w.fire === 'bolt') actions.cycleStart(w.id, s.cool);
+  } else if (ev.kind === 'reload') { const w = weaponOf(s); live.reloadStart = performance.now(); live.reloadTotal = s.pt; live.reloadEmpty = !!ev.empty; actions.reloadStart(w.id, !!ev.empty, s.pt); }
+  else if (ev.kind === 'switch') actions.switchTo(ev.weapon, WEAPON_BY_ID.get(ev.weapon)?.swap ?? 30);
+  else if (ev.kind === 'dry') sfx.dry(weaponOf(s).id);
+  else if (ev.kind === 'melee') { const w = WEAPON_BY_ID.get(ev.weapon); sfx.swing(ev.quick || w?.fire !== 'melee' ? 'butt' : w.id === 'knife' ? 'knife' : 'axe'); }
+  else if (ev.kind === 'land') { sfx.land(ground(s.x, s.y, s.z).surface, ev.speed); fx({ type: 'land', speed: ev.speed }); }
+  else if (ev.kind === 'jump') { sfx.jump(ground(s.x, s.y, s.z).surface, undefined, s.sprint); fx({ type: 'jump' }); }
+  else if (ev.kind === 'slide') sfx.slide(ground(s.x, s.y, s.z).surface);
+  else if (ev.kind === 'throw') sfx.throw(ev.slot === 'lethal' ? live.loadout?.lethal ?? 'frag' : live.loadout?.tactical ?? 'flash');
 }
 
 /** Other players as they are drawn right now, for auto-fire (only those in the latest snapshots count as visible). */
@@ -428,6 +514,54 @@ export function toggleAutoFire() {
 /** Use an earned reward (the server checks it is earned and available). */
 export function useStreak(id: string) { if (useArena.getState().hud.earned.includes(id)) raw({ t: 'streak', id }); else banner({ text: `${STREAK_BY_ID.get(id)?.name ?? 'That reward'} is not ready yet`, tone: 'info', ms: 1500 }); }
 export const send = raw;
+
+// ---------------------------------------------------------------- deployment
+/** Enter a match (Quick Play, a private match, Training). Duplicate presses while one is running are ignored. */
+let lastRequest: Record<string, unknown> | null = null;
+export async function deployTo(kind: 'queue' | 'private' | 'training', data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const cid = deploy.begin(kind);
+  if (!cid) return { ok: false, reason: '', busy: true };
+  lastRequest = { ...data };
+  const r = await request({ ...data, cid }, 12000);
+  if (!r.ok) {
+    // A refusal (full, wrong code) goes back to the lobby with its reason; no answer is a failure to retry.
+    if (String(r.reason ?? '').startsWith('The arena did not answer')) deploy.fail(String(r.reason), 'request'); else deploy.reset();
+  } else if (deploy.useDeploy.getState().stage === 'requesting') deploy.assigned();
+  return r;
+}
+/** The deployment screen's Retry. */
+export function retryDeploy() {
+  const f = deploy.useDeploy.getState().failure;
+  if (f?.retry === 'request' && lastRequest) { deploy.reset(); useArena.getState().set({ phase: 'lobby' }); const d = lastRequest; void deployTo(d.t === 'queue' ? 'queue' : d.t === 'private' ? 'private' : 'training', d); return; }
+  if (f?.retry === 'rejoin') { const a = useArena.getState(); deploy.reset(); deploy.begin('rejoin', true); deploy.assigned(); if (a.match && a.you) void request({ t: 'rejoin', match: a.match.id, key: a.you.key }).then(r => { if (!r.ok) { deploy.reset(); resetMatch(); useArena.getState().set({ phase: 'lobby', error: String(r.reason ?? '') }); } }); else connect(); return; }
+  if (f?.retry === 'assets') { const s = deploy.useDeploy.getState(); useDeploy_retryAssets(); deploy.useDeploy.setState({ ...s, stage: 'loading-code', failure: null, slow: false }); deploy.enter('preparing'); }
+}
+const assetRetries = new Set<() => void>();
+/** The scene registers how to re-attempt its failed downloads. */
+export function onRetryAssets(fn: () => void) { assetRetries.add(fn); return () => { assetRetries.delete(fn); }; }
+function useDeploy_retryAssets() { assetRetries.forEach(f => f()); }
+/** Leave a match that is still deploying (or playing). */
+export async function leaveMatch() { deploy.reset(); await request({ t: 'leave' }, 4000); saveRejoin(null); resetMatch(); useArena.getState().set({ phase: 'lobby', menu: false, match: null, result: null }); }
+/** The scene can draw and play: tell the server (it brings a held player into the match) once per match and connection. */
+export function sceneLoaded(ready: boolean) {
+  live.sceneReady = ready;
+  const id = useArena.getState().match?.id;
+  if (!ready || !id) return;
+  if (live.loadedSent !== id && raw({ t: 'loaded' })) { live.loadedSent = id; deploy.enter('synchronizing'); }
+  if (live.haveState && live.sim) deploy.deployed();
+}
+deploy.onStageTimeout(stage => {
+  if (stage === 'requesting') deploy.fail('The arena did not answer. Check your connection and try again.', 'request');
+  else if (stage === 'loading-code') deploy.fail('The arena’s 3D code could not be downloaded.', 'assets');
+  else if (stage === 'preparing') deploy.fail('The download stopped. Your connection may have dropped.', 'assets');
+  else if (stage === 'synchronizing') {
+    // Once: ask the server again (rejoin re-sends our state); then give up with a way to retry.
+    const a = useArena.getState();
+    if (live.syncRetries++ < 1 && a.match && a.you) { live.loadedSent = ''; void request({ t: 'rejoin', match: a.match.id, key: a.you.key }).then(() => sceneLoaded(live.sceneReady)); deploy.useDeploy.setState({ stageAt: performance.now(), slow: true }); }
+    else deploy.fail('The match did not confirm your arrival.', 'rejoin');
+  } else if (stage === 'recovering') deploy.fail('The connection to the arena was lost.', 'rejoin');
+});
+deploy.onReport(t => raw({ t: 'diag', d: { cid: t.cid, ok: t.ok, total: t.total, bytes: t.bytes, retries: t.retries, tier: t.tier, failed: t.ok ? null : t.stage, stages: t.stages } }));
 /** The current spread cone for the crosshair. */
 export function currentSpread() { const s = live.sim; return s ? spreadOf(s, weaponOf(s), live.perks) : 0; }
 /** Where the camera is (eye, plus the decaying correction offset). */
@@ -442,6 +576,7 @@ export function eye(out: { x: number; y: number; z: number }) {
 export { direction, B };
 
 // QA builds only: read-only inspection for the browser suite (tests/browser-arena.mjs).
+if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arenaDeploy = () => { const d = deploy.useDeploy.getState(); return { stage: d.stage, marks: d.marks, files: d.files, bytes: d.bytes, retries: d.retries, slow: d.slow, failure: d.failure, pending: d.pending }; };
 if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arena = {
   state: () => { const a = useArena.getState(); return { phase: a.phase, status: a.status, match: a.match && { id: a.match.id, kind: a.match.kind, code: a.match.code, state: a.match.state, players: a.match.players.length }, you: a.you, hud: a.hud }; },
   remotes: () => [...live.remotes.values()].filter(r => (r.flags & 1) && r.seenAt).map(r => ({ num: r.num, team: r.team, x: r.pos.x, z: r.pos.z })),
@@ -449,5 +584,8 @@ if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<stri
   refreshOwned: async () => { const r = await request({ t: 'owned' }); if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); return r.owned; },
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
-  self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, pending: live.pending.length, autoFiring: live.autoFiring, autoReason: live.autoReason } : null),
+  deploy: () => ({ ...deploy.useDeploy.getState(), recent: deploy.recentDeployments() }),
+  /** Change arena settings (QA: the audio suite sets category volumes). */
+  settings: (v: Record<string, unknown>) => { useArena.getState().setSettings(v); return useArena.getState().settings; },
+  self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, reserve: live.sim.wpn[live.sim.slot].reserve, slot: live.sim.slot, weapon: weaponOf(live.sim).id, phase: live.sim.phase, pt: live.sim.pt, reloadStart: live.reloadStart, reloadTotal: live.reloadTotal, reloadEmpty: live.reloadEmpty, pending: live.pending.length, autoFiring: live.autoFiring, autoReason: live.autoReason } : null),
 };
