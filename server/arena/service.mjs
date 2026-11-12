@@ -47,12 +47,12 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
   const toPlayer = (p, m) => send(p.conn, m), rawToPlayer = (p, raw, transient) => sendRaw(p.conn, raw, transient);
 
   // ---------------------------------------------------------------- matches
-  function newMatch({ kind, mode, map, maxPerTeam, bots = 0, difficulty = 'normal' }) {
+  function newMatch({ kind, mode, map, maxPerTeam, bots = 0, difficulty = 'normal', variant = null }) {
     const id = randomUUID();
     let code = null;
     if (kind === 'private') { do code = Array.from(randomBytes(6), b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join(''); while (codes.has(code)); }
     const m = createMatch({
-      id, kind, code, mode, map: MAP_BY_ID.get(map), maxPerTeam: maxPerTeam ?? MATCH.maxPerTeam, bots, difficulty, clock, autoTick,
+      id, kind, code, mode, map: MAP_BY_ID.get(map), maxPerTeam: maxPerTeam ?? MATCH.maxPerTeam, bots, difficulty, clock, autoTick, variant,
       rules: { ...rules, ...(kind === 'training' ? { countdownMs: Math.min(rules.countdownMs ?? MATCH.countdownMs, 5000) } : {}) },
       send: toPlayer, sendRaw: rawToPlayer,
       onFinish: (match, result) => { metrics.matchesFinished++; persist(match, result); writeLog(match); },
@@ -62,6 +62,8 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     matches.set(id, m); if (code) codes.set(code, m); metrics.matchesCreated++;
     return m;
   }
+  /** A host's choice of lighting variant, if that map has it (Quick Play ignores it: see createMatch). */
+  const variantOf = (mapId, v) => (typeof v === 'string' && MAP_BY_ID.get(mapId)?.variants?.some(x => x.id === v) ? v : null);
   function enter(c, m) {
     // Clients that report when their scene has loaded (caps 'loadgate') are not put into live combat before then.
     const p = m.join({ id: c.id, name: c.name, account: c.account?.id ?? null, handle: c.account?.handle ?? null, level: c.level, emblem: c.emblem, conn: c, loadout: c.loadout, gated: !!c.caps?.loadgate });
@@ -235,7 +237,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
           const size = Number.isInteger(m.size) && m.size >= 1 && m.size <= MATCH.maxPerTeam ? m.size : MATCH.maxPerTeam;
           if (matches.size >= maxMatches) return reply(m.ref, { ok: false, reason: 'Every arena is busy right now.' });
           leaveMatch(c);
-          const match = newMatch({ kind: 'private', mode, map, maxPerTeam: size });
+          const match = newMatch({ kind: 'private', mode, map, maxPerTeam: size, variant: variantOf(map, m.variant) });
           return reply(m.ref, { ...enter(c, match), code: match.code });
         }
         if (m.action === 'join') {
@@ -256,7 +258,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
         if (!MODE_BY_ID.has(mode) || !MAP_BY_ID.has(map)) return reply(m.ref, { ok: false, reason: 'Choose a mode and map.' });
         if (matches.size >= maxMatches) return reply(m.ref, { ok: false, reason: 'Every arena is busy right now.' });
         leaveMatch(c);
-        return reply(m.ref, enter(c, newMatch({ kind: 'training', mode, map, bots, difficulty, maxPerTeam: 5 })));
+        return reply(m.ref, enter(c, newMatch({ kind: 'training', mode, map, bots, difficulty, maxPerTeam: 5, variant: variantOf(map, m.variant) })));
       }
       case 'rejoin': {
         if (!rate('rejoin', 3, 5000)) return;

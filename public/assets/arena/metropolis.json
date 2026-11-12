@@ -1,0 +1,304 @@
+{
+  "textures": [
+    {
+      "key": "cityAsphalt",
+      "id": "asphalt_02",
+      "source": "https://polyhaven.com/a/asphalt_02",
+      "license": "CC0 1.0",
+      "author": "Rob Tuytel",
+      "use": "Marina Avenue, Harbour Road, Broad Street",
+      "bytes": 673780
+    },
+    {
+      "key": "sidewalk",
+      "id": "concrete_pavement",
+      "source": "https://polyhaven.com/a/concrete_pavement",
+      "license": "CC0 1.0",
+      "author": "Charlotte Baglioni",
+      "use": "pavements and the deployment strips",
+      "bytes": 622208
+    },
+    {
+      "key": "pavers",
+      "id": "interlocking_concrete_pavers",
+      "source": "https://polyhaven.com/a/interlocking_concrete_pavers",
+      "license": "CC0 1.0",
+      "author": "Amal Kumar",
+      "use": "lanes and the Balogun passage",
+      "bytes": 642685
+    },
+    {
+      "key": "plazaStone",
+      "id": "granite_tile",
+      "source": "https://polyhaven.com/a/granite_tile",
+      "license": "CC0 1.0",
+      "author": "Charlotte Baglioni",
+      "use": "the Central Plaza, the tower arcade",
+      "bytes": 489046
+    },
+    {
+      "key": "floorTile",
+      "id": "floor_tiles_06",
+      "source": "https://polyhaven.com/a/floor_tiles_06",
+      "license": "CC0 1.0",
+      "author": "Rob Tuytel",
+      "use": "shop and restaurant floors",
+      "bytes": 298829
+    },
+    {
+      "key": "marble",
+      "id": "marble_01",
+      "source": "https://polyhaven.com/a/marble_01",
+      "license": "CC0 1.0",
+      "author": "Rob Tuytel",
+      "use": "the Okun Trust banking hall",
+      "bytes": 275774
+    },
+    {
+      "key": "subwayTile",
+      "id": "long_white_tiles",
+      "source": "https://polyhaven.com/a/long_white_tiles",
+      "license": "CC0 1.0",
+      "author": "Jenelle van Heerden, Sergej Majboroda",
+      "use": "Plaza Station walls",
+      "bytes": 493318
+    },
+    {
+      "key": "facadePanel",
+      "id": "concrete_tile_facade",
+      "source": "https://polyhaven.com/a/concrete_tile_facade",
+      "license": "CC0 1.0",
+      "author": "Charlotte Baglioni",
+      "use": "the Balogun Arcade, panel facades",
+      "bytes": 508634
+    },
+    {
+      "key": "cladding",
+      "id": "exterior_wall_cladding",
+      "source": "https://polyhaven.com/a/exterior_wall_cladding",
+      "license": "CC0 1.0",
+      "author": "Charlotte Baglioni",
+      "use": "Okun Tower podium, the terminal",
+      "bytes": 468471
+    },
+    {
+      "key": "blockWall",
+      "id": "concrete_block_wall_02",
+      "source": "https://polyhaven.com/a/concrete_block_wall_02",
+      "license": "CC0 1.0",
+      "author": "Charlotte Baglioni",
+      "use": "the substation, yard walls, street walls",
+      "bytes": 654128
+    },
+    {
+      "key": "shutter",
+      "id": "painted_metal_shutter",
+      "source": "https://polyhaven.com/a/painted_metal_shutter",
+      "license": "CC0 1.0",
+      "author": "Dario Barresi, Rico Cilliers, Charlotte Baglioni",
+      "use": "roller shutters",
+      "bytes": 486695
+    },
+    {
+      "key": "woodFloor",
+      "id": "wood_floor",
+      "source": "https://polyhaven.com/a/wood_floor",
+      "license": "CC0 1.0",
+      "author": "Dimitrios Savva",
+      "use": "upper floors",
+      "bytes": 389987
+    },
+    {
+      "key": "ceiling",
+      "id": "ceiling_interior",
+      "source": "https://polyhaven.com/a/ceiling_interior",
+      "license": "CC0 1.0",
+      "author": "Dimitrios Savva",
+      "use": "ceilings",
+      "bytes": 649981
+    }
+  ],
+  "props": [
+    {
+      "key": "streetLamp",
+      "id": "street_lamp_01",
+      "source": "https://polyhaven.com/a/street_lamp_01",
+      "license": "CC0 1.0",
+      "author": "Josh Dean",
+      "use": "street lighting",
+      "triangles": 1614,
+      "bytes": 169148
+    },
+    {
+      "key": "aircon",
+      "id": "exterior_aircon_unit",
+      "source": "https://polyhaven.com/a/exterior_aircon_unit",
+      "license": "CC0 1.0",
+      "author": "Monsta3D",
+      "use": "split-unit condensers on facades and roofs",
+      "triangles": 2342,
+      "bytes": 651324
+    },
+    {
+      "key": "trashCan",
+      "id": "metal_trash_can",
+      "source": "https://polyhaven.com/a/metal_trash_can",
+      "license": "CC0 1.0",
+      "author": "GurJas Studios",
+      "use": "bins",
+      "triangles": 2519,
+      "bytes": 486800
+    },
+    {
+      "key": "parkBench",
+      "id": "painted_wooden_bench",
+      "source": "https://polyhaven.com/a/painted_wooden_bench",
+      "license": "CC0 1.0",
+      "author": "Kirill Sannikov",
+      "use": "plaza and platform seating",
+      "triangles": 630,
+      "bytes": 197308
+    },
+    {
+      "key": "manhole",
+      "id": "water_manhole_cover",
+      "source": "https://polyhaven.com/a/water_manhole_cover",
+      "license": "CC0 1.0",
+      "author": "Raunox",
+      "use": "road ironwork",
+      "triangles": 1081,
+      "bytes": 247588
+    },
+    {
+      "key": "tubeLight",
+      "id": "mounted_fluorescent_lights",
+      "source": "https://polyhaven.com/a/mounted_fluorescent_lights",
+      "license": "CC0 1.0",
+      "author": "Ulan Cabanilla",
+      "use": "station, car park and warehouse lighting",
+      "triangles": 1627,
+      "bytes": 99476
+    },
+    {
+      "key": "shelves",
+      "id": "steel_frame_shelves_01",
+      "source": "https://polyhaven.com/a/steel_frame_shelves_01",
+      "license": "CC0 1.0",
+      "author": "James Ray Cock",
+      "use": "warehouse racking, shop shelving",
+      "triangles": 1500,
+      "bytes": 144536
+    },
+    {
+      "key": "plasticCrate",
+      "id": "plastic_crate_01",
+      "source": "https://polyhaven.com/a/plastic_crate_01",
+      "license": "CC0 1.0",
+      "author": "PierreB3D",
+      "use": "market and warehouse crates",
+      "triangles": 10350,
+      "bytes": 346708
+    },
+    {
+      "key": "cardboard",
+      "id": "cardboard_box_01",
+      "source": "https://polyhaven.com/a/cardboard_box_01",
+      "license": "CC0 1.0",
+      "author": "Rahul Chaudhary",
+      "use": "stock",
+      "triangles": 300,
+      "bytes": 188396
+    },
+    {
+      "key": "cement",
+      "id": "cement_bag",
+      "source": "https://polyhaven.com/a/cement_bag",
+      "license": "CC0 1.0",
+      "author": "PierreB3D",
+      "use": "warehouse stock",
+      "triangles": 500,
+      "bytes": 138168
+    },
+    {
+      "key": "handTruck",
+      "id": "hand_truck",
+      "source": "https://polyhaven.com/a/hand_truck",
+      "license": "CC0 1.0",
+      "author": "Mutanzom3D",
+      "use": "warehouse and delivery trolleys",
+      "triangles": 5492,
+      "bytes": 331024
+    },
+    {
+      "key": "officeDesk",
+      "id": "metal_office_desk",
+      "source": "https://polyhaven.com/a/metal_office_desk",
+      "license": "CC0 1.0",
+      "author": "Ulan Cabanilla",
+      "use": "offices",
+      "triangles": 1162,
+      "bytes": 172744
+    },
+    {
+      "key": "planterBox",
+      "id": "planter_box_01",
+      "source": "https://polyhaven.com/a/planter_box_01",
+      "license": "CC0 1.0",
+      "author": "James Ray Cock",
+      "use": "street planters",
+      "triangles": 500,
+      "bytes": 214808
+    },
+    {
+      "key": "cafeSet",
+      "id": "outdoor_table_chair_set_01",
+      "source": "https://polyhaven.com/a/outdoor_table_chair_set_01",
+      "license": "CC0 1.0",
+      "author": "James Ray Cock",
+      "use": "the Atlantic Grill terrace",
+      "triangles": 5222,
+      "bytes": 367336
+    },
+    {
+      "key": "trashbag",
+      "id": "trashbag",
+      "source": "https://polyhaven.com/a/trashbag",
+      "license": "CC0 1.0",
+      "author": "Benny Weimer",
+      "use": "alleys",
+      "triangles": 1006,
+      "bytes": 198032
+    },
+    {
+      "key": "sofa",
+      "id": "sofa_03",
+      "source": "https://polyhaven.com/a/sofa_03",
+      "license": "CC0 1.0",
+      "author": "Fran Calvente",
+      "use": "the banking hall, the gallery",
+      "triangles": 1550,
+      "bytes": 193920
+    },
+    {
+      "key": "camera",
+      "id": "security_camera_01",
+      "source": "https://polyhaven.com/a/security_camera_01",
+      "license": "CC0 1.0",
+      "author": "Alexander Otterbeck, Yann Kervran",
+      "use": "CCTV",
+      "triangles": 957,
+      "bytes": 68288
+    },
+    {
+      "key": "monobloc",
+      "id": "plastic_monobloc_chair_01",
+      "source": "https://polyhaven.com/a/plastic_monobloc_chair_01",
+      "license": "CC0 1.0",
+      "author": "Kuutti Siitonen",
+      "use": "kiosk and terminal seating",
+      "triangles": 900,
+      "bytes": 203436
+    }
+  ],
+  "licence": "Every file listed here is from Poly Haven (polyhaven.com), CC0 1.0."
+}

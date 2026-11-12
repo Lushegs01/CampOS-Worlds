@@ -14,10 +14,10 @@ type Box = { min: number[]; max: number[]; mat: string; thin?: boolean; kind?: s
 type Map3 = { id: string; boxes: Box[]; deco?: Box[]; bounds: number[]; objectives: { x: number; z: number; r: number }[]; palette: Record<string, unknown> };
 
 /** Deterministic noise so the same map always looks the same. */
-const hash = (a: number, b = 0) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
+export const hash = (a: number, b = 0) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
 
 /** World-space UVs (triplanar by face normal), so textures keep their real-world scale on any shape. */
-function worldUV(g: THREE.BufferGeometry, scale: number, rotate = false) {
+export function worldUV(g: THREE.BufferGeometry, scale: number, rotate = false) {
   const p = g.attributes.position, n = g.attributes.normal; if (!n) g.computeVertexNormals();
   const nn = g.attributes.normal, uv = new Float32Array(p.count * 2);
   for (let i = 0; i < p.count; i++) {
@@ -31,15 +31,24 @@ function worldUV(g: THREE.BufferGeometry, scale: number, rotate = false) {
   return g;
 }
 
-class Builder {
-  private groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
-  constructor(private lib: Library) {}
-  add(geo: THREE.BufferGeometry, material: THREE.Material, scale: number, matrix?: THREE.Matrix4, rotateUV = false) {
-    let g = geo.index ? geo.toNonIndexed() : geo.clone();
+export class Builder {
+  // material → chunk → geometries. A chunk is a region of the map drawn (and culled) as one mesh.
+  private groups = new Map<THREE.Material, Map<number, THREE.BufferGeometry[]>>();
+  private centre = new THREE.Vector3();
+  /** `chunkOf` splits each material's geometry into regions (by the centre of every piece added). */
+  constructor(private lib: Library, private chunkOf?: (centre: THREE.Vector3) => number) {}
+  /** `keepUV`: the geometry's own texture coordinates are kept (signs, decals) instead of world-space mapping. */
+  add(geo: THREE.BufferGeometry, material: THREE.Material, scale: number, matrix?: THREE.Matrix4, rotateUV = false, keepUV = false, chunk?: number) {
+    const g = geo.index ? geo.toNonIndexed() : geo.clone();
     if (matrix) g.applyMatrix4(matrix);
-    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
-    worldUV(g, scale, rotateUV);
-    const list = this.groups.get(material) ?? []; list.push(g); this.groups.set(material, list);
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && !(keepUV && k === 'uv')) g.deleteAttribute(k);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    if (!keepUV || !g.attributes.uv) worldUV(g, scale, rotateUV);
+    g.clearGroups(); g.morphAttributes = {};
+    let id = chunk ?? 0;
+    if (chunk === undefined && this.chunkOf) { g.computeBoundingBox(); id = this.chunkOf(g.boundingBox!.getCenter(this.centre)); }
+    let byChunk = this.groups.get(material); if (!byChunk) this.groups.set(material, byChunk = new Map());
+    const list = byChunk.get(id) ?? []; list.push(g); byChunk.set(id, list);
   }
   box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, material: THREE.Material, scale = 2) {
     const g = new THREE.BoxGeometry(Math.max(1e-3, x1 - x0), Math.max(1e-3, y1 - y0), Math.max(1e-3, z1 - z0));
@@ -50,22 +59,24 @@ class Builder {
     const m = new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(.5), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()), new THREE.Vector3(1, 1, 1));
     this.add(g, material, scale, m); g.dispose();
   }
+  /** One mesh per material and chunk (`userData.chunk`). */
   meshes(shadows: boolean) {
     const out: THREE.Mesh[] = [];
-    for (const [material, list] of this.groups) {
+    for (const [material, byChunk] of this.groups) for (const [chunk, list] of byChunk) {
       const merged = mergeGeometries(list, false); list.forEach(g => g.dispose());
       if (!merged) continue;
       merged.computeBoundingSphere();
-      const mesh = new THREE.Mesh(merged, material); mesh.castShadow = shadows; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; mesh.updateMatrix();
+      const mesh = new THREE.Mesh(merged, material); mesh.castShadow = shadows; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; mesh.updateMatrix(); mesh.userData.chunk = chunk;
       out.push(mesh);
     }
+    this.groups.clear();
     return out;
   }
   get library() { return this.lib; }
 }
 
 /** Instanced photoscanned props, each copy fitted (position, heading, scale) to a slot. */
-class Props {
+export class Props {
   private slots = new Map<PropKey, THREE.Matrix4[]>();
   place(key: PropKey, x: number, y: number, z: number, yaw: number, sx: number, sy: number, sz: number) {
     const list = this.slots.get(key) ?? []; this.slots.set(key, list);
@@ -99,8 +110,8 @@ class Props {
 }
 
 // ---------------------------------------------------------------- materials by role
-const CONTAINER_TINT: Record<string, string> = { 'container-red': '#a8483a', 'container-blue': '#44709a', 'container-yellow': '#c9a03a', 'container-stack': '#5f6d4b' };
-function materials(lib: Library) {
+const CONTAINER_TINT: Record<string, string> = { 'container-red': '#a8483a', 'container-blue': '#44709a', 'container-yellow': '#c9a03a', 'container-stack': '#5f6d4b', 'container-green': '#4f7d5c' };
+export function materials(lib: Library) {
   // Worn concrete tinted as paint stands in for painted steel (smooth, stained, chipped); the rusted red
   // panel set is a real container side, so red containers use it as it is.
   const painted = (tint: string, gain = 1, rough = .62) => surface(lib, 'concreteFloor', { tint, gain, rough, normalScale: .5 });
@@ -116,11 +127,11 @@ function materials(lib: Library) {
     containerFrame: (key: string) => painted(new THREE.Color(CONTAINER_TINT[key] ?? '#8a7a62').multiplyScalar(.8).getStyle(), 1.3),
   };
 }
-type Mats = ReturnType<typeof materials>;
+export type Mats = ReturnType<typeof materials>;
 
 // ---------------------------------------------------------------- element builders
 /** A shipping container fitted to a box: corrugated walls (real geometry), frame, castings and door gear. */
-function container(b: Builder, m: Mats, box: Box) {
+export function container(b: Builder, m: Pick<Mats, 'container' | 'containerFrame' | 'darkSteel'>, box: Box) {
   const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, alongX = x1 - x0 >= z1 - z0;
   const skin = m.container(box.mat), frame = m.containerFrame(box.mat);
   const L = alongX ? x1 - x0 : z1 - z0, W = alongX ? z1 - z0 : x1 - x0, H = y1 - y0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
@@ -166,7 +177,7 @@ function sandbags(geo: THREE.BufferGeometry, box: Box, list: THREE.Matrix4[]) {
   void geo;
 }
 /** A soft, pillowy bag: a rounded box with its faces puffed outward. */
-function bagGeometry(detail: number) {
+export function bagGeometry(detail: number) {
   const g: THREE.BufferGeometry = detail ? new RoundedBoxGeometry(.56, .16, .34, 1, .06) : new THREE.BoxGeometry(.56, .16, .34, 2, 1, 1), p = g.attributes.position;
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); const k = 1 - Math.min(1, (x * x) / .08); p.setY(i, y * (1 + .18 * k)); p.setZ(i, z * (1 + .05 * k)); }
   g.computeVertexNormals(); worldUV(g, .6); return g;
@@ -487,8 +498,16 @@ export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality) {
 
 /** What a bullet hits, by the material of the box (for impact effects and sounds). */
 export type SurfaceKind = 'concrete' | 'metal' | 'wood' | 'sand' | 'brick' | 'dirt' | 'foliage';
+/** Operation: Metropolis materials (shared/arena/metropolis.mjs) → the dust, sparks or splinters a round throws up. */
+const CITY_FX: Record<string, SurfaceKind> = Object.fromEntries([
+  ...['bus', 'van', 'car', 'truck', 'pickup', 'tank', 'ac', 'vent', 'plant', 'kiosk', 'shelter', 'canopy', 'brt-roof', 'brt-screen', 'hoarding', 'yard-wall', 'stair-steel', 'roof-sheet', 'cabinet', 'rack', 'forklift', 'bollard', 'vending', 'atm', 'faregate', 'switchgear', 'utility', 'bin', 'spire', 'frame', 'guardhouse'].map(k => [k, 'metal']),
+  ...['floor-timber', 'counter', 'desk', 'table', 'bench', 'shelf', 'sofa', 'partition', 'partition-wall', 'tree'].map(k => [k, 'wood']),
+  ...['st-grass', 'ug-track'].map(k => [k, 'dirt']), ['hedge', 'foliage'],
+] as [string, SurfaceKind][]);
 export function surfaceOf(mat: string | undefined): SurfaceKind {
   if (!mat) return 'dirt';
+  const city = CITY_FX[mat]; if (city) return city;
+  if (mat.startsWith('bld-')) return mat.includes('brick') || mat === 'bld-block' ? 'brick' : mat === 'bld-sheet' || mat === 'bld-terminal' || mat.includes('glass') || mat.includes('shaft') ? 'metal' : 'concrete';
   if (mat.startsWith('container') || ['rail', 'grate', 'metal', 'machine', 'pillar', 'roof', 'bronze'].includes(mat)) return 'metal';
   if (mat === 'crate' || mat === 'timber') return 'wood';
   if (mat === 'sandbag') return 'sand';

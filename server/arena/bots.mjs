@@ -38,7 +38,7 @@ export function navigation(map) {
   }
   nodes.forEach((n, k) => { n.id = k; });
   const nav = {
-    nodes,
+    nodes, walkable: [],
     /** The node nearest a position (same column first, then neighbours). */
     near(x, y, z) {
       let best = -1, bd = Infinity;
@@ -49,23 +49,29 @@ export function navigation(map) {
       }
       return best;
     },
-    /** A* from node a to node b: a list of nodes, or null. */
+    /** A* from node a to node b (binary heap): a list of nodes, or null. */
     path(a, b) {
       if (a < 0 || b < 0) return null;
-      const open = new Set([a]), came = new Map(), g = new Map([[a, 0]]), f = new Map([[a, dist(nodes[a], nodes[b])]]);
-      for (let guard = 0; open.size && guard < 6000; guard++) {
-        let cur = -1, cf = Infinity;
-        for (const k of open) { const v = f.get(k); if (v < cf) { cf = v; cur = k; } }
+      const came = new Map(), g = new Map([[a, 0]]), done = new Set(), heap = [[dist(nodes[a], nodes[b]), a]];
+      const push = e => { let i = heap.push(e) - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+      const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+      for (let guard = 0; heap.length && guard < 40000; guard++) {
+        const cur = pop()[1];
         if (cur === b) { const out = [nodes[b]]; let c = b; while (came.has(c)) { c = came.get(c); out.unshift(nodes[c]); } return out; }
-        open.delete(cur);
+        if (done.has(cur)) continue; done.add(cur);
         for (const m of nodes[cur].links) {
           const t = g.get(cur) + dist(nodes[cur], nodes[m]);
-          if (t < (g.get(m) ?? Infinity)) { came.set(m, cur); g.set(m, t); f.set(m, t + dist(nodes[m], nodes[b])); open.add(m); }
+          if (t < (g.get(m) ?? Infinity)) { came.set(m, cur); g.set(m, t); push([t + dist(nodes[m], nodes[b]), m]); }
         }
       }
       return null;
     },
   };
+  // Places a player can actually walk to from a deployment point (roofs nobody can climb are left out of patrols).
+  const reach = new Set(), stack = map.spawns.map(sp => nav.near(sp.x, sp.y ?? 0, sp.z)).filter(k => k >= 0);
+  for (const k of stack) reach.add(k);
+  while (stack.length) for (const m of nodes[stack.pop()].links) if (!reach.has(m)) { reach.add(m); stack.push(m); }
+  nav.walkable = nodes.filter(n => reach.has(n.id));
   navCache.set(map.id, nav);
   return nav;
 }
@@ -98,12 +104,12 @@ export function createBrain({ match, player, difficulty = 'normal', random = Mat
       const mine = match.objectives.filter(o => o.owner !== player.team);
       const pool = mine.length ? mine : match.objectives;
       const o = pool.reduce((a, b) => (Math.hypot(a.x - s.x, a.z - s.z) < Math.hypot(b.x - s.x, b.z - s.z) ? a : b));
-      return { x: o.x + (random() - .5) * 3, y: 0, z: o.z + (random() - .5) * 3 };
+      return { x: o.x + (random() - .5) * 3, y: o.y ?? 0, z: o.z + (random() - .5) * 3 };
     }
     // Team deathmatch: head toward the last known enemy, else a random point on the far half.
     const enemy = match.players.filter(p => p.team !== player.team && p.alive && p.sim).sort((a, b) => Math.hypot(a.sim.x - s.x, a.sim.z - s.z) - Math.hypot(b.sim.x - s.x, b.sim.z - s.z))[0];
     if (enemy && random() < .7) return { x: enemy.sim.x + (random() - .5) * 8, y: enemy.sim.y, z: enemy.sim.z + (random() - .5) * 8 };
-    const n = nav.nodes[Math.floor(random() * nav.nodes.length)];
+    const pool = nav.walkable.length ? nav.walkable : nav.nodes, n = pool[Math.floor(random() * pool.length)];
     void now; void map;
     return { x: n.x, y: n.y, z: n.z };
   }

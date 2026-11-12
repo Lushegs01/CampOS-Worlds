@@ -13,6 +13,7 @@ import { step, spawnState, packState, decodeCommand, hitbox, eyeOf, heightOf, di
 import { WEAPON_BY_ID, WEAPON_INDEX, EQUIPMENT_BY_ID, STREAK_BY_ID, STREAKS, QUICK_MELEE, damageAt, TICK_RATE } from '../../shared/arena/weapons.mjs';
 import { MATCH, MODE_BY_ID, balanceTeam, matchXp, PRESETS, BOT_PRESETS, autoFireAllowed } from '../../shared/arena/rules.mjs';
 import { createBrain } from './bots.mjs';
+import { trainAt, STATION as STATION_FLOOR } from '../../shared/arena/metropolis.mjs';
 
 const cm = v => Math.round(v * 100), mr = v => Math.round(v * 1000);
 const EQUIP_INDEX = new Map([...EQUIPMENT_BY_ID.keys()].map((k, i) => [k, i]));
@@ -23,11 +24,17 @@ export const FLAG = { alive: 1, crouch: 2, slide: 4, sprint: 8, ads: 16, reload:
  * not recorded). `send(player, object)` and `sendRaw(player, string, transient)` reach a connected player.
  */
 export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null, maxPerTeam = MATCH.maxPerTeam, rules = {}, clock = () => Date.now(),
-  send, sendRaw, onFinish = () => {}, onClose = () => {}, log = () => {}, bots = 0, difficulty = 'normal', autoTick = true, random = Math.random }) {
+  send, sendRaw, onFinish = () => {}, onClose = () => {}, log = () => {}, bots = 0, difficulty = 'normal', autoTick = true, random = Math.random, variant: variantId = null }) {
   const R = { ...MATCH, ...rules };
   const mode = { ...MODE_BY_ID.get(modeId), ...(rules.mode ?? {}) };
   const world = createWorld(map.boxes, map.bounds);
   const seed = randomBytes(4).readInt32LE(0);
+  // Map variants (lighting and weather) never change the collision world. Recorded play always uses the first one.
+  const variant = map.variants ? (kind === 'quick' ? map.variants[0] : map.variants.find(v => v.id === variantId) ?? map.variants[0]).id : null;
+  // Glass panes: drawn by clients, broken only here (a validated shot or blast crossing a pane), told to everyone.
+  const glass = map.glass ?? [], broken = new Set();
+  const train = map.train ?? null;
+  let trainSeen = -1;
   const players = [];
   let nextNum = 1, state = 'waiting', stateAt = clock(), startedAt = 0, endedAt = 0, result = null, closed = false;
   let tickCount = 0, snapAcc = 1, lastTick = clock(), scoreTickAt = 0, emptySince = null;
@@ -54,7 +61,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   }
   const describe = p => ({ num: p.num, name: p.name, team: p.team, verified: !!p.account, handle: p.handle ?? null, bot: !!p.bot, connected: p.bot || p.connected, level: p.level ?? 1, emblem: p.emblem ?? 'recruit' });
   const roster = () => players.map(describe);
-  const view = () => ({ id, mode: mode.id, map: map.id, kind, code, state, autoFire: autoFireAllowed(kind), maxPerTeam, scoreLimit, timeMs: mode.timeMs, seed, scores: [...scores], players: roster(), objectives: objectives.map(o => ({ id: o.id, x: o.x, z: o.z, r: o.r })) });
+  const view = () => ({ id, mode: mode.id, map: map.id, kind, code, state, autoFire: autoFireAllowed(kind), maxPerTeam, scoreLimit, timeMs: mode.timeMs, seed, scores: [...scores], players: roster(), objectives: objectives.map(o => ({ id: o.id, x: o.x, z: o.z, r: o.r })),
+    ...(variant ? { variant } : {}), ...(glass.length ? { broken: [...broken] } : {}), ...(train ? { elapsed: state === 'playing' ? clock() - startedAt : -1 } : {}) });
   function announceRoster() { emitAll({ k: 'roster', players: roster() }); }
 
   // ---------------------------------------------------------------- joining, leaving, reconnecting
@@ -160,6 +168,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   function begin() {
     startedAt = clock(); scores[0] = scores[1] = 0; firstBlood = false; scoreTickAt = startedAt;
     projectiles.length = smokes.length = supplies.length = strikes.length = 0;
+    if (broken.size) { broken.clear(); emitAll({ k: 'glass', reset: 1 }); }
+    trainSeen = -1;
     for (const o of objectives) Object.assign(o, { owner: -1, progress: 0, capTeam: -1, contested: false });
     for (const p of players) {
       p.stats = freshStats(); p.streak = p.streakPts = 0; p.earned.clear(); p.weaponKills = {};
@@ -210,7 +220,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     p.protectUntil = clock() + R.spawnProtectMs; p.history = []; p.respawnAt = 0;
     p.brain?.reset();
     remember(p, clock());
-    emit(p, { k: 'spawn', life: p.life, x: at.x, z: at.z, yaw: at.yaw, loadout: p.loadout });
+    emit(p, { k: 'spawn', life: p.life, x: at.x, y: at.y ?? 0, z: at.z, yaw: at.yaw, loadout: p.loadout });
     record({ type: 'spawn', player: p.num, x: +at.x.toFixed(2), z: +at.z.toFixed(2) });
   }
   /** The safest spawn for p's team: far from living enemies, out of their sight, near teammates. */
@@ -224,7 +234,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       let nearest = 80;
       for (const e of enemies) {
         const d = Math.hypot(e.sim.x - s.x, e.sim.z - s.z); nearest = Math.min(nearest, d);
-        if (d < 45 && lineOfSight(world, e.sim.x, eyeOf(e.sim), e.sim.z, s.x, 1.5, s.z)) score -= 60;
+        if (d < 45 && lineOfSight(world, e.sim.x, eyeOf(e.sim), e.sim.z, s.x, (s.y ?? 0) + 1.5, s.z)) score -= 60;
       }
       score += Math.min(nearest, 40) * 1.5;
       if (s.forward && nearest < 14) score -= 50;
@@ -326,6 +336,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
           wallT = second ? second.t : w.range; keep = w.penetration;
         }
       }
+      if (train) { const tb = trainBox(now); if (tb) { const tt = rayBox(ev.ox, ev.oy, ev.oz, dx, dy, dz, tb[0], 0, train.z0, tb[1], train.top, train.z1, wallT); if (tt >= 0) wallT = tt; } }
       // Players, where the shooter saw them.
       let hit = null, hitT = wallT, head = false, legs = false;
       for (const o of players) {
@@ -340,6 +351,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       }
       // Through-cover hits only count if the player is beyond the thin box.
       const penetrated = first?.box?.thin && hit && hitT > first.t;
+      if (glass.length && broken.size < glass.length) shatterAlong(ev.ox, ev.oy, ev.oz, dx, dy, dz, hitT + .05);
       ends.push([cm(ev.ox + dx * hitT), cm(ev.oy + dy * hitT), cm(ev.oz + dz * hitT), hit ? 1 : 0]);
       if (!hit) continue;
       const base = damageAt(w, hitT) * (head ? w.head : legs ? w.legs : 1) * (penetrated ? keep : 1);
@@ -535,8 +547,38 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     }
     explode(g.owner, g.x, g.y, g.z, e, { equipment: e.id });
   }
+  /** Panes a ray crosses within `maxT` break (once each, for everyone). */
+  function shatterAlong(ox, oy, oz, dx, dy, dz, maxT) {
+    for (const g of glass) {
+      if (broken.has(g.i)) continue;
+      if (rayBox(ox, oy, oz, dx, dy, dz, g.min[0] - .02, g.min[1], g.min[2] - .02, g.max[0] + .02, g.max[1], g.max[2] + .02, maxT) >= 0) shatter(g);
+    }
+  }
+  function shatter(g) { if (state === 'ended' || broken.has(g.i)) return; broken.add(g.i); emitAll({ k: 'glass', i: g.i }); record({ type: 'glass', pane: g.i }); }
+  /** Where the station's train is right now ([x0, x1]), or null. Only while a match is being played. */
+  function trainBox(now) {
+    if (!train || state !== 'playing') return null;
+    const t = trainAt(now - startedAt, train);
+    return t && !t.warning ? [t.x0, t.x1] : null;
+  }
+  function stepTrain(now) {
+    const t = trainAt(now - startedAt, train); if (!t) return;
+    // Announced once per pass, as the warning begins (clients also derive the timetable from the match clock).
+    if (t.n !== trainSeen) { trainSeen = t.n; emitAll({ k: 'train', n: t.n, dir: t.dir, inMs: Math.round(t.inMs) }); record({ type: 'train', pass: t.n }); }
+    if (t.warning) return;
+    for (const p of players) {
+      const s = p.sim; if (!p.alive || !s) continue;
+      // Only someone standing in the track bed, in the train's path.
+      if (s.y < STATION_FLOOR - .15 && s.z > train.z0 - RADIUS && s.z < train.z1 + RADIUS && s.x > t.x0 - RADIUS && s.x < t.x1 + RADIUS) hurt(p, 1000, p, { equipment: 'train' });
+    }
+  }
   function explode(owner, x, y, z, e, cause) {
     emitAll({ k: 'boom', x: cm(x), y: cm(y), z: cm(z), r: e.radius, kind: cause.equipment ?? cause.streak });
+    for (const g of glass) {
+      if (broken.has(g.i)) continue;
+      const cx = (g.min[0] + g.max[0]) / 2, cy = (g.min[1] + g.max[1]) / 2, cz = (g.min[2] + g.max[2]) / 2;
+      if (Math.hypot(cx - x, cy - y, cz - z) <= e.radius * .8 && lineOfSight(world, x, y + .2, z, cx + (g.alongZ ? Math.sign(x - cx) * .4 : 0), cy, cz + (g.alongZ ? 0 : Math.sign(z - cz) * .4))) shatter(g);
+    }
     for (const o of players) {
       if (!o.alive || !o.sim) continue;
       if (owner && o !== owner && o.team === owner.team) continue;
@@ -602,7 +644,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       if (p.alive && state === 'playing' && p.hp < R.maxHealth && now - p.lastDamageAt >= (p.perks.has('mend') ? R.regenMendMs : R.regenDelayMs)) p.hp = Math.min(R.maxHealth, p.hp + R.regenPerSecond * dt);
       if (p.alive && p.sim && p.sim.y < -5) hurt(p, 1000, p, { equipment: 'fall' });
     }
-    if (state === 'playing') { stepProjectiles(dt, now); if (mode.id === 'dom') stepObjectives(dt, now); }
+    if (state === 'playing') { stepProjectiles(dt, now); if (mode.id === 'dom') stepObjectives(dt, now); if (train) stepTrain(now); }
     // Scoreboard statistics once a second (eliminations, deaths, assists, score, objective play).
     if (tickCount % R.tickHz === 0) emitAll({ k: 'board', rows: players.map(p => [p.num, p.stats.kills, p.stats.deaths, p.stats.assists, p.stats.score, p.stats.captures + p.stats.defends]) });
     snapAcc += R.snapshotHz / R.tickHz;
@@ -683,7 +725,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
 
   const interval = autoTick ? setInterval(tick, 1000 / R.tickHz) : null;
   const api = {
-    id, kind, code, map, mode, world, players, objectives, scores, seed, rules: R,
+    id, kind, code, map, mode, world, players, objectives, scores, seed, rules: R, variant, broken, trainBox,
     get state() { return state; }, get result() { return result; }, get closed() { return closed; }, get startedAt() { return startedAt; },
     get combatLog() { return combatLog; }, enoughAt: null,
     join, leave, disconnect, rejoin, commands, useStreak, hostStart, setLoadout, loaded, view, roster, tick, close, finish, flush, smokeBlocks, byNum,
