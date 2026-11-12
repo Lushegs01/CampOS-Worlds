@@ -391,3 +391,9 @@ html.ar-locked,html.ar-locked body{overflow:hidden;overscroll-behavior:none;touc
 @media (max-width:760px){.ar-inspect{grid-template-columns:1fr}}
 .ar-inspect-name{font:800 22px 'Manrope Variable';margin:2px 0 4px}
 .ar-hx.panel-hidden .ar-hx-bar{top:auto;bottom:max(8px,env(safe-area-inset-bottom))}
+
+.ar-m7-actions { display:flex; gap:8px; pointer-events:auto; margin-top:6px; }
+.ar-m7-actions button { color:#f4deb0; background:#17221de6; border:1px solid #c8aa6966; border-radius:5px; padding:8px 12px; min-height:44px; font-size:11px; font-weight:600; touch-action:manipulation; cursor:pointer; }
+
+.ar-slot-firemode .ar-tbtn,.ar-slot-inspect .ar-tbtn { width:52px; height:52px; }
+.ar-tbtn.firemode small { font-size:7px; line-height:1; }

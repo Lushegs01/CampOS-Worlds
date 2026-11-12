@@ -3,7 +3,7 @@
 // interface) and the database (the `arena_catalog` table mirrors ids, kinds and unlock levels; tests
 // keep them in step).
 //
-// All names and numbers are original. Times are in simulation ticks at 60 per second (TICK_RATE), so
+// Fictional weapon names and all game balance numbers are original. The M7 names its real reference platform. Times are in simulation ticks at 60 per second (TICK_RATE), so
 // a weapon behaves identically on the server and in the client's prediction whatever the frame rate.
 //
 // Adding a weapon is adding an entry here (plus a row in the migration's catalogue insert): the
@@ -82,10 +82,17 @@ export const WEAPONS = [
   ads:s(.1),swap:s(.3),sprintOut:s(.05),moveMul:1.08,adsMoveMul:1,sound:'knife'},
  {id:'hammer',name:'Breach Axe',category:'melee',slot:'secondary',unlock:7,fire:'melee',swing:s(.7),reach:2.9,damage:[[0,150]],range:2.9,head:1,legs:1,pellets:0,penetration:0,
   ads:s(.1),swap:s(.4),sprintOut:s(.08),moveMul:1.02,adsMoveMul:1,sound:'hammer'},
+ // Append only: existing multiplayer weapon indices and saved catalogue ids remain stable.
+ {id:'m7',name:'SIG Sauer M7',category:'battle',slot:'primary',unlock:1,fire:'auto',fireModes:['auto','semi'],rpm:600,mag:20,reserve:80,reload:s(2.75),reloadEmpty:s(3.25),reloadMode:'mag',
+  designation:'XM7',platform:'SIG Sauer MCX SPEAR',cartridge:'6.8×51mm hybrid-case military ammunition',configuration:'Suppressed · 2× magnified optic',
+  damage:[[0,36],[32,32],[65,27]],range:170,head:1.5,legs:.86,pellets:1,penetration:.55,
+  spread:{hip:.055,ads:.0018,move:1.75,air:2.8,bloom:.0022,bloomMax:.024,bloomRecover:.0011},recoil:{kick:.017,drift:.0055,pattern:12,adsRecoil:.72,recover:.0021,max:.14},
+  ads:s(.34),swap:s(.76),sprintOut:s(.28),moveMul:.91,adsMoveMul:.48,zoom:2,tracer:'#ffe4ad',sound:'m7-suppressed',inspect:s(2.4)},
+
 ];
 
 // ---------------------------------------------------------------- the Armory: who may use what
-// Exactly two firearms are free (FREE_FIREARMS). Every other firearm is a premium Armory weapon, bought
+// Three firearms are free (FREE_FIREARMS), including the M7. Every other firearm is a premium Armory weapon, bought
 // once with real money through the campus store (shared/shop.mjs item `weapon-<id>`, server/shop.mjs) and
 // owned by the account on every device. Premium weapons are not stronger: each trades something away (see
 // `tradeoff`), tests/arena-armory.test.mjs checks that none dominates a free weapon, and the server
@@ -93,6 +100,7 @@ export const WEAPONS = [
 // the Breach Axe is earned at level 7.
 /** @type {Record<string,{access:'free'|'premium'|'earned',armory:string,role:string,tradeoff:string}>} */
 const ARMORY={
+ m7:{access:'free',armory:'Battle rifle',role:'MCX SPEAR platform, formerly XM7. A hard-hitting, select-fire battle rifle with a 20-round magazine, suppressor and 2× optic. Free for every player.',tradeoff:'Strong recoil and bloom in automatic fire, heavy handling, slower movement and deliberate reloads. Semi-auto rewards controlled follow-up shots.'},
  vanguard:{access:'free',armory:'Assault rifle',role:'Balanced damage, moderate recoil and a 30-round magazine: reliable at any range the maps offer.',tradeoff:'No single strength: out-ranged by marksman rifles, out-paced by SMGs up close.'},
  wasp:{access:'free',armory:'Submachine gun',role:'Very high fire rate and fast handling for aggressive, close-range movement.',tradeoff:'Damage falls off quickly past 11 m and recoil builds under sustained fire.'},
  halcyon:{access:'premium',armory:'Advanced assault rifle',role:'Three-round bursts with tight aimed spread for disciplined mid-range fights.',tradeoff:'Burst-only fire punishes misses, slower aiming and a smaller 24-round magazine.'},
@@ -111,10 +119,10 @@ for(const w of WEAPONS)Object.assign(w,ARMORY[w.id]??{access:'premium',armory:CA
 export const WEAPON_BY_ID = new Map(WEAPONS.map(w=>[w.id,w]));
 /** Small stable index of every weapon (snapshots name a weapon by index). */
 export const WEAPON_INDEX = new Map(WEAPONS.map((w,i)=>[w.id,i]));
-export const CATEGORIES = {ar:'Assault rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper rifle',lmg:'LMG',pistol:'Pistol',melee:'Melee'};
+export const CATEGORIES = {battle:'Battle rifle',ar:'Assault rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper rifle',lmg:'LMG',pistol:'Pistol',melee:'Melee'};
 /** A gun (not a melee weapon). */
 export const isFirearm = w => !!w && w.fire !== 'melee';
-/** The two firearms every player has, free. */
+/** The firearms every player has, free. */
 export const FREE_FIREARMS = WEAPONS.filter(w => isFirearm(w) && w.access === 'free').map(w => w.id);
 /** Firearms bought in the Armory. */
 export const PREMIUM_WEAPONS = WEAPONS.filter(w => w.access === 'premium').map(w => w.id);

@@ -53,6 +53,8 @@ export const HUD_ELEMENTS = [
   { id: 'melee', name: 'Melee button', group: 'Touch controls', touch: true, min: 0.84, max: 2, size: [48, 48] },
   { id: 'lethal', name: 'Lethal button', group: 'Touch controls', touch: true, min: 0.84, max: 2, size: [48, 48] },
   { id: 'tactical', name: 'Tactical button', group: 'Touch controls', touch: true, min: 0.84, max: 2, size: [48, 48] },
+  { id: 'firemode', name: 'Fire selector (M7)', group: 'Touch controls', touch: true, min: .85, max: 2, size: [52, 52], minPx: 44 },
+  { id: 'inspect', name: 'Weapon inspection (M7)', group: 'Touch controls', touch: true, min: .85, max: 2, size: [52, 52], minPx: 44 },
   { id: 'autofire', name: 'Auto-fire switch', group: 'Touch controls', touch: true, min: 0.87, max: 2, size: [46, 46] },
   { id: 'menu', name: 'Menu and scoreboard', group: 'Touch controls', touch: true, required: true, min: .8, max: 1.8, size: [88, 40] },
 ];
@@ -86,6 +88,7 @@ const BASE = {
     ammo: el(1, .33, .6, { align: 'right' }), weaponInfo: el(1, .25, .6, { align: 'right' }), weaponSlots: el(1, .4, .6, { align: 'right', visible: false }),
     minimap: el(0, 0, .62), compass: el(.5, .16, .6), timer: el(.5, 0, .8), score: el(.5, .095, .72), objectives: el(.5, .3, .8),
     killfeed: el(1, 0, .62, { align: 'right' }), streaks: el(.5, .62, .9),
+    firemode: el(.63, .91), inspect: el(.54, .91),
     stick: el(0.125, 0.82), fire: el(0.958, 0.801), ads: el(0.839, 0.673), reload: el(0.828, 0.859), jump: el(0.998, 0.999), crouch: el(0.91, 1), sprint: el(0.059, 0.555, 1, { visible: false }), swap: el(0.948, 0.503), melee: el(0.869, 0.473), lethal: el(0.785, 0.5), tactical: el(0.755, 0.681), autofire: el(0.749, 0.897), menu: el(0, 0.43),
   },
   touchPortrait: {
@@ -94,6 +97,7 @@ const BASE = {
     ammo: el(1, .62, .62, { align: 'right' }), weaponInfo: el(1, .55, .6, { align: 'right' }), weaponSlots: el(1, .5, .6, { align: 'right', visible: false }),
     minimap: el(0, 0, .6), compass: el(.5, .12, .55), timer: el(.5, 0, .8), score: el(1, 0, .6), objectives: el(.5, .19, .75),
     killfeed: el(1, .11, .65, { align: 'right' }), streaks: el(0, .5, .85),
+    firemode: el(.12, .4), inspect: el(.32, .4),
     stick: el(0.134, 0.921), fire: el(0.899, 0.865), ads: el(0.643, 0.798), reload: el(0.609, 0.884), jump: el(0.961, 0.977), crouch: el(0.779, 0.977), sprint: el(0.108, 0.673, 1, { visible: false }), swap: el(0.892, 0.723), melee: el(0.722, 0.71), lethal: el(0.549, 0.716), tactical: el(0.471, 0.802), autofire: el(0.607, 0.973), menu: el(0, 0.2),
   },
 };

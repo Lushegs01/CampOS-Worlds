@@ -6,6 +6,10 @@ import { audio, play as playRecorded, loop, loadSounds, type Loop } from '../aud
 type Ctx = AudioContext;
 const cache = new Map<string, AudioBuffer>();
 let lastCtx: Ctx | null = null;
+let m7: typeof import('./m7Audio') | null = null;
+let m7Load: Promise<unknown> | null = null;
+export function preloadM7Audio() { return m7Load ??= import('./m7Audio').then(module => { m7 = module; }); }
+const voices: AudioBufferSourceNode[] = [];
 
 function noise(ctx: Ctx, seconds: number, shape: (t: number, i: number) => number, color = 0) {
   const n = Math.max(1, Math.floor(ctx.sampleRate * seconds)), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
@@ -37,6 +41,7 @@ function buffer(name: string): AudioBuffer | null {
   if (lastCtx !== m.ctx) { cache.clear(); lastCtx = m.ctx; }
   const hit = cache.get(name); if (hit) return hit;
   const ctx = m.ctx; let b: AudioBuffer;
+  if (name.startsWith('m7-')) return m7?.m7Buffer(ctx, name) ?? null;
   const g = GUNS[name];
   if (g) b = noise(ctx, g.len, t => .9 * env(.0008, g.crack)(t) + .55 * env(.002, g.body)(t) + (g.tone ? .25 * Math.sin(t * g.tone * 6.283) * env(.001, g.body * 1.4)(t) : 0), g.color);
   else switch (name) {
@@ -56,6 +61,7 @@ function buffer(name: string): AudioBuffer | null {
 
 /** Play a buffer, optionally at a world position (relative to the listener set by the scene). */
 export function play(name: string, opts: { at?: [number, number, number]; gain?: number; rate?: number; delay?: number } = {}) {
+  if (name.startsWith('m7-') && !m7) { void preloadM7Audio().then(() => play(name, opts)); return; }
   const m = audio(); const b = buffer(name); if (!m || !b) return;
   const src = m.ctx.createBufferSource(); src.buffer = b; src.playbackRate.value = opts.rate ?? (0.94 + Math.random() * .12);
   const gain = m.ctx.createGain(); gain.gain.value = opts.gain ?? 1;
@@ -68,6 +74,9 @@ export function play(name: string, opts: { at?: [number, number, number]; gain?:
   node.connect(m.effects);
   // Indoors, a share of every sound also goes through the room reverb.
   const wet = reverb(m.ctx, m.effects); if (wet) node.connect(wet);
+  const m7shot = name === 'm7-suppressed';
+  if (m7shot) { if (voices.length >= 8) { const oldest = voices.shift(); oldest?.stop(); } voices.push(src); }
+  src.onended = () => { const index = voices.indexOf(src); if (index >= 0) voices.splice(index, 1); src.disconnect(); gain.disconnect(); if (node !== gain) node.disconnect(); };
   src.start(m.ctx.currentTime + (opts.delay ?? 0));
 }
 
@@ -104,6 +113,7 @@ export function tones(notes: [number, number, number?][], gain = .18, type: Osci
   }
 }
 export const sfx = {
+  m7: (name: string) => play(name, { gain: .48, rate: 1 }),
   gun: (sound: string, at?: [number, number, number]) => play(sound, { at, gain: at ? .9 : .55 }),
   hit: () => tones([[1900, 0, .04]], .12, 'square'),
   headshot: () => tones([[2600, 0, .05], [3400, .03, .08]], .12, 'square'),

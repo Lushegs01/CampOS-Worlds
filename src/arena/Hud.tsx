@@ -8,10 +8,10 @@ import { Skull } from 'lucide-react';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
 import { WEAPON_BY_ID, EQUIPMENT_BY_ID, CATEGORIES, EMBLEM_BY_ID } from '../../shared/arena/weapons.mjs';
 import { MODE_BY_ID } from '../../shared/arena/rules.mjs';
-import { weaponOf } from '../../shared/arena/sim.mjs';
+import { weaponOf, B } from '../../shared/arena/sim.mjs';
 import { useArena, useBanners } from './store';
 import { live, currentSpread, useStreak } from './net';
-import { controls } from './input';
+import { controls, press } from './input';
 import { useActiveLayout, useHudProfile, type Layout } from './hudLayout';
 import { Slot, useViewport, layoutVars, CrosshairMarks, TimerView, ScoreView, HealthView, AmmoView, WeaponInfoView, WeaponSlotsView, NetView, ObjectivesView, StreaksView, KillfeedView, BannerView, fmtClock } from './hudViews';
 
@@ -184,7 +184,7 @@ function Vitals() {
   const hp = useArena(s => s.hud.hp), alive = useArena(s => s.hud.alive), emblem = useArena(s => s.me?.emblem), name = useArena(s => s.me?.name);
   return <HealthView hp={hp} alive={alive} name={name ?? ''} emblem={emblem ?? 'recruit'} />;
 }
-function useWeaponHud() { return useArena(useShallow(s => ({ weapon: s.hud.weapon, mag: s.hud.mag, reserve: s.hud.reserve, magSize: s.hud.magSize, phase: s.hud.phase, slot: s.hud.slot, lethal: s.hud.lethal, tactical: s.hud.tactical }))); }
+function useWeaponHud() { return useArena(useShallow(s => ({ weapon: s.hud.weapon, mag: s.hud.mag, reserve: s.hud.reserve, magSize: s.hud.magSize, phase: s.hud.phase, fireMode: s.hud.fireMode, slot: s.hud.slot, lethal: s.hud.lethal, tactical: s.hud.tactical }))); }
 function WeaponSlots() {
   const slot = useArena(s => s.hud.slot), loadout = useArena(s => s.loadout);
   return <WeaponSlotsView slot={slot} primary={WEAPON_BY_ID.get(loadout.primary)?.name ?? ''} secondary={WEAPON_BY_ID.get(loadout.secondary)?.name ?? ''} />;
@@ -192,9 +192,10 @@ function WeaponSlots() {
 function WeaponInfo({ keys }: { keys: boolean }) {
   const h = useWeaponHud(), loadout = useArena(s => s.loadout);
   const w = WEAPON_BY_ID.get(h.weapon), melee = w?.fire === 'melee', low = !melee && h.mag <= Math.ceil(h.magSize * .25);
-  const state = h.phase === 'reload' ? 'RELOADING' : h.phase === 'switch' ? 'SWITCHING' : !melee && h.mag === 0 && h.reserve === 0 ? 'NO AMMO' : !melee && low ? (keys ? 'RELOAD [R]' : 'RELOAD') : '';
-  return <WeaponInfoView name={w?.name ?? ''} category={w ? CATEGORIES[w.category as keyof typeof CATEGORIES] : ''} state={state} lethal={h.lethal} tactical={h.tactical}
-    lethalName={EQUIPMENT_BY_ID.get(loadout.lethal)?.name} tacticalName={EQUIPMENT_BY_ID.get(loadout.tactical)?.name} keys={keys} />;
+  const state = h.phase === 'reload' ? 'RELOADING' : h.phase === 'inspect' ? 'INSPECTING' : h.phase === 'switch' ? 'SWITCHING' : !melee && h.mag === 0 && h.reserve === 0 ? 'NO AMMO' : !melee && low ? (keys ? 'RELOAD [R]' : 'RELOAD') : '';
+  return <><WeaponInfoView name={w?.name ?? ''} category={w ? CATEGORIES[w.category as keyof typeof CATEGORIES] : ''} state={state} lethal={h.lethal} tactical={h.tactical}
+    lethalName={EQUIPMENT_BY_ID.get(loadout.lethal)?.name} tacticalName={EQUIPMENT_BY_ID.get(loadout.tactical)?.name} keys={keys} />
+    {keys && w?.id === 'm7' && <div className="ar-m7-actions"><button onClick={() => press(B.MODE)} aria-label="Change fire mode">{h.fireMode === 'semi' ? 'SEMI' : 'AUTO'}{keys ? ' [B]' : ' ⇄'}</button><button onClick={() => press(B.INSPECT)} aria-label="Inspect weapon">Inspect{keys ? ' [I]' : ''}</button></div>}</>;
 }
 function Ammo() {
   const h = useWeaponHud(), w = WEAPON_BY_ID.get(h.weapon);

@@ -19,6 +19,7 @@ interface Spec {
 }
 // Measured from the normalised models (y up from the bore, z back from the muzzle, metres).
 const SPECS: Record<string, Spec> = {
+  m7: { grip: [-.09, .69], fore: [-.035, .4], sight: [.104, .6], mag: [-.13, .58], eject: [.035, .0, .61], eye: .22, hold: 'rifle', dot: .51 },
   vanguard: { grip: [-.09, .58], fore: [-.035, .3], sight: [.0685, .41], mag: [-.12, .38], eject: [.025, 0, .5], eye: .26, hold: 'rifle', dot: .35 },
   halcyon: { grip: [-.09, .66], fore: [-.03, .38], sight: [.053, .4], mag: [-.12, .48], eject: [.025, .01, .55], eye: .17, hold: 'rifle' },
   wasp: { grip: [-.1, .39], fore: [-.03, .14], sight: [.071, .285], mag: [-.12, .17], eject: [.025, .02, .3], eye: .26, hold: 'rifle', dot: .25 },
@@ -93,6 +94,13 @@ export function weaponModel(id: string, skin = 'standard', lod = false): THREE.G
   g.userData.adsZ = -s.eye - sz;
   g.userData.hold = s.hold;
   return g;
+}
+// Geometry/materials from GLTF and skin tints belong to the shared asset cache.
+// Reticles are instance-owned and must be released when a preview or held weapon changes.
+export function disposeWeapon(g: THREE.Object3D) {
+  const reticle = g.getObjectByName('reticle');
+  reticle?.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
+  g.removeFromParent();
 }
 /** The simplified model for other players: a few hundred to a few thousand triangles. */
 export function weaponThirdPerson(id: string) { return weaponModel(id, 'standard', true); }

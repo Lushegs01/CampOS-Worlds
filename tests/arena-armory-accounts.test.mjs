@@ -85,8 +85,8 @@ const paid = (order, checkout, amount, id = `evt_${Math.random().toString(36).sl
   data: { charge_id: `ch_${id}`, checkout_id: checkout, reference: order, status: 'SUCCEEDED', amount, currency: 'NGN', metadata: { app: 'campos-worlds', order } } });
 const TALON = { name: 'Marksman', primary: 'talon', secondary: 'knife', lethal: 'frag', tactical: 'flash', perks: ['steady', 'fleet'] };
 
-test('the free experience: exactly two free firearms, playable by anyone; premium weapons refused everywhere until bought', async () => {
-  assert.deepEqual(FREE_FIREARMS, ['vanguard', 'wasp']);
+test('the free experience: three free firearms, playable by anyone; premium weapons refused everywhere until bought', async () => {
+  assert.deepEqual(FREE_FIREARMS, ['vanguard', 'wasp', 'm7']);
   const a = await account('freeplayer'), c = await arena(a);
   assert.deepEqual(c.ready.owned, []);
   for (const primary of FREE_FIREARMS) assert.equal((await c.request({ t: 'loadout', loadout: { ...PRESETS[0], primary } })).ok, true, primary);

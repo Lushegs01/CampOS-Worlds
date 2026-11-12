@@ -59,7 +59,7 @@ export default function LoadoutEditor() {
       // Premium weapons not yet owned open the Armory (preview, numbers, purchase) instead of being equipped.
       return <button key={w.id} className={`ar-wcard${on ? ' on' : ''}${premium ? ' premium' : ''}`} disabled={!premium && locked} aria-pressed={on} onClick={() => (premium ? useArena.getState().set({ armory: w.id, editor: false }) : patch({ [kind]: w.id }))}>
         <b>{w.name}{premium ? <span className="ar-lock"><Lock size={12} />Armory · {formatNaira(priceOf(weaponItem(w.id), prices) ?? 0)}</span> : locked && <span className="ar-lock"><Lock size={12} />Level {w.unlock}</span>}</b>
-        {w.fire !== 'melee' ? <small>{w.fire === 'auto' ? 'Automatic' : w.fire === 'burst' ? `${w.burst}-round burst` : w.fire === 'bolt' ? 'Bolt action' : 'Semi-automatic'} · {w.rpm} rpm · {w.mag} rounds{w.pellets > 1 ? ` · ${w.pellets} pellets` : ''}{w.penetration >= .5 ? ' · penetrates cover' : ''}</small> : <small>One hit eliminates · {w.reach} m reach</small>}
+        {w.fire !== 'melee' ? <small>{w.id === 'm7' ? 'Semi / automatic' : w.fire === 'auto' ? 'Automatic' : w.fire === 'burst' ? `${w.burst}-round burst` : w.fire === 'bolt' ? 'Bolt action' : 'Semi-automatic'} · {w.rpm} rpm · {w.mag} rounds{w.pellets > 1 ? ` · ${w.pellets} pellets` : ''}{w.penetration >= .5 ? ' · penetrates cover' : ''}</small> : <small>One hit eliminates · {w.reach} m reach</small>}
         <span className="ar-bars">{Object.entries(r).map(([k, v]) => <i key={k} title={`${k}: ${v}`}><em style={{ width: `${v}%` }} /><span>{k}</span></i>)}</span>
       </button>;
     })}</div>;

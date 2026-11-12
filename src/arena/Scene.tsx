@@ -20,11 +20,12 @@ import { raycast } from '../../shared/arena/physics.mjs';
 import { setListener } from '../audio/mixer';
 import { useArena, useBanners } from './store';
 import { live, onFx, tickInput, eye, useStreak, matOf, send, toggleAutoFire, type Fx } from './net';
+import { M7_RELOAD, M7_RELOAD_CUES } from '../../shared/arena/m7-presentation.mjs';
 import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, skyDome, clearMaterialCache, type Library } from './scene/library';
 import { buildEnvironment, surfaceOf } from './scene/environment';
-import { weaponModel, FirstPersonArms, preloadArms } from './scene/weapons';
+import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms } from './scene/weapons';
 import { loadSoldiers, Soldier, soldierModelFor, prefetchRemainingWeapons } from './scene/soldiers';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
@@ -165,6 +166,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     };
   }, [q]);
   useEffect(() => { if (lib) { vm.vmScene.environment = lib.env; vm.vmScene.environmentIntensity = .9; vm.gunId = ''; } }, [lib, vm]);
+  useEffect(() => () => { if (vm.gun) disposeWeapon(vm.gun); vm.arms?.dispose(); }, [vm]);
   useEffect(() => { let on = true; preloadArms().then(src => { if (on) { vm.armsSrc = src; vm.armsTeam = -1; } }).catch(e => console.error('Arena arms could not load.', e)); return () => { on = false; }; }, [vm]);
 
   // ---------------------------------------------------------------- post-processing
@@ -239,12 +241,12 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     else if (f.type === 'land') vm.landV -= Math.min(1.2, f.speed * .09);
     else if (f.type === 'shot') {
       // Our own shot: flash, kick, a casing and a wisp of smoke.
-      const w = WEAPONS.find(x => x.id === f.weapon)!, heavy = w.category === 'sniper' || w.category === 'shotgun' ? 1 : w.category === 'lmg' ? .55 : w.category === 'pistol' ? .5 : .38, ads = live.sim?.ads ?? 0;
+      const w = WEAPONS.find(x => x.id === f.weapon)!, heavy = w.category === 'sniper' || w.category === 'shotgun' ? 1 : w.id === 'm7' ? .85 : w.category === 'lmg' ? .55 : w.category === 'pistol' ? .5 : .38, ads = live.sim?.ads ?? 0;
       vm.flashAt = now; vm.kickZ += .028 * heavy * (1 - ads * .35) + .008; vm.kickPitch += .05 * heavy * (1 - ads * .5) + .008; vm.kickRoll += (Math.random() - .5) * .03 * heavy; vm.slideKick = 1;
       const port = vm.gun?.getObjectByName('ejection');
       if (port && w.fire !== 'bolt' && w.id !== 'bastion' && w.id !== 'thorn') { vm.casings.eject(port.getWorldPosition(v1)); sfx.casing(); }
       const muzzle = vm.gun?.getObjectByName('muzzle');
-      if (muzzle) { muzzle.getWorldPosition(v1).applyMatrix4(camera.matrixWorld); camera.getWorldDirection(v2); fx.effects.muzzle(v1, v2); fx.muzzleLight.position.copy(v1); fx.muzzleLight.intensity = 28; }
+      if (muzzle) { muzzle.getWorldPosition(v1).applyMatrix4(camera.matrixWorld); camera.getWorldDirection(v2); if (w.id !== 'm7' || Math.random() < .2) fx.effects.muzzle(v1, v2); fx.muzzleLight.position.copy(v1); fx.muzzleLight.intensity = w.id === 'm7' ? 4 : 28; }
       if (w.fire === 'bolt' || w.id === 'bastion') sfx.bolt();
     }
   }), [fx, vm, camera, q, objectives]);
@@ -252,7 +254,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // ---------------------------------------------------------------- the frame
   const fwd = useMemo(() => new THREE.Vector3(), []), eyePos = useMemo(() => ({ x: 0, y: 0, z: 0 }), []), sample = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
   const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), stepDist = useRef(0), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
-  useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
+  useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { weapon: e.s.weapon, vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
   useEffect(() => { gl.info.autoReset = false; if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaGL = gl; return () => { gl.info.autoReset = true; }; }, [gl]);
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
@@ -382,7 +384,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (vm.gunId !== w.id || vm.skin !== skin) {
       // The model streams in on first use; until then nothing is drawn (the weapon is still raising).
       const next = weaponModel(w.id, skin);
-      if (vm.gun) vm.holder.remove(vm.gun);
+      if (vm.gun) disposeWeapon(vm.gun);
       vm.gun = next; if (next) { vm.holder.add(next); vm.gunId = w.id; vm.skin = skin; vm.cyl = 0; } else vm.gunId = '';
     }
     if (vm.armsSrc && (vm.armsTeam !== live.team || !vm.arms)) { if (vm.arms) { vm.vmScene.remove(vm.arms.root); vm.arms.dispose(); } vm.arms = new FirstPersonArms(vm.armsSrc, live.team); vm.vmScene.add(vm.arms.root); vm.armsTeam = live.team; }
@@ -419,11 +421,17 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     rest(mag); rest(bolt); rest(pump); rest(slide);
     if (s.phase === 'reload') {
       const k = THREE.MathUtils.clamp(1 - s.pt / Math.max(1, live.reloadTotal), 0, 1);
+      if (w.id === 'm7') {
+        const previous = gun.userData.reloadProgress ?? -1;
+        for (const [at, sound] of M7_RELOAD_CUES) if (previous < at && k >= at) sfx.m7(sound);
+        gun.userData.reloadProgress = Math.max(previous, k);
+      }
       if (w.reloadMode === 'shell') { const c = (k * 3) % 1; rx += .3; rz -= .35; y -= .03; leftOff = Math.sin(c * Math.PI) * .12; leftToMag = .0; }
       else {
         const tilt = THREE.MathUtils.smoothstep(k, 0, .14) * (1 - THREE.MathUtils.smoothstep(k, .86, 1));
         rx += .22 * tilt; rz -= .42 * tilt; ry += .12 * tilt; y -= .035 * tilt; x -= .02 * tilt;
-        const out = THREE.MathUtils.smoothstep(k, .14, .34), back = THREE.MathUtils.smoothstep(k, .46, .68), drop = out * (1 - back);
+        const timeline = w.id === 'm7' ? M7_RELOAD : { release: .14, removed: .34, return: .46, seated: .68 };
+        const out = THREE.MathUtils.smoothstep(k, timeline.release, timeline.removed), back = THREE.MathUtils.smoothstep(k, timeline.return, timeline.seated), drop = out * (1 - back);
         if (mag) { mag.position.y -= drop * .34; mag.position.z += drop * .05; mag.visible = !(out > .98 && back < .02); }
         leftToMag = THREE.MathUtils.smoothstep(k, .08, .2) * (1 - THREE.MathUtils.smoothstep(k, .7, .8));
         // Seat the magazine with a tap, then run the action.
@@ -431,7 +439,12 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
         const rack = Math.sin(THREE.MathUtils.clamp((k - .8) / .14, 0, 1) * Math.PI);
         if (bolt) bolt.position.z += rack * .05; if (slide) slide.position.z += rack * .035; rightToBolt = w.category === 'sniper' ? 0 : 0; z += rack * .012;
       }
-    } else if (mag) mag.visible = true;
+    } else { gun.userData.reloadProgress = -1; if (mag) mag.visible = true; }
+    if (s.phase === 'inspect' && w.id === 'm7') {
+      const k = 1 - s.pt / (w.inspect ?? 144), blend = Math.sin(Math.PI * k) ** 2;
+      x -= .045 * blend; y += .075 * blend; z -= .06 * blend;
+      rz -= .85 * blend; ry += .55 * blend; rx += .12 * blend;
+    }
     if (s.phase === 'switch') { const k = s.pt / Math.max(1, w.swap), e = k * k; y -= e * .42; rx -= e * 1.0; rz += e * .3; }
     if (s.phase === 'melee') { const total = melee ? w.swing ?? 30 : 30, k = 1 - s.pt / total, sw = Math.sin(Math.min(1, k * 1.25) * Math.PI); if (melee) { x -= sw * .16; z -= sw * .18; ry += sw * .9; rz += sw * .5; } else { z -= sw * .2; ry += sw * .75; rx += sw * .25; x -= sw * .08; } }
     if (s.phase === 'throw') { const k = 1 - s.pt / 22, sw = Math.sin(k * Math.PI); y -= sw * .32; rx -= sw * .7; }
@@ -442,13 +455,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       if (bolt && w.fire === 'bolt') { const c = Math.sin(THREE.MathUtils.clamp((u - .15) / .55, 0, 1) * Math.PI); bolt.position.z += c * .075; bolt.position.y += Math.min(1, c * 2) * .012; rightToBolt = Math.min(1, c * 1.6); rz -= c * .1; }
     }
     if (slide) slide.position.z += vm.slideKick * .028;
-    if (bolt && w.fire !== 'bolt') bolt.position.z += vm.slideKick * .0;
+    // M7 charging handles are non-reciprocating; animate only on reload.
     if (cyl) { vm.cyl += (s.shots * Math.PI / 3 - vm.cyl) * Math.min(1, dt * 18); cyl.rotation.z = vm.cyl; }
     vm.holder.position.set(x, y, z); vm.holder.rotation.set(rx, ry, rz); vm.holder.updateMatrixWorld(true);
     const reticle = gun.getObjectByName('reticle'); if (reticle) reticle.visible = ads > .55 && s.phase !== 'reload';
     // Muzzle flash: two frames of a star flash at the barrel.
     const muzzle = gun.getObjectByName('muzzle');
-    if (muzzle && !melee && now - vm.flashAt < 42 && show) { vm.flash.visible = true; muzzle.getWorldPosition(vm.flash.position); vm.flash.quaternion.copy(vm.holder.quaternion); vm.flash.rotateZ(Math.random() * 6.28); const sc = (.5 + Math.random() * .5) * (w.category === 'shotgun' || w.category === 'sniper' ? 1.5 : w.category === 'pistol' ? .7 : 1) * (1 - ads * .45); vm.flash.scale.setScalar(sc); }
+    if (muzzle && !melee && now - vm.flashAt < 42 && show) { vm.flash.visible = true; muzzle.getWorldPosition(vm.flash.position); vm.flash.quaternion.copy(vm.holder.quaternion); vm.flash.rotateZ(Math.random() * 6.28); const sc = (.5 + Math.random() * .5) * (w.category === 'shotgun' || w.category === 'sniper' ? 1.5 : w.category === 'pistol' ? .7 : 1) * (1 - ads * .45); vm.flash.scale.setScalar(sc * (w.id === 'm7' ? .2 : 1)); }
     // Arms: two-bone IK from the shoulders to the weapon's grips (or to the magazine, the bolt).
     if (vm.arms && show) {
       const gR = gun.getObjectByName('gripR'), gL = gun.getObjectByName('gripL');

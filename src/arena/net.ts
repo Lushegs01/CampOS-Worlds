@@ -9,7 +9,7 @@
 // says which moment that is (`rt`) so the server can check shots against what the player saw.
 import { createWorld, raycast } from '../../shared/arena/physics.mjs';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
-import { step, spawnState, unpackState, quantize, encodeCommand, DT, B, eyeOf, weaponOf, spreadOf, direction } from '../../shared/arena/sim.mjs';
+import { step, spawnState, unpackState, quantize, encodeCommand, DT, B, eyeOf, weaponOf, fireModeOf, spreadOf, direction } from '../../shared/arena/sim.mjs';
 import { WEAPONS, WEAPON_BY_ID, STREAK_BY_ID } from '../../shared/arena/weapons.mjs';
 import { MEDALS, MODE_BY_ID } from '../../shared/arena/rules.mjs';
 import { createPlayback, createTrack } from '../network/interpolation.mjs';
@@ -19,7 +19,7 @@ import { useArena, useBanners, emptyHud, inputPaused, type Loadout, type MatchVi
 import { autoFireDecision } from '../../shared/arena/autofire.mjs';
 import { syncFromAccount } from './hudLayout';
 import { controls, buttons, axes } from './input';
-import { sfx } from './audio';
+import { preloadM7Audio, sfx } from './audio';
 import { QA_HOOKS } from '../qa';
 
 type Sim = ReturnType<typeof spawnState>;
@@ -232,7 +232,7 @@ const teamOf = (num: number) => useArena.getState().match?.players.find(p => p.n
 const nameOf = (num: number | null) => (num == null ? 'The arena' : useArena.getState().match?.players.find(p => p.num === num)?.name ?? 'A player');
 function hudWeapon(s: Sim, w: ReturnType<typeof weaponOf>) {
   const cur = s.wpn[s.slot];
-  return { weapon: w.id, slot: s.slot, mag: cur.mag, reserve: cur.reserve, magSize: w.mag ?? 0, phase: s.phase, ads: Math.round(s.ads * 10) / 10, lethal: s.lethal, tactical: s.tactical, sprint: s.sprint, stance: s.stance,
+  return { weapon: w.id, fireMode: fireModeOf(s), slot: s.slot, mag: cur.mag, reserve: cur.reserve, magSize: w.mag ?? 0, phase: s.phase, ads: Math.round(s.ads * 10) / 10, lethal: s.lethal, tactical: s.tactical, sprint: s.sprint, stance: s.stance,
     reloadProgress: s.phase === 'reload' ? Math.round((1 - s.pt / Math.max(1, live.reloadTotal)) * 10) / 10 : 0 };
 }
 
@@ -240,6 +240,7 @@ function event(ev: Record<string, any>) {
   const a = useArena.getState(), now = performance.now(), mine = (n: number | null) => n === live.num, team = (n: number | null) => teamOf(n ?? -1);
   switch (ev.k) {
     case 'spawn': {
+      if (ev.loadout.primary === 'm7') void preloadM7Audio();
       live.loadout = ev.loadout; live.perks = new Set(ev.loadout.perks); if (live.ctx) live.ctx.perks = live.perks;
       live.sim = spawnState({ x: ev.x, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true;
       live.pending = []; live.smooth = { x: 0, y: 0, z: 0 }; live.prev = { x: ev.x, y: eyeOf(live.sim), z: ev.z }; controls.yaw = ev.yaw; controls.pitch = 0;
@@ -401,9 +402,11 @@ function local(ev: Record<string, any>) {
     }
     fx({ type: 'shot', weapon: w.id });
     sfx.gun(w.sound);
-  } else if (ev.kind === 'reload') { const w = weaponOf(s); live.reloadStart = performance.now(); live.reloadTotal = s.pt; sfx.reload(ev.empty); void w; }
-  else if (ev.kind === 'switch') sfx.switch();
-  else if (ev.kind === 'dry') sfx.dry();
+  } else if (ev.kind === 'reload') { const w = weaponOf(s); live.reloadStart = performance.now(); live.reloadTotal = s.pt; if (w.id !== 'm7') sfx.reload(ev.empty); }
+  else if (ev.kind === 'switch') { if (ev.weapon === 'm7') sfx.m7('m7-switch'); else sfx.switch(); }
+  else if (ev.kind === 'dry') { if (weaponOf(s).id === 'm7') sfx.m7('m7-dry'); else sfx.dry(); }
+  else if (ev.kind === 'inspect') sfx.m7('m7-inspect');
+  else if (ev.kind === 'mode') sfx.m7('m7-ready');
   else if (ev.kind === 'melee') sfx.swing();
   else if (ev.kind === 'land') { sfx.land(); fx({ type: 'land', speed: ev.speed }); }
   else if (ev.kind === 'jump') fx({ type: 'jump' });

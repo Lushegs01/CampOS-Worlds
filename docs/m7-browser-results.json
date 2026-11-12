@@ -1,0 +1,51 @@
+{
+  "checks": [
+    {
+      "name": "free M7 equips and saves on a real account with no entitlement or purchase",
+      "ok": true
+    },
+    {
+      "name": "Armory loads the original model on demand and shows Free",
+      "ok": true
+    },
+    {
+      "name": "two clients share a match and see the M7 first-person and third-person LOD",
+      "ok": true
+    },
+    {
+      "name": "semi mode fires once while held and the server owns the selector",
+      "ok": true
+    },
+    {
+      "name": "automatic mode consumes rounds at the enforced cadence",
+      "ok": true
+    },
+    {
+      "name": "reload animation and authoritative ammunition complete together",
+      "ok": true
+    },
+    {
+      "name": "server registers two multiplayer eliminations and persists M7 progression",
+      "detail": {
+        "shots": 12,
+        "kills": 2
+      },
+      "ok": true
+    },
+    {
+      "name": "guest on mobile equips for free, changes mode, fires and reloads with touch controls",
+      "ok": true
+    }
+  ],
+  "screenshots": [
+    "loadout.png",
+    "armory.png",
+    "first-person.png",
+    "third-person.png",
+    "reload.png",
+    "inspect.png",
+    "mobile.png"
+  ],
+  "ok": true,
+  "finished": "2026-11-12T06:07:25.368Z"
+}

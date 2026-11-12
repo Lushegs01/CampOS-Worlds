@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadModel, loadTexture } from '../../world/assets';
-import { weaponThirdPerson, preloadWeapon } from './weapons';
+import { weaponThirdPerson, preloadWeapon, disposeWeapon } from './weapons';
 import { FREE_FIREARMS, WEAPONS } from '../../../shared/arena/weapons.mjs';
 import type { Library } from './library';
 
@@ -25,9 +25,9 @@ export function loadSoldiers(): Promise<Record<string, Kit>> {
     CAMO.forEach((p, i) => { const t = b[i]; if (t) { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true; teamB[p] = t; } });
     return [id, { scene: g.scene, clips, teamB }] as const;
   })).then(async list => {
-    // The weapons most players carry (the two free firearms and the knife) come with the soldiers, so nobody
+    // The weapons most players carry (the two starting firearms and the knife) come with the soldiers, so nobody
     // appears empty-handed; any other weapon's model downloads the first time someone is seen holding it.
-    await Promise.all([...FREE_FIREARMS, 'knife'].map(id => preloadWeapon(id, true).catch(() => null)));
+    await Promise.all(['vanguard', 'wasp', 'knife'].map(id => preloadWeapon(id, true).catch(() => null)));
     return Object.fromEntries(list);
   });
   kits.catch(() => { kits = null; });
@@ -74,7 +74,7 @@ export class Soldier {
   setWeapon(id: string) {
     if (this.weapon === id) return;
     const g = weaponThirdPerson(id); if (!g) return; // still downloading: try again next frame
-    this.weapon = id; this.gun.clear(); this.gun.add(g);
+    this.weapon = id; for (const old of [...this.gun.children]) disposeWeapon(old); this.gun.clear(); this.gun.add(g);
   }
   /** Pose for this frame. flags: crouch 2, slide 4, sprint 8, ads 16. */
   update(dt: number, pos: THREE.Vector3, yaw: number, pitch: number, flags: number, dead: boolean, flashOn: boolean, ik: boolean) {
@@ -110,6 +110,7 @@ export class Soldier {
     this.gun.visible = !dead || this.fall < .5;
     this.gun.updateMatrixWorld(true);
     const muzzle = this.gun.getObjectByName('muzzle');
+    this.flash.scale.setScalar(this.weapon === 'm7' ? .1 : .5);
     this.flash.visible = flashOn && !dead; if (muzzle && this.flash.visible) { muzzle.getWorldPosition(this.flash.position); this.root.worldToLocal(this.flash.position); this.flash.material.rotation = Math.random() * 6; }
     if (ik && !dead) for (const side of ['R', 'L'] as const) {
       const anchor = this.gun.getObjectByName(side === 'R' ? 'gripR' : 'gripL'); if (!anchor) continue;
@@ -134,7 +135,7 @@ export class Soldier {
     aim(fore, e2, w2, target);
     void w;
   }
-  dispose() { this.mixer.stopAllAction(); this.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); }
+  dispose() { for (const old of [...this.gun.children]) disposeWeapon(old); this.mixer.stopAllAction(); this.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); }
 }
 export const soldierModelFor = (num: number) => MODELS[num % MODELS.length];
 

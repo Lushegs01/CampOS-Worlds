@@ -26,13 +26,13 @@ test('adaptive rendering: lowers resolution first, then asks for a lighter profi
   for (const bad of [NaN, 0, -5, Infinity]) assert.equal(createAdaptive().sample(bad).changed, false);
 });
 
-test('asset budget: a match preloads only the free weapons’ third-person models; the rest stream on demand', () => {
+test('asset budget: a match preloads only the starting weapons’ third-person models; the rest stream on demand', () => {
   const soldiers = readFileSync('src/arena/scene/soldiers.ts', 'utf8');
-  assert.match(soldiers, /\[\.\.\.FREE_FIREARMS, 'knife'\]\.map\(id => preloadWeapon\(id, true\)/);
+  assert.match(soldiers, /\['vanguard', 'wasp', 'knife'\]\.map\(id => preloadWeapon\(id, true\)/);
   assert.doesNotMatch(soldiers, /WEAPONS as \{ id: string \}\[\]\)\.map\(w => preloadWeapon\(w\.id, true\)\.catch\(\(\) => null\)\)\)/, 'no longer every LOD before play');
   const manifest = JSON.parse(readFileSync('public/assets/arena/manifest.json', 'utf8'));
   const lod = id => manifest.weapons.find(w => w.id === id)?.lodBytes ?? 0;
-  const before = WEAPONS.reduce((n, w) => n + lod(w.id), 0), after = [...FREE_FIREARMS, 'knife'].reduce((n, id) => n + lod(id), 0);
+  const before = WEAPONS.reduce((n, w) => n + lod(w.id), 0), after = ['vanguard', 'wasp', 'knife'].reduce((n, id) => n + lod(id), 0);
   assert.ok(after < before / 3, `third-person weapon download before play: ${(after / 1024).toFixed(0)} KB instead of ${(before / 1024).toFixed(0)} KB`);
   // The Armory and the HUD studio are separate chunks, fetched only when opened.
   const app = readFileSync('src/arena/ArenaApp.tsx', 'utf8');

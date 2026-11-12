@@ -20,7 +20,7 @@ export const controls = {
   gamepad: false, locked: false,
 };
 const keys = new Set<string>();
-const KEYMAP: Record<string, number> = { Space: B.JUMP, ShiftLeft: B.SPRINT, ShiftRight: B.SPRINT, KeyC: B.CROUCH, ControlLeft: B.CROUCH, KeyR: B.RELOAD, Digit1: B.SLOT1, Digit2: B.SLOT2, KeyV: B.MELEE, KeyG: B.LETHAL, KeyQ: B.TACTICAL, KeyX: B.SWAP };
+const KEYMAP: Record<string, number> = { Space: B.JUMP, ShiftLeft: B.SPRINT, ShiftRight: B.SPRINT, KeyC: B.CROUCH, ControlLeft: B.CROUCH, KeyR: B.RELOAD, KeyB: B.MODE, KeyI: B.INSPECT, Digit1: B.SLOT1, Digit2: B.SLOT2, KeyV: B.MELEE, KeyG: B.LETHAL, KeyQ: B.TACTICAL, KeyX: B.SWAP };
 const STREAK_KEYS: Record<string, string> = { Digit3: 'recon', Digit4: 'supply', Digit5: 'strike' };
 let mouseButtons = 0;
 type Hooks = { streak: (id: string) => void; scoreboard: (open: boolean) => void; menu: () => void; autoFire?: () => void };
@@ -87,6 +87,7 @@ export function pollGamepad(dt: number, ads: number, zoom: number) {
   if (tap(PAD.X)) press(B.RELOAD); if (tap(PAD.Y)) press(B.SWAP); if (tap(PAD.R3)) press(B.MELEE);
   if (tap(PAD.RB)) press(B.LETHAL); if (tap(PAD.LB)) press(B.TACTICAL);
   if (tap(PAD.LEFT)) hooks?.streak('recon'); if (tap(PAD.UP)) hooks?.streak('supply'); if (tap(PAD.RIGHT)) hooks?.streak('strike');
+  if (tap(PAD.DOWN)) press(B.MODE);
   if (tap(PAD.START)) hooks?.menu();
   if (btn(PAD.BACK) !== was(PAD.BACK)) hooks?.scoreboard(btn(PAD.BACK));
   controls.held = (controls.held & ~(B.FIRE | B.ADS | B.JUMP | B.SPRINT | B.CROUCH)) | held | (controls.touchAds ? B.ADS : 0);
