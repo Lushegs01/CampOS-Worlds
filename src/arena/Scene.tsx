@@ -19,12 +19,14 @@ import { weaponOf, eyeOf } from '../../shared/arena/sim.mjs';
 import { raycast } from '../../shared/arena/physics.mjs';
 import { setListener } from '../audio/mixer';
 import { useArena, useBanners } from './store';
-import { live, onFx, tickInput, eye, useStreak, matOf, toggleAutoFire, sceneLoaded, onRetryAssets, type Fx } from './net';
+import { live, onFx, tickInput, eye, useStreak, matOf, toggleAutoFire, sceneLoaded, onRetryAssets, matchElapsed, type Fx } from './net';
 import * as deploy from './deploy';
 import { deadline } from '../world/fetcher';
 import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
-import { loadLibrary, loadDecor, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
+import { loadLibrary, loadDecor, loadSurfaceDetail, skyDome, clearMaterialCache, themeOf, P1, P2, type Library } from './scene/library';
+import { buildCity, type City } from './scene/city';
+import type { CityMap } from './scene/city/kit';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
@@ -33,7 +35,7 @@ import { trackDisposeListeners } from './scene/gpuListeners';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
 import { Effects, Casings } from './scene/fx';
-import { sfx, setIndoor, startAmbience, stopArenaAmbience, stopMatchSounds, prepareMatch, prepareWeapon, prepareVoice, forgetPrepared, trimBanks, nearSurfaces, actions, remoteActions, breathing, ambienceFrame, setGroundProvider, engine as soundEngine, type StepSurface, type ImpactSurface } from './audio';
+import { sfx, setIndoor, setCityAudio, startAmbience, stopArenaAmbience, stopMatchSounds, prepareMatch, prepareWeapon, prepareVoice, forgetPrepared, trimBanks, nearSurfaces, actions, remoteActions, breathing, ambienceFrame, setGroundProvider, engine as soundEngine, type StepSurface, type ImpactSurface } from './audio';
 import { reloadPlan } from './sound/reloads.mjs';
 import { stepSurfaceOf, impactSurfaceOf, groundSurface, isStair } from './sound/surfaces.mjs';
 import { createGait, createRemoteGait } from './sound/gait.mjs';
@@ -72,7 +74,7 @@ function ambientEmitters(map: { boxes: { min: number[]; max: number[]; mat: stri
   const out: { at: [number, number, number]; kind: 'machine' | 'hum' }[] = [];
   for (const b of map.boxes) {
     const c: [number, number, number] = [(b.min[0] + b.max[0]) / 2, b.mat === 'roof' ? b.min[1] - .4 : b.max[1], (b.min[2] + b.max[2]) / 2];
-    if (b.mat === 'machine') out.push({ at: c, kind: 'machine' }); else if (b.mat === 'roof') out.push({ at: c, kind: 'hum' });
+    if (b.mat === 'machine' || b.mat === 'plant' || b.mat === 'vent' || b.mat === 'switchgear') out.push({ at: c, kind: 'machine' }); else if (b.mat === 'roof' || b.mat === 'vending' || b.mat === 'ug-room' || b.mat === 'atm') out.push({ at: c, kind: 'hum' });
   }
   return out;
 }
@@ -100,7 +102,7 @@ export default memo(function ArenaScene({ mapId }: { mapId: string }) {
 function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const { scene, camera, gl, size } = useThree(), setDpr = useThree(s => s.setDpr), dprNow = useThree(s => s.viewport.dpr);
   const map = MAP_BY_ID.get(mapId)!;
-  const settings = useArena(s => s.settings);
+  const settings = useArena(s => s.settings), variant = useArena(s => s.match?.variant ?? 'day');
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
   useEffect(() => onRetryAssets(() => setAttempt(n => n + 1)), []);
@@ -118,7 +120,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const primary = live.loadout?.primary ?? 'vanguard', secondary = live.loadout?.secondary;
     // The player's own weapon is queued first: it is one file with a dozen textures to transcode.
     preloadWeapon(primary, false, P1).then(() => { if (on) setGunReady(true); }).catch(e => { console.error('Arena weapon could not load.', e); if (on) deploy.fail('Your weapon could not be downloaded.', 'assets', what(e)); });
-    loadLibrary(gl, q).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) deploy.fail('The training ground could not be downloaded.', 'assets', what(e)); });
+    loadLibrary(gl, q, themeOf(mapId)).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) deploy.fail('The training ground could not be downloaded.', 'assets', what(e)); });
     if (secondary && secondary !== primary) void preloadWeapon(secondary, false, P2).catch(() => null);
     // Sound: phones get fewer voices, plain panning and a rumble filter; the sound banks the player needs first (their
     // weapons, the map's surfaces) are queued now, behind nothing the deployment waits for.
@@ -135,34 +137,42 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // ---------------------------------------------------------------- environment, sky and lighting
   const world = useMemo(() => {
     if (!lib) return null;
-    const group = new THREE.Group(), env = buildEnvironment(lib, map, q);
+    const group = new THREE.Group(), city: City | null = map.id === 'metropolis' ? buildCity(lib, map as unknown as CityMap, q, variant) : null, env = city ?? buildEnvironment(lib, map, q);
     for (const o of env.objects) group.add(o);
-    group.add(skyDome(lib));
+    const dome = skyDome(lib); group.add(dome);
+    const look = city?.lighting ?? null;
+    if (look) (dome.material as THREE.ShaderMaterial).uniforms.uTint.value.set(look.skyTint.r, look.skyTint.g, look.skyTint.b);
     const [bx0, bz0, bx1, bz1] = map.bounds, cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2, half = Math.max(bx1 - bx0, bz1 - bz0) / 2 + 8;
-    const sun = new THREE.DirectionalLight(lib.sun.color.clone().multiply(new THREE.Color(1, .95, .86)), lib.sun.irradiance * .95);
-    sun.position.set(cx, 0, cz).addScaledVector(lib.sun.dir, 110); sun.target.position.set(cx, 0, cz);
+    const sunDir = look?.sunDir ?? lib.sun.dir;
+    const sun = new THREE.DirectionalLight(look ? look.sunColor : lib.sun.color.clone().multiply(new THREE.Color(1, .95, .86)), look ? look.sun : lib.sun.irradiance * .95);
+    sun.position.set(cx, 0, cz).addScaledVector(sunDir, 110); sun.target.position.set(cx, 0, cz);
     if (q.shadows) {
       sun.castShadow = true; sun.shadow.mapSize.set(q.shadowSize, q.shadowSize); sun.shadow.radius = q.shadowSize >= 2048 ? 3 : 2;
       const c = sun.shadow.camera; c.left = -half; c.right = half; c.top = half; c.bottom = -half; c.near = 10; c.far = 240; c.updateProjectionMatrix();
       sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
     }
-    const fill = new THREE.HemisphereLight('#cfdcec', '#8a7c62', 1.1);
+    const fill = look ? new THREE.HemisphereLight(look.hemiSky, look.hemiGround, look.hemi) : new THREE.HemisphereLight('#cfdcec', '#8a7c62', 1.1);
     group.add(sun, sun.target, fill);
     // Warm fittings under roofs (unshadowed point lights), nearest the middle of the map first.
     const lamps = [...env.lights].filter(p => p.y < 9).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)).slice(0, q.lights).map(p => { const l = new THREE.PointLight('#ffe2b4', 55, 15, 2); l.position.copy(p).y -= .2; group.add(l); return l; });
     void lamps;
-    return { group, sun, decor: env.decor };
-  }, [lib, map, q]);
+    return { group, sun, decor: env.decor, city, look, sunDir };
+  }, [lib, map, q, variant]);
   useEffect(() => {
     if (!world || !lib) return;
-    scene.add(world.group); scene.environment = lib.env; scene.environmentIntensity = 1.5;
-    const fog = lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, 55, q.fogFar * 3.2); scene.background = fog;
+    scene.add(world.group); scene.environment = lib.env; scene.environmentIntensity = world.look?.env ?? 1.5;
+    const fog = world.look ? world.look.fog.clone() : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, world.look?.fogNear ?? 55, world.look ? Math.min(world.look.fogFar, q.fogFar * 3.2) : q.fogFar * 3.2); scene.background = fog;
+    gl.toneMappingExposure = world.look?.exposure ?? .82;
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
     let on = true;
     deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').catch(() => null).then(() => { if (on) setCompiled(true); });
     // Set dressing streams in once the match is playable (priority 2); a static sun shadow is redrawn once for it.
     const ctrl = new AbortController();
-    const decorate = () => loadDecor(lib, ctrl.signal).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
+    const decorate = () => {
+      void loadDecor(lib, ctrl.signal, world.city?.wanted).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
+      // Relief and roughness maps for a map that deployed on colour alone (Metropolis): nearest surfaces first.
+      void loadSurfaceDetail(lib, ctrl.signal);
+    };
     const waitPlayable = () => { if (!on) return; if (useArena.getState().sceneReady) void decorate(); else setTimeout(waitPlayable, 500); };
     waitPlayable();
     return () => {
@@ -173,10 +183,11 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       // match's renderer uploads them again.
       const shared = cachedAssets('arena/'), weapons = weaponResources();
       releaseGpu(scene, vm.vmScene, world.group, ...shared.scenes, ...weapons.scenes, ...Object.values(lib.props).map(p => p!.scene));
-      for (const t of [lib.env, lib.sky, lib.hdr, softTexture(), ...shared.textures]) t.dispose();
+      for (const t of [lib.env, lib.sky, lib.hdr, softTexture(), ...shared.textures, ...Object.values(lib.extra)]) t.dispose();
+      world.city?.dispose();
       for (const r of standInResources()) { r.geometry.dispose(); r.material.dispose(); }
       for (const m of weapons.materials) m.dispose();
-      scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null;
+      scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null; gl.toneMappingExposure = .82;
       clearMaterialCache();
     };
   }, [scene, world, lib, q]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -325,8 +336,19 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const zoomOf = () => { const s = live.sim; if (!s) return 1; const w = weaponOf(s); return w.zoom ?? (w.category === 'melee' ? 1 : 1.3); };
 
   // ---------------------------------------------------------------- events from the network layer
+  const cityRef = useRef<City | null>(null);
+  useEffect(() => { cityRef.current = world?.city ?? null; world?.city?.setPanes(live.broken); return () => { cityRef.current = null; }; }, [world]);
   useEffect(() => onFx((f: Fx) => {
     const now = performance.now();
+    if (f.type === 'glass') {
+      const city = cityRef.current; if (!city) return;
+      if (f.reset) { city.setPanes([]); return; }
+      const hit = city.breakPane(f.i); if (!hit) return;
+      // The pane goes: fragments both ways, and the sound of it from where it was.
+      for (const s of [1, -1]) for (let k = 0; k < 3; k++) fx.effects.impact(v1.copy(hit.at).add(v3.set((Math.random() - .5) * hit.size * .6, (Math.random() - .5) * .8, (Math.random() - .5) * hit.size * .6)), v2.copy(hit.normal).multiplyScalar(s), 'metal', false);
+      sfx.impact('glass' as ImpactSurface, [hit.at.x, hit.at.y, hit.at.z]);
+      return;
+    }
     if (f.type === 'tracer') {
       const from = v1.fromArray(f.from), to = v2.fromArray(f.to);
       if (f.local) { const muzzle = vm.gun?.getObjectByName('muzzle'); if (muzzle) { muzzle.getWorldPosition(from); from.applyMatrix4(camera.matrixWorld); } }
@@ -340,7 +362,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     else if (f.type === 'smoke') fx.effects.smokeCloud(v1.fromArray(f.at), f.r, f.ms / 1000);
     else if (f.type === 'flash') fx.effects.flashbang(v1.fromArray(f.at));
     else if (f.type === 'muzzle') { const e = soldiers.current.get(f.num); if (e) e.flashAt = now; }
-    else if (f.type === 'capture') { const o = objectives.items.find(i => i.o.id === f.id); if (o) fx.effects.capture(v1.set(o.o.x, 0, o.o.z), new THREE.Color(f.team === live.team ? TEAM_COLORS.friend : TEAM_COLORS.enemy), o.o.r); }
+    else if (f.type === 'capture') { const o = objectives.items.find(i => i.o.id === f.id); if (o) fx.effects.capture(v1.set(o.o.x, o.o.y ?? 0, o.o.z), new THREE.Color(f.team === live.team ? TEAM_COLORS.friend : TEAM_COLORS.enemy), o.o.r); }
     else if (f.type === 'land') vm.landV -= Math.min(1.2, f.speed * .09);
     else if (f.type === 'shot') {
       // Our own shot: flash, kick, a casing and a wisp of smoke.
@@ -403,6 +425,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     cam.updateMatrixWorld();
     cam.getWorldDirection(fwd); setListener(cam.position, fwd);
     ambienceFrame([cam.position.x, cam.position.y, cam.position.z]);
+    if (world?.city) cityFrame(world.city.update(now / 1000, cam.position, matchElapsed(), vm.indoor > 0), cam.position);
     if (frameNo.current % 600 === 0 && live.loadout) trimBanks([live.loadout.primary, live.loadout.secondary]);
     // Every two seconds: the footstep banks of the boxes within 16 m (their surfaces are heard before they are reached).
     if (frameNo.current % 120 === 30) {
@@ -415,9 +438,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       vm.probeAt = now;
       const up = raycast(live.world, cam.position.x, cam.position.y, cam.position.z, 0, 1, 0, 14, null, scratch);
       vm.indoor = up && up.box ? 1 : 0;
-      const d = lib.sun.dir, sunHit = raycast(live.world, cam.position.x, cam.position.y, cam.position.z, d.x, d.y, d.z, 80, null, scratch);
+      const d = world?.sunDir ?? lib.sun.dir, sunHit = raycast(live.world, cam.position.x, cam.position.y, cam.position.z, d.x, d.y, d.z, 80, null, scratch);
       vm.sunSeen = sunHit && sunHit.box ? 0 : 1;
       setIndoor(vm.indoor);
+      if (world?.city) { const street = (map as unknown as CityMap).street; setCityAudio({ under: cam.position.y < street - .4 ? 1 : 0, rain: world.city.lighting.rain && cam.position.y > street ? 1 : 0, harbour: cam.position.y > street ? Math.max(0, Math.min(1, (cam.position.z - 14) / 22)) : 0 }); }
     }
     // ---- shadows: static on phones, refreshed at the profile's rate otherwise
     if (world && q.shadows && q.shadowEvery && frameNo.current % q.shadowEvery === 0) world.sun.shadow.needsUpdate = true;
@@ -496,9 +520,19 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   }, -1);
 
   /** What a boot lands on: the box underfoot (its material; a stair riser), or the ground as it is painted. */
+  // The station's train: its rumble follows it along the track; the horn sounds as it enters the platforms.
+  const trainSound = useRef({ pass: 0, horn: false });
+  function cityFrame(tr: ReturnType<City['update']>, at: THREE.Vector3) {
+    const st = trainSound.current;
+    if (!tr || tr.warning) { if (st.pass) { st.pass = 0; st.horn = false; sfx.train(null, 0); } return; }
+    const mid = (tr.x0 + tr.x1) / 2, nearX = Math.max(tr.x0, Math.min(tr.x1, at.x));
+    st.pass = 1; sfx.train([nearX, 1.6, 3.5], Math.abs(mid) < 80 ? 1 : .5);
+    if (!st.horn && Math.abs(tr.dir > 0 ? tr.x1 + 40 : tr.x0 - 40) < 6) { st.horn = true; sfx.trainHorn([tr.dir > 0 ? tr.x1 : tr.x0, 2.4, 3.5]); }
+  }
   function groundAt(x: number, y: number, z: number): { surface: StepSurface; stairs: boolean } {
     if (live.world) { const hit = raycast(live.world, x, y + .3, z, 0, -1, 0, .8, null, scratch); if (hit && hit.box) { const box = map.boxes[hit.box.i]; return { surface: stepSurfaceOf(box?.mat) as StepSurface, stairs: !!box && isStair(box) }; } }
-    return { surface: groundSurface(map.bounds, x, z) as StepSurface, stairs: false };
+    // Metropolis has no painted ground: the only bare ground is the station's track bed (ballast).
+    return { surface: (map.id === 'metropolis' ? 'gravel' : groundSurface(map.bounds, x, z)) as StepSurface, stairs: false };
   }
   /** The player's reload, action and weapon raise, advanced with the same progress the animation draws. */
   function ownActions(s: typeof live.sim) {

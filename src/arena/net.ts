@@ -37,7 +37,8 @@ export type Fx =
   | { type: 'flash'; at: number[] }
   | { type: 'death'; num: number }
   | { type: 'shot'; weapon: string }
-  | { type: 'land'; speed: number } | { type: 'jump' };
+  | { type: 'land'; speed: number } | { type: 'jump' }
+  | { type: 'glass'; i: number; reset?: boolean };
 
 /** Everything that changes every frame, outside React. */
 export const live = {
@@ -56,7 +57,13 @@ export const live = {
   autoFiring: false, autoReason: '',
   /** The scene for the current match has what it needs to draw and play (sent to the server as 'loaded'). */
   sceneReady: false, loadedSent: '', haveState: false, syncRetries: 0,
+  /** Glass panes the server has broken (Metropolis). */
+  broken: new Set<number>(),
+  /** The match clock as last heard: `elapsed` ms since the match started (−1 when not being played), at local time `at`. */
+  clock: { elapsed: -1, at: 0 },
 };
+/** Milliseconds since the match started, or −1 when it is not being played (drives the station's train). */
+export const matchElapsed = () => (live.clock.elapsed < 0 ? -1 : live.clock.elapsed + (performance.now() - live.clock.at));
 const fxListeners = new Set<(f: Fx) => void>();
 export function onFx(fn: (f: Fx) => void) { fxListeners.add(fn); return () => { fxListeners.delete(fn); }; }
 const fx = (f: Fx) => { for (const l of fxListeners) l(f); };
@@ -192,6 +199,7 @@ function enterMatch(view: MatchView, you: { num: number; team: number; key: stri
   const map = MAP_BY_ID.get(view.map)!;
   live.world = createWorld(map.boxes, map.bounds); live.mapId = view.map; live.num = you.num; live.team = you.team;
   live.loadout = loadout; live.perks = new Set(loadout.perks);
+  live.broken = new Set(view.broken ?? []); live.clock = { elapsed: view.state === 'playing' ? view.elapsed ?? -1 : -1, at: performance.now() };
   live.ctx = { world: live.world, seed: view.seed, num: you.num, perks: live.perks };
   // Commands continue from the server's count after a reconnect.
   live.pending = []; live.outgoing = [];
@@ -223,6 +231,7 @@ function snapshot(m: Record<string, any>) {
   for (const [num, r] of live.remotes) if (!seen.has(num) && !r.deadAt) { r.flags &= ~1; r.seenAt = 0; }
   live.radar = m.r ?? [];
   contested(m.o); progress(m.tl, m.sc);
+  live.clock = { elapsed: m.st === 'playing' && a.match ? a.match.timeMs - m.tl : -1, at: now };
   // ---- grenades, interpolated lightly between snapshots
   const g = new Set<number>();
   for (const [id, kind, x, y, z] of m.g as number[][]) { g.add(id); live.grenades.set(id, { kind, x: x / 100, y: y / 100, z: z / 100, at: now }); }
@@ -297,7 +306,7 @@ function event(ev: Record<string, any>) {
     case 'spawn': {
       live.haveState = true;
       live.loadout = ev.loadout; live.perks = new Set(ev.loadout.perks); if (live.ctx) live.ctx.perks = live.perks;
-      live.sim = spawnState({ x: ev.x, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true; sfx.spawn();
+      live.sim = spawnState({ x: ev.x, y: ev.y ?? 0, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true; sfx.spawn();
       live.pending = []; live.smooth = { x: 0, y: 0, z: 0 }; live.prev = { x: ev.x, y: eyeOf(live.sim), z: ev.z }; controls.yaw = ev.yaw; controls.pitch = 0;
       a.set({ killedBy: null, loadout: ev.loadout });
       return;
@@ -311,6 +320,8 @@ function event(ev: Record<string, any>) {
       if (ev.state === 'waiting') banner({ text: 'Waiting for players', tone: 'info', ms: 2500 });
       return;
     }
+    case 'glass': if (ev.reset) { live.broken.clear(); fx({ type: 'glass', i: -1, reset: true }); } else if (!live.broken.has(ev.i)) { live.broken.add(ev.i); fx({ type: 'glass', i: ev.i }); } return;
+    case 'train': banner({ text: 'Train approaching', sub: 'Plaza Station · keep off the track', tone: 'info', ms: 3200 }); sfx.ui('notify'); return;
     case 'left': live.remotes.delete(ev.num); remoteActions.forget(ev.num); return;
     case 'board': a.set({ board: Object.fromEntries(ev.rows.map((r: number[]) => [r[0], r.slice(1)])) }); return;
     case 'shot': {
@@ -585,6 +596,9 @@ if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<stri
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
   deploy: () => ({ ...deploy.useDeploy.getState(), recent: deploy.recentDeployments() }),
+  /** Ask for a match as the lobby does (QA: start Training on a chosen map and variant). */
+  start: (kind: 'queue' | 'private' | 'training', data: Record<string, unknown>) => deployTo(kind, data),
+  clock: () => matchElapsed(), broken: () => [...live.broken],
   /** Change arena settings (QA: the audio suite sets category volumes). */
   settings: (v: Record<string, unknown>) => { useArena.getState().setSettings(v); return useArena.getState().settings; },
   self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, reserve: live.sim.wpn[live.sim.slot].reserve, slot: live.sim.slot, weapon: weaponOf(live.sim).id, phase: live.sim.phase, pt: live.sim.pt, reloadStart: live.reloadStart, reloadTotal: live.reloadTotal, reloadEmpty: live.reloadEmpty, pending: live.pending.length, autoFiring: live.autoFiring, autoReason: live.autoReason } : null),

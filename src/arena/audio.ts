@@ -314,6 +314,13 @@ export const sfx = {
     fire(SOFT_GROUND.has(surface) ? 'movement/slideSoft' : 'movement/slideHard', at ? 'slideRemote' : 'slideOwn', { at });
     fire('movement/whoosh', at ? 'foleyRemote' : 'foleyOwn', { at, gain: .6 });
   },
+  /** The station's train: a loop that follows the nearest part of the train (null when it has gone). */
+  train(at: V | null, gain: number) {
+    if (!at) { amb.train?.stop(1.2); amb.train = null; return; }
+    if (!amb.train || !amb.train.alive) amb.train = engine.loop('amb.metropolis/train', { cat: 'environment', at, gain: 0, ref: 7, rolloff: 1.1, send: .5, fade: .8 });
+    amb.train?.move(at); amb.train?.setGain(1.5 * gain, .3);
+  },
+  trainHorn(at: V) { fire('amb.metropolis/horn', 'ambientOneShot', { at, gain: 1.6 }); },
   spawn(at?: V) { fire('movement/spawn', at ? 'foleyRemote' : 'foleyOwn', { at, gain: at ? .6 : .8 }); breath.reset(); },
   // ---------------------------------------------------------------- characters
   /** A soldier's vocal reaction (`num` null: the player). */
@@ -431,7 +438,15 @@ export function countdown(ms: number) {
  * The map's ambience: beds (wind outside, the district beyond the walls, a room tone under roofs), machines and
  * electrical hum heard from where they are, and occasional distant activity. Indoors the outside is muffled.
  */
-const amb = { map: '', beds: {} as Record<string, engine.LoopHandle | null>, spots: [] as { at: V; kind: 'machine' | 'hum'; h: engine.LoopHandle | null }[], next: 0, indoor: 0, env: 1 };
+const amb = { map: '', beds: {} as Record<string, engine.LoopHandle | null>, spots: [] as { at: V; kind: 'machine' | 'hum'; h: engine.LoopHandle | null }[], next: 0, indoor: 0, env: 1,
+  /** Metropolis: how far underground the listener is, whether it is raining on them, how near the quay they are. */
+  under: 0, rain: 0, harbour: 0, train: null as engine.LoopHandle | null };
+/** The city's extra beds (Metropolis): the station's tone below ground, rain when it falls on the listener, gulls by the quay. */
+export function setCityAudio(o: { under: number; rain: number; harbour: number }) {
+  engine.setListenerUnderground(o.under);
+  if (o.under === amb.under && o.rain === amb.rain && o.harbour === amb.harbour) return;
+  amb.under = o.under; amb.rain = o.rain; amb.harbour = o.harbour; applyIndoor();
+}
 export function startAmbience(mapId: string, emitters: { at: V; kind: 'machine' | 'hum' }[]) {
   stopArenaAmbience(); amb.map = mapId; amb.spots = emitters.map(e => ({ ...e, h: null })); amb.next = performance.now() + 4000;
 }
@@ -440,6 +455,10 @@ export function ambienceFrame(listener: V) {
   if (!amb.map || !audio()) return;
   const bank = 'amb.' + amb.map; if (!engine.ready(bank)) return;
   for (const k of ['wind', 'district', 'interior'] as const) if (!amb.beds[k]) amb.beds[k] = engine.loop(`${bank}/${k}`, { cat: 'environment', gain: 0, fade: 2 });
+  if (amb.map === 'metropolis') for (const [k, want] of [['station', amb.under], ['rain', amb.rain], ['harbour', amb.harbour]] as const) {
+    if (want > .01 && !amb.beds[k]) amb.beds[k] = engine.loop(`${bank}/${k}`, { cat: 'environment', gain: 0, fade: 1.5 });
+    else if (want <= .01 && amb.beds[k]) { amb.beds[k]!.stop(1.5); amb.beds[k] = null; }
+  }
   applyIndoor();
   // The three nearest machine or hum emitters within earshot play; the others are stopped.
   const ranked = amb.spots.map(s => ({ s, d: Math.hypot(s.at[0] - listener[0], s.at[2] - listener[2]) })).sort((a, b) => a.d - b.d);
@@ -460,11 +479,13 @@ function applyIndoor() {
   const i = amb.indoor, b = amb.beds;
   b.wind?.setGain((1 - .7 * i) * .9, .5); b.wind?.setLowpass(i > .5 ? 900 : 20000, .4);
   b.district?.setGain((1 - .5 * i) * .8, .5); b.district?.setLowpass(i > .5 ? 700 : 20000, .4);
-  b.interior?.setGain(.2 + .8 * i, .5);
+  b.interior?.setGain((.2 + .8 * i) * (1 - amb.under), .5);
+  if (amb.under > 0) { b.wind?.setGain(.05, .6); b.district?.setGain(.12, .6); b.district?.setLowpass(350, .4); }
+  b.station?.setGain(amb.under * .9, .6); b.rain?.setGain(amb.rain * (1 - .65 * i), .5); b.rain?.setLowpass(i > .5 ? 1400 : 20000, .4); b.harbour?.setGain(amb.harbour * .7 * (1 - .6 * i), .8);
 }
 /** 0 outdoors … 1 under a roof: the listener's share of reverb, the outside muffled. */
 export function setIndoor(amount: number) { engine.setListenerIndoor(amount); if (amount !== amb.indoor) { amb.indoor = amount; applyIndoor(); } }
-export function stopArenaAmbience() { for (const h of Object.values(amb.beds)) h?.stop(.8); amb.beds = {}; for (const s of amb.spots) s.h?.stop(.5); amb.spots = []; amb.map = ''; }
+export function stopArenaAmbience() { for (const h of Object.values(amb.beds)) h?.stop(.8); amb.beds = {}; amb.train?.stop(.4); amb.train = null; amb.under = amb.rain = amb.harbour = 0; engine.setListenerUnderground(0); for (const s of amb.spots) s.h?.stop(.5); amb.spots = []; amb.map = ''; }
 /** The match's sounds end with it (scheduled reload parts and loops included). */
 export function stopMatchSounds() { actions.reset(); announcer.clear(); breath.reset(); reactions.clear(); engine.stopAll(); }
 

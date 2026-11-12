@@ -15,7 +15,7 @@ const CITY_IMPACT = {
   'st-asphalt': 'concrete', 'st-grass': 'dirt', 'ug-track': 'dirt', 'stair-steel': 'metal', 'floor-timber': 'wood', 'roof-sheet': 'sheet', 'roof-deck': 'concrete', hedge: 'foliage', planter: 'concrete', tree: 'wood',
   bus: 'sheet', van: 'sheet', car: 'sheet', truck: 'sheet', pickup: 'sheet', tank: 'sheet', ac: 'sheet', vent: 'sheet', plant: 'sheet', kiosk: 'sheet', shelter: 'sheet', canopy: 'sheet', 'brt-roof': 'sheet', 'brt-screen': 'glass', hoarding: 'sheet', 'yard-wall': 'sheet',
   counter: 'wood', desk: 'wood', table: 'wood', bench: 'wood', shelf: 'wood', sofa: 'wood', partition: 'wood', 'partition-wall': 'wood', cabinet: 'metal', rack: 'metal', forklift: 'metal', bollard: 'metal', column: 'concrete', 'ug-column': 'concrete',
-  vending: 'metal', atm: 'metal', faregate: 'metal', switchgear: 'metal', utility: 'metal', bin: 'metal', spire: 'metal', frame: 'glass',
+  lamppost: 'metal', palm: 'wood', vending: 'metal', atm: 'metal', faregate: 'metal', switchgear: 'metal', utility: 'metal', bin: 'metal', spire: 'metal', frame: 'glass',
 };
 /** Footstep surfaces (each has its own footstep bank, src/arena/sound/engine.ts). */
 export const STEP_SURFACES = ['concrete', 'asphalt', 'gravel', 'dirt', 'grass', 'sand', 'metal', 'container', 'wood', 'stone'];

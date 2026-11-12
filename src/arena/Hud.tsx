@@ -15,7 +15,7 @@ import { controls, press } from './input';
 import { useActiveLayout, useHudProfile, type Layout } from './hudLayout';
 import { Slot, useViewport, layoutVars, CrosshairMarks, TimerView, ScoreView, HealthView, AmmoView, WeaponInfoView, WeaponSlotsView, NetView, ObjectivesView, StreaksView, KillfeedView, BannerView, fmtClock } from './hudViews';
 
-const weaponName = (id: string | null) => (id ? WEAPON_BY_ID.get(id)?.name ?? EQUIPMENT_BY_ID.get(id)?.name ?? (id === 'strike' ? 'Tactical Strike' : id === 'melee' ? 'Melee' : id === 'fall' ? 'Fall' : id) : '');
+const weaponName = (id: string | null) => (id ? WEAPON_BY_ID.get(id)?.name ?? EQUIPMENT_BY_ID.get(id)?.name ?? (id === 'strike' ? 'Tactical Strike' : id === 'melee' ? 'Melee' : id === 'fall' ? 'Fall' : id === 'train' ? 'Train' : id) : '');
 type P = { layout: Layout; view: { w: number; h: number } };
 
 export default function Hud() {
@@ -152,12 +152,19 @@ export function drawMinimap(c: HTMLCanvasElement, mapId: string, dom: boolean, l
   c.width = c.height = size * ratio; g.setTransform(ratio, 0, 0, ratio, 0, 0);
   const [x0, z0, x1, z1] = map.bounds, span = Math.max(x1 - x0, z1 - z0) * 1.05, k = size / span, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const P = (x: number, z: number) => [size / 2 + (x - cx) * k, size / 2 + (z - cz) * k];
-  const base = document.createElement('canvas'); base.width = base.height = size; const bg = base.getContext('2d')!;
-  bg.fillStyle = 'rgba(16,22,26,.78)'; bg.fillRect(0, 0, size, size);
-  for (const b of map.boxes) { if (b.max[1] - b.min[1] < 1.4 && b.max[1] < 2.5) continue; const [a1, b1] = P(b.min[0], b.min[2]), [a2, b2] = P(b.max[0], b.max[2]); bg.fillStyle = b.min[1] > 2.5 ? 'rgba(160,170,175,.18)' : 'rgba(185,195,200,.55)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1); }
+  const floor: number = (map as { street?: number }).street ?? 0;
+  const layer = (draw: (bg: CanvasRenderingContext2D) => void) => { const cv = document.createElement('canvas'); cv.width = cv.height = size; const bg = cv.getContext('2d')!; bg.fillStyle = 'rgba(16,22,26,.78)'; bg.fillRect(0, 0, size, size); draw(bg); return cv; };
+  const base = layer(bg => { for (const b of map.boxes) { if (b.max[1] <= floor + .3 || (b.mat as string).startsWith('st-')) continue; if (b.max[1] - b.min[1] < 1.4 && b.max[1] - floor < 2.5) continue; const [a1, b1] = P(b.min[0], b.min[2]), [a2, b2] = P(b.max[0], b.max[2]); bg.fillStyle = b.min[1] - floor > 2.5 ? 'rgba(160,170,175,.18)' : 'rgba(185,195,200,.55)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1); } });
+  // A map with a station under the street (Metropolis) has a second plan, shown while the player is down there.
+  const spaces = ((map as { station?: { spaces: (number | string | boolean)[][] } }).station?.spaces ?? []) as [number, number, number, number, number, string, boolean][];
+  const below = spaces.length ? layer(bg => {
+    for (const sp of spaces) { const [a1, b1] = P(sp[0], sp[1]), [a2, b2] = P(sp[2], sp[3]); bg.fillStyle = sp[5] === 'ug-track' ? 'rgba(228,180,95,.3)' : sp[6] ? 'rgba(120,200,255,.5)' : 'rgba(150,170,185,.42)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1); }
+    for (const b of map.boxes) { if (b.min[1] < .9 || b.max[1] > floor - .5 || b.max[1] - b.min[1] < 1.4) continue; const [a1, b1] = P(b.min[0], b.min[2]), [a2, b2] = P(b.max[0], b.max[2]); bg.fillStyle = 'rgba(16,22,26,.9)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1); }
+  }) : null;
   const draw = () => {
     const now = performance.now(), a = useArena.getState();
-    g.clearRect(0, 0, size, size); g.drawImage(base, 0, 0);
+    const under = !!below && liveMode && !!live.sim && live.sim.y < floor - .8;
+    g.clearRect(0, 0, size, size); g.drawImage(under ? below! : base, 0, 0);
     if (dom) map.objectives.forEach((o: { id: string; x: number; z: number }, i: number) => { const [px, py] = P(o.x, o.z), owner = a.hud.objectives[i]?.[0] ?? -1; g.fillStyle = owner < 0 ? '#f2efe6' : owner === live.team ? '#4fb3ff' : '#ff5a48'; g.font = '700 11px Manrope Variable, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(o.id, px, py); });
     if (!liveMode) { const [px, py] = P(cx, cz); g.fillStyle = '#ffe9a8'; g.beginPath(); g.moveTo(px, py - 6); g.lineTo(px + 4.5, py + 5); g.lineTo(px, py + 2.5); g.lineTo(px - 4.5, py + 5); g.closePath(); g.fill(); return; }
     for (const r of live.remotes.values()) {

@@ -94,6 +94,9 @@ export function setVolumes(v: Partial<Record<Category, number>> & { master?: num
 /** The scene answers "is this point behind a wall from the listener, and under a roof?" (a few ray casts). */
 export function setProbe(fn: ((at: Vec3) => Probe) | null) { probe = fn; }
 export function setListenerIndoor(amount: number) { listenerIndoor = amount; }
+/** 0 above ground … 1 in a station or tunnel: a second, much longer reverb (hard tiled walls, a long hall) comes up. */
+let tunnelWet: GainNode | null = null, underground = 0;
+export function setListenerUnderground(amount: number) { if (amount === underground) return; underground = amount; if (engine && tunnelWet) tunnelWet.gain.setTargetAtTime(amount * .5, engine.ctx.currentTime, .35); }
 export const indoorAmount = () => listenerIndoor;
 
 function impulse(ctx: BaseAudioContext, seconds: number) {
@@ -137,7 +140,8 @@ function build(): Engine | null {
   const buses = Object.fromEntries(CATEGORIES.map(c => { const g = ctx.createGain(); g.gain.value = volumes[c]; g.connect(c === 'ui' || c === 'voice' ? master : deafen); return [c, g]; })) as Record<Category, GainNode>;
   const reverbIn = ctx.createGain(); reverbIn.gain.value = 1;
   const sends = Object.fromEntries(CATEGORIES.map(c => { const g = ctx.createGain(); g.gain.value = volumes[c]; g.connect(reverbIn); return [c, g]; })) as Record<Category, GainNode>;
-  try { const conv = ctx.createConvolver(); conv.buffer = impulse(ctx, maxVoices <= 20 ? .75 : 1.1); const wet = ctx.createGain(); wet.gain.value = .5; reverbIn.connect(conv).connect(wet).connect(deafen); } catch { /* no convolution: dry only */ }
+  try { const conv = ctx.createConvolver(); conv.buffer = impulse(ctx, maxVoices <= 20 ? .75 : 1.1); const wet = ctx.createGain(); wet.gain.value = .5; reverbIn.connect(conv).connect(wet).connect(deafen);
+    const hall = ctx.createConvolver(); hall.buffer = impulse(ctx, maxVoices <= 20 ? 1.6 : 2.7); tunnelWet = ctx.createGain(); tunnelWet.gain.value = underground * .5; reverbIn.connect(hall).connect(tunnelWet).connect(deafen); } catch { /* no convolution: dry only */ }
   const spatialCount = Math.round(maxVoices * .75);
   engine = { m, ctx, buses, sends, deafen, master, rumble, reverbIn, limiter, spatial: Array.from({ length: spatialCount }, () => voice(ctx, true)), flat: Array.from({ length: maxVoices - spatialCount }, () => voice(ctx, false)), hrtf };
   return engine;
@@ -147,6 +151,7 @@ function teardown() {
   for (const v of [...engine.spatial, ...engine.flat]) { try { v.src?.stop(); } catch { /* already stopped */ } v.out.disconnect(); v.filter.disconnect(); v.send.disconnect(); }
   for (const l of loops) l.stop(0);
   for (const b of [...Object.values(engine.buses), ...Object.values(engine.sends)]) b.disconnect();
+  tunnelWet?.disconnect(); tunnelWet = null;
   engine.deafen.disconnect(); engine.reverbIn.disconnect(); engine.master.disconnect(); engine.rumble.disconnect(); engine.limiter.disconnect();
   engine = null;
 }

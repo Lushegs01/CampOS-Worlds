@@ -52,6 +52,8 @@ export const PACKS = {
 
 /** BigSoundBank items used (id → title, as published). */
 export const BSB = {
+  // Operation: Metropolis ambience.
+  '0608': 'Street and Roads', '0093': 'Metro corridor, Paris #1', '1289': 'Rain on concrete', '2573': 'Gulls on the Harbor', '0092': 'Metro, Paris #2', '2847': 'Train Horn #3', '2987': 'Car passing 50km/h #3', '0258': 'Recent Car Horn #2', '1233': 'Air/water heat pump, back', '3594': 'Bus horn',
   '0085': 'Step on gravels', '0510': 'Footsteps on gravels #1', '1117': 'Footsteps on gravels #2', '3202': 'Footsteps on Gravels #3', '3216': 'Footsteps on Gravels #4',
   '0514': 'Footsteps, Shoe on Concrete', '1318': 'Fast Steps on Concrete', '1319': 'Fast Steps on Concrete (running)', '0854': 'Steps in the short grass', '1253': 'Steps in the Grass, Slow',
   '1254': 'Steps in the grass, quick', '1024': 'Steps in the tall grass', '1515': 'Steps on a Wooden Floor #1', '1516': 'Steps on a wooden floor #2', '1517': 'Steps on a wooden floor #3',

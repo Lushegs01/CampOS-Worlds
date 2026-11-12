@@ -366,6 +366,23 @@ export const AMBIENCE = {
     hum: { loop: 4, xf: .6, src: bsb('2118'), at: 1, hp: 90, lp: 5000, short: -36 },
     oneshots: { creak: [R(bsb('0616'), '#0', 2.2, { fo: .5 }), R(bsb('0616'), '#17', 2.2, { fo: .5 }), R(bsb('0539'), '#2', 2.5, { fo: .5 })], clank: [W(bsb('1772'), { lp: 2500 }), W(bsb('1776'), { lp: 2500 }), W(bsb('0235'), { lp: 2500 })], chain: [W(bsb('0359'), { lp: 4000 })], flag: [R(bsb('1632'), 10, 3.0, { fi: .5, fo: .8 }), R(bsb('1632'), 40, 3.0, { fi: .5, fo: .8 })] },
   },
+  // Operation: Metropolis (Okun Bay). Outside: wind between buildings and the city's traffic beyond the block; in
+  // shops and halls: air handling; under the street: the tone of a metro corridor; by the quay: gulls over the port;
+  // in the rainy variant: rain on concrete. The train is a metro passing, with a horn as it reaches the platforms.
+  // The four occasional sounds keep the names the game asks every map for: `creak` is a car passing on the next
+  // street, `clank` something dropped in the port, `chain` a car horn a few blocks away, `flag` a bus horn.
+  metropolis: {
+    wind: { loop: 10, xf: 1.2, src: bsb('0154'), at: 24, hp: 120, lp: 5000, short: -36 },
+    district: { loop: 12, xf: 1.5, src: bsb('0608'), at: 8, hp: 90, lp: 3200, short: -36 },
+    interior: { loop: 5.5, xf: .8, src: bsb('0032'), at: .3, hp: 80, lp: 4000, short: -42 },
+    machine: { loop: 6, xf: .8, src: bsb('1233'), at: 4, hp: 70, lp: 6000, short: -32 },
+    hum: { loop: 4, xf: .6, src: bsb('2118'), at: 1.5, hp: 90, lp: 5000, short: -38 },
+    station: { loop: 10, xf: 1.2, src: bsb('0093'), at: 6, hp: 70, lp: 5000, short: -36 },
+    harbour: { loop: 11, xf: 1.4, src: bsb('2573'), at: 5, hp: 200, lp: 7000, short: -38 },
+    rain: { loop: 8, xf: 1, src: bsb('1289'), at: 6, hp: 150, lp: 9000, short: -30 },
+    train: { loop: 7, xf: 1, src: bsb('0092'), at: 14, hp: 50, lp: 7000, short: -20 },
+    oneshots: { creak: [R(bsb('2987'), 5, 5.5, { onset: false, fi: .8, fo: 1.5, lp: 3000 })], clank: [W(bsb('1772'), { lp: 2500 }), W(bsb('1776'), { lp: 2500 }), W(bsb('0235'), { lp: 2500 })], chain: [R(bsb('0258'), .05, 1.2, { onset: false, lp: 2600, fo: .3 })], flag: [R(bsb('3594'), .05, 1.3, { onset: false, lp: 2400, fo: .4 })], horn: [R(bsb('2847'), .1, 3.2, { onset: false, fo: .6 })] },
+  },
   quad: {
     wind: { loop: 10, xf: 1.2, src: bsb('0908'), at: 10, hp: 120, lp: 6000, short: -36 },
     district: { loop: 12, xf: 1.5, src: bsb('0716'), at: 6, hp: 90, lp: 2500, short: -40 },

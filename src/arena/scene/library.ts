@@ -121,13 +121,13 @@ export async function loadDecor(lib: Library, signal?: AbortSignal, wanted: Prop
 /** The photographic sky on a dome (the campus' Poly Haven HDRI, decoded to linear radiance). */
 export function skyDome(lib: Library) {
   const material = new THREE.ShaderMaterial({
-    uniforms: { uSky: { value: lib.sky }, uScale: { value: lib.skyScale }, uCoverage: { value: lib.skyCoverage }, uHorizon: { value: new THREE.Vector3(lib.horizon.r, lib.horizon.g, lib.horizon.b) } },
+    uniforms: { uSky: { value: lib.sky }, uScale: { value: lib.skyScale }, uCoverage: { value: lib.skyCoverage }, uHorizon: { value: new THREE.Vector3(lib.horizon.r, lib.horizon.g, lib.horizon.b) }, uTint: { value: new THREE.Vector3(1, 1, 1) } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.); gl_Position = p.xyww; }',
-    fragmentShader: `uniform sampler2D uSky; uniform float uScale, uCoverage; uniform vec3 uHorizon; varying vec3 vDir;
+    fragmentShader: `uniform sampler2D uSky; uniform float uScale, uCoverage; uniform vec3 uHorizon, uTint; varying vec3 vDir;
       void main(){ vec3 d = normalize(vDir); float u = atan(d.z, d.x) / 6.2831853 + .5, polar = acos(clamp(d.y, -1., 1.)) / 3.14159265;
         vec3 sky = texture2D(uSky, vec2(u, 1. - polar / uCoverage)).rgb * uScale;
         sky = mix(sky, uHorizon, smoothstep(uCoverage - .07, uCoverage, polar));
-        gl_FragColor = vec4(sky, 1.);
+        gl_FragColor = vec4(sky * uTint, 1.);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
