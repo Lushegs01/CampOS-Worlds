@@ -26,7 +26,7 @@ import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, loadDecor, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
 import { buildEnvironment, surfaceOf } from './scene/environment';
-import { weaponModel, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
+import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
 import { forgetAssets, cachedAssets } from '../world/assets';
 import { trackDisposeListeners } from './scene/gpuListeners';
