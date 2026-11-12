@@ -20,19 +20,19 @@
   "desktop": {
     "stats": {
       "world": 0,
-      "calls": 228,
-      "triangles": 125056,
-      "textures": 122,
-      "geometries": 629
+      "calls": 1009,
+      "triangles": 1539468,
+      "textures": 144,
+      "geometries": 747
     },
     "deploy": {
       "stage": "deployed",
       "marks": {
         "requesting": 0,
-        "loading-code": 14,
-        "preparing": 471,
-        "synchronizing": 11532,
-        "deployed": 11532
+        "loading-code": 15,
+        "preparing": 449,
+        "synchronizing": 13208,
+        "deployed": 13208
       },
       "files": {
         "done": 29,
@@ -48,20 +48,20 @@
   },
   "phone": {
     "stats": {
-      "world": 85804,
-      "calls": 400,
-      "triangles": 134596,
-      "textures": 64,
-      "geometries": 613
+      "world": 506035,
+      "calls": 527,
+      "triangles": 554827,
+      "textures": 74,
+      "geometries": 720
     },
     "deploy": {
       "stage": "deployed",
       "marks": {
         "requesting": 0,
-        "loading-code": 25,
-        "preparing": 552,
-        "synchronizing": 9202,
-        "deployed": 9202
+        "loading-code": 16,
+        "preparing": 426,
+        "synchronizing": 10177,
+        "deployed": 10177
       },
       "files": {
         "done": 29,

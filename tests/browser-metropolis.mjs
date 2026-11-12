@@ -27,7 +27,7 @@ try {
     assert.equal(match.map.id,'metropolis'); assert.equal(match.variant,mobile?'night':'day');
     await page.waitForFunction(()=>Math.abs(window.__arena.self()?.y-5)<.05);
     check(`${mobile?'phone':'desktop'} selects map/weather, deploys, and spawns at street level`);
-    const places = mobile ? [['night',-18,5,-25,-Math.PI/2]] : [['avenue',-42,5,-25,-Math.PI/2],['plaza',-20,5,0,-Math.PI/2],['rooftops',-40,12,-35,-Math.PI/2],['station',-20,1,0,-Math.PI/2],['industrial',-12,5,31,-Math.PI/2]];
+    const places = mobile ? [['night',-18,5,-23,-Math.PI/2]] : [['avenue',-42,5,-25,-Math.PI/2],['plaza',-20,5,0,-Math.PI/2],['rooftops',-40,12,-35,-Math.PI/2],['station',-20,1,0,-Math.PI/2],['industrial',-12,5,31,-Math.PI/2]];
     for(const [name,x,y,z,yaw] of places) {
       Object.assign(player.sim,{x,y,z,vx:0,vy:0,vz:0}); player.history=[];
       await page.evaluate(yaw=>window.__arena.look(yaw,0),yaw);

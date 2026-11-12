@@ -25,7 +25,7 @@ function mask(kind: 'dirt' | 'crack' | 'contact') {
   return new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,toneMapped:true});
 }
 
-export function cityDetail(lib: Library, b: Builder, boxes: Box[], wet: boolean, detail: boolean) {
+export function cityDetail(lib: Library, b: Builder, boxes: Box[], wet: boolean, detail: boolean, o: { walls?: boolean } = {}) {
   const trim = surface(lib,'concreteFloor',{tint:'#c5c1b6',normalScale:.3});
   const steel = new THREE.MeshStandardMaterial({color:'#4c5556',metalness:.65,roughness:.5});
   const dark = new THREE.MeshStandardMaterial({color:'#242b2c',roughness:.8});
@@ -37,7 +37,7 @@ export function cityDetail(lib: Library, b: Builder, boxes: Box[], wet: boolean,
   for(const [i,c] of boxes.entries()) {
     const [x0,y0,z0]=c.min,[x1,y1,z1]=c.max,w=x1-x0,d=z1-z0,h=y1-y0;
     if(y0===5 && h>.7 && w<13 && d<12 && !c.mat.startsWith('bld') && !c.mat.includes('stair') && !['rail','hedge'].includes(c.mat)) groundDecal((x0+x1)/2,5.008,(z0+z1)/2,w+1.1,d+1.1,contact);
-    if(c.mat.startsWith('bld-') && h>1.2 && (w<.8 || d<.8)) {
+    if(o.walls !== false && c.mat.startsWith('bld-') && h>1.2 && (w<.8 || d<.8)) {
       // Coping, foundation courses and mortar seams follow each solid wall segment, never the openings.
       b.box(x0-.025,y0,z0-.025,x1+.025,Math.min(y1,y0+.22),z1+.025,trim,1);
       b.box(x0-.045,y1-.12,z0-.045,x1+.045,y1,z1+.045,trim,1);
@@ -54,7 +54,7 @@ export function cityDetail(lib: Library, b: Builder, boxes: Box[], wet: boolean,
       groundDecal((x0+x1)/2,5.016,(z0+z1)/2,w*.9,d*.9,crack,hash(i,4)*3);
       groundDecal(x0+w*.4,5.018,z0+d*.6,w*.8,d*.7,dirt);
     }
-    if(c.mat==='ug-column') {
+    if(o.walls !== false && c.mat==='ug-column') {
       // Protective bands and column feet in the transit station.
       b.box(x0-.025,y0,z0-.025,x1+.025,y0+.18,z1+.025,trim);
       b.box(x0-.014,y0+.9,z0-.014,x1+.014,y0+1.03,z1+.014,marking);

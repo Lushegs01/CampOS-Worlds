@@ -282,6 +282,11 @@ function westHalf() {
   add(B(-47, 26, 2.6, 8.5, 3.6, L, 'truck'), B(-46.5, 37.4, 2.44, 6.06, 2.6, L, 'container-green'), B(-52.6, 28.4, 1.6, 1.6, 1.2, L, 'crate'));
   add(S(-44.1, 40.6, -43.7, 43, L, L + 2.6, 'yard-wall'), B(-30, 41.4, 3, 1.2, 1.2, L, 'crate'), B(-20, 41.2, .9, .9, .9, L, 'bollard'), B(-36, 41.2, .9, .9, .9, L, 'bollard'));
 
+  // ---------------------------------------------------------------- street lighting and palms: slim, solid (nobody stands inside one)
+  for (const [x, z] of [[-42, -29.3], [-27, -29.3], [-12, -29.3], [-35, -20.7], [-10, -20.7], [-42, 17.3], [-16, 17.3], [-20.6, -4.6], [-7.5, 7.2], [-44.6, 0], [-47, 39.6], [-26, 40.4]]) add(B(x, z, .22, .22, 6, L, 'lamppost'));
+  for (const x of [-22.5, -18, -13.5]) add(B(x, -25, .42, .42, 6.5, L + .85, 'palm'));
+  add(B(-6, -9.4, .42, .42, 6.5, L + .9, 'palm'), B(-57.6, -13.5, .42, .42, 6.5, L, 'palm'), B(-57.6, 14, .42, .42, 6.5, L, 'palm'));
+
   // ---------------------------------------------------------------- the west deployment (walls that close the lanes' sightlines)
   add(S(-50.4, -29, -50, -18.2, L, L + 3, 'hoarding'));
   // Marina Interchange: the canopy over the avenue's west end (nobody on a roof can see under it).

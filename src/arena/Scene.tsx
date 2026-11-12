@@ -87,7 +87,9 @@ export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   const q = useMemo(() => { const base = ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId]);
   // Old renderers must not stay reachable through three.js's shared objects (see scene/gpuListeners.ts).
   useLayoutEffect(() => trackDisposeListeners(), []);
-  const dpr = Math.min(q.dpr, window.devicePixelRatio || 1);
+  // Resolution scale (Settings) multiplies the profile's pixel density; adaptive performance works below it.
+  const renderScale = useArena(s => s.settings.renderScale);
+  const dpr = Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale;
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
   // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
   const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale') ?? (() => { try { return localStorage.getItem('campos-arena-qa-scale'); } catch { return null; } })()) || 0)) : 0;
@@ -156,7 +158,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // Warm fittings under roofs (unshadowed point lights), nearest the middle of the map first.
     const lamps = [...env.lights].filter(p => p.y < 9).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)).slice(0, q.lights).map(p => { const l = new THREE.PointLight('#ffe2b4', 55, 15, 2); l.position.copy(p).y -= .2; group.add(l); return l; });
     void lamps;
-    return { group, sun, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null };
+    return { group, sun, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null, city: 'onPaneBreak' in env ? env as ReturnType<typeof buildMetropolis> : null };
   }, [lib, map, q, variant]);
   useEffect(() => {
     if (!world || !lib) return;
@@ -247,6 +249,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     return { effects, grenades, crates, strikes, muzzleLight, smokes: new Set<number>() };
   }, [q]);
   useEffect(() => { scene.add(fx.effects.group); return () => { scene.remove(fx.effects.group); }; }, [scene, fx]);
+  // A pane the server broke: fragments burst both ways from where it stood (its sound is played by the network layer).
+  useEffect(() => { world?.city?.onPaneBreak(hit => { for (const s of [1, -1]) for (let k = 0; k < 3; k++) fx.effects.impact(v1.copy(hit.at).add(v3.set((Math.random() - .5) * hit.size * .6, (Math.random() - .5) * .8, (Math.random() - .5) * hit.size * .6)), v2.copy(hit.normal).multiplyScalar(s), 'metal', false); }); return () => world?.city?.onPaneBreak(null); }, [world, fx]);
+  useEffect(() => () => world?.city?.dispose(), [world]);
   // Supply crates use the photoscanned military crate.
   useEffect(() => { if (!lib) return; for (const g of fx.crates) { g.clear(); const c = lib.props.milCrate.scene.clone(); c.scale.setScalar(.8); g.add(c); } }, [lib, fx]);
 
@@ -283,8 +288,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     c.addPass(new RenderPass(scene, camera));
     if (q.ao) {
       const ao = new N8AOPostPass(scene, camera, size.width, size.height);
-      Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: true, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
-      ao.setQualityMode('Medium'); c.addPass(ao);
+      Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: !q.aoHigh, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
+      ao.setQualityMode(q.aoHigh ? 'High' : 'Medium'); c.addPass(ao);
     }
     const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = true; c.addPass(weapon);
     const fxs = [
@@ -314,14 +319,15 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // Hold the frame rate (30 on touch devices, 55 elsewhere): fewer pixels first, then a lighter profile.
   // The simulation, input and network run at fixed rates whatever the frame rate.
   const touchDevice = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
-  const baseDpr = useMemo(() => Math.min(q.dpr, window.devicePixelRatio || 1), [q]);
+  const renderScale = useArena(s => s.settings.renderScale);
+  const baseDpr = useMemo(() => Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale, [q, renderScale]);
   const adaptive = useMemo(() => createAdaptive({ target: frameTarget(touchDevice), min: Math.max(.5, .6 / Math.max(1, baseDpr)) }), [q, baseDpr, touchDevice]); // eslint-disable-line react-hooks/exhaustive-deps
   const adaptFps = (fps: number) => {
     const st = useArena.getState().settings; if (!st.adaptive || QA_HOOKS && new URLSearchParams(location.search).has('qa-scale')) return;
     const r = adaptive.sample(fps);
     if (r.changed) setDpr(Math.max(.5, baseDpr * r.scale));
     if (r.stepDown && st.quality !== 'low') {
-      const lower = st.quality === 'high' ? 'medium' : 'low';
+      const lower = st.quality === 'ultra' ? 'high' : st.quality === 'high' ? 'medium' : 'low';
       useArena.getState().setSettings({ quality: lower, qualityChosen: false });
       useBanners.getState().push({ text: 'Graphics lowered to keep the game smooth', sub: `Now ${lower[0].toUpperCase() + lower.slice(1)} · change it in Settings`, tone: 'info', ms: 3600 });
     }

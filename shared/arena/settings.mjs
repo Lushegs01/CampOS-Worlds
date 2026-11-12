@@ -4,7 +4,7 @@
 
 /** Auto-fire is off until the player turns it on. */
 export const DEFAULT_AUTO_FIRE = false;
-export const QUALITIES = ['low', 'medium', 'high'];
+export const QUALITIES = ['low', 'medium', 'high', 'ultra'];
 /**
  * Sound levels per category (the master is the game's Volume setting, shared with the campus): weapons and reloads,
  * explosions and impacts, environment, movement and footsteps, character reactions, interface, announcer and radio.

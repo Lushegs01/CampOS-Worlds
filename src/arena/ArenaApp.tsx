@@ -136,7 +136,7 @@ function PauseMenu({ onExit }: { onExit: () => void }) {
 
 function ArenaSettings() {
   const s = useArena(x => x.settings), set = useArena(x => x.setSettings), volume = useGame(g => g.volume);
-  const slider = (label: string, key: 'mouse' | 'ads' | 'touch' | 'pad' | 'fov', min: number, max: number, stepv: number, fmt = (v: number) => v.toFixed(2)) =>
+  const slider = (label: string, key: 'mouse' | 'ads' | 'touch' | 'pad' | 'fov' | 'renderScale', min: number, max: number, stepv: number, fmt = (v: number) => v.toFixed(2)) =>
     <label className="ar-setting"><span>{label}<b>{fmt(s[key])}</b></span><input type="range" min={min} max={max} step={stepv} value={s[key]} onChange={e => set({ [key]: Number(e.target.value) })} /></label>;
   return <div className="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-settings-title"><div className="ar-sheet ar-settings">
     <header><h2 id="ar-settings-title">Arena settings</h2><button className="ar-icon" aria-label="Close settings" onClick={() => useArena.getState().set({ settingsOpen: false })}><X size={18} /></button></header>
@@ -149,9 +149,10 @@ function ArenaSettings() {
       <p className="ar-fine">Move, resize, hide and restyle every part of the HUD and the touch controls, with separate layouts for desktop, phone landscape and phone portrait.</p>
       <label className="ar-setting check"><span>Touch: fixed movement stick (instead of following your thumb)</span><input type="checkbox" checked={s.fixedStick} onChange={e => set({ fixedStick: e.target.checked })} /></label>
     </fieldset>
-    <fieldset><legend>Graphics</legend><div className="ar-chips">{(['low', 'medium', 'high'] as const).map(q => <button key={q} className={s.quality === q ? 'on' : ''} aria-pressed={s.quality === q} onClick={() => set({ quality: q })}>{q[0].toUpperCase() + q.slice(1)}{recommendQuality().quality === q ? ' · recommended' : ''}</button>)}</div>
-      <p className="ar-fine">Every profile uses the same models and materials. Low (phones) keeps a static sun shadow and no post-processing; Medium adds bloom, grading and sharper shadows; High adds ambient occlusion, full-rate 4K shadows and full resolution. Recommended for this device from its GPU, memory and screen{recommendQuality().gpu ? ` (${recommendQuality().gpu.slice(0, 60)})` : ''}.</p>
+    <fieldset><legend>Graphics</legend><div className="ar-chips">{(['low', 'medium', 'high', 'ultra'] as const).map(q => <button key={q} className={s.quality === q ? 'on' : ''} aria-pressed={s.quality === q} onClick={() => set({ quality: q })}>{q[0].toUpperCase() + q.slice(1)}{recommendQuality().quality === q ? ' · recommended' : ''}</button>)}</div>
+      <p className="ar-fine">Every profile uses the same models and materials. Low (phones) keeps a static sun shadow and no post-processing; Medium adds bloom, grading and sharper shadows; High adds ambient occlusion, full-rate 4K shadows and full resolution; Ultra adds full-resolution ambient occlusion, 16× texture filtering, more real light fittings and a longer view. Recommended for this device from its GPU, memory and screen{recommendQuality().gpu ? ` (${recommendQuality().gpu.slice(0, 60)})` : ''}.</p>
       <label className="ar-setting check"><span>Adaptive performance: lower the resolution, then the profile, if the frame rate drops</span><input type="checkbox" checked={s.adaptive} onChange={e => set({ adaptive: e.target.checked })} /></label>
+      {slider('Resolution scale', 'renderScale', .5, 1, .05, v => `${Math.round(v * 100)}%`)}
       {slider('Field of view', 'fov', 60, 100, 1, v => `${v}°`)}
       <label className="ar-setting check"><span>Show frame rate</span><input type="checkbox" checked={s.showFps} onChange={e => set({ showFps: e.target.checked })} /></label></fieldset>
     <fieldset><legend>Controls</legend>
