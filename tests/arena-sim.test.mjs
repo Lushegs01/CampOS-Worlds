@@ -181,8 +181,8 @@ test('maps: playable bounds, clear spawns and zones, both teams’ halves are mi
   assert.ok(MAPS.length >= 2);
   for (const map of MAPS) {
     const world = createWorld(map.boxes, map.bounds);
-    for (const sp of map.spawns) assert.ok(!overlaps(world, sp.x, 0, sp.z, RADIUS, HEIGHT[0]), `${map.id} spawn ${sp.x},${sp.z} is clear`);
-    for (const o of map.objectives) assert.ok(!overlaps(world, o.x, 0, o.z, RADIUS, HEIGHT[0]), `${map.id} zone ${o.id} is clear`);
+    for (const sp of map.spawns) assert.ok(!overlaps(world, sp.x, sp.y ?? 0, sp.z, RADIUS, HEIGHT[0]), `${map.id} spawn ${sp.x},${sp.z} is clear`);
+    for (const o of map.objectives) assert.ok(!overlaps(world, o.x, o.y ?? 0, o.z, RADIUS, HEIGHT[0]), `${map.id} zone ${o.id} is clear`);
     assert.equal(map.spawns.filter(s => s.team === 0).length, map.spawns.filter(s => s.team === 1).length);
     const key = b => [b.min[0], b.min[1], b.min[2], b.max[0], b.max[1], b.max[2]].map(v => v.toFixed(3)).join();
     const all = new Set(map.boxes.map(key));

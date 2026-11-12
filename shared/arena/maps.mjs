@@ -8,6 +8,8 @@
 //
 // Coordinates: x east, y up, z south, metres. yaw 0 faces north (−z); yaw −π/2 faces east.
 
+import { metropolis } from './metropolis.mjs';
+
 const box = (x, z, w, d, h, y = 0, mat = 'concrete', extra = {}) => ({ min: [x - w / 2, y, z - d / 2], max: [x + w / 2, y + h, z + d / 2], mat, ...extra });
 const span = (x0, z0, x1, z1, y0, y1, mat, extra = {}) => ({ min: [Math.min(x0, x1), y0, Math.min(z0, z1)], max: [Math.max(x0, x1), y1, Math.max(z0, z1)], mat, ...extra });
 
@@ -176,5 +178,5 @@ function spawnSet(base, forward) {
   return out;
 }
 
-export const MAPS = [foundry(), quad()];
+export const MAPS = [foundry(), quad(), metropolis()];
 export const MAP_BY_ID = new Map(MAPS.map(m => [m.id, m]));
