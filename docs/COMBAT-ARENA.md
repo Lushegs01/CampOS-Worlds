@@ -334,7 +334,7 @@ credited in the lobby under **Art credits**). Nothing is drawn with untextured p
 | Weapon animation | Driven by the simulation's own timers, so it always matches gameplay: idle breathing, look sway, walk bob, sprint carry, jump and landing springs, slide cant, recoil kick and recovery, ADS blend, reload (tilt, magazine out and in, hand to magazine, charge), weapon switch, melee swing, grenade throw, pump/bolt/slide cycling | `Scene.tsx` (`updateViewmodel`) |
 | Characters | Rocketbox military avatars with helmets, vests and team camouflage (woodland vs desert), motion-captured locomotion blended by speed (idle/walk/jog/run/crouch), spine and head follow aim pitch, both hands put on the third-person weapon by IK, a fall on elimination; teammates carry blue names, enemies a small red marker | `soldiers.ts` |
 | Effects | Instanced particle pools (sparks, dust, debris, blood mist), impacts that differ by surface (concrete, metal, wood, sand, brick, dirt, foliage), decals, streak tracers, muzzle flashes with a flash light, ejected casings, explosion light and smoke, flashbang | `fx.ts` |
-| Audio | Original layered designs per weapon (action, report, low punch, supersonic crack, reflection; outdoor tail; distant layer; four variants), reloads per mechanism, surface impacts, flybys, explosions, footsteps by surface; category buses with their own volumes, compressor and limiter, pooled voices with priorities, distance filtering, speed of sound, occlusion, indoor reverb | `audio.ts`, `sound/` |
+| Audio | Real recordings for everything (licensed, [sources](audio/LICENSES.md)): each weapon's recorded report, tail and mid/far microphones, reloads per mechanism (tactical and from empty) on the animation's own timeline, casings, surface impacts, flybys, explosions; footsteps on ten surfaces from the gait, Foley, breathing; validated hit reactions (helmet, plate, cloth; light/heavy/severe; elimination); announcer, ambience, interface; data-driven event table, category buses with their own volumes, compressor and limiter, pooled voices with priorities, distance layering, speed of sound, occlusion, indoor reverb ([report](ARENA-AUDIO-REPORT.md), [pipeline](audio/README.md)) | `audio.ts`, `sound/` |
 | HUD | Compass strip with teammate and firing-enemy bearings, angled score panels, monospace timer and ammunition, magazine round bar, segmented health, minimap, kill feed, streak buttons; compact layout on phones | `Hud.tsx`, `arena.css` |
 
 ### Graphics profiles
@@ -397,8 +397,10 @@ puts a player in front of enemies while their screen is still loading. **Trainin
 * Remote soldiers (skinned, so three.js cannot cull them) are culled per soldier against the view frustum, and
   posed at a lower rate far away (every 2nd frame beyond 25 m, every 3rd beyond 50 m on Low); posing and arm IK
   allocate nothing per frame.
-* Sound: 20 voices on phones (stereo panning), 32 elsewhere (HRTF); band-limited layers rendered at half the sample
-  rate; the loadout's sounds are rendered ahead of play, other weapons' when first seen.
+* Sound: 20 voices on phones (stereo panning), 32 elsewhere (HRTF); recorded banks (4.1 MB in all) load on demand —
+  the loadout's weapons, movement, impacts and the map at deployment, footsteps for nearby surfaces, other weapons
+  and voices when first seen — decoded at each bank's own rate within a memory budget (32 MB phones, 96 MB
+  elsewhere, least recently used banks let go). [Audio report](ARENA-AUDIO-REPORT.md).
 * Leaving a match disposes its renderer; leaving the arena cancels its downloads and releases its parsed models,
   textures, materials and sounds (`releaseArena()`). Repeated matches: `tests/browser-arena-soak.mjs`.
 
@@ -454,10 +456,12 @@ Physical phones were **not** available to test; the 30 fps mobile target is unve
 | `tests/browser-arena.mjs` | Two signed-in Chromium players open the arena from the campus, a premium weapon opens the Armory until owned, equip and save a loadout, are matched together, see each other, one eliminates the other twice through the server, Victory/Defeat, results and experience saved to the database, rankings, back to campus and walking; a phone (landscape, touch) plays Training: fire button fires, stick moves, controls on screen, no page scroll | 12 / 12 checks pass |
 | `tests/arena-deploy.test.mjs` | Real WebSockets: a hanging or failing account service still answers `ready` within the deadline (guest + notice); a player joining a match in progress is held out of combat until its scene loads, then spawned at once, or at the cap if it never reports; warm-up and older clients unchanged; a reconnecting player is held until loaded again; correlation-id traces; client timing percentiles | 8 / 8 pass |
 | `tests/fetcher.test.mjs` | The downloader against a real HTTP server: byte progress counted once; transient failures retried with backoff; missing files not retried; stalled responses aborted and retried; a request that never answers gives up; strict priority order; cancellation; decode deadline | 8 / 8 pass |
-| `tests/browser-arena-audio.mjs` | Chromium, phone profile: own gunfire, reload and footsteps through the game; a 3 s, 12-shooter firefight with explosions never clips and stays within 20 voices; distance layering; occlusion agrees with an independent line-of-sight check; category volume; recovery from a suspended context | 9 / 9 checks pass (`docs/arena-audio-results.json`) |
+| `tests/browser-arena-audio.mjs` | Chromium, phone profile: banks load on demand during deployment; own gunfire, tail and casing; tactical, empty and interrupted reloads in time with the animation; footsteps from the gait on the surface underfoot; merged hit reactions, armour/helmet/cloth impacts, one elimination; another player's reload in 3D; a 3 s, 12-shooter firefight never clips and stays within 20 voices; distance layering; occlusion agrees with an independent line-of-sight check; ambience; category volume; memory budget; recovery from a suspended context | 16 / 16 checks pass (`docs/arena-audio-results.json`) |
 | `tests/browser-arena-soak.mjs` | Five Training matches in one page, then leaving and re-entering the arena: heap, DOM, listeners, voices and deployment time per match | pass (`docs/performance/arena-soak.json`) |
 | `scripts/qa/arena-deploy.mjs` | Deployment benchmark (normal, 4G, 3G, failed and stalled downloads, dropped connection, repeats) | `docs/performance/arena-deploy-{before,after}.json` |
-| `scripts/qa/arena-sounds.mjs` | Every sound design rendered offline: peaks, spectra, distinctness, variants | `docs/performance/arena-sounds.json` |
+| `scripts/qa/arena-sounds.mjs` | Every weapon's built reports and footsteps measured: peaks, spectra, distinctness between weapons and between variants | `docs/performance/arena-sounds.json` |
+| `tests/arena-audio.test.mjs` | Reload plans, gait cadence and phase, surfaces, hit-reaction rules, body parts, shuffle bags | 13 / 13 pass |
+| `tests/browser-arena-audio-match.mjs` | Chromium, desktop: a Training match against the server's bots — their gunfire layered by distance, their footsteps on the map's surfaces, body impacts, reactions and eliminations from validated damage, no clipping | 5 / 5 checks pass (`docs/arena-audio-match-results.json`) |
 | `scripts/qa/arena-heap.mjs` | Heap snapshots across matches and arena visits: growth by type and retaining paths of live WebGL contexts | no per-match growth (see the report) |
 | `scripts/qa/arena-ui-shots.mjs` | Lobby, training, settings, deployment, HUD and results at five screen sizes; no horizontal scroll | `docs/screenshots/arena/premium/` |
 | `npm test` (everything) | All campus suites plus the arena suites | 309 / 309 pass |
@@ -491,5 +495,6 @@ Proxy `/arena` like `/ws` ([deployment](DEPLOYMENT.md)). Apply the migration wit
   tier); a smaller first-person weapon tier for phones was not made (weapons stay full resolution by choice).
 * Keeping one renderer across matches (a new match currently creates a new WebGL context, re-uploads textures and
   recompiles shaders: about 6–8 s per re-deployment under software rendering; not measured on a GPU).
-* Weapon sounds are original synthesised designs, not recordings: no licensed recordings were available to this
-  build. Suppressed fire is not designed because no weapon has a suppressor.
+* Sound was balanced by measurement, not by ear (no audio output or real devices in the build environment); a
+  listening pass on headphones and phone speakers is still to do. Suppressed fire, malfunctions and weapon
+  inspection have no sounds because the game has none of them ([audio report](ARENA-AUDIO-REPORT.md)).

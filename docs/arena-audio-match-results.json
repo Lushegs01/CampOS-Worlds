@@ -1,0 +1,68 @@
+{
+  "started": "2026-11-12T07:22:33.778Z",
+  "checks": [
+    {
+      "name": "desktop profile: 32 voices, HRTF panning (front/back, above/below), the full memory budget",
+      "ok": true,
+      "detail": "32 voices, budget 96 MB"
+    },
+    {
+      "name": "the bots’ gunfire (from the server’s shot events) is heard from where they are, layered by distance",
+      "ok": true,
+      "detail": "61 reports from w.longbow, w.wasp, w.bastion, w.anvil, w.vanguard"
+    },
+    {
+      "name": "enemy footsteps from the snapshots, on the map’s surfaces",
+      "ok": true,
+      "detail": "73 steps on steps.asphalt, steps.gravel, steps.concrete, steps.dirt"
+    },
+    {
+      "name": "soldiers hit (by the player or by each other), as the server judged it: the impact on helmet, plate carrier or cloth where the round stopped, their reaction from their health in the snapshots, an elimination (voice, then the body falling)",
+      "ok": true,
+      "detail": "10 body impacts, 3 reactions, 4 eliminations; the player fired 11 rounds (5 hit markers)"
+    },
+    {
+      "name": "the match’s output never clipped",
+      "ok": true,
+      "detail": "peak -5.4 dBFS, RMS -28.7 dBFS, ≤ 25 voices over 20 s"
+    }
+  ],
+  "match": {
+    "summary": {
+      "remoteShots": 61,
+      "enemySteps": 73,
+      "bodyHits": 10,
+      "reactions": 3,
+      "deaths": 4,
+      "falls": 4,
+      "ownShots": 11,
+      "ownHurt": 0,
+      "ownImpact": 0,
+      "surfaces": [
+        "steps.asphalt",
+        "steps.gravel",
+        "steps.concrete",
+        "steps.dirt"
+      ],
+      "weapons": [
+        "w.longbow",
+        "w.wasp",
+        "w.bastion",
+        "w.anvil",
+        "w.vanguard"
+      ],
+      "markers": 5
+    },
+    "tap": {
+      "peak": 0.5355777144432068,
+      "peakDb": -5.423550048275302,
+      "clipped": 0,
+      "rmsDb": -28.65216925665443,
+      "maxVoices": 25,
+      "coverage": 1
+    },
+    "seconds": 20
+  },
+  "finished": "2026-11-12T07:23:16.512Z",
+  "passed": true
+}

@@ -1,7 +1,7 @@
 // Combat Arena lobby: your identity and level, Quick Play for each mode (matchmaking), private matches
 // with an invitation code, Training against labelled bots, your loadout, and the arena rankings.
 import { useEffect, useState } from 'react';
-import { ARENA_CREDITS, CREDIT_CHANGES } from './credits';
+import { ARENA_CREDITS, ARENA_SOUND_CREDITS, CREDIT_CHANGES, LICENCE_URLS, SOUND_CREDIT_CHANGES, type Credit } from './credits';
 import { Swords, Users, Bot, Trophy, KeyRound, Play, Map as MapIcon, Shield, Settings2, ChevronRight, Lock, Crosshair, LayoutDashboard, Target } from 'lucide-react';
 import { MODES, xpForLevel, MAX_LEVEL } from '../../shared/arena/rules.mjs';
 import { MAPS } from '../../shared/arena/maps.mjs';
@@ -9,10 +9,10 @@ import { WEAPON_BY_ID, EQUIPMENT_BY_ID, PERK_BY_ID, EMBLEM_BY_ID, EMBLEMS } from
 import { useArena } from './store';
 import { MapPlan } from './MapPlan';
 import { WeaponGlyph } from './WeaponGlyph';
+import { sfx } from './audio';
 import { deployTo } from './net';
 import { getCommunityService } from '../services/community';
 import { useAccount } from '../account/store';
-import { sfx } from './audio';
 
 type Tab = 'play' | 'private' | 'training' | 'rankings';
 const fmtMin = (ms: number) => `${Math.round(ms / 60000)} min`;
@@ -23,9 +23,9 @@ export default function Lobby() {
   const [tMode, setTMode] = useState('tdm'), [tMap, setTMap] = useState('foundry'), [bots, setBots] = useState(5), [difficulty, setDifficulty] = useState('normal');
   const run = async (label: string, data: Record<string, unknown>) => {
     if (busy) return;
-    setBusy(label); setMsg(''); sfx.ui();
+    setBusy(label); setMsg('');
     const r = await deployTo(data.t === 'queue' ? 'queue' : data.t === 'private' ? 'private' : 'training', data); setBusy('');
-    if (!r.ok && !r.busy) setMsg(String(r.reason || 'That did not work. Try again.'));
+    if (!r.ok && !r.busy) { setMsg(String(r.reason || 'That did not work. Try again.')); sfx.ui('error'); }
   };
   const ready = status === 'ready';
   const level = me?.level ?? 1, xp = me?.xp ?? 0, floor = xpForLevel(level), ceil = xpForLevel(level + 1), pct = level >= MAX_LEVEL ? 100 : Math.round((xp - floor) / Math.max(1, ceil - floor) * 100);
@@ -97,8 +97,12 @@ export default function Lobby() {
         <LoadoutCard loadout={loadout} />
         <Controls />
         <details className="ar-credits"><summary><span className="ar-eyebrow">ART CREDITS</span></summary>
-          <ul>{ARENA_CREDITS.map(c => <li key={c.what}><b>{c.what}</b> — <a href={c.url} target="_blank" rel="noreferrer noopener">“{c.title}”</a> by {c.author} · {c.licence === 'CC BY 4.0' ? <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer noopener">CC BY 4.0</a> : c.licence}</li>)}</ul>
+          <CreditList credits={ARENA_CREDITS} />
           <p className="ar-fine">{CREDIT_CHANGES}</p>
+        </details>
+        <details className="ar-credits"><summary><span className="ar-eyebrow">SOUND CREDITS</span></summary>
+          <CreditList credits={ARENA_SOUND_CREDITS} />
+          <p className="ar-fine">{SOUND_CREDIT_CHANGES}</p>
         </details>
       </aside>
     </div>
@@ -178,4 +182,8 @@ function EmblemPicker({ level, current }: { level: number; current: string }) {
   const [value, setValue] = useState(current), [msg, setMsg] = useState('');
   return <div className="ar-emblems"><span className="ar-eyebrow">EMBLEM</span><div>{EMBLEMS.map(e => <button key={e.id} disabled={e.level > level} className={value === e.id ? 'on' : ''} title={e.level > level ? `${e.name}: level ${e.level}` : e.name} style={{ color: e.color }}
     onClick={async () => { try { const svc = await getCommunityService(); await svc.setArenaEmblem(e.id); setValue(e.id); setMsg('Emblem saved. It shows from your next match.'); } catch (x) { setMsg((x as Error).message); } }}>{e.glyph}</button>)}</div>{msg && <small>{msg}</small>}</div>;
+}
+
+function CreditList({ credits }: { credits: Credit[] }) {
+  return <ul>{credits.map(c => <li key={c.what + c.title}><b>{c.what}</b> — <a href={c.url} target="_blank" rel="noreferrer noopener">“{c.title}”</a> by {c.author} · {LICENCE_URLS[c.licence] ? <a href={LICENCE_URLS[c.licence]} target="_blank" rel="noreferrer noopener">{c.licence}</a> : c.licence}</li>)}</ul>;
 }

@@ -5,8 +5,11 @@
 /** Auto-fire is off until the player turns it on. */
 export const DEFAULT_AUTO_FIRE = false;
 export const QUALITIES = ['low', 'medium', 'high'];
-/** Sound levels per category (the game's master volume is the campus Volume setting). */
-export const VOLUME_KEYS = ['volWeapons', 'volExplosions', 'volEnvironment', 'volFootsteps', 'volCharacter', 'volUi'];
+/**
+ * Sound levels per category (the master is the game's Volume setting, shared with the campus): weapons and reloads,
+ * explosions and impacts, environment, movement and footsteps, character reactions, interface, announcer and radio.
+ */
+export const VOLUME_KEYS = ['volWeapons', 'volExplosions', 'volEnvironment', 'volFootsteps', 'volCharacter', 'volUi', 'volVoice'];
 const RANGES = { mouse: [.2, 3], ads: [.3, 1.5], touch: [.3, 3], pad: [.3, 3], fov: [60, 100], renderScale: [.5, 1], ...Object.fromEntries(VOLUME_KEYS.map(k => [k, [0, 1]])) };
 const BOOLS = ['invertY', 'showFps', 'autoSprint', 'autoFire', 'adaptive', 'fixedStick'];
 
@@ -14,7 +17,7 @@ const BOOLS = ['invertY', 'showFps', 'autoSprint', 'autoFire', 'adaptive', 'fixe
 export function defaultArenaSettings(quality = 'medium') {
   return { mouse: 1, ads: .8, touch: 1, pad: 1, invertY: false, fov: 78, quality: QUALITIES.includes(quality) ? quality : 'medium', qualityChosen: false,
     showFps: false, autoSprint: true, autoFire: DEFAULT_AUTO_FIRE, adaptive: true, renderScale: 1, fixedStick: false,
-    volWeapons: 1, volExplosions: 1, volEnvironment: .85, volFootsteps: 1, volCharacter: .9, volUi: .8 };
+    volWeapons: 1, volExplosions: 1, volEnvironment: .85, volFootsteps: 1, volCharacter: .9, volUi: .8, volVoice: .9 };
 }
 /** A valid settings object from anything, keeping every valid field of `raw`. */
 export function parseArenaSettings(raw, quality = 'medium') {

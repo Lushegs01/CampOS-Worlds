@@ -13,6 +13,7 @@ import { WEAPONS, WEAPON_BY_ID, CATEGORIES, weaponItem, weaponOwned, isFirearm }
 import { formatNaira, SHOP_BY_ID } from '../../shared/shop.mjs';
 import { timeToKill } from '../../shared/arena/rules.mjs';
 import { buy, usePrice, useShop } from '../account/shop';
+import { sfx } from './audio';
 import { onRoomMessage } from '../network/messages';
 import { useGame } from '../state';
 import { getCommunityService } from '../services/community';
@@ -35,7 +36,7 @@ export default function Armory() {
   const close = () => useArena.getState().set({ armory: null });
   // A purchase confirmed on campus while the Armory is open: ask the arena server to re-read ownership too
   // (it normally hears at once; this covers a room on another server process).
-  useEffect(() => onRoomMessage(m => { if (m.type === 'shopGranted' || m.type === 'shopRevoked') void request({ t: 'owned' }).then(r => { if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); }); }), []);
+  useEffect(() => onRoomMessage(m => { if (m.type === 'shopGranted' || m.type === 'shopRevoked') { if (m.type === 'shopGranted') sfx.ui('purchase'); void request({ t: 'owned' }).then(r => { if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); }); } }), []);
   const w = byId(selected)!;
   return <div className="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-armory-title"><div className="ar-sheet ar-armory">
     <header><div><span className="ar-eyebrow">TWO FREE FIREARMS · PREMIUM PLAYSTYLES</span><h2 id="ar-armory-title">Armory</h2></div><button className="ar-icon" aria-label="Close the Armory" onClick={close}><X size={18} /></button></header>

@@ -25,7 +25,7 @@ export interface ArenaSettings {
   /** Touch: the movement stick stays where the layout puts it instead of following the thumb. */
   fixedStick: boolean;
   /** Sound levels per category, 0–1 (the master level is the campus Volume). */
-  volWeapons: number; volExplosions: number; volEnvironment: number; volFootsteps: number; volCharacter: number; volUi: number;
+  volWeapons: number; volExplosions: number; volEnvironment: number; volFootsteps: number; volCharacter: number; volUi: number; volVoice: number;
 }
 const SETTINGS_KEY = 'campos-arena-settings', LOADOUT_KEY = 'campos-arena-loadouts';
 function readSettings(): ArenaSettings {

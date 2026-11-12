@@ -11,7 +11,8 @@ import { weaponThirdPerson, preloadWeapon } from './weapons';
 import { FREE_FIREARMS, WEAPONS } from '../../../shared/arena/weapons.mjs';
 import { arenaPath, P2, P3, type Library } from './library';
 
-const MODELS = ['soldier-m1', 'soldier-m2', 'soldier-f1'] as const;
+import { SOLDIER_MODELS as MODELS, soldierModelFor } from '../models';
+export { soldierModelFor };
 const BODY: Record<string, 'm' | 'f'> = { 'soldier-m1': 'm', 'soldier-m2': 'm', 'soldier-f1': 'f' };
 const CAMO = ['body', 'equipment', 'helmet'];
 interface Kit { scene: THREE.Group; clips: Record<string, THREE.AnimationClip>; teamB: Record<string, THREE.Texture> }
@@ -208,7 +209,6 @@ export class Soldier implements SoldierLike {
   }
   dispose() { this.mixer.stopAllAction(); this.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); }
 }
-export const soldierModelFor = (num: number) => MODELS[num % MODELS.length];
 
 /**
  * After the match is on screen, fetch the remaining third-person weapon models quietly — but only where it is
