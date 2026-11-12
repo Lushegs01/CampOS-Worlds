@@ -41,6 +41,7 @@ export type Fx =
 
 /** Everything that changes every frame, outside React. */
 export const live = {
+  broken: new Set<number>(), matchElapsed: -1, elapsedAt: 0,
   sim: null as Sim | null, ctx: null as { world: ReturnType<typeof createWorld>; seed: number; num: number; perks: Set<string> } | null,
   world: null as ReturnType<typeof createWorld> | null, mapId: '', alive: false, life: 0, num: 0, team: 0,
   pending: [] as Cmd[], outgoing: [] as number[][], seq: 0, acc: 0, lastSend: 0,
@@ -133,6 +134,7 @@ function saveRejoin(match: string | null, key = '') { try { if (match) sessionSt
 
 function resetMatch() {
   Object.assign(live, { sim: null, ctx: null, alive: false, life: 0, num: 0, pending: [], outgoing: [], acc: 0, radar: [], reconUntil: 0, enemyReconUntil: 0, blindUntil: 0, sceneReady: false, loadedSent: '', haveState: false, syncRetries: 0 });
+  live.broken.clear(); live.matchElapsed = -1; live.elapsedAt = 0;
   live.remotes.clear(); live.grenades.clear(); live.smokes = []; live.supplies = []; live.strikes = []; live.playback.reset();
   useArena.getState().set({ match: null, you: null, feed: [], board: {}, hud: emptyHud(), killedBy: null, scoreboard: false });
 }
@@ -191,6 +193,7 @@ function enterMatch(view: MatchView, you: { num: number; team: number; key: stri
   live.loadedSent = ''; live.haveState = false; live.syncRetries = 0;
   const map = MAP_BY_ID.get(view.map)!;
   live.world = createWorld(map.boxes, map.bounds); live.mapId = view.map; live.num = you.num; live.team = you.team;
+  live.broken = new Set(view.broken ?? []); live.matchElapsed = view.elapsed ?? -1; live.elapsedAt = performance.now();
   live.loadout = loadout; live.perks = new Set(loadout.perks);
   live.ctx = { world: live.world, seed: view.seed, num: you.num, perks: live.perks };
   // Commands continue from the server's count after a reconnect.
@@ -206,6 +209,7 @@ function enterMatch(view: MatchView, you: { num: number; team: number; key: stri
 function snapshot(m: Record<string, any>) {
   const now = performance.now(), a = useArena.getState();
   live.playback.receive(m.at, now);
+  live.matchElapsed = m.st === 'playing' && a.match ? a.match.timeMs - m.tl : -1; live.elapsedAt = now;
   // ---- remote players
   const seen = new Set<number>();
   for (const e of m.p as number[][]) {
@@ -294,10 +298,12 @@ function hudWeapon(s: Sim, w: ReturnType<typeof weaponOf>) {
 function event(ev: Record<string, any>) {
   const a = useArena.getState(), now = performance.now(), mine = (n: number | null) => n === live.num, team = (n: number | null) => teamOf(n ?? -1);
   switch (ev.k) {
+    case 'glass': { if (ev.reset) live.broken.clear(); else if (Number.isInteger(ev.i)) { live.broken.add(ev.i); const map = MAP_BY_ID.get(live.mapId); const g = map && 'glass' in map ? map.glass[ev.i] : null; if (g) sfx.impact('glass', [(g.min[0] + g.max[0]) / 2, (g.min[1] + g.max[1]) / 2, (g.min[2] + g.max[2]) / 2]); } return; }
+    case 'train': { banner({ text: 'Train approaching', sub: 'Plaza Station · stay off the tracks', tone: 'info', ms: Math.max(2500, ev.inMs ?? 0) }); sfx.ui('notify'); return; }
     case 'spawn': {
       live.haveState = true;
       live.loadout = ev.loadout; live.perks = new Set(ev.loadout.perks); if (live.ctx) live.ctx.perks = live.perks;
-      live.sim = spawnState({ x: ev.x, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true; sfx.spawn();
+      live.sim = spawnState({ x: ev.x, y: ev.y ?? 0, z: ev.z, yaw: ev.yaw }, ev.loadout, live.perks); live.life = ev.life; live.alive = true; sfx.spawn();
       live.pending = []; live.smooth = { x: 0, y: 0, z: 0 }; live.prev = { x: ev.x, y: eyeOf(live.sim), z: ev.z }; controls.yaw = ev.yaw; controls.pitch = 0;
       a.set({ killedBy: null, loadout: ev.loadout });
       return;

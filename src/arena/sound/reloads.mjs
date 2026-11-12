@@ -34,6 +34,8 @@ const rifle = (release = .12, out = .15, stow = .3, magIn = .56, seat = .66) => 
 });
 
 export const RELOADS = {
+  // M7: retain the chambered round; release the locked bolt only after an empty reload.
+  m7: (() => { const r = rifle(.13, .18, .34, .59, .69); return mag(r.tactical, r.empty, [[.84, 'boltRelease'], [.95, 'settle']], { out: [.18, .36], in: [.48, .69], seat: .69 }); })(),
   // AR-15: magazine catch, the magazine slides out; from empty the bolt is locked back, so the bolt catch releases it.
   vanguard: (() => { const r = rifle(.12, .15, .3, .57, .66); return mag(r.tactical, r.empty, [[.82, 'boltRelease'], [.93, 'settle']]); })(),
   // AK-pattern: the paddle released and the magazine rocked out and in; the charging handle pulled and let go.

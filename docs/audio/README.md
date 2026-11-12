@@ -121,3 +121,12 @@ Chromium (phone profile, then a desktop Training match against the server's bots
 plays, with timing, level and position, plus the output through an analyser; results are written to
 `docs/arena-audio-results.json` and `docs/arena-audio-match-results.json`. `arena-sounds.mjs` measures the built
 weapon reports (spectra, distinctness between weapons and between a weapon's own variants).
+
+## M7 compatibility bank
+
+The M7 added by PR #32 authored its sound in `src/arena/m7Audio.ts`; the concurrent
+recorded-audio engine did not consume that module. `node
+scripts/assets/build-m7-audio.mjs` adapts that existing, original PCM design into
+`w.m7.mp3` and the bank manifest. Run it after a full `build-arena-audio.mjs`
+rebuild. The other banks remain edits of the credited recordings. The M7's
+magazine/bolt cues now share the current reload timeline with its animation.

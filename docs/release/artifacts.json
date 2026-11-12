@@ -1,13 +1,13 @@
 {
-  "date": "2026-10-23T16:07:41.192Z",
+  "date": "2026-11-12T17:07:25.165Z",
   "canonical": "https://camposworlds.click/",
   "image": "https://camposworlds.click/brand/campos-worlds-social.png",
   "social": {
     "width": 1200,
     "height": 630
   },
-  "precacheEntries": 30,
-  "precacheBytes": 2405766,
+  "precacheEntries": 37,
+  "precacheBytes": 2484995,
   "productionDebugHooks": false,
   "result": "pass"
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ARENA_CREDITS, ARENA_SOUND_CREDITS, CREDIT_CHANGES, LICENCE_URLS, SOUND_CREDIT_CHANGES, type Credit } from './credits';
 import { Swords, Users, Bot, Trophy, KeyRound, Play, Map as MapIcon, Shield, Settings2, ChevronRight, Lock, Crosshair, LayoutDashboard, Target } from 'lucide-react';
 import { MODES, xpForLevel, MAX_LEVEL } from '../../shared/arena/rules.mjs';
+import { METROPOLIS_VARIANTS } from '../../shared/arena/metropolis.mjs';
 import { MAPS } from '../../shared/arena/maps.mjs';
 import { WEAPON_BY_ID, EQUIPMENT_BY_ID, PERK_BY_ID, EMBLEM_BY_ID, EMBLEMS } from '../../shared/arena/weapons.mjs';
 import { useArena } from './store';
@@ -21,6 +22,7 @@ export default function Lobby() {
   const [tab, setTab] = useState<Tab>('play'), [map, setMap] = useState('any'), [busy, setBusy] = useState(''), [msg, setMsg] = useState('');
   const [code, setCode] = useState(''), [privMode, setPrivMode] = useState('tdm'), [privMap, setPrivMap] = useState('foundry'), [size, setSize] = useState(4);
   const [tMode, setTMode] = useState('tdm'), [tMap, setTMap] = useState('foundry'), [bots, setBots] = useState(5), [difficulty, setDifficulty] = useState('normal');
+  const [privVariant, setPrivVariant] = useState('day'), [tVariant, setTVariant] = useState('day');
   const run = async (label: string, data: Record<string, unknown>) => {
     if (busy) return;
     setBusy(label); setMsg('');
@@ -58,7 +60,7 @@ export default function Lobby() {
             <div className="ar-mode-art" aria-hidden="true"><MapPlan mapId={map === 'any' ? 'foundry' : map} zones={m.id === 'dom'} /></div>
             <div className="ar-mode-body">
               <span className="ar-eyebrow">{m.short} · 6 v 6 · {fmtMin(m.timeMs)}</span><h2>{m.name}</h2><p>{m.text}</p>
-              <ul className="ar-facts"><li><b>{typeof m.scoreLimit === 'function' ? m.scoreLimit(6) : m.scoreLimit}</b><small>to win</small></li><li><b>{m.respawnMs / 1000} s</b><small>respawn</small></li><li><b>{map === 'any' ? 'Any' : MAPS.find(x => x.id === map)?.name.split(' ')[0]}</b><small>map</small></li></ul>
+              <ul className="ar-facts"><li><b>{typeof m.scoreLimit === 'function' ? m.scoreLimit(6) : m.scoreLimit}</b><small>to win</small></li><li><b>{m.respawnMs / 1000} s</b><small>respawn</small></li><li><b>{map === 'any' ? 'Any' : map === 'metropolis' ? 'Metropolis' : MAPS.find(x => x.id === map)?.name.split(' ')[0]}</b><small>map</small></li></ul>
               <button className="ar-primary" disabled={!ready || !!busy} aria-busy={busy === m.id} onClick={() => run(m.id, { t: 'queue', mode: m.id, map })}>{busy === m.id ? <><span className="ar-spinner" aria-hidden="true" />Finding a match…</> : <><Play size={16} aria-hidden="true" />Quick Play</>}</button>
             </div>
           </article>)}</div>
@@ -71,9 +73,10 @@ export default function Lobby() {
             <div className="ar-form">
               <label>Mode<select value={privMode} onChange={e => setPrivMode(e.target.value)}>{MODES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
               <label>Map<select value={privMap} onChange={e => setPrivMap(e.target.value)}>{MAPS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+              {privMap === 'metropolis' && <label>Weather<select value={privVariant} onChange={e => setPrivVariant(e.target.value)}>{METROPOLIS_VARIANTS.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>}
               <label>Team size<select value={size} onChange={e => setSize(Number(e.target.value))}>{[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} v {n}</option>)}</select></label>
             </div>
-            <button className="ar-primary" disabled={!ready || !!busy} onClick={() => run('create', { t: 'private', action: 'create', mode: privMode, map: privMap, size })}><Users size={16} aria-hidden="true" />Create match</button></article>
+            <button className="ar-primary" disabled={!ready || !!busy} onClick={() => run('create', { t: 'private', action: 'create', mode: privMode, map: privMap, size, variant: privVariant })}><Users size={16} aria-hidden="true" />Create match</button></article>
           <article><span className="ar-eyebrow">JOIN</span><h2>Join with a code</h2><p>Six letters and numbers, from the match host.</p>
             <input className="ar-code" value={code} maxLength={6} placeholder="ABC234" aria-label="Match code" onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} />
             <button className="ar-primary" disabled={!ready || code.length !== 6 || !!busy} onClick={() => run('join', { t: 'private', action: 'join', code })}><KeyRound size={16} aria-hidden="true" />Join match</button></article>
@@ -83,13 +86,14 @@ export default function Lobby() {
             <div className="ar-form">
               <label>Mode<select value={tMode} onChange={e => setTMode(e.target.value)}>{MODES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
               <label>Map<select value={tMap} onChange={e => setTMap(e.target.value)}>{MAPS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+              {tMap === 'metropolis' && <label>Weather<select value={tVariant} onChange={e => setTVariant(e.target.value)}>{METROPOLIS_VARIANTS.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>}
               <label>Bots<select value={bots} onChange={e => setBots(Number(e.target.value))}>{[1, 3, 5, 7, 9].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
               <label>Difficulty<select value={difficulty} onChange={e => setDifficulty(e.target.value)}><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
             </div>
-            <button className="ar-primary" disabled={!ready || !!busy} onClick={() => run('training', { t: 'training', mode: tMode, map: tMap, bots, difficulty })}><Bot size={16} aria-hidden="true" />{busy === 'training' ? 'Starting…' : 'Start training'}</button></article>
+            <button className="ar-primary" disabled={!ready || !!busy} onClick={() => run('training', { t: 'training', mode: tMode, map: tMap, bots, difficulty, variant: tVariant })}><Bot size={16} aria-hidden="true" />{busy === 'training' ? 'Starting…' : 'Start training'}</button></article>
           <article><span className="ar-eyebrow">NO OPPONENTS</span><h2>Firing range</h2><p>Your loadout, controls and HUD layout on a real map with nobody shooting back. Try a weapon, tune your sensitivity, or check a new HUD layout before a match.</p>
             <div className="ar-range-plan" aria-hidden="true"><MapPlan mapId={tMap} /></div>
-            <button className="ar-secondary" disabled={!ready || !!busy} onClick={() => run('range', { t: 'training', mode: 'tdm', map: tMap, bots: 0, difficulty: 'easy' })}><Target size={16} aria-hidden="true" />{busy === 'range' ? 'Opening…' : 'Open the firing range'}</button></article>
+            <button className="ar-secondary" disabled={!ready || !!busy} onClick={() => run('range', { t: 'training', mode: 'tdm', map: tMap, bots: 0, difficulty: 'easy', variant: tVariant })}><Target size={16} aria-hidden="true" />{busy === 'range' ? 'Opening…' : 'Open the firing range'}</button></article>
         </div>}
         {tab === 'rankings' && <Rankings />}
       </section>

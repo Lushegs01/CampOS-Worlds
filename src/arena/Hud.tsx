@@ -5,6 +5,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { Skull } from 'lucide-react';
+import { DISTRICTS, districtAt } from '../../shared/arena/metropolis.mjs';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
 import { WEAPON_BY_ID, EQUIPMENT_BY_ID, CATEGORIES, EMBLEM_BY_ID } from '../../shared/arena/weapons.mjs';
 import { MODE_BY_ID } from '../../shared/arena/rules.mjs';
@@ -153,11 +154,24 @@ export function drawMinimap(c: HTMLCanvasElement, mapId: string, dom: boolean, l
   const [x0, z0, x1, z1] = map.bounds, span = Math.max(x1 - x0, z1 - z0) * 1.05, k = size / span, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const P = (x: number, z: number) => [size / 2 + (x - cx) * k, size / 2 + (z - cz) * k];
   const base = document.createElement('canvas'); base.width = base.height = size; const bg = base.getContext('2d')!;
-  bg.fillStyle = 'rgba(16,22,26,.78)'; bg.fillRect(0, 0, size, size);
-  for (const b of map.boxes) { if (b.max[1] - b.min[1] < 1.4 && b.max[1] < 2.5) continue; const [a1, b1] = P(b.min[0], b.min[2]), [a2, b2] = P(b.max[0], b.max[2]); bg.fillStyle = b.min[1] > 2.5 ? 'rgba(160,170,175,.18)' : 'rgba(185,195,200,.55)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1); }
+  let level = '';
+  const drawBase = (next: string) => {
+    level = next; bg.clearRect(0, 0, size, size); bg.fillStyle = 'rgba(16,22,26,.88)'; bg.fillRect(0, 0, size, size);
+    for (const b of map.boxes) {
+      const street = 'street' in map ? map.street : 0;
+      if (mapId === 'metropolis') {
+        if (level === 'underground' ? b.min[1] >= 4.4 || b.max[1] <= 1 : b.max[1] <= street) continue;
+      } else if (b.max[1] - b.min[1] < 1.4 && b.max[1] < 2.5) continue;
+      const [a1, b1] = P(b.min[0], b.min[2]), [a2, b2] = P(b.max[0], b.max[2]);
+      bg.fillStyle = b.min[1] > street + 2.5 ? 'rgba(160,170,175,.18)' : 'rgba(185,195,200,.55)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1);
+    }
+  };
   const draw = () => {
     const now = performance.now(), a = useArena.getState();
+    const district = mapId === 'metropolis' && live.sim ? districtAt(live.sim.x, live.sim.y, live.sim.z) : 'surface';
+    const next = district === 'underground' ? district : 'surface'; if (level !== next) drawBase(next);
     g.clearRect(0, 0, size, size); g.drawImage(base, 0, 0);
+    if (mapId === 'metropolis') { g.fillStyle = '#f2efe6'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText(DISTRICTS.find(d => d.id === district)?.name ?? 'Okun Bay', size / 2, size - 5); }
     if (dom) map.objectives.forEach((o: { id: string; x: number; z: number }, i: number) => { const [px, py] = P(o.x, o.z), owner = a.hud.objectives[i]?.[0] ?? -1; g.fillStyle = owner < 0 ? '#f2efe6' : owner === live.team ? '#4fb3ff' : '#ff5a48'; g.font = '700 11px Manrope Variable, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(o.id, px, py); });
     if (!liveMode) { const [px, py] = P(cx, cz); g.fillStyle = '#ffe9a8'; g.beginPath(); g.moveTo(px, py - 6); g.lineTo(px + 4.5, py + 5); g.lineTo(px, py + 2.5); g.lineTo(px - 4.5, py + 5); g.closePath(); g.fill(); return; }
     for (const r of live.remotes.values()) {

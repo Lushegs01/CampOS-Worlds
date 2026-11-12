@@ -1,0 +1,85 @@
+{
+  "checks": [
+    "desktop selects map/weather, deploys, and spawns at street level",
+    "desktop renders districts without page overflow",
+    "a real shot shatters a pane on server and client",
+    "rejoin preserves broken glass",
+    "server clock drives a visible train through Plaza Station",
+    "phone selects map/weather, deploys, and spawns at street level",
+    "phone renders districts without page overflow"
+  ],
+  "screenshots": [
+    "docs/screenshots/metropolis/avenue.png",
+    "docs/screenshots/metropolis/plaza.png",
+    "docs/screenshots/metropolis/rooftops.png",
+    "docs/screenshots/metropolis/station.png",
+    "docs/screenshots/metropolis/industrial.png",
+    "docs/screenshots/metropolis/train.png",
+    "docs/screenshots/metropolis/night.png"
+  ],
+  "desktop": {
+    "stats": {
+      "world": 32292,
+      "calls": 155,
+      "triangles": 81084,
+      "textures": 81,
+      "geometries": 444
+    },
+    "deploy": {
+      "stage": "deployed",
+      "marks": {
+        "requesting": 0,
+        "loading-code": 25,
+        "preparing": 634,
+        "synchronizing": 9402,
+        "deployed": 9402
+      },
+      "files": {
+        "done": 29,
+        "total": 29,
+        "failed": 0
+      },
+      "bytes": 11321890,
+      "retries": 0,
+      "slow": false,
+      "failure": null,
+      "pending": [
+        "soldiers"
+      ]
+    }
+  },
+  "phone": {
+    "stats": {
+      "world": 30508,
+      "calls": 287,
+      "triangles": 79300,
+      "textures": 59,
+      "geometries": 431
+    },
+    "deploy": {
+      "stage": "deployed",
+      "marks": {
+        "requesting": 0,
+        "loading-code": 24,
+        "preparing": 538,
+        "synchronizing": 7480,
+        "deployed": 7480
+      },
+      "files": {
+        "done": 29,
+        "total": 29,
+        "failed": 0
+      },
+      "bytes": 11321890,
+      "retries": 0,
+      "slow": false,
+      "failure": null,
+      "pending": [
+        "soldiers"
+      ]
+    }
+  },
+  "ok": true,
+  "errors": [],
+  "assetFailures": []
+}

@@ -167,7 +167,7 @@ test('every sound the game can ask for exists in the built banks', { skip: !exis
   need.push('breath.m/loop', 'breath.f/loop');
   for (const k of ['click', 'hover', 'confirm', 'select', 'back', 'toggle', 'tick', 'error', 'purchase', 'equip', 'hit', 'headshot', 'kill', 'medal', 'streak', 'countdown', 'notify', 'ping']) need.push('ui/' + k);
   for (const k of ['three', 'two', 'one', 'go', 'win', 'lose', 'draw', 'secured', 'lost', 'contested', 'losing', 'supply', 'strikeOurs', 'strikeTheirs', 'uav', 'grenade', 'grenadeF']) need.push('vo/' + k);
-  for (const map of MAPS) for (const k of ['wind', 'district', 'interior', 'machine', 'hum', 'creak', 'clank', 'chain', 'flag']) need.push(`amb.${map.id}/${k}`);
+  for (const map of MAPS) for (const k of ['wind', 'district', 'interior', 'machine', 'hum', 'creak', 'clank', 'chain', 'flag']) need.push(`amb.${map.ambience ?? map.id}/${k}`);
   const missing = need.filter(s => !has(s));
   assert.deepEqual(missing, []);
   // Weapons sound like themselves: no two firearms share a recording for their shots.

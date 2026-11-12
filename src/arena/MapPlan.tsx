@@ -9,12 +9,12 @@ type Spawn = { x: number; z: number; team: number; forward?: boolean };
 type Obj = { id: string; x: number; z: number; r: number };
 
 export const MapPlan = memo(function MapPlan({ mapId, zones = false, className = '' }: { mapId: string; zones?: boolean; className?: string }) {
-  const map = MAP_BY_ID.get(mapId) as { bounds: number[]; boxes: Box[]; spawns: Spawn[]; objectives: Obj[] } | undefined;
+  const map = MAP_BY_ID.get(mapId) as { street?: number; bounds: number[]; boxes: Box[]; spawns: Spawn[]; objectives: Obj[] } | undefined;
   if (!map) return null;
   const [x0, z0, x1, z1] = map.bounds, pad = 2;
   // Tallest last so roofs and walls sit over low cover.
-  const boxes = [...map.boxes].filter(b => b.max[1] - b.min[1] > .2 && b.mat !== 'perimeter').sort((a, b) => a.max[1] - b.max[1]);
-  const tone = (b: Box) => { const h = b.max[1]; return b.mat === 'roof' ? 'roof' : h > 4 ? 'tall' : h > 1.6 ? 'mid' : 'low'; };
+  const boxes = [...map.boxes].filter(b => b.max[1] - b.min[1] > .2 && b.mat !== 'perimeter' && b.max[1] > (map.street ?? 0) + .2).sort((a, b) => a.max[1] - b.max[1]);
+  const tone = (b: Box) => { const h = b.max[1] - (map.street ?? 0); return b.mat === 'roof' ? 'roof' : h > 4 ? 'tall' : h > 1.6 ? 'mid' : 'low'; };
   return <svg className={`ar-plan ${className}`} viewBox={`${x0 - pad} ${z0 - pad} ${x1 - x0 + pad * 2} ${z1 - z0 + pad * 2}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
     <rect className="ar-plan-ground" x={x0} y={z0} width={x1 - x0} height={z1 - z0} rx=".6" />
     <g className="ar-plan-grid">{Array.from({ length: Math.floor((x1 - x0) / 8) + 1 }, (_, i) => <line key={'x' + i} x1={x0 + i * 8} x2={x0 + i * 8} y1={z0} y2={z1} />)}
