@@ -160,3 +160,59 @@ Validation for this pass: all 338 Node tests pass when run without the software
 browser workload. An earlier concurrent run passed 337/338: the short-duration
 Domination match had already ended before its timed score assertion. That test
 passed on the full isolated rerun; no server or collision code was changed.
+
+## Visual transformation pass (13 November 2026)
+
+The city renderer from the unmerged `0927a40` commit (`src/arena/scene/city/`) now draws Metropolis behind the
+existing `buildMetropolis` interface; `cityDetail` wear (dirt, cracks, contact shading, drains, rain puddles) is
+layered on top. Gameplay, collision, glass, train and weather selection are unchanged, apart from the slim lamp
+post and palm trunks being solid again (12 lamp posts and 6 palms per side), so nobody can stand inside one.
+
+- **Buildings**: facades are built around real window reveals (pane, frame, mullion, sill, balconies and wall
+  condensers), shop fronts carry fascia signs or awnings, door leaves stand open, roller shutters roll into
+  housings, interiors have plaster linings and skirting. Curtain-wall towers have mullion grids; Okun Tower has a
+  stepped crown, mast and aviation light. The street walls are rows of varied buildings rather than one block.
+- **Lighting by place**: every surface knows whether it is outdoors, in a shop, in a hall or under the street;
+  sky light is cut to what reaches it and an interior fill is added (warm shops, cool station). A pool of real
+  point lights follows the player between fittings. `setPower()` dims interiors (not yet triggered).
+- **Station**: tiled walls with a line-colour band, stone platform floor, tactile and safety lines, rails, sleepers
+  and ballast, a lit plaster soffit, tube fittings, ticket office, station control room, Plaza Station roundels.
+- **Street and props**: lane, edge and crossing markings, granite kerbs, ironwork, traffic signals on a cycle,
+  street name plates, lamp columns with lanterns, a city bus with a lit destination board, delivery truck,
+  container lorries, pickups, cars from the campus fleet, kiosks with lettered fascias, shelters, planters,
+  BRT median station, water tanks, condensers, vents, plant rooms, racking with stock, forklifts.
+- **Plaza**: twisted bronze Okun Spire with ring and tip light, stone ring fountain with animated jets and pool,
+  a tiled mural, palms and shade trees with wind.
+- **Beyond the site**: three rings of towers whose windows light up at night, ship-to-shore cranes, a container
+  ship alongside, a bay with a moving swell normal, a cable-stayed bridge with moving traffic.
+- **Weather**: rain streaks and wet (smoother, darker, more reflective) streets in Rainy Season; emissive signs,
+  lamps and windows scale with the variant; day ambient raised so shadowed faces are no longer crushed.
+- **Streaming and culling**: geometry is merged per material and per region (station, 3 × 3 street grid, far);
+  the station is only drawn from inside it or near a stair, the street and skyline only from above ground.
+  Relief/roughness maps and set dressing still stream in after deployment.
+
+### Graphics settings
+
+Settings → Graphics now has **Low, Medium, High and Ultra** (arena only). Ultra adds full-resolution, high-sample
+ambient occlusion, 16× anisotropic filtering, six real light fittings, more decals and casings, and a longer view
+distance. **Resolution scale** (50–100 %) multiplies the profile's pixel density; adaptive performance works below
+it and steps Ultra → High → Medium → Low. Both stay on the device (not synced to the account). Tests:
+`tests/arena-graphics.test.mjs`.
+
+### Verification
+
+- `npm test`: **340 passed, 0 failed** (338 before, plus the two graphics-settings tests).
+- `npm run build` and `npm run verify:release`: passed (precache 2.49 MB, no production debug hooks).
+- `METROPOLIS_REALISM=1 node tests/browser-metropolis.mjs`: 7/7 checks, desktop Medium and phone Low. The phone
+  night viewpoint moved from (−18, 5, −25) to (−18, 5, −23): the old point is inside the median palm's trunk.
+- Before/after captures from the same camera positions: `docs/screenshots/metropolis-visual/{before,after}/`.
+  These are Chromium software-WebGL captures: they show rendering, not real-device frame rates.
+
+### Not done yet (next steps)
+
+1. Measure FPS and memory on real phones and desktop GPUs per profile; tune Low (light pool, rain count, far
+   chunk) from the numbers.
+2. Restore the Metropolis audio from `0927a40` (its `amb.metropolis` bank, underground convolution reverb, train
+   loop and horn); the map currently uses the Foundry ambience.
+3. Weapons and characters: no model or animation changes were made in this pass. The container end faces in the
+   yard still read flat close up; station columns are plain tiled boxes.

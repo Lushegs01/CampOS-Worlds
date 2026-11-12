@@ -500,8 +500,8 @@ export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality) {
 export type SurfaceKind = 'concrete' | 'metal' | 'wood' | 'sand' | 'brick' | 'dirt' | 'foliage';
 /** Operation: Metropolis materials (shared/arena/metropolis.mjs) → the dust, sparks or splinters a round throws up. */
 const CITY_FX: Record<string, SurfaceKind> = Object.fromEntries([
-  ...['bus', 'van', 'car', 'truck', 'pickup', 'tank', 'ac', 'vent', 'plant', 'kiosk', 'shelter', 'canopy', 'brt-roof', 'brt-screen', 'hoarding', 'yard-wall', 'stair-steel', 'roof-sheet', 'cabinet', 'rack', 'forklift', 'bollard', 'vending', 'atm', 'faregate', 'switchgear', 'utility', 'bin', 'spire', 'frame', 'guardhouse'].map(k => [k, 'metal']),
-  ...['floor-timber', 'counter', 'desk', 'table', 'bench', 'shelf', 'sofa', 'partition', 'partition-wall', 'tree'].map(k => [k, 'wood']),
+  ...['bus', 'van', 'car', 'truck', 'pickup', 'tank', 'ac', 'vent', 'plant', 'kiosk', 'shelter', 'canopy', 'brt-roof', 'brt-screen', 'hoarding', 'yard-wall', 'stair-steel', 'roof-sheet', 'cabinet', 'rack', 'forklift', 'bollard', 'vending', 'atm', 'faregate', 'switchgear', 'utility', 'bin', 'spire', 'frame', 'guardhouse', 'lamppost'].map(k => [k, 'metal']),
+  ...['floor-timber', 'counter', 'desk', 'table', 'bench', 'shelf', 'sofa', 'partition', 'partition-wall', 'tree', 'palm'].map(k => [k, 'wood']),
   ...['st-grass', 'ug-track'].map(k => [k, 'dirt']), ['hedge', 'foliage'],
 ] as [string, SurfaceKind][]);
 export function surfaceOf(mat: string | undefined): SurfaceKind {

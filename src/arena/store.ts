@@ -17,7 +17,7 @@ export type Progress = { xp: number; total_xp: number; level_before: number; lev
 export type Phase = 'lobby' | 'match' | 'results';
 
 export interface ArenaSettings {
-  mouse: number; ads: number; touch: number; pad: number; invertY: boolean; fov: number; quality: Quality; showFps: boolean; autoSprint: boolean;
+  mouse: number; ads: number; touch: number; pad: number; invertY: boolean; fov: number; quality: Quality | 'ultra'; showFps: boolean; autoSprint: boolean;
   /** Auto-fire (off by default): the trigger is pressed while the player's own aim is on a visible enemy. */
   autoFire: boolean;
   /** Lower the resolution (then the graphics profile) automatically when the frame rate cannot be held. */
