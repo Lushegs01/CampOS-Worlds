@@ -298,7 +298,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       if (ev.kind === 'shot') resolveShot(p, ev, now, false);
       else if (ev.kind === 'melee') resolveMelee(p, ev, now);
       else if (ev.kind === 'throw') throwEquipment(p, ev);
-      else if (ev.kind === 'reload' || ev.kind === 'switch' || ev.kind === 'slide') emitAll({ k: 'act', num: p.num, a: ev.kind, w: ev.weapon ?? null }, o => o !== p);
+      // `e`: a reload from an empty magazine (others hear the action worked as well).
+      else if (ev.kind === 'reload' || ev.kind === 'switch' || ev.kind === 'slide') emitAll({ k: 'act', num: p.num, a: ev.kind, w: ev.weapon ?? null, ...(ev.kind === 'reload' && ev.empty ? { e: 1 } : {}) }, o => o !== p);
     }
     if (supplies.length) touchSupplies(p, now);
   }
@@ -342,13 +343,13 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       ends.push([cm(ev.ox + dx * hitT), cm(ev.oy + dy * hitT), cm(ev.oz + dz * hitT), hit ? 1 : 0]);
       if (!hit) continue;
       const base = damageAt(w, hitT) * (head ? w.head : legs ? w.legs : 1) * (penetrated ? keep : 1);
-      const d = damage.get(hit) ?? { amount: 0, head: false, dist: hitT };
-      d.amount += base; d.head ||= head; damage.set(hit, d);
+      const d = damage.get(hit) ?? { amount: 0, head: false, legs: true, dist: hitT };
+      d.amount += base; d.head ||= head; d.legs &&= legs; damage.set(hit, d);
     }
     emitAll({ k: 'shot', num: p.num, w: WEAPON_INDEX.get(w.id), o: [cm(ev.ox), cm(ev.oy), cm(ev.oz)], e: ends.slice(0, 4) }, o => o !== p);
     for (const [o, d] of damage) {
       p.stats.hits++; p.stats.weapons[w.id].hits++;
-      hurt(o, Math.round(d.amount), p, { weapon: w.id, head: d.head, dist: d.dist, trade });
+      hurt(o, Math.round(d.amount), p, { weapon: w.id, head: d.head, legs: d.legs && !d.head, dist: d.dist, trade });
     }
   }
   function resolveMelee(p, ev, now) {
@@ -379,9 +380,11 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     if (by && by !== o) { o.damageLog.push({ from: by, amount, at: now }); by.stats.damage += amount; }
     record({ type: 'damage', from: by?.num ?? null, to: o.num, amount, cause: cause.weapon ?? cause.equipment ?? cause.streak, head: !!cause.head });
     const kill = o.hp <= 0;
-    if (by && by !== o) emit(by, { k: 'hit', num: o.num, dmg: amount, hs: !!cause.head, kill });
+    // For sound: where it struck (head, legs) and what it was (a round, a blade or butt, an explosion).
+    const c = cause.equipment || cause.streak ? 'x' : cause.weapon === 'melee' || WEAPON_BY_ID.get(cause.weapon)?.fire === 'melee' ? 'm' : 'b';
+    if (by && by !== o) emit(by, { k: 'hit', num: o.num, dmg: amount, hs: !!cause.head, kill, ...(cause.legs ? { lg: 1 } : {}), c });
     const from = by?.sim ? [cm(by.sim.x), cm(by.sim.z)] : cause.at ?? null;
-    emit(o, { k: 'dmg', dmg: amount, hp: Math.max(0, o.hp), from });
+    emit(o, { k: 'dmg', dmg: amount, hp: Math.max(0, o.hp), from, ...(cause.head ? { hs: 1 } : {}), ...(cause.legs ? { lg: 1 } : {}), c });
     if (kill) eliminate(o, by, cause);
   }
   function eliminate(v, k, cause) {

@@ -33,7 +33,10 @@ import { trackDisposeListeners } from './scene/gpuListeners';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
 import { Effects, Casings } from './scene/fx';
-import { sfx, setIndoor, startAmbience, stopArenaAmbience, stopMatchSounds, prepareLoadout, prepareWeapon, forgetPrepared, setLoopVolumes, engine as soundEngine, type Ground } from './audio';
+import { sfx, setIndoor, startAmbience, stopArenaAmbience, stopMatchSounds, prepareMatch, prepareWeapon, prepareVoice, forgetPrepared, trimBanks, nearSurfaces, actions, remoteActions, breathing, ambienceFrame, setGroundProvider, engine as soundEngine, type StepSurface, type ImpactSurface } from './audio';
+import { reloadPlan } from './sound/reloads.mjs';
+import { stepSurfaceOf, impactSurfaceOf, groundSurface, isStair } from './sound/surfaces.mjs';
+import { createGait, createRemoteGait } from './sound/gait.mjs';
 import { QA_HOOKS } from '../qa';
 
 const EQUIP_IDS = [...EQUIPMENT_BY_ID.keys()];
@@ -63,7 +66,16 @@ function releaseGpu(...roots: THREE.Object3D[]) {
 
 // Module-level (not created inside the scene): a long-lived callback made inside the component would keep its whole
 // closure context — renderer and scene included — alive after the match.
-const environmentLevel = () => useArena.getState().settings.volEnvironment, footstepLevel = () => useArena.getState().settings.volFootsteps;
+
+/** Where the map's machines hum (machine boxes) and its lamps buzz (under the roofs), for the ambience. */
+function ambientEmitters(map: { boxes: { min: number[]; max: number[]; mat: string }[] }) {
+  const out: { at: [number, number, number]; kind: 'machine' | 'hum' }[] = [];
+  for (const b of map.boxes) {
+    const c: [number, number, number] = [(b.min[0] + b.max[0]) / 2, b.mat === 'roof' ? b.min[1] - .4 : b.max[1], (b.min[2] + b.max[2]) / 2];
+    if (b.mat === 'machine') out.push({ at: c, kind: 'machine' }); else if (b.mat === 'roof') out.push({ at: c, kind: 'hum' });
+  }
+  return out;
+}
 
 /** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
 const matchTier = { id: '', mobile: false };
@@ -108,13 +120,14 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     preloadWeapon(primary, false, P1).then(() => { if (on) setGunReady(true); }).catch(e => { console.error('Arena weapon could not load.', e); if (on) deploy.fail('Your weapon could not be downloaded.', 'assets', what(e)); });
     loadLibrary(gl, q).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) deploy.fail('The training ground could not be downloaded.', 'assets', what(e)); });
     if (secondary && secondary !== primary) void preloadWeapon(secondary, false, P2).catch(() => null);
-    // Sound: phones get fewer voices and plain panning; the player's own weapons are rendered ahead of their first shot.
-    soundEngine.configure({ voices: q.mobileAssets ? 20 : 32, hrtf: !q.mobileAssets });
-    prepareLoadout([primary, ...(secondary ? [secondary] : [])]);
+    // Sound: phones get fewer voices, plain panning and a rumble filter; the sound banks the player needs first (their
+    // weapons, the map's surfaces) are queued now, behind nothing the deployment waits for.
+    soundEngine.configure({ voices: q.mobileAssets ? 20 : 32, hrtf: !q.mobileAssets, phone: q.mobileAssets });
+    prepareMatch(mapId, map, [primary, ...(secondary ? [secondary] : [])], live.num, soldierModelFor(live.num));
     // Soldiers: stand-ins until they arrive; a failure is retried quietly in the background.
     const soldiers = (n: number): void => { loadSoldiers(q.mobileAssets, ctrl.signal).then(k => { if (on) setKits(k); }).catch(e => { if (!on || (e as Error).name === 'AbortError') return; console.warn('Arena soldiers deferred:', what(e)); if (n < 4) setTimeout(() => on && soldiers(n + 1), 8000 * (n + 1)); }); };
     soldiers(0);
-    startAmbience();
+    startAmbience(mapId, ambientEmitters(map));
     return () => { on = false; ctrl.abort(); stopArenaAmbience(); stopMatchSounds(); setIndoor(0); };
   }, [gl, q, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { deploy.pending([...(lib ? [] : ['environment']), ...(gunReady ? [] : ['weapon']), ...(kits ? [] : ['soldiers'])]); }, [lib, gunReady, kits]);
@@ -170,11 +183,15 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
 
   // ---------------------------------------------------------------- sound levels and the acoustic probe
   useEffect(() => {
-    const apply = (st: typeof settings) => soundEngine.setVolumes({ weapons: st.volWeapons, explosions: st.volExplosions, environment: st.volEnvironment, footsteps: st.volFootsteps, character: st.volCharacter, ui: st.volUi });
+    const apply = (st: typeof settings) => soundEngine.setVolumes({ weapons: st.volWeapons, explosions: st.volExplosions, environment: st.volEnvironment, footsteps: st.volFootsteps, character: st.volCharacter, ui: st.volUi, voice: st.volVoice });
     apply(useArena.getState().settings);
-    setLoopVolumes(environmentLevel, footstepLevel);
     return useArena.subscribe((a, b) => { if (a.settings !== b.settings) apply(a.settings); });
   }, []);
+  // What is underfoot, for the sound of every footstep, landing, casing and dropped magazine.
+  useEffect(() => {
+    setGroundProvider((x, y, z) => groundAt(x, y, z), () => (live.sim ? groundAt(live.sim.x, live.sim.y, live.sim.z).surface : 'concrete'));
+    if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaGround = (x: number, y: number, z: number) => groundAt(x, y, z);
+  }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
   // Is a sound behind a wall from the listener, and is its source under a roof? (Two ray casts in the collision world.)
   useEffect(() => {
     const probeHit = { t: 0, box: null as { i: number } | null, normal: [0, 0, 0], ground: false };
@@ -317,7 +334,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     } else if (f.type === 'impact') {
       const at = v1.fromArray(f.at), n = v2.fromArray(f.normal), kind = surfaceOf(f.mat);
       fx.effects.impact(at, n, kind, f.flesh);
-      if (f.flesh) sfx.flesh([at.x, at.y, at.z]); else sfx.impact(kind as Ground, [at.x, at.y, at.z]);
+      // (A round stopped by a player is heard from the network layer, where the server says who and where.)
+      if (!f.flesh) sfx.impact(impactSurfaceOf(f.mat) as ImpactSurface, [at.x, at.y, at.z]);
     } else if (f.type === 'boom') fx.effects.explosion(v1.fromArray(f.at), f.r);
     else if (f.type === 'smoke') fx.effects.smokeCloud(v1.fromArray(f.at), f.r, f.ms / 1000);
     else if (f.type === 'flash') fx.effects.flashbang(v1.fromArray(f.at));
@@ -329,20 +347,20 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       const w = WEAPONS.find(x => x.id === f.weapon)!, heavy = w.category === 'sniper' || w.category === 'shotgun' ? 1 : w.category === 'lmg' ? .55 : w.category === 'pistol' ? .5 : .38, ads = live.sim?.ads ?? 0;
       vm.flashAt = now; vm.kickZ += .028 * heavy * (1 - ads * .35) + .008; vm.kickPitch += .05 * heavy * (1 - ads * .5) + .008; vm.kickRoll += (Math.random() - .5) * .03 * heavy; vm.slideKick = 1;
       const port = vm.gun?.getObjectByName('ejection');
-      if (port && w.fire !== 'bolt' && w.id !== 'bastion' && w.id !== 'thorn') { vm.casings.eject(port.getWorldPosition(v1)); if (live.sim) sfx.casing(groundAt(live.sim.x, live.sim.y, live.sim.z)); }
+      if (port && w.fire !== 'bolt' && w.id !== 'bastion' && w.id !== 'thorn') { vm.casings.eject(port.getWorldPosition(v1)); sfx.ejected(w.id); }
       const muzzle = vm.gun?.getObjectByName('muzzle');
       if (muzzle) { muzzle.getWorldPosition(v1).applyMatrix4(camera.matrixWorld); camera.getWorldDirection(v2); fx.effects.muzzle(v1, v2); fx.muzzleLight.position.copy(v1); fx.muzzleLight.intensity = 28; }
-      if (w.fire === 'bolt' || w.id === 'bastion') sfx.cycle(w.id);
     }
   }), [fx, vm, camera, q, objectives]);
 
   // ---------------------------------------------------------------- the frame
   const fwd = useMemo(() => new THREE.Vector3(), []), eyePos = useMemo(() => ({ x: 0, y: 0, z: 0 }), []), sample = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
-  const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), stepDist = useRef(0), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
+  const gait = useMemo(() => createGait(), []), remoteGaits = useMemo(() => new Map<number, ReturnType<typeof createRemoteGait>>(), []), grenadeSounds = useMemo(() => new Map<number, { x: number; y: number; z: number; vy: number; at: number; moving: number; stuck: boolean; beepAt: number }>(), []), falling = useRef(false);
+  const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
   useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
   useEffect(() => { gl.info.autoReset = false; if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaGL = gl; return () => { gl.info.autoReset = true; }; }, [gl]);
   // QA builds: the inspection hooks hold this match's renderer, scene and assets; drop them with the scene.
-  useEffect(() => () => { if (QA_HOOKS) for (const k of ['__arenaGL', '__arenaDebug', '__arenaBreakdown', '__arenaStats']) delete (window as unknown as Record<string, unknown>)[k]; }, []);
+  useEffect(() => () => { if (QA_HOOKS) for (const k of ['__arenaGL', '__arenaDebug', '__arenaBreakdown', '__arenaStats', '__arenaGround']) delete (window as unknown as Record<string, unknown>)[k]; }, []);
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
     frameNo.current++;
@@ -358,19 +376,23 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       const speed = Math.hypot(s.vx, s.vz), moving = s.grounded ? Math.min(1, speed / 5) : 0;
       // Head bob: small and smooth, stronger when sprinting, gone when aiming.
       const bobK = moving * (1 - s.ads * .85) * (s.sprint ? 1.5 : 1), shake = live.shake * .025;
-      cam.position.set(eyePos.x + (Math.random() - .5) * shake, eyePos.y + Math.sin(vm.bob * 2) * .012 * bobK + vm.land * .08 + (Math.random() - .5) * shake, eyePos.z);
+      // The view dips as each foot lands (cos 2φ is lowest at φ = π/2 + nπ, the gait's footfalls).
+      cam.position.set(eyePos.x + (Math.random() - .5) * shake, eyePos.y + Math.cos(vm.bob * 2) * .012 * bobK + vm.land * .08 + (Math.random() - .5) * shake, eyePos.z);
       cam.rotation.order = 'YXZ';
       cam.rotation.y = controls.yaw + s.ry;
       cam.rotation.x = controls.pitch + s.rp + live.kick * .006 + vm.land * .03;
       cam.rotation.z = (s.stance === 2 ? -.07 : 0) + Math.sin(vm.bob) * .004 * bobK + (s.sprint ? Math.sin(vm.bob) * .006 : 0);
       const zoom = 1 + (zoomOf() - 1) * s.ads * s.ads, fov = settings.fov / zoom * (s.sprint ? 1.05 : 1);
       if (Math.abs(cam.fov - fov) > .01) { cam.fov += (fov - cam.fov) * Math.min(1, dt * 14); cam.updateProjectionMatrix(); }
-      // Footsteps on whatever is underfoot.
-      if (s.grounded && s.stance !== 2) {
-        stepDist.current += speed * dt;
-        if (stepDist.current > (s.sprint ? 2.1 : 1.7)) { stepDist.current = 0; sfx.step(undefined, s.stance === 1 ? .1 : s.sprint ? .26 : .2, groundAt(s.x, s.y, s.z), { run: s.sprint }); }
-      }
+      // One gait phase moves the camera, the weapon and the feet: footsteps on whatever is underfoot, a scuff when
+      // stopping hard or turning sharply, the air rushing past in a long fall, breath that follows the effort.
+      const g = gait.update(dt, s.vx, s.vz, s.grounded, s.sprint, s.stance === 1, s.stance === 2); vm.bob = gait.phase;
+      if (g.step || g.stop || g.turn) { const gi = groundAt(s.x, s.y, s.z); if (g.step) sfx.step(gi.surface, g.step, { stairs: gi.stairs }); if (g.stop || g.turn) sfx.scuff(gi.surface, undefined, g.turn); }
+      if (!s.grounded && s.vy < -9 && !falling.current) { falling.current = true; sfx.falling(); } else if (s.grounded) falling.current = false;
+      breathing.frame(dt, s.sprint && s.grounded && speed > 3, a.hud.hp, true);
+      ownActions(s);
     } else if (s) {
+      breathing.frame(dt, false, 100, false); ownActions(null);
       const d = deathCam.current ??= { x: s.x, y: s.y + 1.4, z: s.z, at: now };
       const k = Math.min(1, (now - d.at) / 700), killer = a.killedBy?.num != null ? live.remotes.get(a.killedBy.num) : null;
       cam.position.set(d.x, d.y - k * 1.05, d.z); cam.rotation.order = 'YXZ';
@@ -380,6 +402,14 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     }
     cam.updateMatrixWorld();
     cam.getWorldDirection(fwd); setListener(cam.position, fwd);
+    ambienceFrame([cam.position.x, cam.position.y, cam.position.z]);
+    if (frameNo.current % 600 === 0 && live.loadout) trimBanks([live.loadout.primary, live.loadout.secondary]);
+    // Every two seconds: the footstep banks of the boxes within 16 m (their surfaces are heard before they are reached).
+    if (frameNo.current % 120 === 30) {
+      const near = new Set<StepSurface>(), cx = cam.position.x, cz = cam.position.z;
+      for (const b of map.boxes) { const dx = Math.max(b.min[0] - cx, 0, cx - b.max[0]), dz = Math.max(b.min[2] - cz, 0, cz - b.max[2]); if (dx * dx + dz * dz < 256) near.add(stepSurfaceOf(b.mat) as StepSurface); }
+      nearSurfaces([...near]);
+    }
     // ---- surroundings: are we under a roof, and can the sun reach the weapon?
     if (lib && live.world && now - vm.probeAt > 220) {
       vm.probeAt = now;
@@ -420,9 +450,6 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       e.animDt = (e.animDt ?? 0) + dt;
       if (every && (frameNo.current + r.num) % every === 0) { e.s.update(e.animDt, v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw, r.pitch, r.flags, dead, now - e.flashAt < 55, q.ik && far < 45); e.animDt = 0; }
       else e.s.place(v1.set(r.pos.x, r.pos.y, r.pos.z), r.pos.yaw);
-      // Footsteps of others within earshot.
-      if (!dead && (r.flags & 256) && !(r.flags & 2) && far < (r.team !== live.team ? 30 : 24)) { const sp = (r.flags & 8) ? 300 : 430; if (now - r.stepAt > sp && Math.hypot(sample.x - (e.s.root.userData.lx ?? sample.x), sample.z - (e.s.root.userData.lz ?? sample.z)) / Math.max(dt, 1e-3) > 1.4) { r.stepAt = now; sfx.step([r.pos.x, r.pos.y, r.pos.z], .3, groundAt(r.pos.x, r.pos.y, r.pos.z), { enemy: r.team !== live.team, run: !!(r.flags & 8) }); } }
-      e.s.root.userData.lx = sample.x; e.s.root.userData.lz = sample.z;
       // Identification: teammates carry a blue name; enemies a small red marker (hidden behind cover).
       const info = a.match?.players.find(p => p.num === r.num), friend = r.team === live.team;
       const key = dead ? '' : friend ? (info ? info.name + (info.bot ? ' · SIM' : '') : '') : '◆';
@@ -432,6 +459,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
         if (key) { const { texture, aspect } = labelTexture(key, friend ? TEAM_COLORS.friend : TEAM_COLORS.enemy, 44, false); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: !friend, transparent: true, toneMapped: false, opacity: friend ? 1 : .9 })); const h = friend ? .3 : .16; sp.scale.set(h * aspect, h, 1); sp.position.y = 2.12; sp.renderOrder = 9; e.s.root.add(sp); e.tag = sp; }
       }
     }
+    remoteSounds(dt, now);
     for (const [num, e] of soldiers.current) if (!seenNums.has(num)) { if (!live.remotes.has(num)) { dropSoldier(e); soldiers.current.delete(num); } else e.s.root.visible = false; }
     // ---- effects
     fx.effects.update(dt); vm.casings.update(dt);
@@ -439,6 +467,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (q.detail && s && now - dustAt.current > 260) { dustAt.current = now; fx.effects.mote(v1.set(cam.position.x + (Math.random() - .5) * 14, .2 + Math.random() * 2.2, cam.position.z + (Math.random() - .5) * 14)); }
     let gi = 0; for (const gr of live.grenades.values()) { const m = fx.grenades[gi++]; if (!m) break; m.visible = true; m.position.set(gr.x, gr.y, gr.z); (m.material as THREE.MeshStandardMaterial).color.set(EQUIP_IDS[gr.kind] === 'flash' ? '#b9bcc0' : EQUIP_IDS[gr.kind] === 'smoke' ? '#5f6c78' : '#3f4a34'); }
     for (; gi < fx.grenades.length; gi++) fx.grenades[gi].visible = false;
+    grenadeAudio(now);
     live.supplies = live.supplies.filter(c => now < c.until);
     fx.crates.forEach((g, i) => { const c = live.supplies[i]; g.visible = !!c; if (c) g.position.set(c.x, c.y, c.z); });
     live.strikes = live.strikes.filter(x => now < x.at + 400);
@@ -466,11 +495,54 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); if (a.sceneReady && !document.hidden) adaptFps(fps); }
   }, -1);
 
-  /** What a boot lands on: the box underfoot, or the yard's concrete, gravel margins and dirt. */
-  function groundAt(x: number, y: number, z: number): Ground {
-    if (live.world) { const hit = raycast(live.world, x, y + .3, z, 0, -1, 0, .8, null, scratch); if (hit && hit.box) return surfaceOf(matOf(hit.box)) as Ground; }
-    const [bx0, bz0, bx1, bz1] = map.bounds;
-    return x < bx0 + 6 || x > bx1 - 6 || z < bz0 + 1.5 || z > bz1 - 1.5 ? 'dirt' : 'concrete';
+  /** What a boot lands on: the box underfoot (its material; a stair riser), or the ground as it is painted. */
+  function groundAt(x: number, y: number, z: number): { surface: StepSurface; stairs: boolean } {
+    if (live.world) { const hit = raycast(live.world, x, y + .3, z, 0, -1, 0, .8, null, scratch); if (hit && hit.box) { const box = map.boxes[hit.box.i]; return { surface: stepSurfaceOf(box?.mat) as StepSurface, stairs: !!box && isStair(box) }; } }
+    return { surface: groundSurface(map.bounds, x, z) as StepSurface, stairs: false };
+  }
+  /** The player's reload, action and weapon raise, advanced with the same progress the animation draws. */
+  function ownActions(s: typeof live.sim) {
+    if (!s) { actions.reloadFrame('', null); actions.cycleFrame('', null); actions.switchFrame(null); return; }
+    const w = weaponOf(s);
+    if (w.reloadMode === 'shell') actions.shellFrame(w.id, s.phase === 'reload' ? s.pt : null);
+    else actions.reloadFrame(w.id, s.phase === 'reload' ? THREE.MathUtils.clamp(1 - s.pt / Math.max(1, live.reloadTotal), 0, 1) : null);
+    actions.cycleFrame(w.id, w.rpm && s.phase === 'ready' && s.cool > 0 ? 1 - s.cool / (3600 / w.rpm) : s.phase === 'ready' ? 1 : null);
+    actions.switchFrame(s.phase === 'switch' ? 1 - s.pt / Math.max(1, w.swap) : null);
+  }
+  /**
+   * Everyone else: footsteps at their soldiers' stride (in earshot, whether drawn or not), landings, their reloads and
+   * bolts (cancelled when the server's reload flag clears early), and their voices loaded as they appear.
+   */
+  function remoteSounds(dt: number, now: number) {
+    for (const r of live.remotes.values()) {
+      const alive = !r.deadAt && (r.flags & 1) !== 0 && !!r.seenAt && now - r.seenAt < 600;
+      remoteActions.frame(r.num, (r.flags & 32) !== 0, alive);
+      if (!alive) { remoteGaits.delete(r.num); continue; }
+      prepareVoice(r.num, soldierModelFor(r.num));
+      let g = remoteGaits.get(r.num); if (!g) remoteGaits.set(r.num, g = createRemoteGait());
+      const ev = g.update(r.pos.x, r.pos.z, dt, r.flags), enemy = r.team !== live.team;
+      if (!ev.step && !ev.land) continue;
+      const d = Math.hypot(r.pos.x - camera.position.x, r.pos.z - camera.position.z); if (d > (enemy ? 34 : 24)) continue;
+      const gi = groundAt(r.pos.x, r.pos.y, r.pos.z), at: [number, number, number] = [r.pos.x, r.pos.y + .05, r.pos.z];
+      if (ev.step) sfx.step(gi.surface, ev.step, { at, enemy, stairs: gi.stairs });
+      if (ev.land) sfx.land(gi.surface, 9, at);
+    }
+  }
+  /** Grenades in flight: bounces on what they strike; a Tack Charge sticking, then arming. */
+  function grenadeAudio(now: number) {
+    for (const [id, gr] of live.grenades) {
+      let st = grenadeSounds.get(id);
+      if (!st) { grenadeSounds.set(id, { x: gr.x, y: gr.y, z: gr.z, vy: 0, at: gr.at, moving: 0, stuck: false, beepAt: 0 }); continue; }
+      if (gr.at !== st.at) {
+        const dt = Math.max(.016, (gr.at - st.at) / 1000), vy = (gr.y - st.y) / dt, sp = Math.hypot(gr.x - st.x, gr.z - st.z) / dt, kind = EQUIP_IDS[gr.kind];
+        // A bounce: falling, then rising (or stopping) on the next update.
+        if (st.vy < -1.5 && vy > -.2 && !st.stuck) sfx.bounce([gr.x, gr.y, gr.z], groundAt(gr.x, gr.y, gr.z).surface, Math.min(1, -st.vy / 9));
+        if (kind === 'tack' && !st.stuck && st.moving > 0 && sp < .05 && Math.abs(vy) < .05) { st.stuck = true; sfx.stick([gr.x, gr.y, gr.z]); st.beepAt = now + 250; }
+        st.moving = sp + Math.abs(vy); st.vy = vy; st.x = gr.x; st.y = gr.y; st.z = gr.z; st.at = gr.at;
+      }
+      if (st.stuck && now > st.beepAt) { st.beepAt = now + 420; sfx.armed([gr.x, gr.y, gr.z]); }
+    }
+    for (const id of grenadeSounds.keys()) if (!live.grenades.has(id)) grenadeSounds.delete(id);
   }
 
   /** First-person weapon: pose from the simulation's real state, so what you see is what the weapon is doing. */
@@ -494,7 +566,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     vm.landV += (-vm.land * 90 - vm.landV * 13) * dt; vm.land += vm.landV * dt;
     const dyaw = controls.yaw - vm.lastYaw, dpitch = controls.pitch - vm.lastPitch; vm.lastYaw = controls.yaw; vm.lastPitch = controls.pitch;
     vm.swayX += (THREE.MathUtils.clamp(dyaw * .9, -.05, .05) - vm.swayX) * Math.min(1, dt * 9); vm.swayY += (THREE.MathUtils.clamp(-dpitch * .9, -.04, .04) - vm.swayY) * Math.min(1, dt * 9);
-    const speed = Math.hypot(s.vx, s.vz); vm.bob += speed * dt * (s.sprint ? 1.45 : 1.75); vm.breath += dt;
+    const speed = Math.hypot(s.vx, s.vz); vm.breath += dt; // (vm.bob: the gait's phase, set in the frame)
     const moving = s.grounded ? Math.min(1, speed / 5) : 0, ads = s.ads * s.ads * (3 - 2 * s.ads), hipK = 1 - ads;
     // Base pose: hip, blended to the sights when aiming.
     const hip = melee ? v1.set(.15, -.17, -.42) : sidearm ? v1.set(.085, -sightY - .07, -.5) : v1.set(.1, -sightY - .068, -.4);
@@ -517,20 +589,26 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     let leftToMag = 0, rightToBolt = 0, leftOff = 0;
     const mag = gun.getObjectByName('mag'), bolt = gun.getObjectByName('bolt'), pump = gun.getObjectByName('pump'), slide = gun.getObjectByName('slide'), cyl = gun.getObjectByName('cylinder');
     const rest = (o: THREE.Object3D | undefined) => { if (o && o.userData.rest) o.position.copy(o.userData.rest as THREE.Vector3); };
-    rest(mag); rest(bolt); rest(pump); rest(slide);
+    rest(mag); rest(bolt); rest(pump); rest(slide); rest(cyl);
     if (s.phase === 'reload') {
-      const k = THREE.MathUtils.clamp(1 - s.pt / Math.max(1, live.reloadTotal), 0, 1);
-      if (w.reloadMode === 'shell') { const c = (k * 3) % 1; rx += .3; rz -= .35; y -= .03; leftOff = Math.sin(c * Math.PI) * .12; leftToMag = .0; }
-      else {
-        const tilt = THREE.MathUtils.smoothstep(k, 0, .14) * (1 - THREE.MathUtils.smoothstep(k, .86, 1));
+      // The reload plan (src/arena/sound/reloads.mjs) times both this animation and the sound of each part.
+      const k = THREE.MathUtils.clamp(1 - s.pt / Math.max(1, live.reloadTotal), 0, 1), plan = reloadPlan(w.id, live.reloadEmpty), ss = THREE.MathUtils.smoothstep;
+      if (w.reloadMode === 'shell' || !plan) {
+        // Shell by shell: the support hand goes to the loading port and pushes each shell in (its cue at 0.55).
+        const u = s.pt <= (w.reload ?? 1) ? 1 - s.pt / Math.max(1, w.reload ?? 1) : 0; rx += .3; rz -= .35; y -= .03; leftOff = Math.sin(u * Math.PI) * .12;
+      } else {
+        const tilt = ss(k, plan.tilt[0], plan.tilt[1]) * (1 - ss(k, plan.tilt[2], plan.tilt[3]));
         rx += .22 * tilt; rz -= .42 * tilt; ry += .12 * tilt; y -= .035 * tilt; x -= .02 * tilt;
-        const out = THREE.MathUtils.smoothstep(k, .14, .34), back = THREE.MathUtils.smoothstep(k, .46, .68), drop = out * (1 - back);
-        if (mag) { mag.position.y -= drop * .34; mag.position.z += drop * .05; mag.visible = !(out > .98 && back < .02); }
-        leftToMag = THREE.MathUtils.smoothstep(k, .08, .2) * (1 - THREE.MathUtils.smoothstep(k, .7, .8));
-        // Seat the magazine with a tap, then run the action.
-        y += Math.sin(THREE.MathUtils.clamp((k - .66) / .06, 0, 1) * Math.PI) * .012;
-        const rack = Math.sin(THREE.MathUtils.clamp((k - .8) / .14, 0, 1) * Math.PI);
-        if (bolt) bolt.position.z += rack * .05; if (slide) slide.position.z += rack * .035; rightToBolt = w.category === 'sniper' ? 0 : 0; z += rack * .012;
+        if (plan.out && plan.in) {
+          const out = ss(k, plan.out[0], plan.out[1]), back = ss(k, plan.in[0], plan.in[1]), drop = out * (1 - back);
+          if (mag) { mag.position.y -= drop * .34; mag.position.z += drop * .05; mag.visible = !(out > .98 && back < .02); }
+        }
+        leftToMag = ss(k, plan.hand[0], plan.hand[1]) * (1 - ss(k, plan.hand[2], plan.hand[3]));
+        // Seat the magazine with a tap; from empty, work the action (a tactical reload keeps its chambered round).
+        if (plan.seat != null) y += Math.sin(THREE.MathUtils.clamp((k - plan.seat) / .06, 0, 1) * Math.PI) * .012;
+        if (plan.rack) { const rack = Math.sin(THREE.MathUtils.clamp((k - plan.rack[0]) / (plan.rack[1] - plan.rack[0]), 0, 1) * Math.PI); if (bolt) bolt.position.z += rack * .05; if (slide) slide.position.z += rack * .035; z += rack * .012; }
+        // A revolver's cylinder swings out for the ejector and the speed-loader, then closes.
+        if (plan.cyl && cyl) { const open = ss(k, plan.cyl[0], plan.cyl[0] + .08) * (1 - ss(k, plan.cyl[1] - .05, plan.cyl[1])); cyl.position.x -= open * .028; rz -= open * .22; }
       }
     } else if (mag) mag.visible = true;
     if (s.phase === 'switch') { const k = s.pt / Math.max(1, w.swap), e = k * k; y -= e * .42; rx -= e * 1.0; rz += e * .3; }
@@ -576,7 +654,11 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
 
   const passes = useMemo(() => ({ world: 0 }), []);
   // The world, then the weapon over a cleared depth buffer (through the post stack when it is on).
+  // QA builds only: `?qa-norender` keeps the frame loop (simulation, animation, sound) but draws nothing, so timing
+  // checks run at a realistic frame rate on machines that render in software.
+  const noRender = QA_HOOKS && new URLSearchParams(location.search).has('qa-norender');
   useFrame(({ gl: r }, dt) => {
+    if (noRender) return;
     r.info.reset();
     if (composer) { composer.weapon.enabled = vm.holder.visible; composer.c.render(dt); }
     else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }

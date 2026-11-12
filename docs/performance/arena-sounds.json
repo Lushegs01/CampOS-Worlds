@@ -1,563 +1,926 @@
 {
- "sampleRate": 48000,
+ "measured": "2026-11-12T07:23:56.101Z",
  "weapons": {
-  "vanguard": {
-   "near": {
-    "ms": 276,
-    "peakDb": -1,
-    "rmsDb": -21.4,
-    "centroidHz": 1586,
-    "lowShare": 0.3,
-    "nan": false
+  "anvil": {
+   "name": "Mosin–Nagant (7.62 × 54R)",
+   "shot": {
+    "variants": 8,
+    "ms": 121,
+    "peakDb": -0.7,
+    "shortDb": -17.6,
+    "crestDb": 20.1,
+    "centroidHz": 286,
+    "lowShare": 0.47,
+    "decay40ms": 36,
+    "variantDistance": 0.565
    },
-   "far": {
-    "ms": 1264,
-    "peakDb": -1,
-    "rmsDb": -22.3,
-    "centroidHz": 602,
-    "lowShare": 0.19,
-    "nan": false
-   },
-   "tail": {
-    "ms": 1460,
-    "peakDb": -1.9,
-    "rmsDb": -24.4,
-    "centroidHz": 928,
-    "lowShare": 0.16,
-    "nan": false,
-    "stereo": -0.01
-   }
-  },
-  "halcyon": {
-   "near": {
-    "ms": 334,
-    "peakDb": -1,
-    "rmsDb": -22.6,
-    "centroidHz": 1218,
-    "lowShare": 0.36,
-    "nan": false
-   },
-   "far": {
-    "ms": 1300,
-    "peakDb": -1,
-    "rmsDb": -22.2,
-    "centroidHz": 494,
-    "lowShare": 0.23,
-    "nan": false
-   },
-   "tail": {
-    "ms": 1570,
-    "peakDb": -1.9,
-    "rmsDb": -24.1,
-    "centroidHz": 816,
-    "lowShare": 0.18,
-    "nan": false,
-    "stereo": 0.01
-   }
-  },
-  "wasp": {
-   "near": {
-    "ms": 173,
-    "peakDb": -1,
-    "rmsDb": -22.3,
-    "centroidHz": 2008,
-    "lowShare": 0.29,
-    "nan": false
-   },
-   "far": {
-    "ms": 1250,
-    "peakDb": -1,
-    "rmsDb": -26,
-    "centroidHz": 609,
-    "lowShare": 0.18,
-    "nan": false
-   },
-   "tail": {
-    "ms": 1127,
-    "peakDb": -1.9,
-    "rmsDb": -26.2,
-    "centroidHz": 829,
-    "lowShare": 0.23,
-    "nan": false,
-    "stereo": -0.03
-   }
-  },
-  "kestrel": {
-   "near": {
-    "ms": 244,
-    "peakDb": -1,
-    "rmsDb": -22,
-    "centroidHz": 1649,
-    "lowShare": 0.16,
-    "nan": false
-   },
-   "far": {
-    "ms": 1270,
-    "peakDb": -1,
-    "rmsDb": -25.9,
-    "centroidHz": 618,
-    "lowShare": 0.19,
-    "nan": false
-   },
-   "tail": {
-    "ms": 1237,
-    "peakDb": -1.9,
-    "rmsDb": -25.5,
-    "centroidHz": 799,
-    "lowShare": 0.21,
-    "nan": false,
-    "stereo": -0.03
-   }
-  },
-  "bastion": {
-   "near": {
-    "ms": 546,
-    "peakDb": -1,
-    "rmsDb": -21,
-    "centroidHz": 710,
-    "lowShare": 0.48,
-    "nan": false
-   },
-   "far": {
-    "ms": 1269,
-    "peakDb": -1,
-    "rmsDb": -21.1,
-    "centroidHz": 333,
-    "lowShare": 0.38,
-    "nan": false
-   },
-   "tail": {
-    "ms": 2010,
-    "peakDb": -1.9,
-    "rmsDb": -25.4,
-    "centroidHz": 814,
-    "lowShare": 0.22,
-    "nan": false,
-    "stereo": 0.02
-   }
-  },
-  "rampart": {
-   "near": {
-    "ms": 473,
-    "peakDb": -1,
-    "rmsDb": -23.2,
-    "centroidHz": 801,
-    "lowShare": 0.41,
-    "nan": false
-   },
-   "far": {
-    "ms": 1266,
-    "peakDb": -1,
-    "rmsDb": -21.3,
-    "centroidHz": 403,
-    "lowShare": 0.32,
-    "nan": false
-   },
-   "tail": {
-    "ms": 1834,
-    "peakDb": -1.9,
-    "rmsDb": -23.7,
-    "centroidHz": 792,
-    "lowShare": 0.25,
-    "nan": false,
-    "stereo": 0
-   }
-  },
-  "longbow": {
-   "near": {
-    "ms": 606,
-    "peakDb": -1,
-    "rmsDb": -21.8,
-    "centroidHz": 776,
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -16.2,
+    "crestDb": 24.4,
+    "centroidHz": 302,
     "lowShare": 0.6,
-    "nan": false
+    "decay40ms": 78,
+    "variantDistance": 0.369
    },
    "far": {
-    "ms": 1297,
-    "peakDb": -1,
-    "rmsDb": -22.4,
-    "centroidHz": 374,
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -3,
+    "shortDb": -18,
+    "crestDb": 24.8,
+    "centroidHz": 294,
+    "lowShare": 0.58,
+    "decay40ms": 62,
+    "variantDistance": 0.27
+   }
+  },
+  "bastion": {
+   "name": "Benelli Nova / Winchester Model 12 (12 ga pump)",
+   "shot": {
+    "variants": 4,
+    "ms": 222,
+    "peakDb": -1.1,
+    "shortDb": -14.9,
+    "crestDb": 20.3,
+    "centroidHz": 299,
+    "lowShare": 0.43,
+    "decay40ms": 58,
+    "variantDistance": 0.517
+   },
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.6,
+    "shortDb": -16.9,
+    "crestDb": 25,
+    "centroidHz": 490,
     "lowShare": 0.38,
-    "nan": false
-   },
-   "tail": {
-    "ms": 2670,
-    "peakDb": -1.9,
-    "rmsDb": -26.7,
-    "centroidHz": 834,
-    "lowShare": 0.2,
-    "nan": false,
-    "stereo": -0.02
-   }
-  },
-  "talon": {
-   "near": {
-    "ms": 450,
-    "peakDb": -1,
-    "rmsDb": -22.8,
-    "centroidHz": 1039,
-    "lowShare": 0.43,
-    "nan": false
+    "decay40ms": 200,
+    "variantDistance": 0.509
    },
    "far": {
-    "ms": 1274,
-    "peakDb": -1,
-    "rmsDb": -22.7,
-    "centroidHz": 399,
-    "lowShare": 0.31,
-    "nan": false
-   },
-   "tail": {
-    "ms": 2120,
-    "peakDb": -1.9,
-    "rmsDb": -25.2,
-    "centroidHz": 785,
-    "lowShare": 0.24,
-    "nan": false,
-    "stereo": -0.03
-   }
-  },
-  "anvil": {
-   "near": {
-    "ms": 365,
-    "peakDb": -1,
-    "rmsDb": -24.1,
-    "centroidHz": 1068,
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -18.3,
+    "crestDb": 25.5,
+    "centroidHz": 480,
     "lowShare": 0.32,
-    "nan": false
-   },
-   "far": {
-    "ms": 1290,
-    "peakDb": -1,
-    "rmsDb": -22.1,
-    "centroidHz": 450,
-    "lowShare": 0.31,
-    "nan": false
-   },
-   "tail": {
-    "ms": 1790,
-    "peakDb": -1.9,
-    "rmsDb": -24.9,
-    "centroidHz": 910,
-    "lowShare": 0.19,
-    "nan": false,
-    "stereo": 0.01
+    "decay40ms": 65,
+    "variantDistance": 0.477
    }
   },
-  "sparrow": {
-   "near": {
-    "ms": 186,
-    "peakDb": -1,
-    "rmsDb": -20.7,
-    "centroidHz": 2302,
+  "halcyon": {
+   "name": "AK-47 (7.62 × 39)",
+   "shot": {
+    "variants": 10,
+    "ms": 125,
+    "peakDb": -1.1,
+    "shortDb": -16.3,
+    "crestDb": 18.7,
+    "centroidHz": 191,
+    "lowShare": 0.74,
+    "decay40ms": 74,
+    "variantDistance": 0.508
+   },
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -2,
+    "shortDb": -20,
+    "crestDb": 25.9,
+    "centroidHz": 610,
+    "lowShare": 0.11,
+    "decay40ms": 43,
+    "variantDistance": 0.354
+   },
+   "far": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -2.1,
+    "shortDb": -20.3,
+    "crestDb": 26.4,
+    "centroidHz": 574,
     "lowShare": 0.1,
-    "nan": false
-   },
-   "far": {
-    "ms": 1298,
-    "peakDb": -1,
-    "rmsDb": -25.3,
-    "centroidHz": 777,
-    "lowShare": 0.13,
-    "nan": false
-   },
-   "tail": {
-    "ms": 1082,
-    "peakDb": -1.9,
-    "rmsDb": -26.4,
-    "centroidHz": 881,
-    "lowShare": 0.21,
-    "nan": false,
-    "stereo": -0.01
+    "decay40ms": 40,
+    "variantDistance": 0.256
    }
   },
-  "thorn": {
-   "near": {
-    "ms": 425,
-    "peakDb": -1,
-    "rmsDb": -22.2,
-    "centroidHz": 1135,
-    "lowShare": 0.43,
-    "nan": false
+  "kestrel": {
+   "name": "PPSh-41 (7.62 × 25)",
+   "shot": {
+    "variants": 10,
+    "ms": 91,
+    "peakDb": -1.1,
+    "shortDb": -17.1,
+    "crestDb": 19.6,
+    "centroidHz": 529,
+    "lowShare": 0.27,
+    "decay40ms": 47,
+    "variantDistance": 0.593
+   },
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.7,
+    "shortDb": -19.2,
+    "crestDb": 23.1,
+    "centroidHz": 680,
+    "lowShare": 0.23,
+    "decay40ms": 398,
+    "variantDistance": 0.19
    },
    "far": {
-    "ms": 1299,
-    "peakDb": -1,
-    "rmsDb": -22,
-    "centroidHz": 508,
-    "lowShare": 0.26,
-    "nan": false
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -18.9,
+    "crestDb": 23.1,
+    "centroidHz": 591,
+    "lowShare": 0.22,
+    "decay40ms": 467,
+    "variantDistance": 0.203
+   }
+  },
+  "longbow": {
+   "name": "Tikka T3 / Springfield M1917 (.30-06 bolt action)",
+   "shot": {
+    "variants": 4,
+    "ms": 241,
+    "peakDb": -0.7,
+    "shortDb": -15.9,
+    "crestDb": 21.9,
+    "centroidHz": 207,
+    "lowShare": 0.71,
+    "decay40ms": 58,
+    "variantDistance": 0.593
    },
-   "tail": {
-    "ms": 1900,
-    "peakDb": -1.9,
-    "rmsDb": -23,
-    "centroidHz": 833,
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -2,
+    "shortDb": -17,
+    "crestDb": 23.4,
+    "centroidHz": 510,
     "lowShare": 0.18,
-    "nan": false,
-    "stereo": 0.02
+    "decay40ms": 237,
+    "variantDistance": 0.238
+   },
+   "far": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -2.2,
+    "shortDb": -17.5,
+    "crestDb": 23.7,
+    "centroidHz": 500,
+    "lowShare": 0.14,
+    "decay40ms": 230,
+    "variantDistance": 0.201
+   }
+  },
+  "rampart": {
+   "name": "Charles Daly / Mossberg (12 ga)",
+   "shot": {
+    "variants": 4,
+    "ms": 202,
+    "peakDb": -0.7,
+    "shortDb": -15.1,
+    "crestDb": 20.2,
+    "centroidHz": 292,
+    "lowShare": 0.37,
+    "decay40ms": 48,
+    "variantDistance": 0.595
+   },
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.7,
+    "shortDb": -17.6,
+    "crestDb": 24.9,
+    "centroidHz": 544,
+    "lowShare": 0.3,
+    "decay40ms": 67,
+    "variantDistance": 0.468
+   },
+   "far": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -18.5,
+    "crestDb": 25.5,
+    "centroidHz": 512,
+    "lowShare": 0.27,
+    "decay40ms": 53,
+    "variantDistance": 0.466
+   }
+  },
+  "sparrow": {
+   "name": "Walther PPQ (9 × 19)",
+   "shot": {
+    "variants": 3,
+    "ms": 162,
+    "peakDb": -1.2,
+    "shortDb": -17.8,
+    "crestDb": 21.6,
+    "centroidHz": 648,
+    "lowShare": 0.19,
+    "decay40ms": 42,
+    "variantDistance": 0.33
+   },
+   "mid": {
+    "variants": 2,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -18.2,
+    "crestDb": 27.7,
+    "centroidHz": 630,
+    "lowShare": 0.27,
+    "decay40ms": 45,
+    "variantDistance": 0.255
+   },
+   "far": {
+    "variants": 2,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -18.5,
+    "crestDb": 28,
+    "centroidHz": 588,
+    "lowShare": 0.24,
+    "decay40ms": 45,
+    "variantDistance": 0.304
+   }
+  },
+  "talon": {
+   "name": "Norinco SKS (7.62 × 39)",
+   "shot": {
+    "variants": 5,
+    "ms": 202,
+    "peakDb": -1.2,
+    "shortDb": -17,
+    "crestDb": 21.8,
+    "centroidHz": 326,
+    "lowShare": 0.34,
+    "decay40ms": 51,
+    "variantDistance": 0.38
+   },
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.5,
+    "shortDb": -17.2,
+    "crestDb": 26.3,
+    "centroidHz": 383,
+    "lowShare": 0.43,
+    "decay40ms": 73,
+    "variantDistance": 0.417
+   },
+   "far": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -2.2,
+    "shortDb": -18.1,
+    "crestDb": 26.5,
+    "centroidHz": 381,
+    "lowShare": 0.39,
+    "decay40ms": 45,
+    "variantDistance": 0.376
+   }
+  },
+  "thorn": {
+   "name": "Smith & Wesson 642 (.38 Special) / .357 Magnum",
+   "shot": {
+    "variants": 3,
+    "ms": 202,
+    "peakDb": -1.1,
+    "shortDb": -15.6,
+    "crestDb": 20,
+    "centroidHz": 427,
+    "lowShare": 0.32,
+    "decay40ms": 73,
+    "variantDistance": 0.571
+   },
+   "mid": {
+    "variants": 2,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -18.8,
+    "crestDb": 23.2,
+    "centroidHz": 712,
+    "lowShare": 0.01,
+    "decay40ms": 40,
+    "variantDistance": 0.101
+   },
+   "far": {
+    "variants": 2,
+    "ms": 700,
+    "peakDb": -1.8,
+    "shortDb": -19.6,
+    "crestDb": 24.1,
+    "centroidHz": 683,
+    "lowShare": 0.01,
+    "decay40ms": 38,
+    "variantDistance": 0.103
+   }
+  },
+  "vanguard": {
+   "name": "AR-15 (5.56 × 45)",
+   "shot": {
+    "variants": 6,
+    "ms": 151,
+    "peakDb": -1.1,
+    "shortDb": -16.1,
+    "crestDb": 19.3,
+    "centroidHz": 333,
+    "lowShare": 0.35,
+    "decay40ms": 49,
+    "variantDistance": 0.395
+   },
+   "mid": {
+    "variants": 2,
+    "ms": 700,
+    "peakDb": -1.4,
+    "shortDb": -18.1,
+    "crestDb": 25.9,
+    "centroidHz": 545,
+    "lowShare": 0.09,
+    "decay40ms": 40,
+    "variantDistance": 0.168
+   },
+   "far": {
+    "variants": 2,
+    "ms": 700,
+    "peakDb": -1.6,
+    "shortDb": -18.6,
+    "crestDb": 26.3,
+    "centroidHz": 525,
+    "lowShare": 0.08,
+    "decay40ms": 40,
+    "variantDistance": 0.134
+   }
+  },
+  "wasp": {
+   "name": "Carl Gustav M/45 (9 × 19)",
+   "shot": {
+    "variants": 10,
+    "ms": 100,
+    "peakDb": -1,
+    "shortDb": -18.8,
+    "crestDb": 20.5,
+    "centroidHz": 500,
+    "lowShare": 0.31,
+    "decay40ms": 66,
+    "variantDistance": 0.455
+   },
+   "mid": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -1.9,
+    "shortDb": -19.4,
+    "crestDb": 28.3,
+    "centroidHz": 735,
+    "lowShare": 0.26,
+    "decay40ms": 40,
+    "variantDistance": 0.486
+   },
+   "far": {
+    "variants": 3,
+    "ms": 700,
+    "peakDb": -2,
+    "shortDb": -19.1,
+    "crestDb": 28.1,
+    "centroidHz": 574,
+    "lowShare": 0.25,
+    "decay40ms": 42,
+    "variantDistance": 0.444
    }
   }
  },
- "distinct": {
-  "vanguard": {
-   "closest": "halcyon",
-   "spectralDistance": 0.31
-  },
-  "halcyon": {
-   "closest": "thorn",
-   "spectralDistance": 0.298
-  },
-  "wasp": {
-   "closest": "vanguard",
-   "spectralDistance": 0.59
-  },
-  "kestrel": {
-   "closest": "halcyon",
-   "spectralDistance": 0.42
+ "distinctness": {
+  "anvil": {
+   "bastion": 0.433,
+   "halcyon": 0.368,
+   "kestrel": 0.67,
+   "longbow": 0.6,
+   "rampart": 0.406,
+   "sparrow": 0.835,
+   "talon": 0.341,
+   "thorn": 0.539,
+   "vanguard": 0.549,
+   "wasp": 0.605
   },
   "bastion": {
-   "closest": "rampart",
-   "spectralDistance": 0.281
-  },
-  "rampart": {
-   "closest": "talon",
-   "spectralDistance": 0.226
-  },
-  "longbow": {
-   "closest": "talon",
-   "spectralDistance": 0.311
-  },
-  "talon": {
-   "closest": "rampart",
-   "spectralDistance": 0.226
-  },
-  "anvil": {
-   "closest": "talon",
-   "spectralDistance": 0.306
-  },
-  "sparrow": {
-   "closest": "wasp",
-   "spectralDistance": 0.604
-  },
-  "thorn": {
-   "closest": "talon",
-   "spectralDistance": 0.274
-  }
- },
- "variants": {
-  "vanguard": {
-   "waveformCorrelation": 0.04,
-   "spectralDistance": 0.361
+   "anvil": 0.433,
+   "halcyon": 0.405,
+   "kestrel": 0.673,
+   "longbow": 0.527,
+   "rampart": 0.283,
+   "sparrow": 0.651,
+   "talon": 0.433,
+   "thorn": 0.36,
+   "vanguard": 0.472,
+   "wasp": 0.482
   },
   "halcyon": {
-   "waveformCorrelation": 0.01,
-   "spectralDistance": 0.533
-  },
-  "wasp": {
-   "waveformCorrelation": 0.08,
-   "spectralDistance": 0.588
+   "anvil": 0.368,
+   "bastion": 0.405,
+   "kestrel": 0.749,
+   "longbow": 0.518,
+   "rampart": 0.391,
+   "sparrow": 0.812,
+   "talon": 0.398,
+   "thorn": 0.525,
+   "vanguard": 0.448,
+   "wasp": 0.584
   },
   "kestrel": {
-   "waveformCorrelation": 0.05,
-   "spectralDistance": 0.573
-  },
-  "bastion": {
-   "waveformCorrelation": 0.07,
-   "spectralDistance": 0.377
-  },
-  "rampart": {
-   "waveformCorrelation": 0.07,
-   "spectralDistance": 0.283
+   "anvil": 0.67,
+   "bastion": 0.673,
+   "halcyon": 0.749,
+   "longbow": 1,
+   "rampart": 0.636,
+   "sparrow": 0.564,
+   "talon": 0.547,
+   "thorn": 0.657,
+   "vanguard": 0.804,
+   "wasp": 0.378
   },
   "longbow": {
-   "waveformCorrelation": 0.07,
-   "spectralDistance": 0.263
+   "anvil": 0.6,
+   "bastion": 0.527,
+   "halcyon": 0.518,
+   "kestrel": 1,
+   "rampart": 0.597,
+   "sparrow": 0.91,
+   "talon": 0.659,
+   "thorn": 0.596,
+   "vanguard": 0.506,
+   "wasp": 0.815
   },
-  "talon": {
-   "waveformCorrelation": 0.05,
-   "spectralDistance": 0.464
-  },
-  "anvil": {
-   "waveformCorrelation": 0.06,
-   "spectralDistance": 0.253
+  "rampart": {
+   "anvil": 0.406,
+   "bastion": 0.283,
+   "halcyon": 0.391,
+   "kestrel": 0.636,
+   "longbow": 0.597,
+   "sparrow": 0.652,
+   "talon": 0.395,
+   "thorn": 0.358,
+   "vanguard": 0.433,
+   "wasp": 0.463
   },
   "sparrow": {
-   "waveformCorrelation": 0.01,
-   "spectralDistance": 0.572
+   "anvil": 0.835,
+   "bastion": 0.651,
+   "halcyon": 0.812,
+   "kestrel": 0.564,
+   "longbow": 0.91,
+   "rampart": 0.652,
+   "talon": 0.727,
+   "thorn": 0.539,
+   "vanguard": 0.683,
+   "wasp": 0.454
+  },
+  "talon": {
+   "anvil": 0.341,
+   "bastion": 0.433,
+   "halcyon": 0.398,
+   "kestrel": 0.547,
+   "longbow": 0.659,
+   "rampart": 0.395,
+   "sparrow": 0.727,
+   "thorn": 0.494,
+   "vanguard": 0.509,
+   "wasp": 0.495
   },
   "thorn": {
-   "waveformCorrelation": 0.06,
-   "spectralDistance": 0.245
+   "anvil": 0.539,
+   "bastion": 0.36,
+   "halcyon": 0.525,
+   "kestrel": 0.657,
+   "longbow": 0.596,
+   "rampart": 0.358,
+   "sparrow": 0.539,
+   "talon": 0.494,
+   "vanguard": 0.431,
+   "wasp": 0.51
+  },
+  "vanguard": {
+   "anvil": 0.549,
+   "bastion": 0.472,
+   "halcyon": 0.448,
+   "kestrel": 0.804,
+   "longbow": 0.506,
+   "rampart": 0.433,
+   "sparrow": 0.683,
+   "talon": 0.509,
+   "thorn": 0.431,
+   "wasp": 0.622
+  },
+  "wasp": {
+   "anvil": 0.605,
+   "bastion": 0.482,
+   "halcyon": 0.584,
+   "kestrel": 0.378,
+   "longbow": 0.815,
+   "rampart": 0.463,
+   "sparrow": 0.454,
+   "talon": 0.495,
+   "thorn": 0.51,
+   "vanguard": 0.622
   }
  },
- "others": {
-  "impact:concrete:0": {
-   "ms": 134,
-   "peakDb": -1.9,
-   "rmsDb": -24.3,
-   "centroidHz": 3656,
-   "lowShare": 0,
-   "nan": false
+ "footsteps": {
+  "asphalt": {
+   "walk": {
+    "variants": 8,
+    "ms": 339,
+    "peakDb": -2,
+    "shortDb": -22.6,
+    "crestDb": 23.9,
+    "centroidHz": 555,
+    "lowShare": 0.41,
+    "decay40ms": 232,
+    "variantDistance": 0.591
+   },
+   "run": {
+    "variants": 8,
+    "ms": 341,
+    "peakDb": -2,
+    "shortDb": -19.6,
+    "crestDb": 24,
+    "centroidHz": 429,
+    "lowShare": 0.54,
+    "decay40ms": 274,
+    "variantDistance": 0.529
+   }
   },
-  "impact:metal:0": {
-   "ms": 404,
-   "peakDb": -1.9,
-   "rmsDb": -19.8,
-   "centroidHz": 3357,
-   "lowShare": 0.01,
-   "nan": false
+  "concrete": {
+   "walk": {
+    "variants": 8,
+    "ms": 303,
+    "peakDb": -2.1,
+    "shortDb": -23.2,
+    "crestDb": 22.7,
+    "centroidHz": 485,
+    "lowShare": 0.4,
+    "decay40ms": 194,
+    "variantDistance": 0.825
+   },
+   "run": {
+    "variants": 8,
+    "ms": 331,
+    "peakDb": -2,
+    "shortDb": -20.5,
+    "crestDb": 24.7,
+    "centroidHz": 631,
+    "lowShare": 0.28,
+    "decay40ms": 235,
+    "variantDistance": 0.682
+   }
   },
-  "impact:wood:0": {
-   "ms": 104,
-   "peakDb": -1.9,
-   "rmsDb": -18,
-   "centroidHz": 805,
-   "lowShare": 0.01,
-   "nan": false
+  "container": {
+   "walk": {
+    "variants": 8,
+    "ms": 267,
+    "peakDb": -6,
+    "shortDb": -21.5,
+    "crestDb": 18.1,
+    "centroidHz": 317,
+    "lowShare": 0.7,
+    "decay40ms": 231,
+    "variantDistance": 0.653
+   },
+   "run": {
+    "variants": 7,
+    "ms": 272,
+    "peakDb": -3.7,
+    "shortDb": -17.5,
+    "crestDb": 15.7,
+    "centroidHz": 378,
+    "lowShare": 0.61,
+    "decay40ms": 252,
+    "variantDistance": 0.671
+   }
   },
-  "impact:dirt:0": {
-   "ms": 164,
-   "peakDb": -1.9,
-   "rmsDb": -20,
-   "centroidHz": 873,
-   "lowShare": 0.1,
-   "nan": false
+  "dirt": {
+   "walk": {
+    "variants": 8,
+    "ms": 348,
+    "peakDb": -2.5,
+    "shortDb": -22.3,
+    "crestDb": 22.4,
+    "centroidHz": 977,
+    "lowShare": 0.07,
+    "decay40ms": 251,
+    "variantDistance": 0.644
+   },
+   "run": {
+    "variants": 8,
+    "ms": 330,
+    "peakDb": -1.9,
+    "shortDb": -19.4,
+    "crestDb": 21.7,
+    "centroidHz": 1018,
+    "lowShare": 0.06,
+    "decay40ms": 129,
+    "variantDistance": 0.666
+   }
   },
-  "impact:flesh:0": {
-   "ms": 125,
-   "peakDb": -1.9,
-   "rmsDb": -20.2,
-   "centroidHz": 187,
-   "lowShare": 0.9,
-   "nan": false
+  "grass": {
+   "walk": {
+    "variants": 8,
+    "ms": 286,
+    "peakDb": -1.9,
+    "shortDb": -22.7,
+    "crestDb": 20.9,
+    "centroidHz": 1139,
+    "lowShare": 0.47,
+    "decay40ms": 233,
+    "variantDistance": 1.151
+   },
+   "run": {
+    "variants": 8,
+    "ms": 331,
+    "peakDb": -2,
+    "shortDb": -21.5,
+    "crestDb": 23.2,
+    "centroidHz": 1701,
+    "lowShare": 0.25,
+    "decay40ms": 225,
+    "variantDistance": 1.027
+   }
   },
-  "boom:near:0": {
-   "ms": 2344,
-   "peakDb": -1,
-   "rmsDb": -27.2,
-   "centroidHz": 197,
-   "lowShare": 0.87,
-   "nan": false
+  "gravel": {
+   "walk": {
+    "variants": 8,
+    "ms": 235,
+    "peakDb": -1.9,
+    "shortDb": -22.8,
+    "crestDb": 23,
+    "centroidHz": 1586,
+    "lowShare": 0.03,
+    "decay40ms": 189,
+    "variantDistance": 0.867
+   },
+   "run": {
+    "variants": 8,
+    "ms": 308,
+    "peakDb": -1.8,
+    "shortDb": -20.8,
+    "crestDb": 24.5,
+    "centroidHz": 1053,
+    "lowShare": 0.02,
+    "decay40ms": 205,
+    "variantDistance": 0.806
+   }
   },
-  "boom:far:0": {
-   "ms": 2600,
-   "peakDb": -1,
-   "rmsDb": -20.1,
-   "centroidHz": 77,
-   "lowShare": 0.95,
-   "nan": false
+  "metal": {
+   "walk": {
+    "variants": 8,
+    "ms": 233,
+    "peakDb": -3,
+    "shortDb": -21.4,
+    "crestDb": 18.9,
+    "centroidHz": 465,
+    "lowShare": 0.58,
+    "decay40ms": 202,
+    "variantDistance": 0.652
+   },
+   "run": {
+    "variants": 7,
+    "ms": 241,
+    "peakDb": -3,
+    "shortDb": -18,
+    "crestDb": 17.7,
+    "centroidHz": 541,
+    "lowShare": 0.49,
+    "decay40ms": 232,
+    "variantDistance": 0.618
+   }
   },
-  "flyby:snap:0": {
-   "ms": 50,
-   "peakDb": -1.4,
-   "rmsDb": -20.3,
-   "centroidHz": 6609,
-   "lowShare": 0,
-   "nan": false
+  "sand": {
+   "walk": {
+    "variants": 8,
+    "ms": 324,
+    "peakDb": -2,
+    "shortDb": -21.3,
+    "crestDb": 22.3,
+    "centroidHz": 1051,
+    "lowShare": 0.15,
+    "decay40ms": 224,
+    "variantDistance": 0.556
+   },
+   "run": {
+    "variants": 8,
+    "ms": 318,
+    "peakDb": -1.9,
+    "shortDb": -20.2,
+    "crestDb": 23.3,
+    "centroidHz": 984,
+    "lowShare": 0.08,
+    "decay40ms": 191,
+    "variantDistance": 0.647
+   }
   },
-  "flyby:whiz:0": {
-   "ms": 320,
-   "peakDb": -3.1,
-   "rmsDb": -18.5,
-   "centroidHz": 1275,
-   "lowShare": 0,
-   "nan": false
+  "stone": {
+   "walk": {
+    "variants": 8,
+    "ms": 294,
+    "peakDb": -5,
+    "shortDb": -21.4,
+    "crestDb": 19.6,
+    "centroidHz": 636,
+    "lowShare": 0.42,
+    "decay40ms": 199,
+    "variantDistance": 0.904
+   },
+   "run": {
+    "variants": 8,
+    "ms": 322,
+    "peakDb": -1.9,
+    "shortDb": -18.9,
+    "crestDb": 21.6,
+    "centroidHz": 672,
+    "lowShare": 0.32,
+    "decay40ms": 242,
+    "variantDistance": 0.901
+   }
   },
-  "mech:rifle:magout": {
-   "ms": 161,
-   "peakDb": -3.1,
-   "rmsDb": -22.7,
-   "centroidHz": 1654,
-   "lowShare": 0.04,
-   "nan": false
+  "wood": {
+   "walk": {
+    "variants": 8,
+    "ms": 340,
+    "peakDb": -2,
+    "shortDb": -22.4,
+    "crestDb": 19.7,
+    "centroidHz": 156,
+    "lowShare": 0.88,
+    "decay40ms": 204,
+    "variantDistance": 1.062
+   },
+   "run": {
+    "variants": 8,
+    "ms": 340,
+    "peakDb": -1.9,
+    "shortDb": -20.4,
+    "crestDb": 23.2,
+    "centroidHz": 302,
+    "lowShare": 0.6,
+    "decay40ms": 223,
+    "variantDistance": 0.951
+   }
+  }
+ },
+ "footstepDistinctness": {
+  "asphalt": {
+   "concrete": 0.324,
+   "container": 0.817,
+   "dirt": 0.636,
+   "grass": 0.994,
+   "gravel": 1.094,
+   "metal": 0.503,
+   "sand": 0.559,
+   "stone": 0.448,
+   "wood": 1.077
   },
-  "mech:rifle:magin": {
-   "ms": 191,
-   "peakDb": -3.1,
-   "rmsDb": -22.1,
-   "centroidHz": 2014,
-   "lowShare": 0.1,
-   "nan": false
+  "concrete": {
+   "asphalt": 0.324,
+   "container": 0.828,
+   "dirt": 0.831,
+   "grass": 0.861,
+   "gravel": 1.121,
+   "metal": 0.477,
+   "sand": 0.778,
+   "stone": 0.407,
+   "wood": 0.939
   },
-  "mech:rifle:charge": {
-   "ms": 277,
-   "peakDb": -3.1,
-   "rmsDb": -22.6,
-   "centroidHz": 2488,
-   "lowShare": 0.02,
-   "nan": false
+  "container": {
+   "asphalt": 0.817,
+   "concrete": 0.828,
+   "dirt": 1.213,
+   "grass": 1.393,
+   "gravel": 1.798,
+   "metal": 0.566,
+   "sand": 1.025,
+   "stone": 0.813,
+   "wood": 0.915
   },
-  "mech:pump:pump": {
-   "ms": 351,
-   "peakDb": -3.1,
-   "rmsDb": -21.1,
-   "centroidHz": 1602,
-   "lowShare": 0.02,
-   "nan": false
+  "dirt": {
+   "asphalt": 0.636,
+   "concrete": 0.831,
+   "container": 1.213,
+   "grass": 1.372,
+   "gravel": 0.931,
+   "metal": 0.984,
+   "sand": 0.399,
+   "stone": 0.909,
+   "wood": 1.548
   },
-  "mech:bolt:boltaction": {
-   "ms": 494,
-   "peakDb": -3.1,
-   "rmsDb": -21.2,
-   "centroidHz": 2020,
-   "lowShare": 0,
-   "nan": false
+  "grass": {
+   "asphalt": 0.994,
+   "concrete": 0.861,
+   "container": 1.393,
+   "dirt": 1.372,
+   "gravel": 1.115,
+   "metal": 0.953,
+   "sand": 1.313,
+   "stone": 0.75,
+   "wood": 1.312
   },
-  "mech:pistol:dry": {
-   "ms": 48,
-   "peakDb": -3.1,
-   "rmsDb": -20.2,
-   "centroidHz": 4490,
-   "lowShare": 0.17,
-   "nan": false
+  "gravel": {
+   "asphalt": 1.094,
+   "concrete": 1.121,
+   "container": 1.798,
+   "dirt": 0.931,
+   "grass": 1.115,
+   "metal": 1.406,
+   "sand": 1.143,
+   "stone": 1.2,
+   "wood": 1.812
   },
-  "metalstep:0": {
-   "ms": 300,
-   "peakDb": -3.1,
-   "rmsDb": -20.6,
-   "centroidHz": 565,
-   "lowShare": 0.03,
-   "nan": false
+  "metal": {
+   "asphalt": 0.503,
+   "concrete": 0.477,
+   "container": 0.566,
+   "dirt": 0.984,
+   "grass": 0.953,
+   "gravel": 1.406,
+   "sand": 0.841,
+   "stone": 0.427,
+   "wood": 0.927
   },
-  "gear:0": {
-   "ms": 124,
-   "peakDb": -4.4,
-   "rmsDb": -24.1,
-   "centroidHz": 2717,
-   "lowShare": 0,
-   "nan": false
+  "sand": {
+   "asphalt": 0.559,
+   "concrete": 0.778,
+   "container": 1.025,
+   "dirt": 0.399,
+   "grass": 1.313,
+   "gravel": 1.143,
+   "metal": 0.841,
+   "stone": 0.734,
+   "wood": 1.481
   },
-  "land:0": {
-   "ms": 249,
-   "peakDb": -1.4,
-   "rmsDb": -20,
-   "centroidHz": 104,
-   "lowShare": 0.98,
-   "nan": false
+  "stone": {
+   "asphalt": 0.448,
+   "concrete": 0.407,
+   "container": 0.813,
+   "dirt": 0.909,
+   "grass": 0.75,
+   "gravel": 1.2,
+   "metal": 0.427,
+   "sand": 0.734,
+   "wood": 1.088
   },
-  "casing:0": {
-   "ms": 194,
-   "peakDb": -6,
-   "rmsDb": -23.9,
-   "centroidHz": 5645,
-   "lowShare": 0,
-   "nan": false
-  },
-  "whoosh:0": {
-   "ms": 300,
-   "peakDb": -4.4,
-   "rmsDb": -18.4,
-   "centroidHz": 2286,
-   "lowShare": 0,
-   "nan": false
+  "wood": {
+   "asphalt": 1.077,
+   "concrete": 0.939,
+   "container": 0.915,
+   "dirt": 1.548,
+   "grass": 1.312,
+   "gravel": 1.812,
+   "metal": 0.927,
+   "sand": 1.481,
+   "stone": 1.088
   }
  },
  "summary": {
-  "sounds": 53,
-  "maxPeakDb": -1,
-  "anyNaN": false,
-  "minWeaponDistance": 0.226,
-  "maxVariantCorrelation": 0.08
+  "closestWeapons": [
+   [
+    "bastion",
+    "rampart",
+    0.283
+   ],
+   [
+    "anvil",
+    "talon",
+    0.341
+   ],
+   [
+    "rampart",
+    "thorn",
+    0.358
+   ]
+  ],
+  "mostDistinct": [
+   [
+    "anvil",
+    "sparrow",
+    0.835
+   ],
+   [
+    "longbow",
+    "sparrow",
+    0.91
+   ],
+   [
+    "kestrel",
+    "longbow",
+    1
+   ]
+  ],
+  "weaponsPeakMaxDb": -0.7
  }
 }

@@ -1,35 +1,60 @@
 {
-  "started": "2026-11-11T22:09:25.020Z",
+  "started": "2026-11-12T07:21:17.337Z",
   "checks": [
     {
-      "name": "phone profile: audio running with a 20-voice budget and stereo panning; the loadout’s sounds were rendered ahead of play",
+      "name": "interface: the arena’s interface bank loads with the lobby; a tab press plays its selection sound on the interface bus",
       "ok": true,
-      "detail": "20 sounds pre-rendered in 69 ms"
+      "detail": "ui/select"
     },
     {
-      "name": "own gunfire through the game: the Vanguard’s own near and tail layers play on the weapons bus",
+      "name": "banks: the loadout’s weapon, the ground’s footsteps, movement, handling and impacts load on their own while deploying (decoded at their own rates; decoder delay measured from the marker)",
       "ok": true,
-      "detail": ""
+      "detail": "17 banks ready 1021 ms after deployment; delays 0 ms; 32.8 MB decoded"
     },
     {
-      "name": "reload: magazine out, then in, timed to the reload animation",
+      "name": "own gunfire through the game: the Vanguard’s recorded body, its tail at the crossfade, and the spent 5.56 case landing",
       "ok": true,
-      "detail": ""
+      "detail": "tail +110 ms, case +373 ms"
     },
     {
-      "name": "footsteps while walking (recorded surface steps)",
+      "name": "tactical reload: grab, magazine release, out, a fresh one from the pouch, in, seated, settle — each part’s loudest moment at the moment the animation reaches it (within a frame); no bolt, no dropped magazine",
       "ok": true,
-      "detail": "2 steps"
+      "detail": "grab +0 · magRelease -1 · magOut +0 · pouch +0 · magIn +0 · magSeat -1 · settle +2 ms (frame tolerance 60 ms)"
     },
     {
-      "name": "3 s firefight (12 shooters, own automatic fire, explosions, impacts): no clipping, voices within budget",
+      "name": "reload from empty: the empty magazine drops to the ground on what is underfoot, the new one goes in, and the bolt catch sends the bolt home — in time with the animation",
       "ok": true,
-      "detail": "peak -2.2 dBFS, 0 clipped samples (97 % of the output inspected), 663 calls, 440 played / 308 skipped / 50 stolen, ≤ 20 voices, 0.516 ms per call including first-time rendering of 89 sounds, 0.093 ms once rendered"
+      "detail": "grab → magRelease → magOut → pouch → magDrop → magIn → magSeat → boltRelease → settle; bolt 0 ms off"
     },
     {
-      "name": "distance: 4 m plays the near layers loudest; 45 m blends near and distant; 130 m only the distant layer, quieter",
+      "name": "interrupted reload: switching weapons at 40 % stops the reload’s sounds; magazine-in and seat never play; the switch and the secondary’s draw are heard",
       "ok": true,
-      "detail": "near-layer level 0.560 → 0.041; distant 0.375 → 0.176"
+      "detail": "0 voice(s) faded"
+    },
+    {
+      "name": "footsteps: from the gait while walking (cadence from speed), on the surface under the player, stopping when the player stops; quiet clothing under some steps",
+      "ok": true,
+      "detail": "7 steps every 394 ms on steps.asphalt, steps.concrete; 3 clothing/equipment layers"
+    },
+    {
+      "name": "hit reactions: two hits 40 ms apart make one heavier grunt; helmet, plate carrier and cloth each sound different; an elimination plays once (a female soldier’s voice, then the body falling); the player’s own hit grunts quietly",
+      "ok": true,
+      "detail": "voice.mC/heavy, impacts/helmet, impacts/armour, impacts/flesh, voice.fA/death, movement/bodyfall, movement/gearHeavy, impacts/armour, voice.mA/hurt"
+    },
+    {
+      "name": "another player’s reload is heard from their position, part by part (an AK-pattern reload from empty ends with the charging handle)",
+      "ok": true,
+      "detail": "grab → magRelease → magOut → magDrop → pouch → magIn → magSeat → chargeBack → chargeFwd → settle"
+    },
+    {
+      "name": "3 s firefight (12 shooters of every weapon, own automatic fire, explosions, impacts): no clipping, voices within budget, cheap calls",
+      "ok": true,
+      "detail": "peak -5.6 dBFS, 0 clipped samples (100 % of the output inspected), 767 calls, 591 played / 750 skipped / 169 stolen, ≤ 20 voices, 0.115 ms per call"
+    },
+    {
+      "name": "distance: 4 m plays the weapon’s near recording and tail; 45 m blends in the mid-distance microphone; 130 m only the far version",
+      "ok": true,
+      "detail": "near 0.679 → 0.017; mid 0.301; far 0.252"
     },
     {
       "name": "occlusion and roofs: the engine agrees with an independent line-of-sight check on 8 points around the player; the warehouse interior is under a roof (indoor reverb)",
@@ -37,70 +62,314 @@
       "detail": "4 open, 4 walled off"
     },
     {
-      "name": "category volume: weapons at 0 → the player’s own shot is silent in the arena mix; at 1 it is back",
+      "name": "ambience: the map’s wind, district and room-tone beds are looping (and the nearest machines)",
       "ok": true,
-      "detail": "-81 → -1.7 dBFS"
+      "detail": "5 loops"
+    },
+    {
+      "name": "category volumes: weapons at 0 → the player’s own shot is silent in the arena mix; at 1 it is back; the announcer plays on its own bus",
+      "ok": true,
+      "detail": "-95 → -6.7 dBFS"
+    },
+    {
+      "name": "memory: after a firefight with every weapon in the game heard, decoded audio stays within the phone budget (least recently used banks let go; a weapon whose bank is reloading is stood in for by one of its class)",
+      "ok": true,
+      "detail": "29.7 MB in 16 banks (20 let go)"
     },
     {
       "name": "a suspended audio context (phone interruption) is resumed by the next sound or touch; nothing queues up meanwhile",
       "ok": true,
-      "detail": "back in 457 ms"
+      "detail": "back in 50 ms"
     }
   ],
+  "banks": {
+    "atDeployMs": 4399,
+    "readyAfterDeployMs": 1021,
+    "loads": 17,
+    "loadMs": 7748,
+    "banks": [
+      {
+        "name": "ui",
+        "state": "ready",
+        "bytes": 1630680,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "movement",
+        "state": "ready",
+        "bytes": 2419388,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "w.vanguard",
+        "state": "ready",
+        "bytes": 2182856,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "steps.concrete",
+        "state": "ready",
+        "bytes": 1260512,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "handling",
+        "state": "ready",
+        "bytes": 2996660,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "impacts",
+        "state": "ready",
+        "bytes": 4248192,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "steps.asphalt",
+        "state": "ready",
+        "bytes": 1299200,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "steps.gravel",
+        "state": "ready",
+        "bytes": 1143624,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "steps.dirt",
+        "state": "ready",
+        "bytes": 1281024,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "voice.mA",
+        "state": "ready",
+        "bytes": 1922304,
+        "rate": 24000,
+        "delayMs": 0
+      },
+      {
+        "name": "breath.m",
+        "state": "ready",
+        "bytes": 668160,
+        "rate": 24000,
+        "delayMs": 0
+      },
+      {
+        "name": "explosives",
+        "state": "ready",
+        "bytes": 3795584,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "vo",
+        "state": "ready",
+        "bytes": 2135488,
+        "rate": 24000,
+        "delayMs": 0
+      },
+      {
+        "name": "amb.foundry",
+        "state": "ready",
+        "bytes": 3358848,
+        "rate": 16000,
+        "delayMs": 0
+      },
+      {
+        "name": "steps.container",
+        "state": "ready",
+        "bytes": 1166012,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "steps.metal",
+        "state": "ready",
+        "bytes": 1074496,
+        "rate": 32000,
+        "delayMs": 0
+      },
+      {
+        "name": "steps.wood",
+        "state": "ready",
+        "bytes": 1760444,
+        "rate": 32000,
+        "delayMs": 0
+      }
+    ]
+  },
+  "reloadTactical": {
+    "timing": [
+      {
+        "cue": "grab",
+        "at": 0.03,
+        "offMs": 0
+      },
+      {
+        "cue": "magRelease",
+        "at": 0.12,
+        "offMs": -1
+      },
+      {
+        "cue": "magOut",
+        "at": 0.15,
+        "offMs": 0
+      },
+      {
+        "cue": "pouch",
+        "at": 0.3,
+        "offMs": 0
+      },
+      {
+        "cue": "magIn",
+        "at": 0.57,
+        "offMs": 0
+      },
+      {
+        "cue": "magSeat",
+        "at": 0.66,
+        "offMs": -1
+      },
+      {
+        "cue": "settle",
+        "at": 0.86,
+        "offMs": 2
+      }
+    ],
+    "toleranceMs": 60,
+    "frames": 126,
+    "wallMs": 2082,
+    "nominalMs": 2100
+  },
+  "reloadEmpty": {
+    "timing": [
+      {
+        "cue": "grab",
+        "at": 0.03,
+        "offMs": -1
+      },
+      {
+        "cue": "magRelease",
+        "at": 0.12,
+        "offMs": 0
+      },
+      {
+        "cue": "magOut",
+        "at": 0.15,
+        "offMs": 0
+      },
+      {
+        "cue": "pouch",
+        "at": 0.36,
+        "offMs": 0
+      },
+      {
+        "cue": "magIn",
+        "at": 0.57,
+        "offMs": 0
+      },
+      {
+        "cue": "magSeat",
+        "at": 0.66,
+        "offMs": 0
+      },
+      {
+        "cue": "boltRelease",
+        "at": 0.82,
+        "offMs": 0
+      },
+      {
+        "cue": "settle",
+        "at": 0.93,
+        "offMs": 0
+      }
+    ],
+    "magDrop": "impacts/magDrop"
+  },
+  "walkClearance": 30,
+  "footsteps": {
+    "count": 7,
+    "meanGapMs": 394,
+    "surfaces": [
+      "steps.asphalt",
+      "steps.concrete"
+    ],
+    "foley": 3
+  },
   "stress": {
     "out": {
-      "peak": 0.7765201330184937,
-      "peakDb": -2.1969455947036773,
+      "peak": 0.5257408618927002,
+      "peakDb": -5.5845653443617005,
       "clipped": 0,
-      "rmsDb": -22.76470575094955,
+      "rmsDb": -22.86149639549393,
       "maxVoices": 20,
-      "coverage": 0.9729729729729731
+      "coverage": 1
     },
-    "calls": 663,
-    "msPerCall": 0.5162895927627095,
-    "played": 440,
-    "skipped": 308,
-    "stolen": 50,
-    "deduped": 135,
-    "peakVoices": 20,
-    "rendered": 89,
-    "steadyMsPerCall": 0.09349999999627472
+    "calls": 767,
+    "msPerCall": 0.1149934811294176,
+    "played": 591,
+    "skipped": 750,
+    "stolen": 169,
+    "deduped": 0,
+    "missing": 0,
+    "peakVoices": 20
   },
   "distance": {
     "near": {
       "d": 4,
-      "near": 0.5605,
-      "far": 0,
-      "tail": 0.171,
-      "occluded": true,
-      "played": [
-        "gun:talon:near:2@weapons#0.5605~occluded",
-        "gun:talon:tail:0@weapons#0.1710~occluded"
-      ]
+      "shot": 0.6786,
+      "tail": 0.7,
+      "mid": 0,
+      "far": 0
     },
     "mid": {
       "d": 45,
-      "near": 0.041,
-      "far": 0.375,
-      "tail": 0.0404,
-      "occluded": true,
-      "played": [
-        "gun:talon:near:1@weapons#0.0410~occluded",
-        "gun:talon:far:0@weapons#0.3750~occluded",
-        "gun:talon:tail:1@weapons#0.0404~occluded"
-      ]
+      "shot": 0.0169,
+      "tail": 0.0236,
+      "mid": 0.301,
+      "far": 0
     },
     "far": {
       "d": 130,
-      "near": 0,
-      "far": 0.1758,
+      "shot": 0,
       "tail": 0,
-      "occluded": true,
-      "played": [
-        "gun:talon:far:1@weapons#0.1758~occluded"
-      ]
+      "mid": 0,
+      "far": 0.2517
     }
   },
-  "finished": "2026-11-11T22:10:18.889Z",
+  "memory": {
+    "mb": 29.7,
+    "banks": [
+      "ui 1.6",
+      "movement 2.3",
+      "w.vanguard 2.1",
+      "steps.concrete 1.2",
+      "handling 2.9",
+      "impacts 4.1",
+      "steps.asphalt 1.2",
+      "steps.gravel 1.1",
+      "steps.dirt 1.2",
+      "voice.mA 1.8",
+      "breath.m 0.6",
+      "explosives 3.6",
+      "vo 2.0",
+      "steps.container 1.1",
+      "steps.wood 1.7",
+      "steps.sand 1.2"
+    ],
+    "evicted": 20
+  },
+  "finished": "2026-11-12T07:22:32.518Z",
   "passed": true
 }

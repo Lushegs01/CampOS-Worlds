@@ -21,7 +21,25 @@ import TouchControls from './Touch';
 import LoadoutEditor from './Loadout';
 import { toggleAutoFire } from './net';
 import { recommendQuality } from './device';
+import { sfx, prepareInterface } from './audio';
 import './arena.css';
+
+// Interface sounds for the arena's menus (never the in-match touch controls or the HUD): a click on buttons, a
+// selection sound on tabs and choices, a toggle on switches; a soft tick while dragging a slider (throttled).
+let tickAt = 0;
+const uiTick = () => { const t = performance.now(); if (t - tickAt > 80) { tickAt = t; sfx.ui('tick'); } };
+function uiPress(e: PointerEvent) {
+  const t = e.target as Element | null, el = t?.closest?.('button, [role=tab], [role=radio], input[type=checkbox], select, a[href]');
+  if (!el || !el.closest('.ar-root') || el.closest('.ar-touch, .ar-hud, .ar-editor-canvas') || (el as HTMLButtonElement).disabled) return;
+  const role = el.getAttribute('role');
+  sfx.ui(role === 'tab' || role === 'radio' || el.getAttribute('aria-pressed') != null ? 'select' : (el as HTMLInputElement).type === 'checkbox' ? 'toggle' : /close|back|cancel/i.test(el.getAttribute('aria-label') ?? el.textContent ?? '') ? 'back' : 'click');
+}
+let hoverAt = 0;
+function uiHover(e: PointerEvent) {
+  if (e.pointerType !== 'mouse') return;
+  const el = (e.target as Element | null)?.closest?.('.ar-root .ar-primary, .ar-root .ar-secondary, .ar-root [role=tab]');
+  const t = performance.now(); if (el && t - hoverAt > 120) { hoverAt = t; sfx.ui('hover'); }
+}
 
 // The 3D scene's code: a failed download is reported to the deployment (with Retry) instead of closing the arena,
 // and a retry makes a fresh lazy component (React keeps a failed one failed).
@@ -45,7 +63,8 @@ export default function ArenaApp() {
   const hudEditor = useArena(s => s.hudEditor), armory = useArena(s => s.armory);
   useEffect(() => {
     useArena.getState().set({ open: true, phase: 'lobby', error: '', hud: emptyHud() });
-    stopAmbience(); closeSocial(); useCommunity.getState().toggle(false); connect();
+    stopAmbience(); closeSocial(); useCommunity.getState().toggle(false); connect(); prepareInterface();
+    document.addEventListener('pointerdown', uiPress, true); document.addEventListener('pointerover', uiHover, true);
     // Escape closes the arena's own sheets (and opens the pause menu while playing without pointer lock).
     const esc = (e: KeyboardEvent) => {
       if (e.code !== 'Escape') return;
@@ -57,6 +76,7 @@ export default function ArenaApp() {
     window.addEventListener('keydown', esc);
     return () => {
       window.removeEventListener('keydown', esc); disconnect(); releaseAll();
+      document.removeEventListener('pointerdown', uiPress, true); document.removeEventListener('pointerover', uiHover, true);
       // Leaving the arena: cancel its downloads and let go of its models and textures (the HTTP cache keeps the files).
       endSession(); void sceneCode?.then(m => m.releaseArena(), () => null);
       useArena.getState().set({ open: false, phase: 'lobby', menu: false, editor: false, settingsOpen: false, hudEditor: false, armory: null, sceneReady: false });
@@ -142,8 +162,8 @@ function ArenaSettings() {
     <fieldset><legend>Sound</legend>
       <div className="ar-mix">
         <label className="ar-setting"><span>Master volume<b>{Math.round(volume * 100)}%</b></span><input type="range" min={0} max={1} step={.05} value={volume} onChange={e => useGame.getState().set({ volume: Number(e.target.value) })} /></label>
-        {([['volWeapons', 'Weapons'], ['volExplosions', 'Explosions'], ['volFootsteps', 'Footsteps'], ['volEnvironment', 'Environment and impacts'], ['volCharacter', 'Character and reloads'], ['volUi', 'Interface and announcements']] as const).map(([key, label]) =>
-          <label key={key} className="ar-setting"><span>{label}<b>{Math.round(s[key] * 100)}%</b></span><input type="range" min={0} max={1} step={.05} value={s[key]} onChange={e => set({ [key]: Number(e.target.value) })} /></label>)}
+        {([['volWeapons', 'Weapons and reloads'], ['volExplosions', 'Explosions and bullet impacts'], ['volFootsteps', 'Movement and footsteps'], ['volCharacter', 'Character reactions and breathing'], ['volEnvironment', 'Environment'], ['volUi', 'Interface'], ['volVoice', 'Announcer and radio']] as const).map(([key, label]) =>
+          <label key={key} className="ar-setting"><span>{label}<b>{Math.round(s[key] * 100)}%</b></span><input type="range" min={0} max={1} step={.05} value={s[key]} onChange={e => { set({ [key]: Number(e.target.value) }); uiTick(); }} /></label>)}
         <label className="ar-setting"><span>Voice chat<b>—</b></span><input type="range" disabled min={0} max={1} value={0} aria-describedby="ar-voice-note" /><small id="ar-voice-note" className="ar-fine">Combat Arena has no voice chat yet.</small></label>
       </div>
       <button className="ar-secondary" onClick={() => useGame.getState().set({ volume: volume ? 0 : .7 })}>{volume ? 'Mute' : 'Unmute'}</button>

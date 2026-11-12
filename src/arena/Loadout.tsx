@@ -41,7 +41,7 @@ export default function LoadoutEditor() {
   async function equip() {
     if (!check.ok) { setMsg(check.reason ?? 'Check this loadout.'); return; }
     const chosen = check.loadout as Loadout;
-    setSaving(true); sfx.ui();
+    setSaving(true); sfx.ui('equip');
     const r = await request({ t: 'loadout', loadout: chosen });
     if (!r.ok) { setSaving(false); setMsg(String(r.reason)); return; }
     const list = slots.map((l, i) => (i === index ? chosen : l));
