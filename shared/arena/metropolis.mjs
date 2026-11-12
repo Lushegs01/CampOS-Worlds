@@ -417,7 +417,7 @@ export function metropolis() {
   return {
     id: 'metropolis', name: 'Operation: Metropolis', short: 'Metropolis', flagship: true,
     blurb: 'Okun Bay: Marina Avenue and its rooftops, Plaza Station beneath the Okun Spire, and the port. Five districts, three lanes, 6 v 6.',
-    city: 'Okun Bay', bounds: [-X, -Z, X, Z], boxes, deco, glass,
+    city: 'Okun Bay', ambience: 'foundry', bounds: [-X, -Z, X, Z], boxes, deco, glass,
     street: STREET, districts: DISTRICTS, variants: METROPOLIS_VARIANTS, train: TRAIN,
     station: { spaces: [...STATION_SPACES, ...STATION_SPACES.filter(r => r[2] <= 0).map(r => [-r[2], r[1], -r[0], r[3], r[4], r[5], r[6]])] },
     buildings: [...BUILDINGS, ...BUILDINGS.filter(b => b.x1 <= 0).map(b => ({ ...b, id: b.id + '-e', x0: -b.x1, x1: -b.x0, east: true }))],

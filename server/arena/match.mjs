@@ -61,7 +61,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   }
   const describe = p => ({ num: p.num, name: p.name, team: p.team, verified: !!p.account, handle: p.handle ?? null, bot: !!p.bot, connected: p.bot || p.connected, level: p.level ?? 1, emblem: p.emblem ?? 'recruit' });
   const roster = () => players.map(describe);
-  const view = () => ({ id, mode: mode.id, map: map.id, kind, code, state, autoFire: autoFireAllowed(kind), maxPerTeam, scoreLimit, timeMs: mode.timeMs, seed, scores: [...scores], players: roster(), objectives: objectives.map(o => ({ id: o.id, x: o.x, z: o.z, r: o.r })),
+  const view = () => ({ id, mode: mode.id, map: map.id, kind, code, state, autoFire: autoFireAllowed(kind), maxPerTeam, scoreLimit, timeMs: mode.timeMs, seed, scores: [...scores], players: roster(), objectives: objectives.map(o => ({ id: o.id, x: o.x, y: o.y ?? 0, z: o.z, r: o.r })),
     ...(variant ? { variant } : {}), ...(glass.length ? { broken: [...broken] } : {}), ...(train ? { elapsed: state === 'playing' ? clock() - startedAt : -1 } : {}) });
   function announceRoster() { emitAll({ k: 'roster', players: roster() }); }
 

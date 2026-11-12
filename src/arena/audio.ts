@@ -34,7 +34,7 @@ let ownVoice = 'mA';
  * Deployment: everything the player needs to hear the match (their weapons, the map's surfaces, movement, impacts),
  * then what can follow (the other weapon, explosives, announcer, voices, ambience). Never blocks deployment.
  */
-export function prepareMatch(mapId: string, map: { boxes: { mat: string }[] }, loadout: string[], ownNum: number, ownModel: string) {
+export function prepareMatch(mapId: string, map: { boxes: { mat: string }[]; ambience?: string }, loadout: string[], ownNum: number, ownModel: string) {
   ownVoice = voiceFor(ownNum, ownModel);
   const guns = loadout.filter(id => WEAPON_BY_ID.get(id)?.fire !== 'melee');
   // The painted ground is everywhere; the surfaces of boxes (steel, timber, sandbags…) load as the player nears them.
@@ -43,7 +43,7 @@ export function prepareMatch(mapId: string, map: { boxes: { mat: string }[] }, l
   engine.pin([...guns.map(id => 'w.' + id), 'voice.' + ownVoice, 'steps.concrete', ...ground, body]);
   void engine.want(['ui', ...guns.slice(0, 1).map(id => 'w.' + id), 'steps.concrete', 'movement', 'handling', 'impacts'], 1);
   void engine.want([...guns.slice(1).map(id => 'w.' + id), ...ground, 'voice.' + ownVoice, body, 'explosives', 'vo'], 2);
-  void engine.want(['amb.' + mapId], 3);
+  void engine.want(['amb.' + (map.ambience ?? mapId)], 3);
 }
 /** The arena opened: its interface sounds. */
 export function prepareInterface() { void engine.want(['ui'], 1); }
@@ -433,7 +433,7 @@ export function countdown(ms: number) {
  */
 const amb = { map: '', beds: {} as Record<string, engine.LoopHandle | null>, spots: [] as { at: V; kind: 'machine' | 'hum'; h: engine.LoopHandle | null }[], next: 0, indoor: 0, env: 1 };
 export function startAmbience(mapId: string, emitters: { at: V; kind: 'machine' | 'hum' }[]) {
-  stopArenaAmbience(); amb.map = mapId; amb.spots = emitters.map(e => ({ ...e, h: null })); amb.next = performance.now() + 4000;
+  stopArenaAmbience(); amb.map = mapId === 'metropolis' ? 'foundry' : mapId; amb.spots = emitters.map(e => ({ ...e, h: null })); amb.next = performance.now() + 4000;
 }
 /** Each frame (cheap): start beds when their bank is ready, keep the nearest machines playing, place one-shots. */
 export function ambienceFrame(listener: V) {

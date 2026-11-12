@@ -38,7 +38,7 @@ entries in `MODES` (`shared/arena/rules.mjs`) plus their scoring in `server/aren
 
 ### Maps
 
-Both maps are mirror images across their centre line (tested), so neither team has an advantage.
+All three maps are mirror images across their centre line (tested), so neither team has an advantage.
 
 * **Foundry Yard** (80 × 56 m) — a two-level brick warehouse in the middle (catwalk at 3.5 m reached by
   stairs from both ends, windows, a press machine), a container lane and stacked-container gantry to
@@ -47,6 +47,8 @@ Both maps are mirror images across their centre line (tested), so neither team h
 * **Sim Quad** (72 × 68 m) — a stylised simulation of a campus quadrangle: two-storey teaching blocks
   with interior stairwells, classrooms and balconies over a fountain court, hedged lawns, and shaded
   arcades at each end, behind gate walls with three openings.
+
+* **Operation: Metropolis** (120 × 88 m) — Okun Bay: Downtown, Rooftops, Underground Transit, Industrial Zone and Central Plaza. Street-level objectives, breakable glass, a timed station train, and four lighting/weather variants. See [Metropolis](METROPOLIS.md) for the completion audit and validation.
 
 Spawns pick the safest point for your team: far from living enemies, out of their line of sight, away
 from occupied points; Domination adds forward points near zones your team holds.

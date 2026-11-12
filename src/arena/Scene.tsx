@@ -24,7 +24,8 @@ import * as deploy from './deploy';
 import { deadline } from '../world/fetcher';
 import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
-import { loadLibrary, loadDecor, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
+import { loadLibrary, loadDecor, loadSurfaceDetail, themeOf, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
+import { buildMetropolis, CITY_DECOR, CITY_LIGHT, type CityVariant } from './scene/metropolis';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
@@ -101,6 +102,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const { scene, camera, gl, size } = useThree(), setDpr = useThree(s => s.setDpr), dprNow = useThree(s => s.viewport.dpr);
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
+  const variant = useArena(s => s.match?.variant ?? 'day') as CityVariant;
+  const cityLight = mapId === 'metropolis' ? CITY_LIGHT[variant] ?? CITY_LIGHT.day : null;
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
   useEffect(() => onRetryAssets(() => setAttempt(n => n + 1)), []);
@@ -118,7 +121,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const primary = live.loadout?.primary ?? 'vanguard', secondary = live.loadout?.secondary;
     // The player's own weapon is queued first: it is one file with a dozen textures to transcode.
     preloadWeapon(primary, false, P1).then(() => { if (on) setGunReady(true); }).catch(e => { console.error('Arena weapon could not load.', e); if (on) deploy.fail('Your weapon could not be downloaded.', 'assets', what(e)); });
-    loadLibrary(gl, q).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) deploy.fail('The training ground could not be downloaded.', 'assets', what(e)); });
+    loadLibrary(gl, q, themeOf(mapId)).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) deploy.fail('The map could not be downloaded.', 'assets', what(e)); });
     if (secondary && secondary !== primary) void preloadWeapon(secondary, false, P2).catch(() => null);
     // Sound: phones get fewer voices, plain panning and a rumble filter; the sound banks the player needs first (their
     // weapons, the map's surfaces) are queued now, behind nothing the deployment waits for.
@@ -135,35 +138,36 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // ---------------------------------------------------------------- environment, sky and lighting
   const world = useMemo(() => {
     if (!lib) return null;
-    const group = new THREE.Group(), env = buildEnvironment(lib, map, q);
+    const group = new THREE.Group(), env = mapId === 'metropolis' ? buildMetropolis(lib, map as Parameters<typeof buildMetropolis>[1], q, variant) : buildEnvironment(lib, map, q);
     for (const o of env.objects) group.add(o);
-    group.add(skyDome(lib));
+    if (!cityLight) group.add(skyDome(lib));
     const [bx0, bz0, bx1, bz1] = map.bounds, cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2, half = Math.max(bx1 - bx0, bz1 - bz0) / 2 + 8;
     const sun = new THREE.DirectionalLight(lib.sun.color.clone().multiply(new THREE.Color(1, .95, .86)), lib.sun.irradiance * .95);
     sun.position.set(cx, 0, cz).addScaledVector(lib.sun.dir, 110); sun.target.position.set(cx, 0, cz);
+    if (cityLight) { sun.color.set(cityLight.sun); sun.intensity = cityLight.strength; sun.position.set(cx, 0, cz).addScaledVector(new THREE.Vector3(...cityLight.dir as [number, number, number]), 110); }
     if (q.shadows) {
       sun.castShadow = true; sun.shadow.mapSize.set(q.shadowSize, q.shadowSize); sun.shadow.radius = q.shadowSize >= 2048 ? 3 : 2;
       const c = sun.shadow.camera; c.left = -half; c.right = half; c.top = half; c.bottom = -half; c.near = 10; c.far = 240; c.updateProjectionMatrix();
       sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
     }
-    const fill = new THREE.HemisphereLight('#cfdcec', '#8a7c62', 1.1);
+    const fill = new THREE.HemisphereLight('#cfdcec', '#8a7c62', cityLight?.fill ?? 1.1);
     group.add(sun, sun.target, fill);
     // Warm fittings under roofs (unshadowed point lights), nearest the middle of the map first.
     const lamps = [...env.lights].filter(p => p.y < 9).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)).slice(0, q.lights).map(p => { const l = new THREE.PointLight('#ffe2b4', 55, 15, 2); l.position.copy(p).y -= .2; group.add(l); return l; });
     void lamps;
-    return { group, sun, decor: env.decor };
-  }, [lib, map, q]);
+    return { group, sun, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null };
+  }, [lib, map, q, variant]);
   useEffect(() => {
     if (!world || !lib) return;
-    scene.add(world.group); scene.environment = lib.env; scene.environmentIntensity = 1.5;
-    const fog = lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, 55, q.fogFar * 3.2); scene.background = fog;
+    scene.add(world.group); scene.environment = lib.env; scene.environmentIntensity = cityLight?.env ?? 1.5;
+    const fog = cityLight ? new THREE.Color(cityLight.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, 55, q.fogFar * 3.2); scene.background = cityLight ? new THREE.Color(cityLight.sky) : fog;
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
     let on = true;
     deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').catch(() => null).then(() => { if (on) setCompiled(true); });
     // Set dressing streams in once the match is playable (priority 2); a static sun shadow is redrawn once for it.
     const ctrl = new AbortController();
-    const decorate = () => loadDecor(lib, ctrl.signal).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
-    const waitPlayable = () => { if (!on) return; if (useArena.getState().sceneReady) void decorate(); else setTimeout(waitPlayable, 500); };
+    const decorate = () => loadDecor(lib, ctrl.signal, mapId === 'metropolis' ? CITY_DECOR : undefined).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
+    const waitPlayable = () => { if (!on) return; if (useArena.getState().sceneReady) { void decorate(); void loadSurfaceDetail(lib, ctrl.signal); } else setTimeout(waitPlayable, 500); };
     waitPlayable();
     return () => {
       on = false; ctrl.abort();
@@ -340,7 +344,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     else if (f.type === 'smoke') fx.effects.smokeCloud(v1.fromArray(f.at), f.r, f.ms / 1000);
     else if (f.type === 'flash') fx.effects.flashbang(v1.fromArray(f.at));
     else if (f.type === 'muzzle') { const e = soldiers.current.get(f.num); if (e) e.flashAt = now; }
-    else if (f.type === 'capture') { const o = objectives.items.find(i => i.o.id === f.id); if (o) fx.effects.capture(v1.set(o.o.x, 0, o.o.z), new THREE.Color(f.team === live.team ? TEAM_COLORS.friend : TEAM_COLORS.enemy), o.o.r); }
+    else if (f.type === 'capture') { const o = objectives.items.find(i => i.o.id === f.id); if (o) fx.effects.capture(v1.set(o.o.x, o.o.y, o.o.z), new THREE.Color(f.team === live.team ? TEAM_COLORS.friend : TEAM_COLORS.enemy), o.o.r); }
     else if (f.type === 'land') vm.landV -= Math.min(1.2, f.speed * .09);
     else if (f.type === 'shot') {
       // Our own shot: flash, kick, a casing and a wisp of smoke.
@@ -357,12 +361,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const fwd = useMemo(() => new THREE.Vector3(), []), eyePos = useMemo(() => ({ x: 0, y: 0, z: 0 }), []), sample = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
   const gait = useMemo(() => createGait(), []), remoteGaits = useMemo(() => new Map<number, ReturnType<typeof createRemoteGait>>(), []), grenadeSounds = useMemo(() => new Map<number, { x: number; y: number; z: number; vy: number; at: number; moving: number; stuck: boolean; beepAt: number }>(), []), falling = useRef(false);
   const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
-  useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib]);
+  useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ city: { train: world?.group.getObjectByName('metropolis-train')?.visible ?? false, trainX: world?.group.getObjectByName('metropolis-train')?.position.x, broken: live.broken.size, variant }, kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib, world, variant]);
   useEffect(() => { gl.info.autoReset = false; if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaGL = gl; return () => { gl.info.autoReset = true; }; }, [gl]);
   // QA builds: the inspection hooks hold this match's renderer, scene and assets; drop them with the scene.
   useEffect(() => () => { if (QA_HOOKS) for (const k of ['__arenaGL', '__arenaDebug', '__arenaBreakdown', '__arenaStats', '__arenaGround']) delete (window as unknown as Record<string, unknown>)[k]; }, []);
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
+    world?.update?.(live.matchElapsed < 0 ? -1 : live.matchElapsed + now - live.elapsedAt, live.broken, camera.position, !!vm.indoor, dt);
     frameNo.current++;
     pollGamepad(dt, live.sim?.ads ?? 0, zoomOf());
     tickInput(dt);
@@ -498,7 +503,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   /** What a boot lands on: the box underfoot (its material; a stair riser), or the ground as it is painted. */
   function groundAt(x: number, y: number, z: number): { surface: StepSurface; stairs: boolean } {
     if (live.world) { const hit = raycast(live.world, x, y + .3, z, 0, -1, 0, .8, null, scratch); if (hit && hit.box) { const box = map.boxes[hit.box.i]; return { surface: stepSurfaceOf(box?.mat) as StepSurface, stairs: !!box && isStair(box) }; } }
-    return { surface: groundSurface(map.bounds, x, z) as StepSurface, stairs: false };
+    return { surface: mapId === 'metropolis' ? 'gravel' : groundSurface(map.bounds, x, z) as StepSurface, stairs: false };
   }
   /** The player's reload, action and weapon raise, advanced with the same progress the animation draws. */
   function ownActions(s: typeof live.sim) {
