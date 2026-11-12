@@ -104,6 +104,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const settings = useArena(s => s.settings);
   const variant = useArena(s => s.match?.variant ?? 'day') as CityVariant;
   const cityLight = mapId === 'metropolis' ? CITY_LIGHT[variant] ?? CITY_LIGHT.day : null;
+  const citySun = useMemo(() => cityLight ? { dir: new THREE.Vector3(...cityLight.dir as [number, number, number]).normalize(), color: new THREE.Color(cityLight.sun) } : null, [cityLight]);
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
   useEffect(() => onRetryAssets(() => setAttempt(n => n + 1)), []);
@@ -140,7 +141,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!lib) return null;
     const group = new THREE.Group(), env = mapId === 'metropolis' ? buildMetropolis(lib, map as Parameters<typeof buildMetropolis>[1], q, variant) : buildEnvironment(lib, map, q);
     for (const o of env.objects) group.add(o);
-    if (!cityLight) group.add(skyDome(lib));
+    group.add(skyDome(cityLight ? { ...lib, skyScale: lib.skyScale * (variant === 'night' ? .035 : variant === 'overcast' ? .45 : variant === 'sunset' ? .65 : 1), horizon: new THREE.Color(cityLight.fog) } : lib));
     const [bx0, bz0, bx1, bz1] = map.bounds, cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2, half = Math.max(bx1 - bx0, bz1 - bz0) / 2 + 8;
     const sun = new THREE.DirectionalLight(lib.sun.color.clone().multiply(new THREE.Color(1, .95, .86)), lib.sun.irradiance * .95);
     sun.position.set(cx, 0, cz).addScaledVector(lib.sun.dir, 110); sun.target.position.set(cx, 0, cz);
@@ -302,6 +303,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     return () => { composer.c.dispose(); gl.toneMapping = before; };
   }, [composer, gl]);
   useEffect(() => { composer?.c.setSize(size.width, size.height); }, [composer, size, dprNow]);
+  // Change the R3F DPR as well as the renderer so QA captures include full-resolution postprocessing.
+  useEffect(() => {
+    if (!QA_HOOKS) return;
+    const hooks = window as unknown as Record<string, unknown>;
+    hooks.__arenaRenderScale = (scale: number) => setDpr(Math.max(.1, Math.min(1, scale)));
+    return () => { delete hooks.__arenaRenderScale; };
+  }, [setDpr]);
   // ---------------------------------------------------------------- adaptive performance
   // Hold the frame rate (30 on touch devices, 55 elsewhere): fewer pixels first, then a lighter profile.
   // The simulation, input and network run at fixed rates whatever the frame rate.
@@ -420,7 +428,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       vm.probeAt = now;
       const up = raycast(live.world, cam.position.x, cam.position.y, cam.position.z, 0, 1, 0, 14, null, scratch);
       vm.indoor = up && up.box ? 1 : 0;
-      const d = lib.sun.dir, sunHit = raycast(live.world, cam.position.x, cam.position.y, cam.position.z, d.x, d.y, d.z, 80, null, scratch);
+      const d = citySun?.dir ?? lib.sun.dir, sunHit = raycast(live.world, cam.position.x, cam.position.y, cam.position.z, d.x, d.y, d.z, 80, null, scratch);
       vm.sunSeen = sunHit && sunHit.box ? 0 : 1;
       setIndoor(vm.indoor);
     }
@@ -652,11 +660,12 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     }
     // Light on the weapon follows the world: the sun in camera space, dimmed in shade.
     if (lib) {
-      v1.copy(lib.sun.dir).transformDirection(camera.matrixWorldInverse);
+      v1.copy(citySun?.dir ?? lib.sun.dir).transformDirection(camera.matrixWorldInverse);
+      vm.sun.color.copy(citySun?.color ?? lib.sun.color);
       vm.sun.position.copy(v1).multiplyScalar(3); vm.sun.target.position.set(0, 0, 0);
-      const want = lib.sun.irradiance * .8 * (vm.sunSeen ? 1 : .08) + (now - vm.flashAt < 60 ? 2.5 : 0);
+      const want = (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08) + (now - vm.flashAt < 60 ? 2.5 : 0);
       vm.sun.intensity += (want - vm.sun.intensity) * Math.min(1, dt * 8);
-      vm.vmScene.environmentIntensity = .95 - vm.indoor * .35;
+      vm.vmScene.environmentIntensity = (cityLight?.env ?? .95) * (1 - vm.indoor * .37);
       vm.vmScene.environmentRotation.setFromQuaternion(q1.copy(camera.quaternion).invert());
     }
     vm.vmCam.aspect = size.width / size.height; const vfov = 56 - ads * 14; if (vm.vmCam.fov !== vfov) { vm.vmCam.fov = vfov; } vm.vmCam.updateProjectionMatrix();

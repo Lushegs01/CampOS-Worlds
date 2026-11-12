@@ -3,14 +3,15 @@ import * as THREE from 'three';
 import { metropolis, trainAt, TRAIN, STREET } from '../../../shared/arena/metropolis.mjs';
 import { Builder, Props, container } from './environment';
 import { surface, type Library, type SurfaceKey, type PropKey } from './library';
-import { labelTexture, type ArenaQuality } from './world';
+import { type ArenaQuality } from './world';
+import { cityDetail, vehicleBuilder } from './cityDetail';
 
 type City = ReturnType<typeof metropolis>;
 export const CITY_LIGHT = {
-  day: { sky: '#b7ccda', fog: '#d8d4c6', sun: '#ffe9c4', strength: 3.2, fill: 1.2, env: 1.1, dir: [-.38, .82, .42] },
-  overcast: { sky: '#899ba8', fog: '#9faeb5', sun: '#d7e4ef', strength: 1, fill: 1.5, env: .8, dir: [-.38, .82, .42] },
+  day: { sky: '#b7ccda', fog: '#d8d4c6', sun: '#ffe9c4', strength: 3.2, fill: 1.2, env: 1.1, dir: [.5543, .7418, .3775] },
+  overcast: { sky: '#899ba8', fog: '#9faeb5', sun: '#d7e4ef', strength: 1, fill: 1.5, env: .8, dir: [.5543, .7418, .3775] },
   sunset: { sky: '#d7a58c', fog: '#d9b6a1', sun: '#ffb568', strength: 2.7, fill: .9, env: .8, dir: [-.85, .32, .3] },
-  night: { sky: '#172b46', fog: '#253a50', sun: '#9fbce5', strength: .65, fill: .8, env: .5, dir: [-.38, .82, .42] },
+  night: { sky: '#172b46', fog: '#253a50', sun: '#9fbce5', strength: .65, fill: .8, env: .5, dir: [.5543, .7418, .3775] },
 };
 export type CityVariant = keyof typeof CITY_LIGHT;
 
@@ -40,8 +41,8 @@ export function buildMetropolis(lib: Library, map: City, q: ArenaQuality, varian
   const palm = new THREE.MeshStandardMaterial({ map: lib.extra['foliage/palm-frond.ktx2'], color: '#729260', alphaTest: .4, side: THREE.DoubleSide, roughness: .9 });
   if (palm.map) palm.map.colorSpace = THREE.SRGBColorSpace;
   const grass = new THREE.MeshStandardMaterial({ color: '#85955b', roughness: 1, map: lib.extra['textures/grass/color.ktx2'] });
-  const rubber = new THREE.MeshStandardMaterial({ color: '#20282b', roughness: .95 });
-  const vehiclePaint = new THREE.MeshStandardMaterial({ color: '#e0b359', roughness: .48, metalness: .15 });
+  const buildVehicle = vehicleBuilder(lib, !!q.detail);
+  const roadPaint = new THREE.MeshStandardMaterial({ color: '#c8c3ad', roughness: .95 });
   const trafficPaint = new THREE.MeshStandardMaterial({ color: '#749194', roughness: .5, metalness: .15 });
   const water = new THREE.MeshStandardMaterial({ color: '#398e9a', metalness: .3, roughness: variant === 'overcast' ? .2 : .35 });
   const surfaceFor = (mat: string) => {
@@ -75,29 +76,9 @@ export function buildMetropolis(lib: Library, map: City, q: ArenaQuality, varian
     if (c.mat.startsWith('container-')) {
       container(b, { container: key => surface(lib, 'corrugated', { tint: TINTS[key] ?? '#879484' }), containerFrame: () => steel, darkSteel: dark }, c);
     } else {
-      if (!VEHICLES.has(c.mat)) box(c.min, c.max, surfaceFor(c.mat));
+      if (!VEHICLES.has(c.mat)) box(c.min, c.max, surfaceFor(c.mat), c.mat === 'st-asphalt' ? .6 : c.mat === 'st-sidewalk' ? 1 : 2);
       // Vehicle skins sit just outside the collision hull; the hull stays complete, even before detail loads.
-      if (VEHICLES.has(c.mat)) {
-        const alongX = x1 - x0 > z1 - z0, length = alongX ? x1 - x0 : z1 - z0;
-        const h = y1 - y0, width = alongX ? z1 - z0 : x1 - x0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-        const paint = c.mat === 'bus' ? vehiclePaint : trafficPaint;
-        // Chassis, inset cab and tyres read as traffic while fitting the shared collision envelope.
-        b.box(x0, y0 + .24, z0, x1, y0 + h * .55, z1, paint);
-        const inset = c.mat === 'car' || c.mat === 'pickup' ? length * .21 : .12;
-        b.box(x0 + (alongX ? inset : .08), y0 + h * .55, z0 + (alongX ? .08 : inset), x1 - (alongX ? inset : .08), y1, z1 - (alongX ? .08 : inset), paint);
-        for (const axle of [-.32, .32]) for (const side of [-1, 1]) {
-          const radius = Math.min(.49, h * .23), tire = new THREE.CylinderGeometry(radius, radius, .17, 12);
-          const pos = new THREE.Vector3(cx + (alongX ? length * axle : side * (width / 2 - .04)), y0 + radius, cz + (alongX ? side * (width / 2 - .04) : length * axle));
-          const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(alongX ? 1 : 0, 0, alongX ? 0 : 1), Math.PI / 2);
-          b.add(tire, rubber, 1, new THREE.Matrix4().compose(pos, rotation, new THREE.Vector3(1, 1, 1))); tire.dispose();
-        }
-        const n = Math.max(2, Math.floor(length / 1.3));
-        for (let i = 0; i < n; i++) for (const side of [-1, 1]) {
-          const a = (alongX ? x0 : z0) + inset + (i + .15) * (length - 2 * inset) / n, e = a + (length - 2 * inset) / n * .7;
-          if (alongX) b.box(a, y0 + (y1 - y0) * .57, side < 0 ? z0 + .06 : z1 - .08, e, y1 - .2, side < 0 ? z0 + .08 : z1 - .06, glazing);
-          else b.box(side < 0 ? x0 + .06 : x1 - .08, y0 + (y1 - y0) * .57, a, side < 0 ? x0 + .08 : x1 - .06, y1 - .2, e, glazing);
-        }
-      }
+      if (VEHICLES.has(c.mat)) buildVehicle(b, c);
       if (c.mat.includes('shaft') || c.mat === 'bld-glass-tower' || c.mat === 'bld-brick-upper') {
         for (let y = y0 + .5; y < y1; y += 3.2) {
           b.box(x0 - .03, y, z0 - .03, x1 + .03, y + .12, z1 + .03, steel);
@@ -119,7 +100,7 @@ export function buildMetropolis(lib: Library, map: City, q: ArenaQuality, varian
     b.box(x0 - .02, y1 - .07, z0 - .02, x1 + .02, y1, z1 + .02, steel);
   }
   // Lane markings, railway and platform edges are visual only.
-  for (const z of [-25, 14]) for (let x = -48; x < 48; x += 5) b.box(x, STREET + .012, z, x + 2.5, STREET + .018, z + .1, lamp);
+  for (const z of [-25, 14]) for (let x = -48; x < 48; x += 5) b.box(x, STREET + .012, z, x + 2.5, STREET + .018, z + .1, roadPaint);
   b.box(-46, -.06, 1.5, 46, 0, 5.5, surface(lib, 'gravel'));
   for (const z of [2.4, 4.6]) b.box(-46, .03, z, 46, .13, z + .08, steel);
   for (let x = -46; x < 46; x += .9) b.box(x, .005, 2.1, x + .15, .035, 5, dark);
@@ -128,12 +109,19 @@ export function buildMetropolis(lib: Library, map: City, q: ArenaQuality, varian
   // Lagoon beyond the quay and a distant skyline, outside the playable bounds.
   b.box(-400, 1, 45, 400, 1.02, 450, water);
   for (let i = -8; i <= 8; i++) b.box(i * 20 - 6, 5, -90, i * 20 + 6, 15 + (Math.abs(i * 7) % 24), -72, surface(lib, 'facadePanel', { tint: '#a0b1b4' }));
-  group.add(...b.meshes(q.shadows));
+  cityDetail(lib, b, map.boxes, variant === 'overcast', !!q.detail);
+  const meshes = b.meshes(q.shadows);
+  for (const mesh of meshes) if ((mesh.material as THREE.Material).transparent) mesh.castShadow = false;
+  group.add(...meshes);
   for (const f of fallback.values()) { f.meshes = f.builder.meshes(q.shadows); group.add(...f.meshes); }
 
   const sign = (text: string, x: number, y: number, z: number, width: number, yaw = 0) => {
-    const { texture, aspect } = labelTexture(text, '#f9edcf', 64);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(width, width / aspect), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, toneMapped: false }));
+    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 128;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#213433'; ctx.fillRect(0, 0, 1024, 128);
+    ctx.strokeStyle = '#acaa8f'; ctx.lineWidth = 4; ctx.strokeRect(8, 8, 1008, 112);
+    ctx.fillStyle = '#e3dfc9'; ctx.font = '500 60px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 512, 66, 960);
+    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; const aspect = 8;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(width, width / aspect), new THREE.MeshStandardMaterial({ map: texture, roughness: .65, side: THREE.DoubleSide, emissive: '#ffffff', emissiveMap: texture, emissiveIntensity: variant === 'night' ? .25 : .03 }));
     m.position.set(x, y, z); m.rotation.y = yaw; m.name = 'city-sign'; group.add(m);
   };
   for (const side of [-1, 1]) {

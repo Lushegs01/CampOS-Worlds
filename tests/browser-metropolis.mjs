@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { startStack } from './support/stack.mjs';
 import { launch, open } from './support/browser.mjs';
-const shots = 'docs/screenshots/metropolis'; await mkdir(shots, {recursive:true});
+const realism = process.env.METROPOLIS_REALISM === '1';
+const shots = realism ? 'docs/screenshots/metropolis-realism' : 'docs/screenshots/metropolis'; await mkdir(shots, {recursive:true});
 let clockOffset = 0;
 const stack = await startStack({name:'metropolis-browser',webPort:5191,roomPort:3221,supabasePort:54341,arena:{clock:()=>Date.now()+clockOffset,rules:{countdownMs:100,spawnProtectMs:0}}});
 let browser; const errors=[], failures=[], result={checks:[], screenshots:[]};
@@ -13,7 +14,7 @@ try {
   for (const mobile of [false,true]) {
     const page = await open(browser,stack,mobile?'Phone':'Desktop',errors,{mobile,viewport:mobile?{width:844,height:390}:{width:1280,height:800}});
     page.on('response',r=>{if(r.status()>=400 && r.url().includes('/assets/')) failures.push(`${r.status()} ${r.url()}`);});
-    await page.evaluate(()=>localStorage.setItem('campos-arena-settings',JSON.stringify({quality:'low',qualityChosen:true,adaptive:false})));
+    await page.evaluate(quality=>localStorage.setItem('campos-arena-settings',JSON.stringify({quality,qualityChosen:true,adaptive:false})),realism && !mobile ? 'medium' : 'low');
     await page.getByRole('button',{name:/Combat Arena/}).click();
     await page.waitForFunction(()=>window.__arena?.state().status==='ready');
     await page.getByRole('tab',{name:'Training',exact:true}).click();
@@ -32,10 +33,10 @@ try {
       await page.evaluate(yaw=>window.__arena.look(yaw,0),yaw);
       await page.waitForFunction(({x,y,z})=>{const p=window.__arena.self();return p&&Math.hypot(p.x-x,p.y-y,p.z-z)<.2;},{x,y,z});
       await page.waitForTimeout(500);
-      await page.evaluate(()=>{const g=window.__arenaGL;g.setPixelRatio(.75);g.setSize(innerWidth,innerHeight,false);});
+      await page.evaluate(()=>{window.__arenaRenderScale(.75);});
       await page.waitForTimeout(500);
       await page.screenshot({path:`${shots}/${name}.png`});
-      await page.evaluate(()=>{const g=window.__arenaGL;g.setPixelRatio(.2);g.setSize(innerWidth,innerHeight,false);});result.screenshots.push(`${shots}/${name}.png`);
+      await page.evaluate(()=>{window.__arenaRenderScale(.2);});result.screenshots.push(`${shots}/${name}.png`);
     }
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     check(`${mobile?'phone':'desktop'} renders districts without page overflow`);
@@ -64,4 +65,4 @@ try {
   }
   assert.deepEqual(errors,[]); assert.deepEqual(failures,[]); result.ok=true;
 } catch(e) { result.ok=false; result.error=String(e.stack??e); console.error(e); process.exitCode=1; if(browser) for(const c of browser.contexts())for(const p of c.pages()) { result.deploy=await p.evaluate(()=>window.__arenaDeploy?.()).catch(()=>null);await p.screenshot({path:`${shots}/failure.png`}).catch(()=>{}); } }
-finally { result.errors=errors;result.assetFailures=failures;await writeFile('docs/metropolis-browser-results.json',JSON.stringify(result,null,2)+'\n');await browser?.close();await stack.stop(); }
+finally { result.errors=errors;result.assetFailures=failures;await writeFile(realism ? 'docs/metropolis-realism-results.json' : 'docs/metropolis-browser-results.json',JSON.stringify(result,null,2)+'\n');await browser?.close();await stack.stop(); }

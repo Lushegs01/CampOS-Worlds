@@ -129,3 +129,34 @@ checks.
 The browser evidence file records the latest completed run separately from these
 server checks. Screenshots use 0.75 render scale for district captures; the train
 capture uses the lower software-rendering test scale.
+
+### Environment fidelity pass
+
+The follow-up on merged PR #35 replaces traffic blockouts with rounded vehicle
+bodies, window seals, door hardware, grilles, bumpers, mirrors, lights and wheel
+assemblies. Buildings gain foundation/coping courses and facade joints; streets
+have smaller-scale asphalt, pavement joints, drains, wear and contact decals.
+Rain adds reflective patches. Shop and station names are printed on lit material
+signboards. The existing licensed photographic sky replaces the flat background,
+and weapon sunlight, shadow probes and environmental brightness follow weather.
+Decorative decals do not cast opaque rectangular shadows. Movement and shot
+collision still use the existing authoritative map.
+
+Run `METROPOLIS_REALISM=1 node tests/browser-metropolis.mjs` for desktop medium
+(postprocessing enabled) and phone low. Evidence is stored separately in
+`docs/metropolis-realism-results.json` and `docs/screenshots/metropolis-realism/`.
+The QA render-scale helper resizes the postprocessing buffers along with the
+canvas; district captures use 0.75 scale. It is excluded from production builds.
+
+This is a procedural environment-detail pass, not Call of Duty production
+fidelity. Remaining art work includes authored high-detail modular facades,
+vehicle meshes with collision-matched silhouettes, richer interiors and local
+reflection/lighting treatment. The current photographic sky is exposure-adjusted
+for weather rather than a physically simulated time-of-day atmosphere. Validate
+final quality and frame rate on actual target GPUs and phones; software WebGL
+captures are functional evidence, not a performance benchmark.
+
+Validation for this pass: all 338 Node tests pass when run without the software
+browser workload. An earlier concurrent run passed 337/338: the short-duration
+Domination match had already ended before its timed score assertion. That test
+passed on the full isolated rerun; no server or collision code was changed.
