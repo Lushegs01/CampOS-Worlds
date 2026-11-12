@@ -46,7 +46,7 @@ export function deviceLoadouts(): Loadout[] {
 export function saveDeviceLoadouts(list: Loadout[]) { writeJson(LOADOUT_KEY, list.slice(0, 5)); }
 
 export interface Hud {
-  hp: number; alive: boolean; respawnMs: number; weapon: string; slot: number; mag: number; reserve: number; magSize: number; phase: string; reloadProgress: number;
+  hp: number; alive: boolean; respawnMs: number; weapon: string; slot: number; mag: number; reserve: number; magSize: number; phase: string; reloadProgress: number; fireMode: string;
   ads: number; lethal: number; tactical: number; spread: number; earned: string[]; streakPts: number; streak: number; sprint: boolean; stance: number;
   timeLeft: number; scores: number[]; matchState: string; objectives: [number, number, number, number][]; ping: number; fps: number;
 }
@@ -72,7 +72,7 @@ interface Arena {
   set: (v: Partial<Arena>) => void;
   setSettings: (v: Partial<ArenaSettings>) => void;
 }
-export const emptyHud = (): Hud => ({ hp: 100, alive: false, respawnMs: 0, weapon: 'vanguard', slot: 0, mag: 0, reserve: 0, magSize: 0, phase: 'ready', reloadProgress: 0, ads: 0, lethal: 0, tactical: 0, spread: 0,
+export const emptyHud = (): Hud => ({ hp: 100, alive: false, respawnMs: 0, weapon: 'vanguard', slot: 0, mag: 0, reserve: 0, magSize: 0, phase: 'ready', fireMode: 'auto', reloadProgress: 0, ads: 0, lethal: 0, tactical: 0, spread: 0,
   earned: [], streakPts: 0, streak: 0, sprint: false, stance: 0, timeLeft: 0, scores: [0, 0], matchState: 'waiting', objectives: [], ping: 0, fps: 0 });
 export const useArena = create<Arena>()((set, get) => ({
   open: false, phase: 'lobby', status: 'idle', error: '', notice: '', me: null, owned: [], loadout: { ...PRESETS[0] }, loadouts: deviceLoadouts(), online: 0,

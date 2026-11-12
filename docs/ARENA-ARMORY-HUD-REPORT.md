@@ -29,7 +29,7 @@ campus store (`server/shop.mjs`, Bachs). Details for players and operators are i
   element, reset layout, restore previous, save, return to game, overlap warnings; drafts kept on the device until
   saved or discarded; firing range (Training with no bots) to try a layout. The live HUD and touch controls are
   rendered from the layout (`src/arena/Hud.tsx`, `src/arena/Touch.tsx`, `src/arena/hudViews.tsx`).
-- **Armory** (`src/arena/Armory.tsx`): exactly two free firearms (Vanguard AR-7 assault rifle, Wasp SMG-9), nine
+- **Armory** (`src/arena/Armory.tsx`): three free firearms (Vanguard AR-7 assault rifle, Wasp SMG-9, SIG Sauer M7 battle rifle), nine
   premium firearms, each with its licensed model, LOD, sound profile, recoil pattern and statistics; inspection of
   the real 3D model (downloaded only when inspected); role, trade-off, damage by range, fire rate, handling, range,
   recoil, magazine, reload and time-to-eliminate; ownership state, price, purchase, purchase history.

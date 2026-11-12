@@ -9,7 +9,7 @@
 // says which moment that is (`rt`) so the server can check shots against what the player saw.
 import { createWorld, raycast } from '../../shared/arena/physics.mjs';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
-import { step, spawnState, unpackState, quantize, encodeCommand, DT, B, eyeOf, weaponOf, spreadOf, direction } from '../../shared/arena/sim.mjs';
+import { step, spawnState, unpackState, quantize, encodeCommand, DT, B, eyeOf, weaponOf, fireModeOf, spreadOf, direction } from '../../shared/arena/sim.mjs';
 import { WEAPONS, WEAPON_BY_ID, STREAK_BY_ID } from '../../shared/arena/weapons.mjs';
 import { MEDALS, MODE_BY_ID } from '../../shared/arena/rules.mjs';
 import { createPlayback, createTrack } from '../network/interpolation.mjs';
@@ -287,7 +287,7 @@ function contested(o: number[][] | undefined) {
 const nameOf = (num: number | null) => (num == null ? 'The arena' : useArena.getState().match?.players.find(p => p.num === num)?.name ?? 'A player');
 function hudWeapon(s: Sim, w: ReturnType<typeof weaponOf>) {
   const cur = s.wpn[s.slot];
-  return { weapon: w.id, slot: s.slot, mag: cur.mag, reserve: cur.reserve, magSize: w.mag ?? 0, phase: s.phase, ads: Math.round(s.ads * 10) / 10, lethal: s.lethal, tactical: s.tactical, sprint: s.sprint, stance: s.stance,
+  return { weapon: w.id, fireMode: fireModeOf(s), slot: s.slot, mag: cur.mag, reserve: cur.reserve, magSize: w.mag ?? 0, phase: s.phase, ads: Math.round(s.ads * 10) / 10, lethal: s.lethal, tactical: s.tactical, sprint: s.sprint, stance: s.stance,
     reloadProgress: s.phase === 'reload' ? Math.round((1 - s.pt / Math.max(1, live.reloadTotal)) * 10) / 10 : 0 };
 }
 

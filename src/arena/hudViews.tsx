@@ -116,9 +116,11 @@ export function CompassStatic() {
 export const TOUCH_ICONS: Record<string, ReactNode> = {
   fire: <><span className="ring" /><CrosshairIcon size={30} /></>, ads: <CrosshairIcon size={22} />, jump: <ArrowUp size={22} />, crouch: <ChevronsDown size={22} />,
   reload: <RotateCw size={20} />, swap: <Repeat size={20} />, melee: <Swords size={18} />, lethal: <Bomb size={18} />, tactical: <Sparkles size={18} />,
+  firemode: <><Repeat size={18} /><small>SEMI/A</small></>, inspect: <RotateCw size={20} />,
   sprint: <Footprints size={20} />, autofire: <><Zap size={16} /><small>AUTO</small></>,
 };
 export const TOUCH_LABELS: Record<string, string> = {
+  firemode: 'Change fire mode', inspect: 'Inspect weapon',
   fire: 'Fire', ads: 'Aim down sights', jump: 'Jump', crouch: 'Crouch, or slide while sprinting', reload: 'Reload', swap: 'Switch weapon', melee: 'Melee',
   lethal: 'Throw lethal', tactical: 'Throw tactical', sprint: 'Sprint', autofire: 'Auto-fire on or off',
 };

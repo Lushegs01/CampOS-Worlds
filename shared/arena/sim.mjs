@@ -20,8 +20,8 @@ const SLIDE = { boost: 8.8, friction: 6.2, ticks: 50, cooldown: 72, fleetCooldow
 export const PITCH_LIMIT = 1.45;
 
 /** Input buttons (bit flags in each command). */
-export const B = { FIRE: 1, ADS: 2, JUMP: 4, CROUCH: 8, SPRINT: 16, RELOAD: 32, SWAP: 64, MELEE: 128, LETHAL: 256, TACTICAL: 512, SLOT1: 1024, SLOT2: 2048 };
-export const PHASES = ['ready', 'reload', 'switch', 'melee', 'throw'];
+export const B = { FIRE: 1, ADS: 2, JUMP: 4, CROUCH: 8, SPRINT: 16, RELOAD: 32, SWAP: 64, MELEE: 128, LETHAL: 256, TACTICAL: 512, SLOT1: 1024, SLOT2: 2048, MODE: 4096, INSPECT: 8192 };
+export const PHASES = ['ready', 'reload', 'switch', 'melee', 'throw', 'inspect'];
 const THROW_TICKS = 22;
 
 /** Quantise a command exactly as it travels, so prediction uses the values the server will use. */
@@ -30,7 +30,7 @@ export function quantize(cmd) {
   cmd.mz = Math.round(Math.max(-1, Math.min(1, cmd.mz)) * 127) / 127;
   cmd.yaw = Math.round(wrapAngle(cmd.yaw) * 10000) / 10000;
   cmd.pitch = Math.round(Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cmd.pitch)) * 10000) / 10000;
-  cmd.b = cmd.b & 4095;
+  cmd.b = cmd.b & 16383;
   return cmd;
 }
 export const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -39,7 +39,7 @@ export const encodeCommand = c => [c.seq, c.b, Math.round(c.mx * 127), Math.roun
 export function decodeCommand(a) {
   if (!Array.isArray(a) || a.length !== 6 || !a.every(Number.isInteger)) return null;
   const [seq, b, mx, mz, yaw, pitch] = a;
-  if (seq < 0 || b < 0 || b > 4095 || Math.abs(mx) > 127 || Math.abs(mz) > 127 || Math.abs(yaw) > 31416 || Math.abs(pitch) > PITCH_LIMIT * 10000 + 1) return null;
+  if (seq < 0 || b < 0 || b > 16383 || Math.abs(mx) > 127 || Math.abs(mz) > 127 || Math.abs(yaw) > 31416 || Math.abs(pitch) > PITCH_LIMIT * 10000 + 1) return null;
   return { seq, b, mx: mx / 127, mz: mz / 127, yaw: yaw / 10000, pitch: pitch / 10000 };
 }
 
@@ -47,7 +47,7 @@ export function decodeCommand(a) {
 export function spawnState(spawn, loadout, perks = new Set()) {
   const p = WEAPON_BY_ID.get(loadout.primary), s = WEAPON_BY_ID.get(loadout.secondary);
   const extra = perks.has('pockets') ? 1 : 0;
-  const slot = w => ({ id: w.id, mag: w.mag ?? 0, reserve: (w.reserve ?? 0) + (w.mag ?? 0) * extra });
+  const slot = w => ({ id: w.id, mag: w.mag ?? 0, reserve: (w.reserve ?? 0) + (w.mag ?? 0) * extra, mode: w.fire });
   const lethal = EQUIPMENT_BY_ID.get(loadout.lethal), tactical = EQUIPMENT_BY_ID.get(loadout.tactical);
   return {
     x: spawn.x, y: spawn.y ?? 0, z: spawn.z, vx: 0, vy: 0, vz: 0, yaw: spawn.yaw ?? 0, pitch: 0,
@@ -62,7 +62,7 @@ const PACK = ['x', 'y', 'z', 'vx', 'vy', 'vz', 'yaw', 'pitch', 'stance', 'slideT
 /** Full state for reconciliation (numbers survive JSON exactly). */
 export function packState(s) {
   const out = PACK.map(k => s[k]);
-  out.push(s.grounded ? 1 : 0, s.sprint ? 1 : 0, s.trig ? 1 : 0, PHASES.indexOf(s.phase), s.wpn[0].mag, s.wpn[0].reserve, s.wpn[1].mag, s.wpn[1].reserve);
+  out.push(s.grounded ? 1 : 0, s.sprint ? 1 : 0, s.trig ? 1 : 0, PHASES.indexOf(s.phase), s.wpn[0].mag, s.wpn[0].reserve, s.wpn[1].mag, s.wpn[1].reserve, s.wpn[0].mode === 'semi' ? 1 : 0, s.wpn[1].mode === 'semi' ? 1 : 0);
   return out;
 }
 export function unpackState(a, s) {
@@ -70,12 +70,15 @@ export function unpackState(a, s) {
   let i = PACK.length;
   s.grounded = a[i++] === 1; s.sprint = a[i++] === 1; s.trig = a[i++] === 1; s.phase = PHASES[a[i++]] ?? 'ready';
   s.wpn[0].mag = a[i++]; s.wpn[0].reserve = a[i++]; s.wpn[1].mag = a[i++]; s.wpn[1].reserve = a[i++];
+  for (let slot = 0; slot < 2; slot++) { const w = WEAPON_BY_ID.get(s.wpn[slot].id); s.wpn[slot].mode = w.fireModes?.includes('semi') && a[i + slot] === 1 ? 'semi' : w.fire; }
   return s;
 }
 export function cloneState(s) { return { ...s, wpn: s.wpn.map(w => ({ ...w })) }; }
 
 /** The weapon in the player's hands (every slot holds a catalogue id). */
 export const weaponOf = s => /** @type {typeof import('./weapons.mjs').WEAPONS[number]} */ (WEAPON_BY_ID.get(s.wpn[s.slot].id));
+/** Mode is server-owned state, selected only by a validated input button. */
+export const fireModeOf = s => { const w = weaponOf(s); return w.fireModes?.includes(s.wpn[s.slot].mode) ? s.wpn[s.slot].mode : w.fire; };
 export const heightOf = s => HEIGHT[s.stance];
 export const eyeOf = s => s.y + EYE[s.stance];
 
@@ -126,6 +129,8 @@ export function step(s, cmd, ctx) {
   const perks = ctx.perks ?? EMPTY;
   s.yaw = cmd.yaw; s.pitch = cmd.pitch;
   let w = weaponOf(s);
+  // Inspect is cosmetic and interrupts immediately for combat or movement actions.
+  if (s.phase === 'inspect' && b & (B.FIRE | B.ADS | B.RELOAD | B.SPRINT | B.MELEE | B.LETHAL | B.TACTICAL)) { s.phase = 'ready'; s.pt = 0; }
   // ---------------------------------------------------------------- stance, sprint, slide
   const wantAds = (b & B.ADS) !== 0 && w.fire !== 'melee' && s.phase !== 'switch' && s.phase !== 'melee' && s.phase !== 'throw' && s.phase !== 'reload';
   const forwardInput = cmd.mz > .3;
@@ -204,6 +209,15 @@ export function step(s, cmd, ctx) {
     events.push({ kind: 'switch', weapon: w.id });
   }
   const cur = s.wpn[s.slot];
+  if ((pressed & B.MODE) && w.fireModes && s.phase === 'ready') {
+    cur.mode = fireModeOf(s) === 'auto' ? 'semi' : 'auto';
+    s.trig = !!(b & B.FIRE); // changing mode cannot create an extra trigger pull
+    events.push({ kind: 'mode', mode: cur.mode });
+  }
+  const fire = fireModeOf(s);
+  if ((pressed & B.INSPECT) && w.inspect && s.phase === 'ready' && !(b & (B.FIRE | B.ADS | B.SPRINT | B.RELOAD))) {
+    s.phase = 'inspect'; s.pt = w.inspect; events.push({ kind: 'inspect' });
+  }
   // Quick melee, lethal and tactical interrupt a reload but not a switch.
   if ((pressed & B.MELEE) && (s.phase === 'ready' || s.phase === 'reload')) {
     s.phase = 'melee'; s.pt = w.fire === 'melee' ? w.swing : QUICK_MELEE.ticks; s.ads = 0; s.burstLeft = 0;
@@ -227,13 +241,13 @@ export function step(s, cmd, ctx) {
       events.push({ kind: 'reload', empty: cur.mag === 0 });
     } else if (s.phase === 'ready' && s.sprintOut <= 0) {
       const held = (b & B.FIRE) !== 0;
-      if (w.fire === 'burst' && held && !s.trig && s.burstLeft === 0 && s.cool <= 0 && cur.mag > 0) { s.burstLeft = w.burst; s.trig = true; }
+      if (fire === 'burst' && held && !s.trig && s.burstLeft === 0 && s.cool <= 0 && cur.mag > 0) { s.burstLeft = w.burst; s.trig = true; }
       while (s.cool <= 0 && cur.mag > 0) {
-        const go = w.fire === 'auto' ? held : w.fire === 'burst' ? s.burstLeft > 0 : held && !s.trig;
+        const go = fire === 'auto' ? held : fire === 'burst' ? s.burstLeft > 0 : held && !s.trig;
         if (!go) break;
         shoot(s, w, cur, ctx, perks, events); fired = true;
-        if (w.fire === 'burst') { s.burstLeft--; s.cool += 3600 / (s.burstLeft > 0 ? w.burstRpm : w.rpm); }
-        else { s.cool += 3600 / w.rpm; if (w.fire !== 'auto') s.trig = true; }
+        if (fire === 'burst') { s.burstLeft--; s.cool += 3600 / (s.burstLeft > 0 ? w.burstRpm : w.rpm); }
+        else { s.cool += 3600 / w.rpm; if (fire !== 'auto') s.trig = true; }
       }
       if (held && cur.mag === 0 && (pressed & B.FIRE) && cur.reserve === 0) events.push({ kind: 'dry' });
     }
@@ -241,7 +255,7 @@ export function step(s, cmd, ctx) {
   if (!(b & B.FIRE)) s.trig = false;
   if (!fired && s.cool < 0) s.cool = 0;
   // Spread bloom and recoil recover only once sustained fire stops (not between automatic shots).
-  const sustained = (b & B.FIRE) !== 0 && s.phase === 'ready' && s.wpn[s.slot].mag > 0 && (w.fire === 'auto' || s.burstLeft > 0);
+  const sustained = (b & B.FIRE) !== 0 && s.phase === 'ready' && s.wpn[s.slot].mag > 0 && (fire === 'auto' || s.burstLeft > 0);
   if (!fired && !sustained) {
     if (w.spread) s.bloom = Math.max(0, s.bloom - w.spread.bloomRecover);
     if (w.recoil) { s.rp = Math.max(0, s.rp - w.recoil.recover); s.ry *= .9; if (Math.abs(s.ry) < 1e-5) s.ry = 0; }

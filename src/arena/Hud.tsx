@@ -8,10 +8,10 @@ import { Skull } from 'lucide-react';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
 import { WEAPON_BY_ID, EQUIPMENT_BY_ID, CATEGORIES, EMBLEM_BY_ID } from '../../shared/arena/weapons.mjs';
 import { MODE_BY_ID } from '../../shared/arena/rules.mjs';
-import { weaponOf } from '../../shared/arena/sim.mjs';
+import { weaponOf, B } from '../../shared/arena/sim.mjs';
 import { useArena, useBanners } from './store';
 import { live, currentSpread, useStreak } from './net';
-import { controls } from './input';
+import { controls, press } from './input';
 import { useActiveLayout, useHudProfile, type Layout } from './hudLayout';
 import { Slot, useViewport, layoutVars, CrosshairMarks, TimerView, ScoreView, HealthView, AmmoView, WeaponInfoView, WeaponSlotsView, NetView, ObjectivesView, StreaksView, KillfeedView, BannerView, fmtClock } from './hudViews';
 
@@ -184,7 +184,7 @@ function Vitals() {
   const hp = useArena(s => s.hud.hp), alive = useArena(s => s.hud.alive), emblem = useArena(s => s.me?.emblem), name = useArena(s => s.me?.name);
   return <HealthView hp={hp} alive={alive} name={name ?? ''} emblem={emblem ?? 'recruit'} />;
 }
-function useWeaponHud() { return useArena(useShallow(s => ({ weapon: s.hud.weapon, mag: s.hud.mag, reserve: s.hud.reserve, magSize: s.hud.magSize, phase: s.hud.phase, slot: s.hud.slot, lethal: s.hud.lethal, tactical: s.hud.tactical }))); }
+function useWeaponHud() { return useArena(useShallow(s => ({ weapon: s.hud.weapon, mag: s.hud.mag, reserve: s.hud.reserve, magSize: s.hud.magSize, phase: s.hud.phase, fireMode: s.hud.fireMode, slot: s.hud.slot, lethal: s.hud.lethal, tactical: s.hud.tactical }))); }
 function WeaponSlots() {
   const slot = useArena(s => s.hud.slot), loadout = useArena(s => s.loadout);
   return <WeaponSlotsView slot={slot} primary={WEAPON_BY_ID.get(loadout.primary)?.name ?? ''} secondary={WEAPON_BY_ID.get(loadout.secondary)?.name ?? ''} />;

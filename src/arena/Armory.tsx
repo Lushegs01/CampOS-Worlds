@@ -20,7 +20,7 @@ import { getCommunityService } from '../services/community';
 import { initLoaders } from '../world/assets';
 import { useArena } from './store';
 import { request } from './net';
-import { preloadWeapon, weaponModel } from './scene/weapons';
+import { preloadWeapon, weaponModel, disposeWeapon } from './scene/weapons';
 import { ratings } from './Loadout';
 
 /** Catalogue entries with their Armory fields (added in shared/arena/weapons.mjs). */
@@ -39,7 +39,7 @@ export default function Armory() {
   useEffect(() => onRoomMessage(m => { if (m.type === 'shopGranted' || m.type === 'shopRevoked') { if (m.type === 'shopGranted') sfx.ui('purchase'); void request({ t: 'owned' }).then(r => { if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); }); } }), []);
   const w = byId(selected)!;
   return <div className="ar-modal" role="dialog" aria-modal="true" aria-labelledby="ar-armory-title"><div className="ar-sheet ar-armory">
-    <header><div><span className="ar-eyebrow">TWO FREE FIREARMS · PREMIUM PLAYSTYLES</span><h2 id="ar-armory-title">Armory</h2></div><button className="ar-icon" aria-label="Close the Armory" onClick={close}><X size={18} /></button></header>
+    <header><div><span className="ar-eyebrow">THREE FREE FIREARMS · PREMIUM PLAYSTYLES</span><h2 id="ar-armory-title">Armory</h2></div><button className="ar-icon" aria-label="Close the Armory" onClick={close}><X size={18} /></button></header>
     <nav className="ar-tabs" role="tablist">
       <button role="tab" aria-selected={tab === 'weapons'} className={tab === 'weapons' ? 'on' : ''} onClick={() => setTab('weapons')}><Crosshair size={15} />Weapons</button>
       <button role="tab" aria-selected={tab === 'history'} className={tab === 'history' ? 'on' : ''} onClick={() => setTab('history')}><Receipt size={15} />Purchase history</button>
@@ -47,7 +47,7 @@ export default function Armory() {
     {tab === 'weapons' ? <>
       <Inspect weapon={w} owned={owned} verified={!!me?.verified} level={me?.level ?? 1} />
       <div className="ar-armory-grid">{list.map(x => <WeaponCard key={x.id} w={x} owned={owned} level={me?.level ?? 1} on={x.id === selected} onClick={() => setSelected(x.id)} />)}</div>
-      <p className="ar-fine">Premium weapons unlock other ways to play, not stronger ones: each trades something away, and the free Vanguard AR-7 and Wasp SMG-9 stay competitive at every range. No random rewards: you pay once for exactly the weapon you choose, and it is yours on this account on every device.</p>
+      <p className="ar-fine">Premium weapons unlock other ways to play, not stronger ones: each trades something away, and the free Vanguard AR-7, Wasp SMG-9 and SIG Sauer M7 stay competitive at every range. No random rewards: you pay once for exactly the weapon you choose, and it is yours on this account on every device.</p>
     </> : <PurchaseHistory verified={!!me?.verified} />}
   </div></div>;
 }
@@ -79,14 +79,16 @@ function Inspect({ weapon: w, owned, verified, level }: { weapon: Weapon; owned:
       <span className="ar-eyebrow">{[w.armory, CATEGORIES[w.category as keyof typeof CATEGORIES]].filter((v, i, a) => a.findIndex(x => x.toLowerCase() === v.toLowerCase()) === i).join(' · ').toUpperCase()}</span>
       <h3 className="ar-inspect-name">{w.name}</h3>
       <p>{w.role}</p>
+      {w.id === 'm7' && <p className="ar-fine">Formerly XM7 · SIG Sauer MCX SPEAR · 6.8×51mm hybrid-case military ammunition. Suppressed configuration with a 2× optic. Select semi or auto with B; inspect with I.</p>}
       <p className="ar-fine"><b>Trade-off:</b> {w.tradeoff}</p>
       <div className="ar-stats">
         {firearm ? <>
           <span>Damage</span><i><em style={{ width: `${r.damage}%` }} /></i><b>{w.damage.map(([d, v]) => `${v * w.pellets}${w.pellets > 1 ? '' : ''}@${d}m`).join(' → ')}</b>
           <span>Fire rate</span><i><em style={{ width: `${Math.min(100, (w.rpm ?? 0) / 10)}%` }} /></i><b>{w.rpm} rpm{w.fire === 'burst' ? ` · ${w.burst}-round burst` : w.fire === 'bolt' ? ' · bolt' : w.fire === 'semi' ? ' · semi' : ' · auto'}</b>
           <span>Handling</span><i><em style={{ width: `${r.mobility}%` }} /></i><b>aim {(w.ads / 60).toFixed(2)} s · move {Math.round(w.moveMul * 100)}%</b>
-          <span>Range</span><i><em style={{ width: `${r.range}%` }} /></i><b>effective to {w.damage.at(-1)?.[0] ?? 0} m</b>
+          <span>Range</span><i><em style={{ width: `${r.range}%` }} /></i><b>max {w.range} m · falloff from {w.damage[1]?.[0] ?? w.range} m</b>
           <span>Recoil control</span><i><em style={{ width: `${Math.max(4, r.control)}%` }} /></i><b>{r.control >= 70 ? 'steady' : r.control >= 45 ? 'moderate' : 'heavy'}</b>
+          <span>Accuracy</span><i><em style={{ width: `${Math.max(0, 100 - (w.spread?.ads ?? 0) * 5000)}%` }} /></i><b>{((w.spread?.ads ?? 0) * 180 / Math.PI).toFixed(2)}° aimed spread</b>
           <span>Magazine</span><i><em style={{ width: `${Math.min(100, (w.mag ?? 0) / .75)}%` }} /></i><b>{w.mag} + {w.reserve} · reload {((w.reload ?? 0) / 60).toFixed(1)} s{w.reloadMode === 'shell' ? ' per shell' : ''}</b>
           <span>Time to eliminate</span><i /><b>{[5, 20, 40].map(d => { const t = timeToKill(w, d); return `${!Number.isFinite(t) ? 'out of range' : t === 0 ? 'one shot' : `${Math.round(t * 1000)} ms`} @${d} m`; }).join(' · ')}</b>
         </> : <><span>Reach</span><i><em style={{ width: `${(w.reach ?? 0) * 30}%` }} /></i><b>{w.reach ?? 0} m · one hit</b></>}
@@ -119,17 +121,18 @@ function InspectModel({ id }: { id: string }) {
   }, [gl, scene]);
   useEffect(() => {
     let on = true; setState('loading');
+    holder.current.rotation.set(.04, id === 'm7' ? -1.25 : -.6, 0);
     const load = () => preloadWeapon(id).then(() => {
       if (!on) return;
       const g = weaponModel(id); if (!g) { setState('failed'); return; }
       g.traverse(o => { const r = o.getObjectByName?.('reticle'); if (r) r.visible = false; });
       const box = new THREE.Box3().setFromObject(g), size = box.getSize(new THREE.Vector3()), centre = box.getCenter(new THREE.Vector3());
       g.position.sub(centre); const k = 1.1 / Math.max(size.x, size.y, size.z, .2);
-      holder.current.clear(); holder.current.scale.setScalar(k); holder.current.add(g); setState('ready');
+      for (const old of [...holder.current.children]) disposeWeapon(old); holder.current.clear(); holder.current.scale.setScalar(k); holder.current.add(g); setState('ready');
     });
     // The game's loaders are normally set up by the campus; if not, set them up with this renderer.
     load().catch(() => { initLoaders(gl, 4); return load(); }).catch(() => { if (on) setState('failed'); });
-    return () => { on = false; holder.current?.clear(); };
+    return () => { on = false; if (holder.current) for (const old of [...holder.current.children]) disposeWeapon(old); holder.current?.clear(); };
   }, [id, gl]);
   useEffect(() => {
     const el = gl.domElement, d = drag.current;
@@ -140,7 +143,7 @@ function InspectModel({ id }: { id: string }) {
     return () => { el.removeEventListener('pointerdown', down); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
   }, [gl]);
   useFrame((_, dt) => { if (!drag.current.active && holder.current) holder.current.rotation.y += dt * .35; });
-  useEffect(() => { const el = gl.domElement.parentElement?.parentElement; if (el) el.dataset.model = state; }, [state, gl]);
+  useEffect(() => { const el = gl.domElement.closest<HTMLElement>('.ar-inspect-view'); if (el) el.dataset.model = state; }, [state, gl]);
   return <group ref={holder} rotation={[0, -.6, 0]} />;
 }
 

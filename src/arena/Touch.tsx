@@ -15,6 +15,7 @@ import { Slot, useViewport, layoutVars, TOUCH_ICONS, TOUCH_LABELS, MenuButtonsVi
 export default function TouchControls() {
   const profile = useHudProfile(), layout = useActiveLayout(), view = useViewport();
   const phase = useArena(s => s.phase), alive = useArena(s => s.hud.alive), ads = useArena(s => s.hud.ads > .5);
+  const m7 = useArena(s => s.hud.weapon === 'm7'), semi = useArena(s => s.hud.fireMode === 'semi');
   const autoFire = useArena(s => s.settings.autoFire), allowed = useArena(s => s.match?.autoFire !== false);
   const [crouched, setCrouched] = useState(false), [sprinting, setSprinting] = useState(false);
   const enabled = profile !== 'desktop';
@@ -35,7 +36,7 @@ export default function TouchControls() {
   const toggleSprint = () => { controls.touchSprintLock = !controls.touchSprintLock; setSprinting(controls.touchSprintLock); };
   const p = { layout, view };
   const btn = (id: string, onDown: () => void, active = false, disabled = false) => <Slot key={id} id={id} {...p} interactive>
-    <Btn cls={id} label={TOUCH_LABELS[id]} active={active} disabled={disabled} onDown={onDown}>{TOUCH_ICONS[id]}</Btn>
+    <Btn cls={id} label={TOUCH_LABELS[id]} active={active} disabled={disabled} onDown={onDown}>{id === 'firemode' ? <small>{semi ? 'SEMI' : 'AUTO'}</small> : TOUCH_ICONS[id]}</Btn>
   </Slot>;
   return <div className="ar-touch" style={layoutVars(layout)} onContextMenu={e => e.preventDefault()}>
     <LookPad />
@@ -50,6 +51,8 @@ export default function TouchControls() {
     {btn('melee', () => press(B.MELEE))}
     {btn('lethal', () => press(B.LETHAL))}
     {btn('tactical', () => press(B.TACTICAL))}
+    {m7 && btn('firemode', () => press(B.MODE), semi)}
+    {m7 && btn('inspect', () => press(B.INSPECT))}
     {btn('autofire', toggleAutoFire, autoFire && allowed, !allowed)}
     <Slot id="menu" {...p} interactive><MenuButtonsView onScoreboard={open => useArena.getState().set({ scoreboard: open })} onMenu={() => useArena.getState().set({ menu: true })} /></Slot>
     {!alive && <div className="ar-tdead" />}

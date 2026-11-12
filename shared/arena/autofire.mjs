@@ -10,7 +10,7 @@
 //
 // The client calls `autoFireDecision` once per 60 Hz input tick (src/arena/net.ts).
 import { raycast } from './physics.mjs';
-import { weaponOf, direction, eyeOf, hitbox, B } from './sim.mjs';
+import { weaponOf, fireModeOf, direction, eyeOf, hitbox, B } from './sim.mjs';
 import { damageAt, isFirearm } from './weapons.mjs';
 
 /** Stance from a remote player's snapshot flags (crouch 2, slide 4). */
@@ -55,7 +55,7 @@ export function autoFireDecision({ sim, view, targets, world, team, held = 0 }) 
   // Sprinting is the player's choice to move, not to shoot: auto-fire never cancels it.
   if (sim.sprint || (held & B.SPRINT)) return no('sprinting');
   // Semi-automatic, burst and bolt-action weapons fire once per trigger press: release between shots.
-  if (w.fire !== 'auto' && sim.trig) return no('trigger reset');
+  if (fireModeOf(sim) !== 'auto' && sim.trig) return no('trigger reset');
   const ox = sim.x, oy = eyeOf(sim), oz = sim.z;
   direction(view.yaw + sim.ry, view.pitch + sim.rp, dir);
   let best = null, bestT = Infinity;

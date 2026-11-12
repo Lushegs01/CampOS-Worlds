@@ -155,3 +155,9 @@ made. The arena no longer uses the campus footsteps and wind (the campus still d
 - DM Sans and Manrope via `@fontsource-variable` (SIL Open Font License), bundled locally with system-font fallbacks.
 
 `docs/screenshots/` contains real browser captures, not concept renders. The campus, its buildings, menus, books and classes are fictional demonstration content and do not represent any real institution's services.
+
+### SIG Sauer M7 artwork
+
+`arena/weapons/m7.glb` and `m7-lod.glb` are original CampOS Worlds artwork, reproducibly built by `node scripts/assets/build-m7.mjs`. No commercial game model, manufacturer CAD or third-party mesh is included. Public visual references: [SIG defense catalog](https://www.sigsauer.com/media/sigsauer/resources/FULL_DEFENSE_CAT_26_PRINT.pdf), [Army equipment guide](https://api.army.mil/e2/c/downloads/2025/06/03/167e7d2f/army-equipment-for-festival.pdf). Names identify the reference platform; no endorsement is implied.
+
+Shared 256px Basis/KTX2 color, micro-normal and roughness textures, meshopt geometry, three named animation parts (`body`, `mag`, `bolt`). M7 reports dimensions and byte/triangle budgets in `public/assets/arena/manifest.json`. First- and third-person assets stream only when inspected, equipped or visible. `src/arena/m7Audio.ts` is original synthesized sound design, lazy loaded and cached in the active audio context. No recordings are copied.

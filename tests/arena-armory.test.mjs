@@ -1,4 +1,4 @@
-// Combat Arena Armory rules without a database: exactly two free firearms, every other firearm premium and
+// Combat Arena Armory rules without a database: three free firearms, every other firearm premium and
 // fully implemented, premium weapons locked in loadout validation, store items and prices in step with the
 // catalogue, and fair: no premium weapon is better than a free one in every respect.
 import { test } from 'node:test';
@@ -8,11 +8,11 @@ import { validateLoadout, PRESETS, BOT_PRESETS, timeToKill, dominates, unlocksAt
 import { SHOP_ITEMS, SHOP_BY_ID, priceOf, DEFAULT_PRICES } from '../shared/shop.mjs';
 import { readFileSync } from 'node:fs';
 
-test('exactly two free firearms (an assault rifle and an SMG); every other firearm is premium', () => {
-  assert.deepEqual(FREE_FIREARMS, ['vanguard', 'wasp']);
+test('three free firearms (an assault rifle, an SMG and the M7 battle rifle); every other firearm is premium', () => {
+  assert.deepEqual(FREE_FIREARMS, ['vanguard', 'wasp', 'm7']);
   assert.equal(WEAPON_BY_ID.get('vanguard').category, 'ar'); assert.equal(WEAPON_BY_ID.get('wasp').category, 'smg');
   const firearms = WEAPONS.filter(isFirearm);
-  assert.equal(firearms.filter(w => w.access === 'free').length, 2);
+  assert.equal(firearms.filter(w => w.access === 'free').length, 3);
   assert.deepEqual(firearms.filter(w => w.access !== 'free').map(w => w.id).sort(), [...PREMIUM_WEAPONS].sort());
   assert.ok(firearms.every(w => w.access === 'free' || w.access === 'premium'), 'no firearm is merely level-locked');
   // Every premium weapon is a real, independently configured weapon with its own model and sound profile.

@@ -1,0 +1,29 @@
+{
+  "checks": [
+    {
+      "name": "free M7 equips and saves on a real account with no entitlement or purchase",
+      "ok": true
+    },
+    {
+      "name": "Armory loads the original model on demand and shows Free",
+      "ok": true
+    },
+    {
+      "name": "two clients share a match and see the M7 first-person and third-person LOD",
+      "ok": true
+    },
+    {
+      "name": "2× ADS sight picture remains visible through the hollow optic",
+      "ok": true
+    }
+  ],
+  "screenshots": [
+    "loadout.png",
+    "armory.png",
+    "first-person.png",
+    "third-person.png",
+    "ads.png"
+  ],
+  "ok": true,
+  "finished": "2026-11-12T06:11:24.501Z"
+}
