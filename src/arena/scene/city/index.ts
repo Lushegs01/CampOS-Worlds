@@ -44,13 +44,17 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
   const atlas = signs.map(); signMat.map = atlas; litMat.map = atlas; litMat.emissiveMap = atlas;
 
   const statics = b.meshes(q.shadows);
+  const reflectable = new Set<THREE.Material>([...m.render, m.brick, m.panel, m.cladding, m.stone, m.block, m.blockwork, m.concrete, m.precast, m.plaster, m.sheetBlue, m.sheetCream, m.sheetGreen, m.window, m.curtain, m.curtainGreen, m.white, m.blue, m.red, m.green, m.orange, m.yellow, ...m.bodies, m.lamp, m.lampWarm, m.lampCool, m.led, m.room, signMat, litMat, m.glassDark]);
   for (const mesh of statics) {
     if (mesh.userData.chunk === CHUNK_FAR) mesh.castShadow = false; if ((mesh.material as THREE.Material).transparent) { mesh.castShadow = false; mesh.renderOrder = 2; }
     // What a puddle shows: the built fabric and the skyline above the street (not the station, not small detail).
     // (The street itself — slabs, kerbs, markings, everything that ends within 30 cm of street level — is the mirror,
     // and its undersides would block the view from below.)
     if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-    if (mesh.userData.chunk !== CHUNK_STATION && (mesh.geometry.boundingSphere?.radius ?? 0) > 2 && mesh.geometry.boundingBox!.max.y > L + .3) mesh.layers.enable(REFLECTED);
+    // Only what reads in a puddle: façades, glass, the city's lights, vehicles' bodies and the skyline — not trims,
+    // steelwork or furniture (each material is a draw call per region in the reflection pass too).
+    const mat = mesh.material as THREE.Material, base = (mat.userData.base as THREE.Material | undefined) ?? mat;
+    if (mesh.userData.chunk !== CHUNK_STATION && (mesh.geometry.boundingSphere?.radius ?? 0) > 2 && mesh.geometry.boundingBox!.max.y > L + .3 && (mesh.userData.chunk === CHUNK_FAR || reflectable.has(base))) mesh.layers.enable(REFLECTED);
   }
   const present = new Set(Object.keys(lib.props));
   const tag = (o: THREE.Object3D, chunk: number, ug = false) => { o.userData.chunk = chunk; if (ug) { const im = o as THREE.InstancedMesh; im.material = inside(im.material as THREE.Material, 'ug'); im.castShadow = false; } return o; };
@@ -112,15 +116,16 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
 
   // ---------------------------------------------------------------- weather
   const light = cityLighting(variant), atmo = atmosphereOf(variant);
-  cityWeather.uWet.value = light.wet; cityWeather.uStreet.value = L; cityWeather.uPuddle.value = .56; cityWeather.uReflect.value = 0;
-  setWindowLight(light.glow, light.rain);
+  /** The city's shared weather and room-light state (set when the scene mounts; reset by dispose()). */
+  const activate = () => { cityWeather.uWet.value = light.wet; cityWeather.uStreet.value = L; cityWeather.uPuddle.value = .56; setWindowLight(light.glow, light.rain); };
+  activate();
   const field = heightfield(map.boxes, map.bounds, L);
   const ambient = new THREE.Color(...atmo.fog);
   const rain = light.rain ? createRain(field, L, ambient, q.effects >= 1.2 ? { streaks: 9000, splashes: 420, curtains: 3, radius: 24 } : q.effects >= 1 ? { streaks: 6500, splashes: 280, curtains: 3, radius: 22 } : { streaks: 2600, splashes: 90, curtains: 1, radius: 16 }) : null;
   if (rain) { rain.group.userData.chunk = -1; objects.push(rain.group); }
   // Street lamps: their heads (the outdoor fittings), a halo and a cone of light in wet or dark air.
   const heads = fixtures.filter(f => f.where === 'out').map(f => f.p.clone().add(new THREE.Vector3(0, .26, 0)));
-  const glowStrength = light.glow > .7 ? 1.2 : light.rain ? .35 : light.glow * .4;   // daylight washes the scatter out
+  const glowStrength = light.glow > .7 ? 1.2 : light.rain ? .16 : light.glow * .3;   // daylight washes the scatter out
   const lampGlow = createLampGlow(heads, new THREE.Color('#ffd7a3'), glowStrength); lampGlow.group.userData.chunk = -1; lampGlow.group.traverse(o => o.layers.enable(REFLECTED)); objects.push(lampGlow.group);
   const nearLamps: THREE.Vector4[] = [];
   // The city's own lights, by variant.
@@ -194,7 +199,7 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
   };
   let onBreak: ((hit: NonNullable<ReturnType<typeof breakPane>>) => void) | null = null;
   const group = new THREE.Group(); group.name = 'metropolis'; group.add(...objects);
-  return { objects: [group] as THREE.Object3D[], group, lights: [] as THREE.Vector3[], setPixel: (px: number) => { pixel = px; }, rainGroup: rain?.group ?? null, atmosphere: atmo, sampleHeight: field.sample, decor: (keys: PropKey[]) => decor(keys), wanted, update: frame, onPaneBreak: (fn: typeof onBreak) => { onBreak = fn; }, setPanes, setPower, lighting: light, dispose, fixtures, placeOf: where };
+  return { objects: [group] as THREE.Object3D[], group, lights: [] as THREE.Vector3[], setPixel: (px: number) => { pixel = px; }, activate, rainGroup: rain?.group ?? null, atmosphere: atmo, sampleHeight: field.sample, decor: (keys: PropKey[]) => decor(keys), wanted, update: frame, onPaneBreak: (fn: typeof onBreak) => { onBreak = fn; }, setPanes, setPower, lighting: light, dispose, fixtures, placeOf: where };
 }
 export type City = ReturnType<typeof buildCity>;
 const hash2 = (i: number) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };

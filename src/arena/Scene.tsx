@@ -28,6 +28,7 @@ import { loadLibrary, loadDecor, loadSurfaceDetail, themeOf, skyDome, clearMater
 import { buildMetropolis, CITY_DECOR, type CityVariant } from './scene/metropolis';
 import { atmosphereOf, createSky, bakeEnvironment, installHeightFog, setHeightFog, createAdaptation } from './scene/city/atmosphere';
 import { createStreetReflection, REFLECTED } from './scene/city/reflection';
+import { cityWeather } from './scene/city/surfaces';
 import { GradeEffect } from './scene/grade';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
@@ -275,7 +276,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   }, [world, fx, atmo]);
   // A pane the server broke: fragments burst both ways from where it stood (its sound is played by the network layer).
   useEffect(() => { world?.city?.onPaneBreak(hit => { for (const s of [1, -1]) for (let k = 0; k < 3; k++) fx.effects.impact(v1.copy(hit.at).add(v3.set((Math.random() - .5) * hit.size * .6, (Math.random() - .5) * .8, (Math.random() - .5) * hit.size * .6)), v2.copy(hit.normal).multiplyScalar(s), 'metal', false); }); return () => world?.city?.onPaneBreak(null); }, [world, fx]);
-  useEffect(() => () => world?.city?.dispose(), [world]);
+  // (Mount and unmount may repeat — React's development checks do — so the city's shared weather state is set on mount.)
+  useEffect(() => { world?.city?.activate(); return () => world?.city?.dispose(); }, [world]);
   // Supply crates use the photoscanned military crate.
   useEffect(() => { if (!lib) return; for (const g of fx.crates) { g.clear(); const c = lib.props.milCrate.scene.clone(); c.scale.setScalar(.8); g.add(c); } }, [lib, fx]);
 
@@ -328,7 +330,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   }, [gl, scene, camera, q, vm, atmo]); // eslint-disable-line react-hooks/exhaustive-deps
   // The street's reflection in the rain (High, Ultra), drawn before the frame.
   const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
-  useEffect(() => () => reflection?.dispose(), [reflection]);
+  useEffect(() => { reflection?.attach(); return () => reflection?.dispose(); }, [reflection]);
   useEffect(() => {
     if (!QA_HOOKS || !reflection) return;
     // QA: sample the reflection target (half floats) to check what the street reflects.
@@ -337,6 +339,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       for (const [fx, fy] of [[.5, .5], [.25, .7], [.75, .7], [.5, .2], [.5, .9]]) { gl.readRenderTargetPixels(t, Math.floor(t.width * fx), Math.floor(t.height * fy), 1, 1, buf as unknown as Uint8Array); out.push([...buf].map(v => +THREE.DataUtils.fromHalfFloat(v).toFixed(3))); }
       return { w: t.width, h: t.height, px: out };
     };
+    (window as unknown as Record<string, unknown>).__arenaReflectDebug = (mode: number | boolean) => { cityWeather.uReflectDebug.value = +mode; };
     return () => { delete (window as unknown as Record<string, unknown>).__arenaReflect; };
   }, [reflection, gl]);
   const adapt = useMemo(() => createAdaptation(atmo?.exposure ?? .82), [atmo]);
@@ -728,7 +731,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     r.info.reset();
     // Exposure follows the eye: opening up indoors and in the station, closing again outside.
     r.toneMappingExposure = atmo ? adapt(Math.min(dt, .1), vm.indoor, camera.position.y < 4.6) : .82;
-    if (reflection && world?.city) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
+    // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame.)
+    if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 0)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
     if (composer) { composer.weapon.enabled = vm.holder.visible; composer.c.render(dt); }
     else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };

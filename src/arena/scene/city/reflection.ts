@@ -20,7 +20,9 @@ export function createStreetReflection(street: number, scale: number) {
   const view = new THREE.Vector3(), lookAt = new THREE.Vector3(), target3 = new THREE.Vector3(), rot = new THREE.Matrix4(), camPos = new THREE.Vector3(), clip = new THREE.Vector4(), q = new THREE.Vector4();
   const bias = new THREE.Matrix4().set(.5, 0, 0, .5, 0, .5, 0, .5, 0, 0, .5, .5, 0, 0, 0, 1);
   const size = new THREE.Vector2();
-  cityWeather.uReflectMap.value = target.texture;
+  /** Point the street materials at this reflection (from an effect: React may mount, unmount and mount again). */
+  const attach = () => { cityWeather.uReflectMap.value = target.texture; };
+  attach();
 
   /** Draw the reflection for this camera. Returns false (and turns the effect off) when the eye is below the street. */
   const render = (gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, hide: THREE.Object3D[]) => {
@@ -59,5 +61,5 @@ export function createStreetReflection(street: number, scale: number) {
     return true;
   };
   const dispose = () => { target.dispose(); cityWeather.uReflectMap.value = null; cityWeather.uReflect.value = 0; };
-  return { render, dispose, target };
+  return { render, dispose, attach, target };
 }

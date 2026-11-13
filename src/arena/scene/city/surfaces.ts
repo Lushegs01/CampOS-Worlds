@@ -21,6 +21,8 @@ export const cityWeather = {
   uReflectMap: { value: null as THREE.Texture | null },
   uReflectMatrix: { value: new THREE.Matrix4() },
   uReflect: { value: 0 },
+  /** QA: show the raw reflection on the street. */
+  uReflectDebug: { value: 0 },
 };
 /** Per-material uniforms (the interior layer's sky share and fill). */
 const own = new WeakMap<THREE.Material, Record<string, { value: unknown }>>();
@@ -70,7 +72,7 @@ function apply(shader: THREE.WebGLProgramParametersWithUniforms, layers: Layer[]
     cw = instanceMatrix * cw;
   #endif
     vCityW = (modelMatrix * cw).xyz; vCityN = normalize((vec4(transformedNormal, 0.) * viewMatrix).xyz); }`);
-  let pre = NOISE + 'uniform float uWet, uPuddle, uStreet, uRainTime, uReflect; uniform sampler2D uReflectMap; uniform mat4 uReflectMatrix;\n';
+  let pre = NOISE + 'uniform float uWet, uPuddle, uStreet, uRainTime, uReflect, uReflectDebug; uniform sampler2D uReflectMap; uniform mat4 uReflectMatrix;\n';
   if (has('puddles')) pre += RIPPLE;
   if (has('interior')) pre += 'uniform float uSkyShare, uFillScale; uniform vec3 uFill;\n';
   let body = `{
@@ -131,8 +133,11 @@ function apply(shader: THREE.WebGLProgramParametersWithUniforms, layers: Layer[]
     float nv = clamp(dot(normal, normalize(vViewPosition)), 0., 1.), fres = .04 + .96 * pow(1. - nv, 5.);
     float k = uReflect * mix(.35 * uWet, 1., cityPuddle) * (1. - roughnessFactor * .8);
     vec3 refl = texture2D(uReflectMap, clamp(ruv, .001, .999)).rgb;
-    refl = (any(isnan(refl)) || any(isinf(refl))) ? vec3(0.) : min(refl, vec3(64.));
-    reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular, refl * mix(fres, 1., .25) * (1. - roughnessFactor), clamp(k, 0., 1.));
+    bool bad = any(isnan(refl)) || any(isinf(refl));
+    refl = bad ? vec3(0.) : min(refl, vec3(64.));
+    if (uReflectDebug > 1.5) refl = bad ? vec3(1., 0., 1.) : vec3(clamp(ruv, 0., 1.), uReflectDebug > 2.5 ? texture2D(uReflectMap, vec2(.5, .3)).g * 3. : 0.);
+    reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular, refl * (fres * .88 + .12) * (1. - roughnessFactor), clamp(k, 0., 1.));
+    if (uReflectDebug > .5) { reflectedLight.directDiffuse = reflectedLight.indirectDiffuse = reflectedLight.directSpecular = vec3(0.); reflectedLight.indirectSpecular = refl; }
   }`);
     shader.fragmentShader = 'float upwOf(vec3 n) { return smoothstep(.55, .95, normalize(n).y); }\n' + shader.fragmentShader;
   }
