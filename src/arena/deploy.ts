@@ -22,7 +22,7 @@ import { traffic, resetTraffic, onTraffic } from '../world/fetcher';
 
 export type Stage = 'idle' | 'requesting' | 'loading-code' | 'preparing' | 'synchronizing' | 'deployed' | 'recovering' | 'failed';
 export type DeployKind = 'queue' | 'private' | 'training' | 'rejoin';
-export interface DeployFailure { message: string; detail?: string; retry: 'request' | 'assets' | 'rejoin' | null }
+export interface DeployFailure { message: string; detail?: string; retry: 'request' | 'assets' | 'rejoin' | 'reload' | null }
 export interface DeployState {
   cid: string; kind: DeployKind | null; stage: Stage; resumeStage: Stage | null; startedAt: number; stageAt: number;
   /** Milliseconds from the start at which each stage was reached. */
@@ -117,7 +117,7 @@ export function watchdog() {
 }
 
 // ---------------------------------------------------------------- diagnostics
-export interface DeployTrace { cid: string; kind: string | null; ok: boolean; stage: Stage; total: number; stages: Record<string, number>; files: number; failed: number; retries: number; bytes: number; tier: string; failures: { url: string; reason: string }[]; failure?: string }
+export interface DeployTrace { cid: string; kind: string | null; ok: boolean; stage: Stage; total: number; stages: Record<string, number>; files: number; failed: number; retries: number; bytes: number; tier: string; failures: { url: string; reason: string }[]; failure?: string; detail?: string }
 const traces: DeployTrace[] = [];
 let reporter: ((t: DeployTrace) => void) | null = null;
 /** Where finished traces go (the network layer sends them to the server). */
@@ -125,7 +125,7 @@ export function onReport(fn: (t: DeployTrace) => void) { reporter = fn; }
 function report(ok: boolean, at?: Stage) {
   const s = get();
   const trace: DeployTrace = { cid: s.cid, kind: s.kind, ok, stage: at ?? s.stage, total: Math.round(now() - s.startedAt), stages: s.marks, files: traffic.finished, failed: traffic.failed, retries: traffic.retries, bytes: traffic.bytes, tier: s.tier,
-    failures: traffic.failures.slice(-5).map(({ url, reason }) => ({ url, reason })), ...(s.failure ? { failure: s.failure.message } : {}) };
+    failures: traffic.failures.slice(-5).map(({ url, reason }) => ({ url, reason })), ...(s.failure ? { failure: s.failure.message, ...(s.failure.detail ? { detail: s.failure.detail } : {}) } : {}) };
   traces.push(trace); if (traces.length > 10) traces.shift();
   console.info('[arena-deploy]', JSON.stringify(trace));
   reporter?.(trace);

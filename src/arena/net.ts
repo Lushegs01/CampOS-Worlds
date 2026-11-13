@@ -23,6 +23,7 @@ import { sfx, actions, remoteActions, announcer, countdown, ground } from './aud
 import { soldierModelFor } from './models';
 import { QA_HOOKS } from '../qa';
 import * as deploy from './deploy';
+import { updateCampus } from '../pwa/store';
 
 type Sim = ReturnType<typeof spawnState>;
 type Cmd = { seq: number; b: number; mx: number; mz: number; yaw: number; pitch: number };
@@ -540,6 +541,8 @@ export function retryDeploy() {
   const f = deploy.useDeploy.getState().failure;
   if (f?.retry === 'request' && lastRequest) { deploy.reset(); useArena.getState().set({ phase: 'lobby' }); const d = lastRequest; void deployTo(d.t === 'queue' ? 'queue' : d.t === 'private' ? 'private' : 'training', d); return; }
   if (f?.retry === 'rejoin') { const a = useArena.getState(); deploy.reset(); deploy.begin('rejoin', true); deploy.assigned(); if (a.match && a.you) void request({ t: 'rejoin', match: a.match.id, key: a.you.key }).then(r => { if (!r.ok) { deploy.reset(); resetMatch(); useArena.getState().set({ phase: 'lobby', error: String(r.reason ?? '') }); } }); else connect(); return; }
+  // A newer release replaced this page's code files: leave the match properly, then load the new version.
+  if (f?.retry === 'reload') { void leaveMatch().finally(() => void updateCampus()); return; }
   if (f?.retry === 'assets') { const s = deploy.useDeploy.getState(); useDeploy_retryAssets(); deploy.useDeploy.setState({ ...s, stage: 'loading-code', failure: null, slow: false }); deploy.enter('preparing'); }
 }
 const assetRetries = new Set<() => void>();

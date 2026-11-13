@@ -191,6 +191,21 @@ try {
   await ready(panelPage);
   pass('a failed optional panel download stays inside its boundary and leaves the campus usable');
   await panelCtx.close();
+  // A release while a page is open: its code-split files are replaced, so the open page cannot fetch the arena's
+  // any more, and the host's index.html names a different entry script. The page says so and reloads into it.
+  const releaseCtx=await context({serviceWorkers:'block'}),releasePage=await releaseCtx.newPage();
+  await releasePage.goto(host.url,{waitUntil:'domcontentloaded'});await ready(releasePage);
+  await releasePage.getByRole('button',{name:'Enter campus',exact:true}).click();
+  const gone=route=>route.fulfill({status:404,body:'Not found'});
+  const newer=async route=>{const response=await route.fetch();route.fulfill({response,body:(await response.text()).replace(/src="\/assets\/index-[^"]+\.js"/,'src="/assets/index-NEWRELEASE.js"')});};
+  await releasePage.route('**/assets/arena-*',gone);await releasePage.route(host.url+'/',newer);
+  await releasePage.getByRole('button',{name:/Combat Arena/}).first().click();
+  await releasePage.getByRole('heading',{name:'CampOS Worlds was updated.'}).waitFor({timeout:30000});
+  await releasePage.unroute('**/assets/arena-*',gone);await releasePage.unroute(host.url+'/',newer);
+  await Promise.all([releasePage.waitForEvent('domcontentloaded'),releasePage.getByRole('button',{name:'Reload',exact:true}).click()]);
+  await ready(releasePage);
+  pass('after a release, opening the arena from an older page offers a reload instead of a dead end, and the reload opens the campus');
+  await releaseCtx.close();
   assert.deepEqual(errors,[],'no unexpected page or console errors in normal production flows');
   assert.deepEqual(failed,[],'no failed requests in normal production flows');
   completed=true;

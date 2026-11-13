@@ -21,6 +21,7 @@ import TouchControls from './Touch';
 import LoadoutEditor from './Loadout';
 import { toggleAutoFire } from './net';
 import { recommendQuality } from './device';
+import { chunkLoadFailed, newerReleaseLive } from '../pwa/store';
 import { sfx, prepareInterface } from './audio';
 import './arena.css';
 
@@ -43,13 +44,24 @@ function uiHover(e: PointerEvent) {
 
 // The 3D scene's code: a failed download is reported to the deployment (with Retry) instead of closing the arena,
 // and a retry makes a fresh lazy component (React keeps a failed one failed).
+// When the download fails because a newer release replaced the code files since this page opened, retrying cannot
+// help (the old file is gone for good): the error is marked `stale` and the deployment offers a reload instead.
 let sceneCode: Promise<{ default: ComponentType<{ mapId: string }>; releaseArena: () => void }> | null = null;
-const sceneModule = () => (sceneCode ??= import('./Scene').catch(e => { sceneCode = null; throw e; }));
+const sceneModule = () => (sceneCode ??= import('./Scene').catch(async e => {
+  sceneCode = null;
+  if (chunkLoadFailed(e) && await newerReleaseLive()) Object.assign(e, { stale: true });
+  throw e;
+}));
 class SceneBoundary extends Component<{ children: (Scene: ComponentType<{ mapId: string }>) => ReactNode }, { error: boolean; Scene: ComponentType<{ mapId: string }> }> {
   state = { error: false, Scene: lazy(sceneModule) };
   private off: (() => void) | null = null;
   static getDerivedStateFromError() { return { error: true }; }
-  componentDidCatch(e: Error) { console.error('Arena scene could not load.', e); deploy.fail('The arena’s 3D code could not be downloaded.', 'assets', String(e?.message ?? e).slice(0, 160)); }
+  componentDidCatch(e: Error & { stale?: boolean }) {
+    console.error('Arena scene could not load.', e);
+    const detail = String(e?.message ?? e).slice(0, 160);
+    if (e?.stale) deploy.fail('Combat Arena was updated while this page was open. Reload to play the new version.', 'reload', detail);
+    else deploy.fail('The arena’s 3D code could not be downloaded.', 'assets', detail);
+  }
   componentDidMount() { this.off = onRetryAssets(() => { if (this.state.error) this.setState({ error: false, Scene: lazy(sceneModule) }); }); }
   componentWillUnmount() { this.off?.(); }
   render() { return this.state.error ? null : this.props.children(this.state.Scene); }

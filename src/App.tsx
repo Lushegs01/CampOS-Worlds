@@ -28,17 +28,18 @@ import { useCommunity } from './community/store';
 import { CalendarDays } from 'lucide-react';
 import { chime } from './interaction/sound';
 import { LabHud } from './economy/LabHud';
-import { usePwa } from './pwa/store';
+import { usePwa, chunkLoadFailed, newerReleaseLive, updateCampus } from './pwa/store';
 // Campus characters: subscribed before the room's welcome arrives (it carries who is on duty).
 import './npc/client';
 const World=lazy(()=>import('./world/World'));
 // Combat Arena (src/arena): an optional game mode in its own chunk, downloaded only when a player opens it.
 const Arena=lazy(()=>import('./arena/ArenaApp'));
-class ArenaBoundary extends Component<{children:ReactNode},{error:boolean}> {
- state={error:false};
+// A newer release replaces the code files: a page opened before it cannot download the arena's, and only a reload helps.
+class ArenaBoundary extends Component<{children:ReactNode},{error:boolean;stale:boolean}> {
+ state={error:false,stale:false};
  static getDerivedStateFromError(){return {error:true};}
- componentDidCatch(error:Error){console.error('Combat Arena could not load.',error);}
- render(){return this.state.error?<div className="modal-backdrop"><section className="modal" role="alertdialog" aria-labelledby="arena-error-title"><div className="modal-body"><h2 id="arena-error-title">Combat Arena couldn’t open.</h2><p>Check your connection and try again. Your campus session is unaffected.</p><div className="welcome-actions"><button className="primary" onClick={()=>{this.setState({error:false});useGame.getState().set({panel:null});}}>Back to campus</button></div></div></section></div>:this.props.children;}
+ componentDidCatch(error:Error){console.error('Combat Arena could not load.',error);if(chunkLoadFailed(error))void newerReleaseLive().then(stale=>{if(stale&&this.state.error)this.setState({stale:true});});}
+ render(){return this.state.error?<div className="modal-backdrop"><section className="modal" role="alertdialog" aria-labelledby="arena-error-title"><div className="modal-body"><h2 id="arena-error-title">{this.state.stale?'CampOS Worlds was updated.':'Combat Arena couldn’t open.'}</h2><p>{this.state.stale?'Reload to open Combat Arena in the new version. Saved preferences and account progress are kept.':'Check your connection and try again. Your campus session is unaffected.'}</p><div className="welcome-actions">{this.state.stale&&<button className="primary" onClick={()=>void updateCampus()}>Reload</button>}<button className={this.state.stale?'secondary':'primary'} onClick={()=>{this.setState({error:false,stale:false});useGame.getState().set({panel:null});}}>Back to campus</button></div></div></section></div>:this.props.children;}
 }
 function CampusRecovery({ slow = false }: { slow?: boolean }) {
  const online=usePwa(s=>s.online);

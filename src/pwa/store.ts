@@ -64,6 +64,25 @@ export function initPwa() {
     },
   });
 }
+/** True when the code-split file `error` is about could not be fetched or run (rather than code that threw). */
+export const chunkLoadFailed = (error: unknown) =>
+  /dynamically imported module|Importing a module script failed|error loading dynamically imported|Unable to preload|module script/i.test(String((error as Error)?.message ?? error));
+/** Whether a newer release than this page is live on the host. A release replaces the code files, so a page opened
+ *  before it can no longer download the parts it loads on demand (Combat Arena, its 3D scene): only a reload helps.
+ *  Compares this page's entry script with the one the host serves now. */
+export async function newerReleaseLive(): Promise<boolean> {
+  if (!import.meta.env.PROD) return false;
+  const mine = document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]')?.getAttribute('src');
+  if (!mine) return false;
+  try {
+    const response = await fetch('/', { cache: 'no-store', credentials: 'same-origin' });
+    if (!response.ok) return false;
+    const live = /<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"/.exec(await response.text())?.[1];
+    const newer = !!live && live !== mine;
+    if (newer) usePwa.setState({ updateAvailable: true });
+    return newer;
+  } catch { return false; }
+}
 export async function installCampus() {
   const pending = prompt;
   if (!pending) return;

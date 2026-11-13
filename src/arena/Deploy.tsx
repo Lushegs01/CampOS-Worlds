@@ -64,7 +64,7 @@ export default function DeployScreen() {
         {d.failure.detail && <small>{d.failure.detail}</small>}
       </div>}
       <div className="ar-deploy-actions">
-        {d.stage === 'failed' && d.failure?.retry && <button className="ar-primary" onClick={retryDeploy}><RotateCw size={16} />Retry</button>}
+        {d.stage === 'failed' && d.failure?.retry && <button className="ar-primary" onClick={retryDeploy}><RotateCw size={16} />{d.failure.retry === 'reload' ? 'Reload' : 'Retry'}</button>}
         {(d.stage === 'failed' || d.slow || elapsed > 8) && <button className="ar-secondary" onClick={() => void leaveMatch()}><LogOut size={16} />{d.stage === 'failed' ? 'Back to the lobby' : 'Leave'}</button>}
         {d.stage === 'failed' && <button className="ar-ghost" onClick={copy}><Copy size={14} />{copied ? 'Copied' : 'Copy diagnostics'}</button>}
       </div>
