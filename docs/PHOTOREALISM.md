@@ -306,6 +306,14 @@ already the Port of Okun Bay. Only Metropolis changed; Foundry Yard and Sim Quad
 * Brands: Okun Bay Lines, Iroko Marine, Tidemark, Vespera, Campos Freight, Harmattan — all invented, with simple
   original marks; owner codes use invented prefixes.
 
+### Shade no longer crushed to black (all Metropolis weathers, Medium and up)
+
+The film grade applied contrast as a straight line about mid-grey in display space, `(c − 0.5) × k + 0.5`: at
+k = 1.1 a dark value of 0.05 became 0.005, at 1.06 it halved. On Medium and up that turned arcades, north-facing
+walls, backlit faces and the dark first-person rifle black (the Harmattan Noon arcade in the earlier High captures,
+`after-high50/day-avenue-high.jpg`), while Low — which has no grade — showed them grey with detail. Contrast is now a
+power curve about mid-grey (black and white stay put; 0.05 → 0.04 at 1.1).
+
 ### Shadows
 
 The sun's shadow camera is now fitted to the site as the sun sees it (all Metropolis weathers). With the old square
