@@ -726,8 +726,12 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // QA builds only: `?qa-norender` keeps the frame loop (simulation, animation, sound) but draws nothing, so timing
   // checks run at a realistic frame rate on machines that render in software.
   const noRender = QA_HOOKS && new URLSearchParams(location.search).has('qa-norender');
+  // QA builds: `__arenaFreeze(true)` stops drawing (the canvas keeps its last frame) so a software-rendered capture can
+  // take its screenshot while the GPU process is idle; the frame loop, simulation and HUD keep running.
+  const frozen = useRef(false);
+  useEffect(() => { if (!QA_HOOKS) return; const w = window as unknown as Record<string, unknown>; w.__arenaFreeze = (on: boolean) => { frozen.current = on; }; return () => { delete w.__arenaFreeze; }; }, []);
   useFrame(({ gl: r }, dt) => {
-    if (noRender) return;
+    if (noRender || frozen.current) return;
     r.info.reset();
     // Exposure follows the eye: opening up indoors and in the station, closing again outside.
     r.toneMappingExposure = atmo ? adapt(Math.min(dt, .1), vm.indoor, camera.position.y < 4.6) : .82;
