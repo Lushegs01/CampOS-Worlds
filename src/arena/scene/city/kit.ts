@@ -165,9 +165,9 @@ export class SignAtlas {
   constructor(size = 2048) { this.canvas.width = this.canvas.height = size; this.g = this.canvas.getContext('2d')!; this.g.fillStyle = '#000'; this.g.fillRect(0, 0, size, size); }
   /** Draw a sign `w` × `h` pixels with `paint`; returns its UV rectangle. */
   slot(w: number, h: number, paint: (g: CanvasRenderingContext2D, w: number, h: number) => void) {
-    // Sizes are given for a 2048² atlas and scaled to this one (Low's 1024² atlas holds the same signs at half size;
-    // at full size only one 512 px sign fitted per row and later signs were drawn over earlier ones).
-    const S = this.canvas.width, k = S / 2048, pw = Math.round(w * k), ph = Math.round(h * k);
+    // Sizes are given for a 2560² atlas and scaled to this one, so every tier holds the same signs (Low's 1024² atlas
+    // used to fit one 512 px sign per row and drew later signs over earlier ones).
+    const S = this.canvas.width, k = S / 2560, pw = Math.round(w * k), ph = Math.round(h * k);
     if (this.x + pw > S) { this.x = 0; this.y += this.row + 4; this.row = 0; }
     const x = this.x, y = this.y; this.x += pw + 4; this.row = Math.max(this.row, ph);
     if (y + ph > S) console.warn(`Sign atlas full (${S}²): a sign is drawn over another.`);

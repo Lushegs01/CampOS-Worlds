@@ -71,6 +71,12 @@ sparkling).
 * `reflect` — the planar street reflection (below), read through the rippled normal.
 * `interior` — the previous per-place lighting (shops warm, station cool), now on the same system.
 
+All layered materials share **one program**: each layer's code sits behind a test of the material's `uLayers`
+bitmask (a uniform branch). A program per layer combination raised the Low profile from 48 to 61 shader programs;
+with the shared program it is 54. This matters beyond load time: where a driver lacks `KHR_parallel_shader_compile`
+(SwiftShader here, and some Android drivers), `compileAsync` compiles on the main thread, the page stops reading its
+sockets and the server's 10 s heartbeat can drop the player during deployment.
+
 Palm trunks use the campus' CC0 palm bark (they were untextured white). Vehicle and shop glass is now dielectric
 (Fresnel reflection) instead of a dark metal.
 
@@ -109,9 +115,12 @@ per region.
 * **Splashes**: rings and droplet crowns re-seeded each cycle around the player, on the surface beneath.
 * **Lamp halos and light cones** in rain and at night (scattering in wet or dark air).
 * **Planar street reflection** (High, Ultra; rain only): the scene drawn once more from the camera mirrored in the
-  street plane at 40 % / 60 % resolution with an oblique near plane, only the layer of large static geometry, the sky,
-  lamps and their glow; lit like the street. Puddles and wet asphalt show buildings and lamps instead of reflecting
-  sky under a canyon.
+  street plane at 40 % / 60 % resolution with an oblique near plane 4 cm above the street. Only façades, glass, the
+  city's lights, vehicle bodies and the skyline are drawn into it (ground-level geometry is excluded: the pavement
+  slabs straddle the plane and their undersides blocked the view); lights are enabled on its layer. High refreshes it
+  every second frame, Ultra every frame. Puddles and wet asphalt show the buildings, signs and lamps above them
+  instead of reflecting open sky inside a street canyon. Reflection samples are guarded against NaN/Inf (one
+  invalid texel otherwise spreads through the bloom blur).
 
 ### Effects and first-person — `scene/fx.ts`, `Scene.tsx`
 
@@ -123,6 +132,16 @@ per region.
 * The muzzle flash is a procedural petal flash with a hot core instead of a soft disc.
 * The first-person weapon reflects the baked sky of the variant and dims its reflections in the station.
 * Weapon models, firing, recoil, reload and inspection animations, hit registration and input are unchanged.
+
+### Fixes found along the way
+
+* **Signs overdrawn on Low** (pre-existing): signs were 512 px wide plus a 4 px gutter, so Low's 1024² atlas held one
+  per row and most later signs were drawn over earlier ones. Signs are now drawn at the atlas' scale (sizes are given
+  for 2048²) and identical signs share one slot; a warning is logged if the atlas ever fills.
+* **Remount safety**: React's development double-mount disposed the reflection and reset the wet-street uniforms
+  right after creation (wet streets were silently dry in development). Shared city state is now attached on mount.
+* **Server heartbeat** is an option (`heartbeatMs`, default 10 s, unchanged in production) so software-rendered
+  QA runs are not dropped while shaders compile.
 
 ## 3. Validation and measurements
 

@@ -19,8 +19,9 @@ void heightFog;
 
 const ROOM = /* glsl */`
 uniform float uDaylight, uLamp, uLitShare, uShopLit; uniform vec3 uDayTint;
-varying vec4 vWin; varying vec2 vWinUv; varying vec3 vWinW; varying vec3 vWinN;
-float wH(float n) { return fract(sin(n * 91.3458 + 17.17) * 47453.5453); }
+flat varying vec4 vWin; varying vec2 vWinUv; varying vec3 vWinW; varying vec3 vWinN;
+// (vWin is flat and its seed a small integer: the hash below amplifies any interpolation error into per-pixel noise.)
+float wH(float n) { return fract(sin(n * 12.9898 + 4.1414) * 43758.5453); }
 float wN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); float a = wH(i.x + i.y * 57.), b = wH(i.x + 1. + i.y * 57.), c = wH(i.x + (i.y + 1.) * 57.), d = wH(i.x + 1. + (i.y + 1.) * 57.); return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }
 vec3 wallPaint(float r) {
   return r < .17 ? vec3(.62, .6, .55) : r < .33 ? vec3(.55, .46, .35) : r < .5 ? vec3(.4, .48, .53) : r < .66 ? vec3(.46, .5, .4) : r < .83 ? vec3(.42, .41, .4) : vec3(.52, .33, .25);
@@ -101,7 +102,7 @@ export function windowMaterial() {
   m.userData.fixed = true;
   m.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, windowLight);
-    shader.vertexShader = 'attribute vec4 aWin; varying vec4 vWin; varying vec2 vWinUv; varying vec3 vWinW; varying vec3 vWinN;\n' + shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+    shader.vertexShader = 'attribute vec4 aWin; flat varying vec4 vWin; varying vec2 vWinUv; varying vec3 vWinW; varying vec3 vWinN;\n' + shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
       vWin = aWin; vWinUv = uv; vWinW = (modelMatrix * vec4(transformed, 1.)).xyz; vWinN = normalize(mat3(modelMatrix) * objectNormal);`);
     shader.fragmentShader = ROOM + shader.fragmentShader
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nfloat glassRough; vec3 roomLight = windowRoom(glassRough); roughnessFactor = glassRough;')
@@ -116,7 +117,8 @@ export function windowMaterial() {
 /** A pane quad facing +z in the coordinates of `M`, `w` × `h`, from (0,0): uv 0…1, and its window parameters. */
 export function paneGeometry(w: number, h: number, seed: number, kind: number) {
   const g = new THREE.PlaneGeometry(w, h).translate(w / 2, h / 2, 0), n = g.attributes.position.count;
-  const a = new Float32Array(n * 4); for (let i = 0; i < n; i++) a.set([w, h, seed, kind], i * 4);
+  // A small whole-number seed per window (see the shader's note on precision).
+  const id = Math.floor(Math.abs(seed) * 7.31) % 4093, a = new Float32Array(n * 4); for (let i = 0; i < n; i++) a.set([w, h, id, kind], i * 4);
   g.setAttribute('aWin', new THREE.BufferAttribute(a, 4));
   return g;
 }

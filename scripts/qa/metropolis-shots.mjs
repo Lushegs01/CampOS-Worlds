@@ -86,7 +86,12 @@ try {
           await page.waitForTimeout(Number(process.env.HOLD || 2500));
           const stats = await page.evaluate(() => ({ ...(window.__arenaStats ?? {}), fps: window.__arena.state().hud.fps, heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null }));
           if (!stats.calls) throw new Error('the scene is not mounted');
-          await page.screenshot({ path: `${OUT}${variant}-${view.id}-${quality}.jpg`, type: 'jpeg', quality: 88 });
+          // Hold the page's animation loop for the capture: a software GPU process busy with back-to-back frames can
+          // starve the screenshot request. The canvas keeps the last frame; the loop resumes right after.
+          await page.evaluate(() => { window.__rafHold = []; window.__rafOrig = window.requestAnimationFrame; window.requestAnimationFrame = cb => { window.__rafHold.push(cb); return 0; }; });
+          await page.waitForTimeout(Number(process.env.HOLD_SETTLE || 4000));
+          try { await page.screenshot({ path: `${OUT}${variant}-${view.id}-${quality}.jpg`, type: 'jpeg', quality: 88, timeout: 300000 }); }
+          finally { await page.evaluate(() => { window.requestAnimationFrame = window.__rafOrig; const h = window.__rafHold ?? []; window.__rafHold = []; for (const cb of h) window.__rafOrig(cb); }).catch(() => {}); }
           results.views[`${variant}-${view.id}-${quality}`] = { ...stats, deployMs: s.deployMs };
           console.log(LABEL, variant, view.id, quality, JSON.stringify(stats));
           await writeFile(`${process.env.OUT_ROOT || ''}docs/performance/metropolis-${LABEL}${process.env.PART ? '-' + process.env.PART : ''}.json`, JSON.stringify(results, null, 2) + '\n').catch(() => {});
