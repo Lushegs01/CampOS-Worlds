@@ -74,10 +74,12 @@ try {
     await page.waitForTimeout(Number(process.env.SETTLE || 9000));
     return { page, me, keep, deployMs, close: async () => { clearInterval(keep); await page.close().catch(() => {}); for (const m of [...room.arena.matches.values()]) m.close('capture'); } };
   };
+  // A software-rendered deployment can stall long enough for the client's download watchdog to give up: retry it.
+  const deployWithRetry = async (quality, variant) => { for (let i = 0; ; i++) { try { return await deployPage(quality, variant); } catch (e) { results.errors.push(`${variant}/${quality} deploy attempt ${i + 1}: ${String(e.message ?? e).slice(0, 160)}`); if (i >= 2) throw e; for (const c of browser.contexts()) for (const pg of c.pages()) await pg.close().catch(() => {}); for (const m of [...room.arena.matches.values()]) m.close('capture'); } } };
   for (const quality of QUALITIES) for (const variant of VARIANTS) {
-    let s = await deployPage(quality, variant);
+    let s = await deployWithRetry(quality, variant);
     for (const view of VIEWS.filter(v => !ONLY || ONLY.includes(v.id))) {
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const { page, me } = s;
           Object.assign(me.sim, { x: view.at[0], y: view.at[1], z: view.at[2], vx: 0, vy: 0, vz: 0, yaw: view.yaw }); me.history = [];
@@ -92,6 +94,9 @@ try {
           await page.waitForTimeout(Number(process.env.HOLD_SETTLE || 3000));
           try { await page.screenshot({ path: `${OUT}${variant}-${view.id}-${quality}.jpg`, type: 'jpeg', quality: 88, timeout: 300000 }); }
           finally { await page.evaluate(() => window.__arenaFreeze?.(false)).catch(() => {}); }
+          // The session may have dropped while the screenshot was taken: then the picture is of the lobby.
+          const still = await page.evaluate(() => !!window.__arena?.self?.() && window.__arenaStats?.calls > 0 && !!document.querySelector('.ar-canvas'));
+          if (!still) throw new Error('the match ended during the capture');
           results.views[`${variant}-${view.id}-${quality}`] = { ...stats, deployMs: s.deployMs };
           console.log(LABEL, variant, view.id, quality, JSON.stringify(stats));
           await writeFile(`${process.env.OUT_ROOT || ''}docs/performance/metropolis-${LABEL}${process.env.PART ? '-' + process.env.PART : ''}.json`, JSON.stringify(results, null, 2) + '\n').catch(() => {});
@@ -100,7 +105,7 @@ try {
           const state = await s.page.evaluate(() => ({ self: window.__arena?.self?.(), stats: window.__arenaStats, deploy: window.__arenaDeploy?.().stage })).catch(err => String(err).slice(0, 120));
           console.error(`view ${variant}/${view.id}/${quality} failed (attempt ${attempt + 1}):`, String(e.message ?? e).slice(0, 200), JSON.stringify(state).slice(0, 300));
           results.errors.push(`${variant}/${view.id}/${quality} attempt ${attempt + 1}: ${String(e.message ?? e).slice(0, 160)}`);
-          await s.close(); s = await deployPage(quality, variant);
+          await s.close(); s = await deployWithRetry(quality, variant);
         }
       }
     }

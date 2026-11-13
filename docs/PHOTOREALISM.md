@@ -143,6 +143,78 @@ per region.
 * **Server heartbeat** is an option (`heartbeatMs`, default 10 s, unchanged in production) so software-rendered
   QA runs are not dropped while shaders compile.
 
-## 3. Validation and measurements
+## 3. Graphics profiles
 
-(Filled in from the capture runs.)
+| | Low (phones) | Medium | High | Ultra |
+|---|---|---|---|---|
+| Street geometry regions | 2 (merged halves) | 3 × 3 grid | 3 × 3 grid | 3 × 3 grid |
+| Sky cloud octaves / IBL cube face | 3 / 64² | 4 / 128² | 5 / 256² | 6 / 256² |
+| Ambient occlusion | — | N8AO, Low preset, half res (new) | N8AO Medium, half res | N8AO High, full res |
+| Sun shadow redraw | static | every 2nd frame | every 2nd frame (was every frame) | every frame |
+| Street reflection (rain) | — (IBL only) | — (IBL only) | 40 % res, every 2nd frame | 60 % res, every frame |
+| Rain streaks / splashes / curtains | 2,600 / 90 / 1 | 6,500 / 280 / 3 | 6,500 / 280 / 3 | 9,000 / 420 / 3 |
+| Post (grade, bloom, SMAA) | — (renderer ACES, adapted exposure) | yes | yes | yes |
+| Sign atlas | 1024² | 2048² | 2048² | 2048² |
+
+Every profile uses the same models, textures (tier aside), window shader, weathering layers, height fog, sky and
+lamp glow. The automatic step-down (Ultra → High → Medium → Low) and resolution scale are unchanged.
+
+## 4. Validation and measurements
+
+All captures and numbers come from Chromium with SwiftShader (software WebGL, no GPU) at 1280 × 720 in this
+container. **Frame rates from that renderer mean nothing for real devices and are not reported.** Draw calls,
+triangles and resident GPU objects are exact properties of what is submitted. Captures use the QA flag
+`?qa-static-shadows` (the sun's shadow drawn once — identical for a still camera), and the High baseline shadow-pass
+cost was measured separately.
+
+### Renderer statistics (same camera positions)
+
+| View | Calls before → after | Triangles before → after | GPU geometries |
+|---|---|---|---|
+| Low · day · street | 576 → 330 | 0.48 M → 0.51 M | 669 → 350 |
+| Low · day · avenue | 628 → 401 | 0.60 M → 0.64 M | 720 → 401 |
+| Low · day · rooftop | 421 → 281 | 0.41 M → 0.48 M | 720 → 401 |
+| Low · rain · street | 578 → 336 | 0.48 M → 0.51 M | 671 → 356 |
+| Low · rain · avenue | 630 → 407 | 0.60 M → 0.65 M | 722 → 407 |
+
+Low's draw calls fall by 35–42 % (the two-region merge) while triangles rise 6–19 % (balusters, roofscapes, window
+panes). On a phone the CPU cost of a WebGL draw call usually dominates, so this is expected to be a net gain there —
+**not yet measured on a phone**.
+
+High, rain, street view: 1,255 calls per frame before (631 of them the per-frame sun shadow pass). After: the shadow
+pass every second frame, and the reflection pass every second frame (~85–170 calls with the material whitelist;
+it was ~450 before the whitelist). (Final High numbers below.)
+
+Shader programs (Low, rain): 48 before → 54 after (61 before the shared surface program).
+Arena 3D chunk (`arena-Scene-*.js`, minified): 146.0 KB → 194.3 KB; loaded only with the arena. No new downloads:
+the palm bark is an existing campus texture (433 KB KTX2), everything else is procedural. Offline precache:
+2.49 MB (bounded check passes).
+
+### Before / after captures
+
+`docs/screenshots/metropolis-photoreal/{before,after}/<weather>-<view>-<profile>.jpg`, side-by-side sheets in
+`compare/` (`node scripts/qa/metropolis-compare.mjs`). Re-run with `LABEL=after node scripts/qa/metropolis-shots.mjs`.
+
+
+## 5. What remains (honestly)
+
+* **Real-device measurement.** No frame-rate, frame-time or GPU-memory figure in this report comes from a GPU or a
+  phone; this container only has software WebGL. Before release: measure each profile on a mid-range Android phone
+  (Low), an integrated-GPU laptop (Medium) and a discrete GPU (High/Ultra) — 60 s on the rain avenue and the night
+  plaza, median and 1 % low frame times, `performance.memory`, GPU memory from the browser's task manager.
+  Targets proposed for those runs: Low ≥ 30 fps on the reference phone, Medium ≥ 60 fps at 1080p on integrated
+  graphics, High ≥ 60 fps at 1440p on a mid-range discrete GPU. They are targets, not results.
+* **Shader compilation on drivers without parallel compile** (some Android): deployment compiles ~54 programs on
+  Low on the main thread. The shared surface program cut the count; a warm-up that compiles across several frames,
+  or a lighter Low surface variant, is the next step if real phones show long deploy stalls.
+* **Art that procedural geometry cannot reach**: authored modular façade kits (cornices, pilasters, ornament),
+  photogrammetry props for street furniture, vehicle meshes with real body panels, hand-painted decals and graffiti,
+  and genuinely modelled interiors behind the shop windows the player can see into. These need an artist and
+  licensed or original source assets; none were downloaded.
+* **Lighting**: the sun shadow is one map over the whole site (no cascades), there is no real-time global
+  illumination (IBL plus a bounce fill and the windows' own light stand in), no screen-space reflections on
+  non-street surfaces, and soldiers are not drawn into the street reflection.
+* **Vegetation** reuses the campus palm and tree generators (now with bark); leaf cards are still large up close.
+* **Weapons**: models, textures and animations are the licensed assets as they were; this pass changed their
+  lighting, reflections and effects, not the meshes.
+* **Lagoon Sunset** was not captured in this run (software rendering is slow); it uses the same code paths.

@@ -77,7 +77,7 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
     photo: 0, photoTint: [1, 1, 1], photoScale: 1,
     clouds: .45, cloudDark: .5, cloudLit: [.1, .06, .035], cloudShade: [.012, .016, .03],
     fog: [.04, .047, .066], fogDensity: .005, fogFalloff: .05, fogBase: 5, fogStart: 12, fogMax: .95, fogSun: [.01, .012, .02],
-    exposure: 1.45, env: 1, fill: .3, fillSky: D('#4a5c80'), fillGround: D('#3a3027'),
+    exposure: 1.5, env: 1, fill: .42, fillSky: D('#4a5c80'), fillGround: D('#3a3027'),
     glowLevel: 1, rain: false, wet: 0,
     saturation: .95, contrast: 1.08, lift: [.985, 1, 1.04], gain: [1.05, 1, .93],
   },
