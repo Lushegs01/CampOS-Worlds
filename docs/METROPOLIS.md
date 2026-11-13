@@ -217,8 +217,9 @@ it and steps Ultra → High → Medium → Low. Both stay on the device (not syn
    chunk) from the numbers.
 2. Restore the Metropolis audio from `0927a40` (its `amb.metropolis` bank, underground convolution reverb, train
    loop and horn); the map currently uses the Foundry ambience.
-3. Weapons and characters: no model or animation changes were made in this pass. The container end faces in the
-   yard still read flat close up; station columns are plain tiled boxes.
+3. Weapons and characters: no model or animation changes were made in this pass. Station columns are plain tiled
+   boxes. (The yard's containers were rebuilt with outward corrugation, door gear and markings: see
+   [PHOTOREALISM.md](PHOTOREALISM.md) §6.)
 
 ## Operation Photorealism (November 2026)
 
@@ -226,3 +227,7 @@ The city's sky, image-based light, fog, exposure and grade now come from one atm
 weathering, wetness and puddle layers; every window shows an interior-mapped room; rain is occluded by roofs and
 awnings, lit by lamps, with curtains and splashes; High and Ultra reflect the city in wet streets. Graphics profiles,
 measurements, before/after captures and what remains are in [PHOTOREALISM.md](PHOTOREALISM.md).
+
+**Storm Break** (Quick Play's weather since November 2026): a low sun due south over the bay under storm cloud,
+passing rain, light shafts, the rebuilt port (containers, lattice cranes, the far terminal, floodlight masts) and a
+grade that no longer crushes shade to black. Details, captures and measurements: [PHOTOREALISM.md](PHOTOREALISM.md) §6.

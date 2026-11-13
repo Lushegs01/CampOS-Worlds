@@ -319,3 +319,57 @@ power curve about mid-grey (black and white stay put; 0.05 → 0.04 at 1.1).
 The sun's shadow camera is now fitted to the site as the sun sees it (all Metropolis weathers). With the old square
 frustum a 15° sun spent most of its map on ground it only grazes; fitted, Storm Break's long shadows keep their
 resolution.
+
+### Captures
+
+Software WebGL (SwiftShader) at 1280 × 720, High at 50 % render scale, the sun's shadow drawn once (`?qa-static-shadows`).
+
+* Storm Break: `docs/screenshots/metropolis-photoreal/storm-break/storm-{port,yard,street,south}-high.jpg`, and on Low
+  `storm-{port,street}-low.jpg`. Harmattan Noon's arcade with the grade fix: `storm-break/day-avenue-high-graded.jpg`
+  (compare `after-high50/day-avenue-high.jpg`).
+* Before/after sheets: `compare/storm-break-{port,yard,street,south}-high.jpg` — Harmattan Noon on the code before
+  this pass (what Quick Play showed) beside Storm Break, same viewpoint
+  (`node scripts/qa/metropolis-storm-sheets.mjs <before> <after> <out> port,yard,street,south`). The "before" HUD is
+  in a fallback serif: that capture ran from a separate checkout that could not load the web fonts; the 3D image is
+  unaffected.
+* New harness views (`scripts/qa/metropolis-shots.mjs`): `port` (over the quay wall, into the sun), `yard` (from
+  Harbour Road across the container yard), `south` (from the plaza toward the port).
+
+### Renderer statistics (same viewpoints, High at 50 %)
+
+| View | Calls: Harmattan Noon before → Storm Break after | Triangles |
+|---|---|---|
+| port | 138 → 155 | 0.53 M → 0.57 M |
+| yard | 363 → 453 | 0.77 M → 0.85 M |
+| street | 633 → 808 | 0.55 M → 0.70 M |
+| south | 356 → 454 | 0.76 M → 0.84 M |
+
+Most of the increase is the rain, not the new art: Storm Break is wet, so High draws the street reflection on
+alternate frames (Rainy Season measured 649 → 793 calls on the street view for the same reason); the before column is
+a dry weather. The light shafts add two quarter-resolution full-screen draws (a 4-tap mask and a 40-step radial blur).
+Low, Storm Break: street 346 calls / 0.54 M triangles, port 103 / 0.28 M. Arena 3D chunk (`arena-Scene-*.js`,
+minified): 194.3 KB → 213.4 KB (81.0 KB gzipped). No new downloads: the port, decals, hazard paint and shafts are
+procedural. Offline precache unchanged (2.49 MB).
+
+### Tests and builds
+
+* `npm test`: **340 passed, 0 failed** (the Quick Play weather test now expects Storm Break; Harmattan Noon is
+  covered as a private-match choice).
+* `npm run build` and `npm run verify:release`: pass (no QA hooks in production; precache 2.49 MB).
+
+### What remains
+
+* **Real devices.** As in §5, nothing here was measured on a GPU or a phone. Measure Storm Break on each profile
+  (60 s at the port facing the sun, and on the rain street): it combines the street reflection, the shafts and a
+  low sun's long shadows.
+* **Low (phones)** has no post stack, so Storm Break there has no shafts, bloom or grade: it reads correctly but
+  softer and hazier than on Medium and up (`storm-port-low.jpg`). A cheap grade for Low is the next step if phones
+  should match more closely.
+* **Asset fidelity is the largest gap to the reference.** The reference's weapons, characters, drones and props are
+  authored, high-detail models; Metropolis' buildings, vehicles and port are procedural geometry from the collision
+  boxes, and the weapons and soldiers are the licensed models as they were. Closing that gap needs authored or
+  licensed assets, not more renderer work.
+* Not attempted: motion blur and depth of field (deliberately left out for readability, as in §2), cascaded shadow
+  maps, real-time global illumination, volumetric lighting beyond the screen-space shafts.
+* Foundry Yard and Sim Quad are unchanged (this pass was Metropolis only). Their containers use the shared builder,
+  whose ribs still face inward.
