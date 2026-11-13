@@ -30,6 +30,7 @@ import { atmosphereOf, createSky, bakeEnvironment, installHeightFog, setHeightFo
 import { createStreetReflection, REFLECTED } from './scene/city/reflection';
 import { cityWeather } from './scene/city/surfaces';
 import { GradeEffect } from './scene/grade';
+import { ShaftsPass } from './scene/shafts';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
@@ -82,6 +83,15 @@ function ambientEmitters(map: { boxes: { min: number[]; max: number[]; mat: stri
     if (b.mat === 'machine') out.push({ at: c, kind: 'machine' }); else if (b.mat === 'roof') out.push({ at: c, kind: 'hum' });
   }
   return out;
+}
+
+/** Fit a directional light's shadow camera around a box of the world as the light sees it (plus a margin). */
+function fitShadow(sun: THREE.DirectionalLight, bounds: number[], y0: number, y1: number) {
+  const cam = sun.shadow.camera, box = new THREE.Box3(), p = new THREE.Vector3();
+  cam.position.copy(sun.position); cam.lookAt(sun.target.position); cam.updateMatrixWorld();
+  for (const x of [bounds[0] - 2, bounds[2] + 2]) for (const y of [y0, y1]) for (const z of [bounds[1] - 2, bounds[3] + 2]) box.expandByPoint(p.set(x, y, z).applyMatrix4(cam.matrixWorldInverse));
+  cam.left = box.min.x; cam.right = box.max.x; cam.bottom = box.min.y; cam.top = box.max.y;
+  cam.near = Math.max(.5, -box.max.z - 4); cam.far = -box.min.z + 4; cam.updateProjectionMatrix();
 }
 
 /** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
@@ -161,6 +171,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       // Overcast light comes from the whole sky: its 'sun' shadow is wide and faint.
       sun.castShadow = true; sun.shadow.mapSize.set(q.shadowSize, q.shadowSize); sun.shadow.radius = (q.shadowSize >= 2048 ? 3 : 2) * (atmo?.shadowSoft ?? 1); sun.shadow.intensity = atmo && atmo.shadowSoft > 3 ? .45 : 1;
       const c = sun.shadow.camera; c.left = -half; c.right = half; c.top = half; c.bottom = -half; c.near = 10; c.far = 240; c.updateProjectionMatrix();
+      // Metropolis: fit the shadow camera to the site as the sun sees it (a low sun otherwise spends most of the map
+      // on ground it only grazes), so Storm Break's long shadows keep their resolution.
+      if (atmo) fitShadow(sun, map.bounds, 0, Math.min(80, Math.max(...map.boxes.map((b: { max: number[] }) => b.max[1]))));
       sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
     }
     // The image-based light carries the sky; the hemisphere fill only adds the bounce between buildings it misses.
@@ -312,6 +325,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!q.post) return null;
     const c = new EffectComposer(gl, { frameBufferType: THREE.HalfFloatType, multisampling: 0 });
     c.addPass(new RenderPass(scene, camera));
+    // Light shafts read the world's depth, so they run before anything else replaces it (see scene/shafts.ts).
+    const shafts = atmo && citySun && atmo.shafts > 0 ? new ShaftsPass(camera as THREE.PerspectiveCamera, citySun.dir, atmo.shafts) : null;
+    if (shafts) c.addPass(shafts);
     if (q.ao) {
       const ao = new N8AOPostPass(scene, camera, size.width, size.height);
       Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: !q.aoHigh, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
@@ -319,7 +335,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     }
     const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = true; c.addPass(weapon);
     const fxs = [
-      ...(q.bloom ? [new BloomEffect({ luminanceThreshold: 2.6, luminanceSmoothing: .5, intensity: .42, mipmapBlur: true, radius: .62 })] : []),
+      ...(q.bloom ? [new BloomEffect({ luminanceThreshold: atmo?.bloomThreshold ?? 2.6, luminanceSmoothing: .5, intensity: atmo?.bloomIntensity ?? .42, mipmapBlur: true, radius: atmo && atmo.bloomThreshold < 2.6 ? .72 : .62 })] : []),
+      ...(shafts ? [shafts.effect] : []),
       new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
       ...(atmo ? [new GradeEffect({ saturation: atmo.saturation, contrast: atmo.contrast, lift: atmo.lift, gain: atmo.gain, grain: .01 })] : [new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 })]),
       new VignetteEffect({ darkness: atmo ? .32 : .42, offset: .3 }),

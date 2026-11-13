@@ -7,6 +7,7 @@ import type { Library, PropKey } from '../library';
 import { growPalm, growTree } from '../../../world/vegetation/trees';
 import { CityBuilder, SignAtlas, signPanel, T, RY, hash, CHUNK_FAR, CHUNK_STATION, type CityMap } from './kit';
 import type { CityMats, Glow } from './materials';
+import { buildPort, type PortArt } from './port';
 import type { Fixture } from './structure';
 
 /** Shared time for wind in leaves, water and signs. */
@@ -170,7 +171,7 @@ function skylineMaterial(style: number, color: string) {
   return m;
 }
 
-export function buildBackdrop(b: CityBuilder, m: CityMats, map: CityMap, detail: number, glows: Glow[]) {
+export function buildBackdrop(b: CityBuilder, m: CityMats, map: CityMap, detail: number, glows: Glow[], port: PortArt) {
   const L = map.street, [bx0, bz0, bx1, bz1] = map.bounds, objects: THREE.Object3D[] = [];
   const far = (g: THREE.BufferGeometry, mat: THREE.Material, M: THREE.Matrix4, scale = 6, keepUV = false) => { b.add(g, mat, scale, M, false, keepUV, CHUNK_FAR); g.dispose(); };
   const fbox = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, mat: THREE.Material, scale = 6) => far(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat, T((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), scale);
@@ -193,17 +194,9 @@ export function buildBackdrop(b: CityBuilder, m: CityMats, map: CityMap, detail:
     if (z > bz1 - 20) continue;
     tower(x, z, 16 + hash(i, 1) * 16, 16 + hash(i, 2) * 14, 28 + hash(i, 3) * (40 + ring * 55), i);
   }
-  // The port beyond the quay: ship-to-shore cranes, a container ship alongside, stacks on the far terminal.
-  const crane = (x: number, z: number) => {
-    const y = L - 2.6, leg = (dx: number, dz: number) => fbox(x + dx - .5, y, z + dz - .5, x + dx + .5, y + 34, z + dz + .5, m.blue, 3);
-    leg(-7, 0); leg(7, 0); leg(-7, 14); leg(7, 14);
-    fbox(x - 8, y + 16, z - .4, x + 8, y + 17.2, z + .4, m.blue, 3); fbox(x - 8, y + 16, z + 13.6, x + 8, y + 17.2, z + 14.4, m.blue, 3);
-    fbox(x - 1.4, y + 34, z - 26, x + 1.4, y + 36.4, z + 30, m.blue, 3);                                       // the boom over the water and the back reach
-    fbox(x - 2.2, y + 36.4, z + 4, x + 2.2, y + 40, z + 11, m.white, 3); fbox(x - .25, y + 36, z + 6.5, x + .25, y + 52, z + 7.5, m.blue, 3);
-    for (const dz of [-24, -8, 24]) far(new THREE.CylinderGeometry(.09, .09, Math.hypot(16, dz - 7), 5), m.darkSteel, T(x, y + 44, z + (dz + 7) / 2).multiply(new THREE.Matrix4().makeRotationX(Math.atan2(dz - 7, -16) + Math.PI / 2)));
-    fbox(x - 1.6, y + 31, z - 12, x + 1.6, y + 33.6, z - 8.5, m.white, 3); far(new THREE.BoxGeometry(.5, .5, .5), m.beacon, T(x, y + 52.3, z + 7));
-  };
-  for (const x of [-34, 4, 42]) crane(x, bz1 + 62);
+  // The port beyond the quay: ship-to-shore cranes over a container ship alongside, the far terminal's stacks and
+  // gantries, floodlight masts (./port.ts).
+  const portLights = buildPort(b, m, port, map.bounds, L, detail, m.lamp);
   // The ship: hull, accommodation block, containers stacked on deck.
   const sx = -6, sz = bz1 + 38, hull = new THREE.BoxGeometry(150, 11, 22), hp = hull.attributes.position;
   for (let i = 0; i < hp.count; i++) { const x = hp.getX(i), y = hp.getY(i); if (y < 0) hp.setZ(i, hp.getZ(i) * .72); if (Math.abs(x) > 70) hp.setZ(i, hp.getZ(i) * .35); }
@@ -250,5 +243,5 @@ export function buildBackdrop(b: CityBuilder, m: CityMats, map: CityMap, detail:
   };
   traffic(0);
   void CHUNK_STATION; void RY;
-  return { objects, traffic };
+  return { objects, traffic, portLights };
 }

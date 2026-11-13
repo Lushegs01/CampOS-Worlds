@@ -22,7 +22,7 @@ export default function Lobby() {
   const [tab, setTab] = useState<Tab>('play'), [map, setMap] = useState('any'), [busy, setBusy] = useState(''), [msg, setMsg] = useState('');
   const [code, setCode] = useState(''), [privMode, setPrivMode] = useState('tdm'), [privMap, setPrivMap] = useState('foundry'), [size, setSize] = useState(4);
   const [tMode, setTMode] = useState('tdm'), [tMap, setTMap] = useState('foundry'), [bots, setBots] = useState(5), [difficulty, setDifficulty] = useState('normal');
-  const [privVariant, setPrivVariant] = useState('day'), [tVariant, setTVariant] = useState('day');
+  const [privVariant, setPrivVariant] = useState(METROPOLIS_VARIANTS[0].id), [tVariant, setTVariant] = useState(METROPOLIS_VARIANTS[0].id);
   const run = async (label: string, data: Record<string, unknown>) => {
     if (busy) return;
     setBusy(label); setMsg('');

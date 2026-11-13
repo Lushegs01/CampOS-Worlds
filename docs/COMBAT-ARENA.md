@@ -48,7 +48,7 @@ All three maps are mirror images across their centre line (tested), so neither t
   with interior stairwells, classrooms and balconies over a fountain court, hedged lawns, and shaded
   arcades at each end, behind gate walls with three openings.
 
-* **Operation: Metropolis** (120 × 88 m) — Okun Bay: Downtown, Rooftops, Underground Transit, Industrial Zone and Central Plaza. Street-level objectives, breakable glass, a timed station train, and four lighting/weather variants. See [Metropolis](METROPOLIS.md) for the completion audit and validation.
+* **Operation: Metropolis** (120 × 88 m) — Okun Bay: Downtown, Rooftops, Underground Transit, Industrial Zone and Central Plaza. Street-level objectives, breakable glass, a timed station train, and five lighting/weather variants (Quick Play: Storm Break). See [Metropolis](METROPOLIS.md) for the completion audit and validation.
 
 Spawns pick the safest point for your team: far from living enemies, out of their line of sight, away
 from occupied points; Domination adds forward points near zones your team holds.

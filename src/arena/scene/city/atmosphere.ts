@@ -31,12 +31,34 @@ export interface Atmosphere {
   glowLevel: number; rain: boolean; wet: number;
   /** Grade: saturation, contrast, warm highlight / cool shadow tint. */
   saturation: number; contrast: number; lift: V3; gain: V3;
+  /** A break in the cloud along the horizon, widest toward the sun (0 none … 1 clear below about 18°), and how
+   *  strongly thin cloud edges near the sun glow with the light coming through them. */
+  gap: number; rim: number;
+  /** Light shafts: how strongly bright sky around the sun streams past whatever stands in front of it (0 off). */
+  shafts: number;
+  /** Bloom: the HDR level above which light glows, and how much (the sky around a low sun should; noon should not). */
+  bloomThreshold: number; bloomIntensity: number;
 }
 
 const D = (s: string): V3 => { const c = new THREE.Color(s); return [c.r, c.g, c.b]; };
 const MUL = (v: V3, k: number): V3 => [v[0] * k, v[1] * k, v[2] * k];
 
 export const ATMOSPHERE: Record<string, Atmosphere> = {
+  // Storm Break: a low sun due south over the bay, shining in under a heavy storm deck. Light rain still falls, the
+  // streets are soaked and mirror the bright gap; the haze glows warm toward the sun and stays cool and grey away
+  // from it, so the port's cranes and the towers stand dark against the light. Shade is cool and deep but lifted by
+  // the bright sky, the way the light reads after a downpour.
+  storm: {
+    sunDir: [0, .27, 1], sunColor: [1, .66, .4], sun: 2.6, shadowSoft: 1.6,
+    zenith: [.05, .064, .088], horizon: [.6, .46, .4], ground: [.06, .055, .052], glow: [0, 0, 0],
+    photo: 0, photoTint: [1, 1, 1], photoScale: 1,
+    clouds: .82, cloudDark: .62, cloudLit: [1.3, .76, .5], cloudShade: [.085, .095, .12],
+    fog: [.31, .3, .32], fogDensity: .0062, fogFalloff: .045, fogBase: 5, fogStart: 10, fogMax: .92, fogSun: [1.25, .62, .3],
+    exposure: .98, env: 1.1, fill: .3, fillSky: D('#9aa6ba'), fillGround: D('#5c524b'),
+    glowLevel: .22, rain: true, wet: 1,
+    saturation: .9, contrast: 1.1, lift: [.965, .99, 1.06], gain: [1.08, 1, .9],
+    gap: .85, rim: 1, shafts: 1, bloomThreshold: 1.7, bloomIntensity: .6,
+  },
   // Harmattan Noon: high sun through a dry, dusty haze. The sky is pale; far towers fade to warm grey.
   day: {
     sunDir: [.5543, .7418, .3775], sunColor: [1, .93, .82], sun: 3.4, shadowSoft: 1,
@@ -47,6 +69,7 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
     exposure: .74, env: 1, fill: .25, fillSky: D('#cfdcec'), fillGround: D('#8a7c62'),
     glowLevel: 0, rain: false, wet: 0,
     saturation: .93, contrast: 1.06, lift: [.995, 1, 1.01], gain: [1.02, 1, .97],
+    gap: 0, rim: 0, shafts: .3, bloomThreshold: 2.6, bloomIntensity: .42,
   },
   // Rainy Season: a low, heavy overcast. No hard shadows; the street is wet; rain hangs in the air as mist.
   overcast: {
@@ -58,6 +81,7 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
     exposure: 1.15, env: 1.15, fill: .3, fillSky: D('#c3ccd6'), fillGround: D('#5f6064'),
     glowLevel: .38, rain: true, wet: 1,
     saturation: .82, contrast: 1.08, lift: [.99, 1, 1.02], gain: [.99, 1, 1.02],
+    gap: 0, rim: 0, shafts: 0, bloomThreshold: 2.6, bloomIntensity: .42,
   },
   // Lagoon Sunset: a low sun over the bay, long warm light, cool shade, a bright band of haze toward the sun.
   sunset: {
@@ -69,6 +93,7 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
     exposure: .9, env: 1, fill: .22, fillSky: D('#e6c2b0'), fillGround: D('#6e5c58'),
     glowLevel: .55, rain: false, wet: 0,
     saturation: .98, contrast: 1.07, lift: [.98, .995, 1.03], gain: [1.04, 1, .95],
+    gap: 0, rim: 0, shafts: .7, bloomThreshold: 2.2, bloomIntensity: .48,
   },
   // Blue Hour: the last light in a deep blue sky, the city's sodium glow on the clouds, every window and lamp lit.
   night: {
@@ -80,6 +105,7 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
     exposure: 1.5, env: 1, fill: .42, fillSky: D('#4a5c80'), fillGround: D('#3a3027'),
     glowLevel: 1, rain: false, wet: 0,
     saturation: .95, contrast: 1.08, lift: [.985, 1, 1.04], gain: [1.05, 1, .93],
+    gap: 0, rim: 0, shafts: 0, bloomThreshold: 2.6, bloomIntensity: .42,
   },
 };
 export const atmosphereOf = (variant: string) => ATMOSPHERE[variant] ?? ATMOSPHERE.day;
@@ -158,19 +184,33 @@ export const heightFogUniforms = () => ({ hfogA: { value: heightFog.a }, hfogB: 
 
 // ====================================================================================== the sky
 const SKY_FRAG = /* glsl */`
-uniform sampler2D uPhoto; uniform float uPhotoMix, uPhotoScale, uCoverage, uTime, uClouds, uCloudDark, uOctaves;
-uniform vec3 uPhotoTint, uZenith, uHorizon, uHaze, uGround, uGlow, uSunDir, uSun, uCloudLit, uCloudShade;
+uniform sampler2D uPhoto; uniform float uPhotoMix, uPhotoScale, uCoverage, uTime, uClouds, uCloudDark, uOctaves, uGap, uRim;
+uniform vec3 uPhotoTint, uZenith, uHorizon, uHaze, uHazeSun, uGround, uGlow, uSunDir, uSun, uCloudLit, uCloudShade;
 varying vec3 vDir;
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
 float fbm(vec2 p) { float s = 0., a = .5; for (int i = 0; i < 6; i++) { if (float(i) >= uOctaves) break; s += a * n2(p); p = p * 2.03 + vec2(1.7, 9.2); a *= .5; } return s; }
 vec3 skyRadiance(vec3 d) {
   float up = max(d.y, 0.), cs = dot(d, uSunDir);
+  // The cloud deck's density here, first: where it breaks, the sun's glow reaches the sky below it.
+  vec2 p = d.xz / (up + .08) * 1.6 + uTime * vec2(.012, .004);
+  float n = 0., dens = 0.;
+  if (uClouds > 0.) {
+    n = fbm(p); float cover = mix(.62, .02, uClouds); dens = smoothstep(cover, cover + .35, n);
+    // A break along the horizon, widest toward the sun, with a ragged edge: the low sun shines in under the deck.
+    if (uGap > 0.) {
+      float az = dot(normalize(d.xz + 1e-4), normalize(uSunDir.xz + 1e-4)) * .5 + .5;
+      float open = (1. - smoothstep(.02, .2 + .16 * az, up + (n - .5) * .16)) * mix(.4, 1., az * az) * uGap;
+      dens *= 1. - open;
+    }
+  }
+  // (Without a break the deck veils the sun evenly, as it always has; with one, only where cloud actually is.)
+  float veil = uGap > 0. ? dens : uClouds;
   // Clear-sky gradient: deep at the zenith, bright and pale toward the horizon (more air along the ray).
   vec3 sky = mix(uHorizon, uZenith, pow(up, .42));
   // Mie forward scattering around the sun, broad and narrow lobes; then the disc itself (HDR: it blooms).
   float mie = pow(max(cs, 0.), 6.) * .35 + pow(max(cs, 0.), 64.) * 1.1;
-  sky += uSun * mie * .16 * (1. - uClouds * .85);
+  sky += uSun * mie * .16 * (1. - veil * .85);
   // The photographic sky (day, sunset), graded to the variant.
   if (uPhotoMix > 0.) {
     float u = atan(d.z, d.x) / 6.2831853 + .5, polar = acos(clamp(d.y, -1., 1.)) / 3.14159265;
@@ -179,19 +219,21 @@ vec3 skyRadiance(vec3 d) {
   }
   // A cloud layer: fbm on a plane overhead, self-shadowed toward the sun, lit from below by the city at night.
   if (uClouds > 0.) {
-    vec2 p = d.xz / (up + .08) * 1.6 + uTime * vec2(.012, .004);
-    float n = fbm(p), cover = mix(.62, .02, uClouds), dens = smoothstep(cover, cover + .35, n);
     float toward = fbm(p + uSunDir.xz * .35), lit = clamp(1. - (toward - n) * 3.5 - uCloudDark * .6, 0., 1.);
     vec3 cloud = mix(uCloudShade, uCloudLit, lit) * (.75 + .5 * n);
     cloud += uGlow * (1. - up) * 1.4;                                        // city light on the undersides
     cloud += uSun * pow(max(cs, 0.), 12.) * (1. - dens) * .25;               // silver lining
+    // Storm light: thin edges of the deck near the sun burn with the light coming through them, and the undersides
+    // facing the low sun catch it warm while the rest of the deck stays dark.
+    cloud += uSun * uRim * (pow(max(cs, 0.), 5.) * dens * (1. - dens) * 1.6 + pow(max(cs, 0.), 2.) * (1. - lit) * .05);
     sky = mix(sky, cloud, dens * smoothstep(.0, .12, d.y));
   }
   // The city's glow on the haze near the horizon (night) and the haze itself, which is the fog's colour at the
-  // horizon so distant buildings fade into exactly this.
+  // horizon so distant buildings fade into exactly this (including the light it scatters toward the sun, as the
+  // height fog does).
   sky += uGlow * exp(-up * 9.) * .9;
-  sky = mix(sky, uHaze, exp(-up * 14.) * .85);
-  float sunDisc = smoothstep(.99985, .99994, cs) * (1. - uClouds);
+  sky = mix(sky, uHaze + uHazeSun * pow(max(cs, 0.), 7.), exp(-up * 14.) * .85);
+  float sunDisc = smoothstep(.99985, .99994, cs) * (1. - veil);
   sky += uSun * sunDisc * 30.;
   // Below the horizon: the ground (for reflections and the image-based light), fading from the haze.
   return d.y >= 0. ? sky : mix(uHaze, uGround, smoothstep(0., -.18, d.y));
@@ -212,7 +254,9 @@ export function createSky(a: Atmosphere, lib: Library, octaves = 5) {
       uZenith: { value: v(a.zenith) }, uHorizon: { value: v(a.horizon) }, uHaze: { value: v(a.fog) }, uGround: { value: v(a.ground) }, uGlow: { value: v(a.glow) },
       uSunDir: { value: v(a.sunDir).normalize() }, uSun: { value: v(MUL(a.sunColor, a.sun)) },
       uClouds: { value: a.clouds }, uCloudDark: { value: a.cloudDark }, uCloudLit: { value: v(a.cloudLit) }, uCloudShade: { value: v(a.cloudShade) },
-      uTime: { value: 0 }, uOctaves: { value: octaves },
+      uTime: { value: 0 }, uOctaves: { value: octaves }, uGap: { value: a.gap }, uRim: { value: a.rim },
+      // (Only a sky with a break toward the sun takes the haze's sun glow; the others keep their reviewed horizon.)
+      uHazeSun: { value: v(a.gap > 0 ? a.fogSun : [0, 0, 0]) },
     },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.); gl_Position = p.xyww; }',
     fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: true,

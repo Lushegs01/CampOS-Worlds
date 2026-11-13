@@ -371,9 +371,14 @@ function spawnSet(base, forward) {
   return out;
 }
 
-/** Lighting and weather variants. Competitive play always uses `day`; the others are chosen by a host. */
+/**
+ * Lighting and weather variants. Competitive play (Quick Play) always uses the first; the others are chosen by a host.
+ * Storm Break's low sun stands due south over the bay (on the map's axis of symmetry), so neither team looks into it
+ * more than the other.
+ */
 export const METROPOLIS_VARIANTS = [
-  { id: 'day', name: 'Harmattan Noon', text: 'Clear daylight with a light dust haze.', competitive: true },
+  { id: 'storm', name: 'Storm Break', text: 'A low sun breaking under storm cloud over the bay. Passing rain, wet streets, long light.', competitive: true },
+  { id: 'day', name: 'Harmattan Noon', text: 'Clear daylight with a light dust haze.', competitive: false },
   { id: 'overcast', name: 'Rainy Season', text: 'Low cloud and steady rain. Softer light, wet streets.', competitive: false },
   { id: 'sunset', name: 'Lagoon Sunset', text: 'Low warm sun from the west, long shadows.', competitive: false },
   { id: 'night', name: 'Blue Hour', text: 'After dark: street lighting, shop fronts and signs.', competitive: false },

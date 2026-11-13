@@ -2,12 +2,13 @@
 // shelters, planters, furniture, roof plant, station fittings, the spire and the fountain.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { container, Props } from '../environment';
+import { Props } from '../environment';
 import type { Library, PropKey } from '../library';
 import { buildVehicleModel } from '../../../world/vehicleModels';
 import { CityBuilder, SignAtlas, signPanel, T, RY, hash, type Box, type CityMap } from './kit';
 import type { CityMats } from './materials';
 import type { Fixture } from './structure';
+import { portContainer, type PortArt } from './port';
 
 const wheel = (b: CityBuilder, m: CityMats, x: number, y: number, z: number, r: number, w: number, alongX: boolean) => {
   const g = new THREE.CylinderGeometry(r, r, w, 18), h = new THREE.CylinderGeometry(r * .55, r * .55, w + .02, 12);
@@ -15,7 +16,7 @@ const wheel = (b: CityBuilder, m: CityMats, x: number, y: number, z: number, r: 
   b.add(g, m.rubber, 1, M); b.add(h, m.steel, 1, M); g.dispose(); h.dispose();
 };
 
-export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityMap, detail: number, signs: SignAtlas, signMat: THREE.Material, litMat: THREE.Material, fixtures: Fixture[], props: Props, ugProps: Props) {
+export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityMap, detail: number, signs: SignAtlas, signMat: THREE.Material, litMat: THREE.Material, fixtures: Fixture[], props: Props, ugProps: Props, port: PortArt) {
   const L = map.street;
   let kioskNo = 0, carNo = 0;
   const KIOSKS: [string, string, string, THREE.Material][] = [['NEWS & AIRTIME', '#14365c', '#ffffff', m.blue], ['FRESH JUICE', '#1f5d4a', '#f6e7b4', m.green], ['SUYA SPOT', '#8c2f2a', '#fff3dc', m.red], ['OKUN LOTTO', '#e0b21c', '#1d1f22', m.yellow], ['PHONE REPAIRS', '#2b2d30', '#ffb347', m.orange], ['PLAZA INFO', '#f4f4f0', '#14365c', m.white]];
@@ -75,7 +76,7 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         for (const s of [-1, 1]) { for (const u of [-Ln + 1.1, -Ln + 2.4, cab - .6, Ln - .9]) l.wheel(u, s * (W - .2), .52, .34); l.box(Ln - .04, 1.05, s * (W - .5) - .15, Ln + .01, 1.3, s * (W - .5) + .15, m.headlamp, 1); l.box(-Ln - .01, 1.0, s * (W - .4) - .1, -Ln + .03, 1.2, s * (W - .4) + .1, m.taillamp, 1); }
         const boxLen = Math.min(f.len - 3.2, 12.2), c0 = -Ln + .15;
         const world = new THREE.Box3(new THREE.Vector3(c0, 1.3, -1.22), new THREE.Vector3(c0 + boxLen, Math.max(1.4, h), 1.22)).applyMatrix4(f.M);
-        container(b, m as never, { min: world.min.toArray(), max: world.max.toArray(), mat: ['container-blue', 'container-red', 'container-green'][Math.floor(hash(seed, 2) * 3)] });
+        portContainer(b, m, port, { min: world.min.toArray(), max: world.max.toArray(), mat: ['container-blue', 'container-red', 'container-green'][Math.floor(hash(seed, 2) * 3)] });
         break;
       }
       case 'pickup': {
@@ -95,7 +96,7 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         break;
       }
       // ------------------------------------------------------------ containers, crates, barriers
-      case 'container-red': case 'container-blue': case 'container-yellow': case 'container-green': container(b, m as never, box); break;
+      case 'container-red': case 'container-blue': case 'container-yellow': case 'container-green': portContainer(b, m, port, box); break;
       case 'crate': {
         const layers = Math.max(1, Math.round(h / .75)), alongX = w >= d, len = alongX ? w : d, cols = Math.max(1, Math.round(len / 1.25));
         for (let l = 0; l < layers; l++) for (let i = 0; i < cols; i++) {

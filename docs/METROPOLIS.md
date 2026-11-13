@@ -32,8 +32,11 @@ weapon's combat rules or replacing its sound with another rifle.
 
 Choose **Operation: Metropolis** in Quick Play, Private match or Training. The
 firing range also uses the selected Training map. Quick Play always uses
-**Harmattan Noon**; a private host or Training player can also select **Rainy
-Season**, **Lagoon Sunset** or **Blue Hour**. Weather changes presentation only.
+**Storm Break** (a low sun due south over the bay, under storm cloud, with passing
+rain and wet streets; the sun is on the map's axis of symmetry, so neither team
+faces it more than the other). A private host or Training player can also select
+**Harmattan Noon**, **Rainy Season**, **Lagoon Sunset** or **Blue Hour**. Weather
+changes presentation only.
 
 - Downtown: Marina Avenue, shops, offices and Balogun Arcade.
 - Rooftops: north-block roofs and external fire escapes.
