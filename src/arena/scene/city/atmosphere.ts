@@ -30,6 +30,8 @@ export interface Atmosphere {
   /** How brightly the city's own lights burn (0 day … 1 night); rain and wet streets; how heavy the rain is (1 a
    *  steady downpour, less for passing rain). */
   glowLevel: number; rain: boolean; wet: number; rainAmount?: number;
+  /** The first-person weapon's soft fill (0.5 when unset): a dark rifle under a dark storm deck still reads. */
+  weaponFill?: number;
   /** Grade: saturation, contrast, warm highlight / cool shadow tint. */
   saturation: number; contrast: number; lift: V3; gain: V3;
   /** A break in the cloud along the horizon, widest toward the sun (0 none … 1 clear below about 18°), and how
@@ -50,12 +52,13 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
   // from it, so the port's cranes and the towers stand dark against the light. Shade is cool and deep but lifted by
   // the bright sky, the way the light reads after a downpour.
   storm: {
-    sunDir: [0, .27, 1], sunColor: [1, .76, .52], sun: 2.6, shadowSoft: 1.6,
-    zenith: [.045, .058, .08], horizon: [.36, .37, .41], ground: [.05, .05, .052], glow: [0, 0, 0],
+    sunDir: [0, .27, 1], sunColor: [1, .76, .52], sun: 2.3, shadowSoft: 1.6,
+    zenith: [.06, .075, .1], horizon: [.36, .37, .41], ground: [.05, .05, .052], glow: [0, 0, 0],
     photo: 0, photoTint: [1, 1, 1], photoScale: 1,
-    clouds: .82, cloudDark: .62, cloudLit: [1.15, .68, .45], cloudShade: [.075, .085, .11],
+    clouds: .82, cloudDark: .62, cloudLit: [1.15, .68, .45], cloudShade: [.09, .1, .13],
     fog: [.26, .275, .3], fogDensity: .006, fogFalloff: .045, fogBase: 5, fogStart: 10, fogMax: .92, fogSun: [1.2, .66, .34],
-    exposure: 1, env: 1.2, fill: .55, fillSky: D('#a7b4c8'), fillGround: D('#5c544e'),
+    // (The sun-to-shade range is kept close to what the eye accepts after rain: a bright sky lifts the shade.)
+    exposure: 1.15, env: 1.35, fill: .8, fillSky: D('#aab6c9'), fillGround: D('#5c544e'), weaponFill: 1,
     glowLevel: .22, rain: true, wet: 1, rainAmount: .45,
     saturation: .94, contrast: 1.1, lift: [.955, .985, 1.07], gain: [1.05, 1, .93],
     gap: .9, rim: .7, shafts: .8, bloomThreshold: 1.8, bloomIntensity: .55,

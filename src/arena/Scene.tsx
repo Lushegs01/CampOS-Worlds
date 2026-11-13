@@ -311,7 +311,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const core = new THREE.Mesh(new THREE.PlaneGeometry(.2, .2), fm); flash.add(core);
     const casings = new Casings(q.casings); vmScene.add(casings.mesh);
     return {
-      vmScene, vmCam, holder, sun, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
+      vmScene, vmCam, holder, sun, fill, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
       bob: 0, swayX: 0, swayY: 0, lastYaw: 0, lastPitch: 0, kickZ: 0, kickPitch: 0, kickRoll: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0, breath: 0, cyl: 0, slideKick: 0,
       handR: new THREE.Vector3(.2, -.3, .1), handL: new THREE.Vector3(-.2, -.3, .1),
     };
@@ -732,6 +732,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       // (Metropolis: never below a soft key from above, so a black rifle under an overcast or night sky still reads.)
       const want = Math.max(atmo ? 1.6 : 0, (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08)) + (now - vm.flashAt < 60 ? 2.5 : 0);
       vm.sun.intensity += (want - vm.sun.intensity) * Math.min(1, dt * 8);
+      vm.fill.intensity = atmo?.weaponFill ?? .5;
       vm.vmScene.environmentIntensity = (cityLight?.env ?? .95) * (atmo ? 1.6 : 1) * (1 - vm.indoor * .37) * (camera.position.y < 4.6 && atmo ? .5 : 1);
       vm.vmScene.environmentRotation.setFromQuaternion(q1.copy(camera.quaternion).invert());
     }
