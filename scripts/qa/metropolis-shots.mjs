@@ -31,8 +31,8 @@ const VIEWS = [
   { id: 'station', at: [-20, 1, 0], yaw: -Math.PI / 2, pitch: 0 },                     // Plaza Station
   { id: 'industrial', at: [-12, 5, 31], yaw: -Math.PI / 2, pitch: .02 },               // Harbour Road and the yard
   // Looking south, toward the port and (in Storm Break) the low sun over the bay.
-  { id: 'port', at: [-16, 5, 41], yaw: Math.PI + .1, pitch: .12 },                     // over the quay wall at the cranes
-  { id: 'yard', at: [-30, 5, 38], yaw: Math.PI + .75, pitch: .03 },                    // across the container yard
+  { id: 'port', at: [-22, 5, 41], yaw: Math.PI + .08, pitch: .1 },                     // over the quay wall at the cranes and the sun
+  { id: 'yard', at: [-22, 5, 16], yaw: Math.PI + .6, pitch: .05 },                     // from Harbour Road across the container yard
   { id: 'south', at: [-22, 5, 2], yaw: Math.PI, pitch: .04 },                          // from the plaza down to the port
 ];
 const ROOM_PORT = Number(process.env.ROOM_PORT || 3216), WEB_PORT = Number(process.env.WEB_PORT || 5182);

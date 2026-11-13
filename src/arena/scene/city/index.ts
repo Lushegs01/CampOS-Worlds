@@ -124,7 +124,9 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
   const activate = () => { cityWeather.uWet.value = light.wet; cityWeather.uStreet.value = L; cityWeather.uPuddle.value = .56; cityWeather.uHeight.value = field.tex; cityWeather.uHeightBox.value.copy(field.origin); setWindowLight(light.glow, light.rain); };
   activate();
   const ambient = new THREE.Color(...atmo.fog);
-  const rain = light.rain ? createRain(field, L, ambient, q.effects >= 1.2 ? { streaks: 9000, splashes: 420, curtains: 3, radius: 24 } : q.effects >= 1 ? { streaks: 6500, splashes: 280, curtains: 3, radius: 22 } : { streaks: 2600, splashes: 90, curtains: 1, radius: 16 }) : null;
+  // (Passing rain: fewer drops, one faint curtain.)
+  const amount = atmo.rainAmount ?? 1, rainOf = (o: { streaks: number; splashes: number; curtains: number; radius: number }) => ({ ...o, streaks: Math.round(o.streaks * Math.max(.4, amount)), splashes: Math.round(o.splashes * amount), curtains: amount < .7 ? 1 : o.curtains, amount });
+  const rain = light.rain ? createRain(field, L, ambient, rainOf(q.effects >= 1.2 ? { streaks: 9000, splashes: 420, curtains: 3, radius: 24 } : q.effects >= 1 ? { streaks: 6500, splashes: 280, curtains: 3, radius: 22 } : { streaks: 2600, splashes: 90, curtains: 1, radius: 16 })) : null;
   if (rain) { rain.group.userData.chunk = -1; objects.push(rain.group); }
   // Street lamps: their heads (the outdoor fittings), a halo and a cone of light in wet or dark air.
   const heads = [...fixtures.filter(f => f.where === 'out').map(f => f.p.clone().add(new THREE.Vector3(0, .26, 0))), ...backdrop.portLights];

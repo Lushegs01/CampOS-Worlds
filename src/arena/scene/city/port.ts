@@ -155,7 +155,9 @@ export function portContainer(b: CityBuilder, m: CityMats, art: PortArt, box: Bo
   }
   // ---- frame: rails, posts, end beams and corner castings.
   for (const v of [.065, H - .065]) for (const w of [-W / 2 + .07, W / 2 - .07]) B(-L / 2, v - .065, w - .07, L / 2, v + .065, w + .07, frame, 1);
-  for (const u of [-L / 2 + .07, L / 2 - .07]) { for (const w of [-W / 2 + .07, W / 2 - .07]) B(u - .07, 0, w - .07, u + .07, H, w + .07, frame, 1); for (const v of [.065, H - .065]) B(u - .06, v - .065, -W / 2, u + .06, v + .065, W / 2, frame, 1); }
+  // (Corner posts are wide enough to close over the ends of the corrugated sides.)
+  for (const u of [-L / 2 + .09, L / 2 - .09]) for (const w of [-W / 2 + .07, W / 2 - .07]) B(u - .09, 0, w - .07, u + .09, H, w + .07, frame, 1);
+  for (const u of [-L / 2 + .07, L / 2 - .07]) { for (const v of [.065, H - .065]) B(u - .06, v - .065, -W / 2, u + .06, v + .065, W / 2, frame, 1); }
   for (const u of [-L / 2 + .09, L / 2 - .09]) for (const v of [.09, H - .09]) for (const w of [-W / 2 + .09, W / 2 - .09]) B(u - .09, v - .09, w - .09, u + .09, v + .09, w + .09, steel, 1);
   // ---- markings: most boxes carry their line's logo along both sides; every box has its owner code.
   const pale = box.mat === 'container-yellow', ink = pale ? art.dark : art.light, brand = Math.floor(hash(seed, 7) * BRANDS.length), code = art.code[Math.floor(hash(seed, 9) * art.code.length)];
@@ -255,7 +257,7 @@ export function buildPort(b: CityBuilder, m: CityMats, art: PortArt, bounds: num
     box(x - 1.8, y + h, z - .3, x + 1.8, y + h + .25, z + .3, m.darkSteel, 1);
     for (const o of [-1.4, -.5, .5, 1.4]) { box(x + o - .28, y + h + .25, z - .2, x + o + .28, y + h + .7, z + .2, m.darkSteel, 1); box(x + o - .24, y + h + .3, z + facing * .21, x + o + .24, y + h + .65, z + facing * .23, glow, 1); heads.push(V(x + o, y + h + .45, z + facing * .5)); }
   };
-  for (const x of [-46, -14, 14, 46]) mast(x, bz1 + 4.6, 24 + 1.2, -1);
+  for (const x of [-56, -30, 30, 56]) mast(x, bz1 + 4.6, 24 + 1.2, -1);
   for (const x of [-120, -64, 64, 120]) mast(x, zq + 22, 30, -1);
   for (let x = -150; x <= 150; x += 50) mast(x, zs + 24 + rows * gap + 6, 30, -1);
   return heads;

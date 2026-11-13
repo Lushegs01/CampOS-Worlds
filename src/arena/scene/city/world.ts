@@ -197,8 +197,9 @@ export function buildBackdrop(b: CityBuilder, m: CityMats, map: CityMap, detail:
   // The port beyond the quay: ship-to-shore cranes over a container ship alongside, the far terminal's stacks and
   // gantries, floodlight masts (./port.ts).
   const portLights = buildPort(b, m, port, map.bounds, L, detail, m.lamp);
-  // The ship: hull, accommodation block, containers stacked on deck.
-  const sx = -6, sz = bz1 + 38, hull = new THREE.BoxGeometry(150, 11, 22), hp = hull.attributes.position;
+  // The ship, at the east berth under the third crane (the basin in front of the yard stays open water, so the low
+  // southern sun is seen over it): hull, accommodation block, containers stacked on deck.
+  const sx = 95, sz = bz1 + 38, hull = new THREE.BoxGeometry(150, 11, 22), hp = hull.attributes.position;
   for (let i = 0; i < hp.count; i++) { const x = hp.getX(i), y = hp.getY(i); if (y < 0) hp.setZ(i, hp.getZ(i) * .72); if (Math.abs(x) > 70) hp.setZ(i, hp.getZ(i) * .35); }
   hull.computeVertexNormals(); far(hull, m.flat('#1d2f45', { roughness: .55 }), T(sx, L - 1.5, sz), 6);
   fbox(sx - 75, L + 3.8, sz - 11, sx + 75, L + 4.2, sz + 11, m.red, 4); fbox(sx + 52, L + 4, sz - 9, sx + 64, L + 24, sz + 9, m.white, 4); fbox(sx + 55, L + 24, sz - 3, sx + 60, L + 29, sz + 3, m.orange, 4);

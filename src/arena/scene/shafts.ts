@@ -11,7 +11,7 @@
 // buffer). This pass runs straight after the world, while the depth is the world's, and never touches the frame
 // buffers itself (no feedback with the depth texture it reads).
 import * as THREE from 'three';
-import { Pass, Effect, BlendFunction } from 'postprocessing';
+import { Pass, Effect, BlendFunction, EffectAttribute } from 'postprocessing';
 
 const VERT = 'varying vec2 vUv; void main() { vUv = position.xy * .5 + .5; gl_Position = vec4(position.xy, 1., 1.); }';
 
@@ -31,7 +31,7 @@ void main() {
   c *= .25; sky *= .25;
   float l = dot(c, vec3(.2126, .7152, .0722));
   vec2 dv = (vUv - uSun) * vec2(uAspect, 1.);
-  float fall = exp(-dot(dv, dv) * 2.2);
+  float fall = exp(-dot(dv, dv) * 4.);
   gl_FragColor = vec4(c * (max(l - uFloor, 0.) / max(l, 1e-4)) * fall, 1.);
 }`;
 
@@ -57,19 +57,26 @@ const v = new THREE.Vector3(), fwd = new THREE.Vector3();
 /** One triangle covering the screen (clip space). */
 const triangle = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
 
-/** Adds the shafts to the image (HDR, before tone mapping). Put it in the effect pass ahead of the tone mapping. */
+/**
+ * Adds the shafts to the image (HDR, before tone mapping). Put it in the effect pass ahead of the tone mapping. By then
+ * the composer's depth is the first-person weapon's own (its pass draws over a cleared depth buffer), so where that
+ * depth is nearer than the far plane the weapon is in front and the shafts are kept off it.
+ */
 export class ShaftsEffect extends Effect {
   constructor(texture: THREE.Texture) {
     super('ShaftsEffect', /* glsl */`
-      uniform sampler2D tShafts; uniform float uStrength;
-      void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-        outputColor = vec4(inputColor.rgb + texture2D(tShafts, uv).rgb * uStrength, inputColor.a);
+      uniform sampler2D tShafts; uniform float uStrength, uGun;
+      void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
+        float gun = uGun * (1. - step(.99999, depth));
+        outputColor = vec4(inputColor.rgb + texture2D(tShafts, uv).rgb * uStrength * (1. - gun * .9), inputColor.a);
       }`, {
-      blendFunction: BlendFunction.SRC,
-      uniforms: new Map<string, THREE.Uniform>([['tShafts', new THREE.Uniform(texture)], ['uStrength', new THREE.Uniform(0)]]),
+      blendFunction: BlendFunction.SRC, attributes: EffectAttribute.DEPTH,
+      uniforms: new Map<string, THREE.Uniform>([['tShafts', new THREE.Uniform(texture)], ['uStrength', new THREE.Uniform(0)], ['uGun', new THREE.Uniform(0)]]),
     });
   }
   set strength(s: number) { this.uniforms.get('uStrength')!.value = s; }
+  /** Whether the weapon pass drew this frame (otherwise the depth is the world's, and the shafts cross everything). */
+  set gun(on: boolean) { this.uniforms.get('uGun')!.value = on ? 1 : 0; }
 }
 
 /**
@@ -87,8 +94,8 @@ export class ShaftsPass extends Pass {
     this.needsSwap = false; this.needsDepthTexture = true;
     for (const t of [this.mask, this.blur]) { t.texture.minFilter = t.texture.magFilter = THREE.LinearFilter; t.texture.generateMipmaps = false; }
     const common = { vertexShader: VERT, depthTest: false, depthWrite: false, toneMapped: false };
-    this.maskMat = new THREE.ShaderMaterial({ ...common, fragmentShader: MASK, uniforms: { tColor: { value: null }, tDepth: { value: null }, uSun: { value: new THREE.Vector2() }, uTexel: { value: new THREE.Vector2() }, uAspect: { value: 1 }, uFloor: { value: .55 } } });
-    this.blurMat = new THREE.ShaderMaterial({ ...common, fragmentShader: BLUR, uniforms: { tMask: { value: this.mask.texture }, uSun: { value: new THREE.Vector2() }, uDensity: { value: .9 }, uDecay: { value: .955 }, uWeight: { value: .05 } } });
+    this.maskMat = new THREE.ShaderMaterial({ ...common, fragmentShader: MASK, uniforms: { tColor: { value: null }, tDepth: { value: null }, uSun: { value: new THREE.Vector2() }, uTexel: { value: new THREE.Vector2() }, uAspect: { value: 1 }, uFloor: { value: 1 } } });
+    this.blurMat = new THREE.ShaderMaterial({ ...common, fragmentShader: BLUR, uniforms: { tMask: { value: this.mask.texture }, uSun: { value: new THREE.Vector2() }, uDensity: { value: .8 }, uDecay: { value: .935 }, uWeight: { value: .03 } } });
     this.quad = new THREE.Mesh(triangle, this.maskMat); this.quad.frustumCulled = false; this.quadScene.add(this.quad);
     this.effect = new ShaftsEffect(this.blur.texture);
   }

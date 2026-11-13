@@ -343,7 +343,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     ];
     c.addPass(new EffectPass(camera, ...fxs));
     c.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
-    return { c, weapon };
+    return { c, weapon, shafts };
   }, [gl, scene, camera, q, vm, atmo]); // eslint-disable-line react-hooks/exhaustive-deps
   // The street's reflection in the rain (High, Ultra), drawn before the frame.
   const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
@@ -755,7 +755,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
     // frames the sun's shadow is not redrawn, so the two passes never land together.)
     if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
-    if (composer) { composer.weapon.enabled = vm.holder.visible; composer.c.render(dt); }
+    if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
     else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaStats = { world: passes.world, calls: r.info.render.calls, triangles: r.info.render.triangles, textures: r.info.memory.textures, geometries: r.info.memory.geometries };

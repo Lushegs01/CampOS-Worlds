@@ -248,3 +248,66 @@ the palm bark is an existing campus texture (433 KB KTX2), everything else is pr
 * **Weapons**: models, textures and animations are the licensed assets as they were; this pass changed their
   lighting, reflections and effects, not the meshes.
 * **Lagoon Sunset** was not captured in this run (software rendering is slow); it uses the same code paths.
+
+## 6. Storm Break and the Port of Okun Bay (November 2026)
+
+Direction: a reference clip of a browser shooter in a container port at golden hour under storm cloud (low sun
+behind the cranes, light shafts, haze glowing toward the sun, soaked asphalt mirroring the bright sky, branded
+containers, hazard-striped steel). This pass brings that look to Operation: Metropolis, whose Industrial Zone is
+already the Port of Okun Bay. Only Metropolis changed; Foundry Yard and Sim Quad render as before.
+
+### Storm Break — the new Quick Play weather
+
+* A fifth atmosphere (`storm` in `city/atmosphere.ts`), first in `METROPOLIS_VARIANTS`, so Quick Play uses it
+  (Harmattan Noon, Rainy Season, Lagoon Sunset and Blue Hour remain for private matches and Training). The sun is
+  15° above the horizon **due south**, over the bay: on the map's axis of symmetry, so both teams see it the same
+  way, and the port's cranes stand between the yard and the sun.
+* The sky gains a **break in the storm deck** along the horizon, widest toward the sun and ragged at its edge, so
+  the sun shines in under dark cloud; cloud undersides are warm only where they face the sun and a cool grey away
+  from it; thin edges near the sun glow with the light coming through them. The sky's horizon haze takes the same
+  glow toward the sun as the height fog, so distant cranes sink into a bright warm haze toward the sun and a cool
+  grey one away from it. (These are new uniforms that are zero for the other weathers, whose skies are unchanged.)
+* Passing rain (`rainAmount`): fewer drops and one faint rain curtain instead of three, over fully wet streets with
+  standing water; High and Ultra reflect the city in them as in Rainy Season.
+* Lifted, cool shade (a stronger bounce fill), a less orange sun, and a grade that cools the shadows and only
+  slightly warms the highlights.
+
+### Light shafts and glare — `scene/shafts.ts` (Medium and up)
+
+* Straight after the world is drawn, the sky pixels (world depth at the far plane) are taken at a quarter of the
+  resolution with their own brightness above a floor, so a bright break in the cloud streams light and a dark
+  deck does not; the mask is blurred radially toward the sun (40 jittered steps) and added before tone mapping.
+  Cranes, masts, towers and the spire cut beams of shadow through it.
+* It fades out as the view turns more than about 50–80° from the sun, and it is kept off the first-person weapon
+  (the composer's depth at the end of the frame is the weapon's own).
+* postprocessing's `GodRaysEffect` was not usable here: it reads the depth when the effect pass runs, after the
+  weapon pass has replaced it.
+* Strength per weather: Storm Break 0.8, Lagoon Sunset 0.7, Harmattan Noon 0.3 (only when looking up toward the
+  high sun), none in rain or at night. Bloom's threshold and strength are also per weather now (Storm Break and
+  Lagoon Sunset let the bright sky around a low sun glow; the others keep the previous values).
+
+### The port — `city/port.ts`
+
+* **Containers** (the yard's, and the one on the container lorry) are rebuilt: trapezoid corrugation with the ribs
+  **facing out** (the shared builder's ribs face in, so the sides read flat — the "container faces read flat"
+  item in [METROPOLIS.md](METROPOLIS.md)), a corrugated front end, a door end with two leaves, stiffeners, four
+  locking bars with cam keepers and handles, hinges, rails, corner posts and castings. Each carries a fictional
+  line's logo along both sides and an owner code on the doors and a top corner, painted decals that follow the
+  ribs, worn in specks and scrapes (alpha-tested, one material per ink, wet in the rain). Container paint now has
+  the city's weathering layers: grime at the foot, rain runs, wet darkening.
+* **Ship-to-shore cranes** across the basin: legs with hazard-striped feet, sill beams and bogies, portal beams and
+  knee braces, two lattice girders (boom over the water toward the yard, back reach over the terminal), an A-frame
+  apex with fore- and backstays, a machinery house carrying the line's mark, trolley, cab and a spreader on its
+  ropes, floodlights under the girders and a beacon.
+* **The far terminal**: an apron, two blocks of containers stacked one to four high with gaps, rubber-tyred gantries
+  over them, and floodlight masts there and on the quay apron (their heads join the lamp halos in rain and dark).
+* The container ship moved to the east berth, under the third crane, so the basin in front of the yard is open
+  water and the low sun is seen over it.
+* Brands: Okun Bay Lines, Iroko Marine, Tidemark, Vespera, Campos Freight, Harmattan — all invented, with simple
+  original marks; owner codes use invented prefixes.
+
+### Shadows
+
+The sun's shadow camera is now fitted to the site as the sun sees it (all Metropolis weathers). With the old square
+frustum a 15° sun spent most of its map on ground it only grazes; fitted, Storm Break's long shadows keep their
+resolution.

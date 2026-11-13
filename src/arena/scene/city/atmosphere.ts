@@ -27,8 +27,9 @@ export interface Atmosphere {
   fog: V3; fogDensity: number; fogFalloff: number; fogBase: number; fogStart: number; fogMax: number; fogSun: V3;
   /** Base exposure, IBL strength, the hemisphere fill (bounce light the IBL does not carry). */
   exposure: number; env: number; fill: number; fillSky: V3; fillGround: V3;
-  /** How brightly the city's own lights burn (0 day … 1 night); rain and wet streets. */
-  glowLevel: number; rain: boolean; wet: number;
+  /** How brightly the city's own lights burn (0 day … 1 night); rain and wet streets; how heavy the rain is (1 a
+   *  steady downpour, less for passing rain). */
+  glowLevel: number; rain: boolean; wet: number; rainAmount?: number;
   /** Grade: saturation, contrast, warm highlight / cool shadow tint. */
   saturation: number; contrast: number; lift: V3; gain: V3;
   /** A break in the cloud along the horizon, widest toward the sun (0 none … 1 clear below about 18°), and how
@@ -49,15 +50,15 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
   // from it, so the port's cranes and the towers stand dark against the light. Shade is cool and deep but lifted by
   // the bright sky, the way the light reads after a downpour.
   storm: {
-    sunDir: [0, .27, 1], sunColor: [1, .66, .4], sun: 2.6, shadowSoft: 1.6,
-    zenith: [.05, .064, .088], horizon: [.6, .46, .4], ground: [.06, .055, .052], glow: [0, 0, 0],
+    sunDir: [0, .27, 1], sunColor: [1, .76, .52], sun: 2.6, shadowSoft: 1.6,
+    zenith: [.045, .058, .08], horizon: [.36, .37, .41], ground: [.05, .05, .052], glow: [0, 0, 0],
     photo: 0, photoTint: [1, 1, 1], photoScale: 1,
-    clouds: .82, cloudDark: .62, cloudLit: [1.3, .76, .5], cloudShade: [.085, .095, .12],
-    fog: [.31, .3, .32], fogDensity: .0062, fogFalloff: .045, fogBase: 5, fogStart: 10, fogMax: .92, fogSun: [1.25, .62, .3],
-    exposure: .98, env: 1.1, fill: .3, fillSky: D('#9aa6ba'), fillGround: D('#5c524b'),
-    glowLevel: .22, rain: true, wet: 1,
-    saturation: .9, contrast: 1.1, lift: [.965, .99, 1.06], gain: [1.08, 1, .9],
-    gap: .85, rim: 1, shafts: 1, bloomThreshold: 1.7, bloomIntensity: .6,
+    clouds: .82, cloudDark: .62, cloudLit: [1.15, .68, .45], cloudShade: [.075, .085, .11],
+    fog: [.26, .275, .3], fogDensity: .006, fogFalloff: .045, fogBase: 5, fogStart: 10, fogMax: .92, fogSun: [1.2, .66, .34],
+    exposure: 1, env: 1.2, fill: .55, fillSky: D('#a7b4c8'), fillGround: D('#5c544e'),
+    glowLevel: .22, rain: true, wet: 1, rainAmount: .45,
+    saturation: .94, contrast: 1.1, lift: [.955, .985, 1.07], gain: [1.05, 1, .93],
+    gap: .9, rim: .7, shafts: .8, bloomThreshold: 1.8, bloomIntensity: .55,
   },
   // Harmattan Noon: high sun through a dry, dusty haze. The sky is pale; far towers fade to warm grey.
   day: {
@@ -200,7 +201,7 @@ vec3 skyRadiance(vec3 d) {
     // A break along the horizon, widest toward the sun, with a ragged edge: the low sun shines in under the deck.
     if (uGap > 0.) {
       float az = dot(normalize(d.xz + 1e-4), normalize(uSunDir.xz + 1e-4)) * .5 + .5;
-      float open = (1. - smoothstep(.02, .2 + .16 * az, up + (n - .5) * .16)) * mix(.4, 1., az * az) * uGap;
+      float open = (1. - smoothstep(.1 + .2 * az, .26 + .3 * az, up + (n - .5) * .22)) * mix(.35, 1., az * az) * uGap;
       dens *= 1. - open;
     }
   }
@@ -220,12 +221,14 @@ vec3 skyRadiance(vec3 d) {
   // A cloud layer: fbm on a plane overhead, self-shadowed toward the sun, lit from below by the city at night.
   if (uClouds > 0.) {
     float toward = fbm(p + uSunDir.xz * .35), lit = clamp(1. - (toward - n) * 3.5 - uCloudDark * .6, 0., 1.);
-    vec3 cloud = mix(uCloudShade, uCloudLit, lit) * (.75 + .5 * n);
+    // (A storm deck is warm only where it faces the low sun; away from it the lit sides are a cool grey.)
+    vec3 litC = uRim > 0. ? mix(uCloudShade * 3.2, uCloudLit, pow(cs * .5 + .5, 4.)) : uCloudLit;
+    vec3 cloud = mix(uCloudShade, litC, lit) * (.75 + .5 * n);
     cloud += uGlow * (1. - up) * 1.4;                                        // city light on the undersides
     cloud += uSun * pow(max(cs, 0.), 12.) * (1. - dens) * .25;               // silver lining
     // Storm light: thin edges of the deck near the sun burn with the light coming through them, and the undersides
     // facing the low sun catch it warm while the rest of the deck stays dark.
-    cloud += uSun * uRim * (pow(max(cs, 0.), 5.) * dens * (1. - dens) * 1.6 + pow(max(cs, 0.), 2.) * (1. - lit) * .05);
+    cloud += uSun * uRim * (pow(max(cs, 0.), 5.) * dens * (1. - dens) * 1.6 + pow(max(cs, 0.), 3.) * (1. - lit) * .02);
     sky = mix(sky, cloud, dens * smoothstep(.0, .12, d.y));
   }
   // The city's glow on the haze near the horizon (night) and the haze itself, which is the fog's colour at the

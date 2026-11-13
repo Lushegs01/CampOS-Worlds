@@ -40,13 +40,13 @@ uniform vec4 uLamps[8]; uniform vec3 uLampColor;
 vec3 lampGlint(vec3 p) { vec3 s = vec3(0.); for (int i = 0; i < 8; i++) { vec3 d = p - uLamps[i].xyz; s += uLamps[i].w / (1. + dot(d, d) * .9); } return s * uLampColor; }
 `;
 
-export interface WeatherOptions { streaks: number; splashes: number; curtains: number; radius: number }
+export interface WeatherOptions { streaks: number; splashes: number; curtains: number; radius: number; /** 1 a downpour, less for passing rain. */ amount?: number }
 export function createRain(field: ReturnType<typeof heightfield>, street: number, ambient: THREE.Color, o: WeatherOptions) {
   const group = new THREE.Group(); group.name = 'rain';
   const shared = {
     uTime: { value: 0 }, uCam: { value: new THREE.Vector3() }, uHeight: { value: field.tex }, uHeightBox: { value: field.origin }, uStreetY: { value: street },
     uAmbient: { value: ambient.clone() }, uLamps: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, -100, 0, 0)) }, uLampColor: { value: new THREE.Color('#ffd9a8') },
-    uWind: { value: new THREE.Vector2(.9, .35) }, uRadius: { value: o.radius }, uPixel: { value: 1 / 720 },
+    uWind: { value: new THREE.Vector2(.9, .35) }, uRadius: { value: o.radius }, uPixel: { value: 1 / 720 }, uAmount: { value: o.amount ?? 1 },
   };
   // ---------------------------------------------------------------- streaks
   {
@@ -58,7 +58,7 @@ export function createRain(field: ReturnType<typeof heightfield>, street: number
       uniforms: { ...shared, ...heightFogUniforms(), fogColor: { value: ambient.clone() }, fogNear: { value: 1 }, fogFar: { value: 1e4 } },
       transparent: true, depthWrite: false, fog: true,
       vertexShader: HF + LAMPS + `#include <fog_pars_vertex>
-        uniform float uTime, uRadius, uPixel; uniform vec3 uCam; uniform vec2 uWind; uniform vec3 uAmbient; attribute vec4 aSeed; varying float vA; varying vec2 vUv; varying vec3 vLit;
+        uniform float uTime, uRadius, uPixel, uAmount; uniform vec3 uCam; uniform vec2 uWind; uniform vec3 uAmbient; attribute vec4 aSeed; varying float vA; varying vec2 vUv; varying vec3 vLit;
         void main() {
           float R = uRadius * 2., H = 26., speed = 8.5 + aSeed.w * 2.5;
           vec3 p; p.xz = uCam.xz + mod(aSeed.xy * R - uCam.xz + R * .5, R) - R * .5;
@@ -70,7 +70,7 @@ export function createRain(field: ReturnType<typeof heightfield>, street: number
           vec3 wp = p + fall * (position.y - .5) * len + side * position.x * width;
           float ground = groundAt(p.xz);
           float hidden = step(p.y - len * .5, ground + .02);
-          vA = (1. - hidden) * smoothstep(.6, 2.2, dist) * (1. - smoothstep(uRadius * .75, uRadius, length(p.xz - uCam.xz))) * (.22 + .18 * aSeed.x) * clamp(.0045 / width, .35, 1.);
+          vA = (1. - hidden) * smoothstep(.6, 2.2, dist) * (1. - smoothstep(uRadius * .75, uRadius, length(p.xz - uCam.xz))) * (.22 + .18 * aSeed.x) * clamp(.0045 / width, .35, 1.) * sqrt(uAmount);
           vUv = uv; vLit = uAmbient * 1.6 + lampGlint(p);
           vec4 mvPosition = viewMatrix * vec4(wp, 1.); gl_Position = projectionMatrix * mvPosition;
           if (vA <= .001) gl_Position = vec4(2., 2., 2., 1.);
@@ -101,7 +101,7 @@ export function createRain(field: ReturnType<typeof heightfield>, street: number
         }`,
       fragmentShader: `#include <common>
         #include <fog_pars_fragment>
-        uniform float uTime, uLayer; uniform vec3 uAmbient; varying vec2 vUv; varying vec3 vW;
+        uniform float uTime, uLayer, uAmount; uniform vec3 uAmbient; varying vec2 vUv; varying vec3 vW;
         float h1(float n) { return fract(sin(n * 78.233) * 43758.5453); }
         void main() {
           // Columns of streaks: each column falls at its own phase; brightness varies along the column.
@@ -109,7 +109,7 @@ export function createRain(field: ReturnType<typeof heightfield>, street: number
           float y = vUv.y * (14. + uLayer * 4.) + uTime * (3.2 - uLayer * .5) + h1(c) * 17.;
           float streak = smoothstep(.5, .0, abs(fx - .5)) * smoothstep(.55, 1., fract(y)) * step(.35, h1(c + 3.));
           float fade = smoothstep(0., .2, vUv.y) * smoothstep(1., .55, vUv.y);
-          gl_FragColor = vec4(uAmbient * 1.8, streak * fade * (.16 - uLayer * .03));
+          gl_FragColor = vec4(uAmbient * 1.8, streak * fade * (.16 - uLayer * .03) * uAmount);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
           #include <fog_fragment>
