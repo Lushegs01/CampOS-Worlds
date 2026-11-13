@@ -1,8 +1,8 @@
 // City presentation follows the shared collision map. No decorative wall closes a playable opening.
-// (Sky, sun, image-based light, fog and exposure for the four weather/time variants: ./city/atmosphere.ts.)
+// (Sky, sun, image-based light, fog and exposure for the five weather/time variants: ./city/atmosphere.ts.)
 import * as THREE from 'three';
 import { metropolis } from '../../../shared/arena/metropolis.mjs';
-import { ATMOSPHERE } from './city/atmosphere';
+import { ATMOSPHERE, atmosphereOf } from './city/atmosphere';
 import { Builder } from './environment';
 import { DECOR_PROPS, CITY_PROPS, type Library, type PropKey } from './library';
 import { buildCity } from './city';
@@ -11,9 +11,9 @@ import { type ArenaQuality } from './world';
 import { cityDetail } from './cityDetail';
 
 type City = ReturnType<typeof metropolis>;
-/** The four variants' sun, sky and fog, as colours (the full model, used by the renderer, is ATMOSPHERE). */
+/** The variants' sun, sky and fog, as colours (the full model, used by the renderer, is ATMOSPHERE). */
 const hex = (v: [number, number, number]) => '#' + new THREE.Color(...v).getHexString();
-export const CITY_LIGHT = Object.fromEntries(Object.entries(ATMOSPHERE).map(([k, a]) => [k, { sky: hex(a.horizon), fog: hex(a.fog), sun: hex(a.sunColor), strength: a.sun, fill: a.fill, env: a.env, dir: a.sunDir }])) as Record<'day' | 'overcast' | 'sunset' | 'night', { sky: string; fog: string; sun: string; strength: number; fill: number; env: number; dir: [number, number, number] }>;
+export const CITY_LIGHT = Object.fromEntries(Object.entries(ATMOSPHERE).map(([k, a]) => [k, { sky: hex(a.horizon), fog: hex(a.fog), sun: hex(a.sunColor), strength: a.sun, fill: a.fill, env: a.env, dir: a.sunDir }])) as Record<'storm' | 'day' | 'overcast' | 'sunset' | 'night', { sky: string; fog: string; sun: string; strength: number; fill: number; env: number; dir: [number, number, number] }>;
 export type CityVariant = keyof typeof CITY_LIGHT;
 
 /** Everything the city dresses itself with once the match is on screen (streamed; geometry stands in until then). */
@@ -28,7 +28,7 @@ export const CITY_DECOR: PropKey[] = [...DECOR_PROPS, ...CITY_PROPS];
 export function buildMetropolis(lib: Library, map: City, q: ArenaQuality, variant: CityVariant) {
   const city = buildCity(lib, map as unknown as CityMap, q, variant);
   const wear = new Builder(lib);
-  cityDetail(lib, wear, map.boxes, variant === 'overcast', !!q.detail, { walls: false });
+  cityDetail(lib, wear, map.boxes, atmosphereOf(variant).wet > 0, !!q.detail, { walls: false });
   for (const mesh of wear.meshes(false)) { mesh.receiveShadow = true; mesh.renderOrder = 1; city.group.add(mesh); }
   return { ...city, decor: (keys: PropKey[]) => city.decor(keys) };
 }

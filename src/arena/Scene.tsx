@@ -30,6 +30,7 @@ import { atmosphereOf, createSky, bakeEnvironment, installHeightFog, setHeightFo
 import { createStreetReflection, REFLECTED } from './scene/city/reflection';
 import { cityWeather } from './scene/city/surfaces';
 import { GradeEffect } from './scene/grade';
+import { ShaftsPass } from './scene/shafts';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
@@ -82,6 +83,15 @@ function ambientEmitters(map: { boxes: { min: number[]; max: number[]; mat: stri
     if (b.mat === 'machine') out.push({ at: c, kind: 'machine' }); else if (b.mat === 'roof') out.push({ at: c, kind: 'hum' });
   }
   return out;
+}
+
+/** Fit a directional light's shadow camera around a box of the world as the light sees it (plus a margin). */
+function fitShadow(sun: THREE.DirectionalLight, bounds: number[], y0: number, y1: number) {
+  const cam = sun.shadow.camera, box = new THREE.Box3(), p = new THREE.Vector3();
+  cam.position.copy(sun.position); cam.lookAt(sun.target.position); cam.updateMatrixWorld();
+  for (const x of [bounds[0] - 2, bounds[2] + 2]) for (const y of [y0, y1]) for (const z of [bounds[1] - 2, bounds[3] + 2]) box.expandByPoint(p.set(x, y, z).applyMatrix4(cam.matrixWorldInverse));
+  cam.left = box.min.x; cam.right = box.max.x; cam.bottom = box.min.y; cam.top = box.max.y;
+  cam.near = Math.max(.5, -box.max.z - 4); cam.far = -box.min.z + 4; cam.updateProjectionMatrix();
 }
 
 /** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
@@ -161,6 +171,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       // Overcast light comes from the whole sky: its 'sun' shadow is wide and faint.
       sun.castShadow = true; sun.shadow.mapSize.set(q.shadowSize, q.shadowSize); sun.shadow.radius = (q.shadowSize >= 2048 ? 3 : 2) * (atmo?.shadowSoft ?? 1); sun.shadow.intensity = atmo && atmo.shadowSoft > 3 ? .45 : 1;
       const c = sun.shadow.camera; c.left = -half; c.right = half; c.top = half; c.bottom = -half; c.near = 10; c.far = 240; c.updateProjectionMatrix();
+      // Metropolis: fit the shadow camera to the site as the sun sees it (a low sun otherwise spends most of the map
+      // on ground it only grazes), so Storm Break's long shadows keep their resolution.
+      if (atmo) fitShadow(sun, map.bounds, 0, Math.min(80, Math.max(...map.boxes.map((b: { max: number[] }) => b.max[1]))));
       sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
     }
     // The image-based light carries the sky; the hemisphere fill only adds the bounce between buildings it misses.
@@ -298,7 +311,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const core = new THREE.Mesh(new THREE.PlaneGeometry(.2, .2), fm); flash.add(core);
     const casings = new Casings(q.casings); vmScene.add(casings.mesh);
     return {
-      vmScene, vmCam, holder, sun, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
+      vmScene, vmCam, holder, sun, fill, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
       bob: 0, swayX: 0, swayY: 0, lastYaw: 0, lastPitch: 0, kickZ: 0, kickPitch: 0, kickRoll: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0, breath: 0, cyl: 0, slideKick: 0,
       handR: new THREE.Vector3(.2, -.3, .1), handL: new THREE.Vector3(-.2, -.3, .1),
     };
@@ -312,6 +325,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!q.post) return null;
     const c = new EffectComposer(gl, { frameBufferType: THREE.HalfFloatType, multisampling: 0 });
     c.addPass(new RenderPass(scene, camera));
+    // Light shafts read the world's depth, so they run before anything else replaces it (see scene/shafts.ts).
+    const shafts = atmo && citySun && atmo.shafts > 0 ? new ShaftsPass(camera as THREE.PerspectiveCamera, citySun.dir, atmo.shafts) : null;
+    if (shafts) c.addPass(shafts);
     if (q.ao) {
       const ao = new N8AOPostPass(scene, camera, size.width, size.height);
       Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: !q.aoHigh, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
@@ -319,14 +335,15 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     }
     const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = true; c.addPass(weapon);
     const fxs = [
-      ...(q.bloom ? [new BloomEffect({ luminanceThreshold: 2.6, luminanceSmoothing: .5, intensity: .42, mipmapBlur: true, radius: .62 })] : []),
+      ...(q.bloom ? [new BloomEffect({ luminanceThreshold: atmo?.bloomThreshold ?? 2.6, luminanceSmoothing: .5, intensity: atmo?.bloomIntensity ?? .42, mipmapBlur: true, radius: atmo && atmo.bloomThreshold < 2.6 ? .72 : .62 })] : []),
+      ...(shafts ? [shafts.effect] : []),
       new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
       ...(atmo ? [new GradeEffect({ saturation: atmo.saturation, contrast: atmo.contrast, lift: atmo.lift, gain: atmo.gain, grain: .01 })] : [new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 })]),
       new VignetteEffect({ darkness: atmo ? .32 : .42, offset: .3 }),
     ];
     c.addPass(new EffectPass(camera, ...fxs));
     c.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
-    return { c, weapon };
+    return { c, weapon, shafts };
   }, [gl, scene, camera, q, vm, atmo]); // eslint-disable-line react-hooks/exhaustive-deps
   // The street's reflection in the rain (High, Ultra), drawn before the frame.
   const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
@@ -715,6 +732,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       // (Metropolis: never below a soft key from above, so a black rifle under an overcast or night sky still reads.)
       const want = Math.max(atmo ? 1.6 : 0, (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08)) + (now - vm.flashAt < 60 ? 2.5 : 0);
       vm.sun.intensity += (want - vm.sun.intensity) * Math.min(1, dt * 8);
+      vm.fill.intensity = atmo?.weaponFill ?? .5;
       vm.vmScene.environmentIntensity = (cityLight?.env ?? .95) * (atmo ? 1.6 : 1) * (1 - vm.indoor * .37) * (camera.position.y < 4.6 && atmo ? .5 : 1);
       vm.vmScene.environmentRotation.setFromQuaternion(q1.copy(camera.quaternion).invert());
     }
@@ -738,7 +756,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
     // frames the sun's shadow is not redrawn, so the two passes never land together.)
     if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
-    if (composer) { composer.weapon.enabled = vm.holder.visible; composer.c.render(dt); }
+    if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
     else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaStats = { world: passes.world, calls: r.info.render.calls, triangles: r.info.render.triangles, textures: r.info.memory.textures, geometries: r.info.memory.geometries };

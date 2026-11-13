@@ -30,6 +30,10 @@ const VIEWS = [
   { id: 'interior', at: [37, 5, -37], yaw: Math.PI / 2, pitch: -.04 },                 // inside a shop on the avenue
   { id: 'station', at: [-20, 1, 0], yaw: -Math.PI / 2, pitch: 0 },                     // Plaza Station
   { id: 'industrial', at: [-12, 5, 31], yaw: -Math.PI / 2, pitch: .02 },               // Harbour Road and the yard
+  // Looking south, toward the port and (in Storm Break) the low sun over the bay.
+  { id: 'port', at: [-22, 5, 41], yaw: Math.PI + .08, pitch: .1 },                     // over the quay wall at the cranes and the sun
+  { id: 'yard', at: [-22, 5, 16], yaw: Math.PI + .6, pitch: .05 },                     // from Harbour Road across the container yard
+  { id: 'south', at: [-22, 5, 2], yaw: Math.PI, pitch: .04 },                          // from the plaza down to the port
 ];
 const ROOM_PORT = Number(process.env.ROOM_PORT || 3216), WEB_PORT = Number(process.env.WEB_PORT || 5182);
 const room = createRoom({ port: ROOM_PORT, origins: [`http://127.0.0.1:${WEB_PORT}`], heartbeatMs: 90000, arena: { heartbeatMs: 90000, slowCloseMs: 600000, rules: { countdownMs: 100, spawnProtectMs: 0, reconnectMs: 900000, mode: { timeMs: 3600000, scoreLimit: 9999 } } } });

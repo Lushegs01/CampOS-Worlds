@@ -20,6 +20,7 @@ import { cityWeather } from './surfaces';
 import { setWindowLight } from './windows';
 import { heightfield, createRain, createLampGlow } from './weather';
 import { REFLECTED } from './reflection';
+import { portArt } from './port';
 
 export interface CityLighting { glow: number; rain: boolean; wet: number }
 /** The city's own light level and weather for a variant (everything else about it is in atmosphere.ts). */
@@ -33,14 +34,16 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
   const signMat = new THREE.MeshStandardMaterial({ map: null, roughness: .55, metalness: .1 }), litMat = new THREE.MeshStandardMaterial({ map: null, emissive: '#ffffff', emissiveIntensity: .9, roughness: .5 });
   signMat.userData.fixed = litMat.userData.fixed = true; m.glows.push({ m: litMat, day: .9, night: 1.6 });
   const props = new Props(), ugProps = new Props();
+  // (Before anything is built: it weathers the container paints, and interior copies of materials are made as they are used.)
+  const port = portArt(lib, m, q.detail);
   const aircon = (M: THREE.Matrix4) => { const p = new THREE.Vector3(), r = new THREE.Quaternion(), s = new THREE.Vector3(); M.decompose(p, r, s); const e = new THREE.Euler().setFromQuaternion(r, 'YXZ'); props.place('aircon' as PropKey, p.x, p.y, p.z, e.y, .8, .8, .8); };
 
   buildStructure(b, m, map, q.detail, signs, signMat, fixtures, aircon);
   // Lamps and palms are in the collision map; `streetExtras` only covers a map version without them.
   const art = map.boxes.some(x => x.mat === 'lamppost') ? map : { ...map, boxes: [...map.boxes, ...streetExtras(L)] };
-  buildProps(b, m, lib, art, q.detail, signs, signMat, litMat, fixtures, props, ugProps);
+  buildProps(b, m, lib, art, q.detail, signs, signMat, litMat, fixtures, props, ugProps, port);
   const dressing = buildDressing(b, m, lib, art, q.detail, signs, signMat, litMat, fixtures, props, ugProps);
-  const backdrop = buildBackdrop(b, m, map, q.detail, m.glows);
+  const backdrop = buildBackdrop(b, m, map, q.detail, m.glows, port);
   const atlas = signs.map(); signMat.map = atlas; litMat.map = atlas; litMat.emissiveMap = atlas;
 
   const statics = b.meshes(q.shadows);
@@ -121,10 +124,12 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
   const activate = () => { cityWeather.uWet.value = light.wet; cityWeather.uStreet.value = L; cityWeather.uPuddle.value = .56; cityWeather.uHeight.value = field.tex; cityWeather.uHeightBox.value.copy(field.origin); setWindowLight(light.glow, light.rain); };
   activate();
   const ambient = new THREE.Color(...atmo.fog);
-  const rain = light.rain ? createRain(field, L, ambient, q.effects >= 1.2 ? { streaks: 9000, splashes: 420, curtains: 3, radius: 24 } : q.effects >= 1 ? { streaks: 6500, splashes: 280, curtains: 3, radius: 22 } : { streaks: 2600, splashes: 90, curtains: 1, radius: 16 }) : null;
+  // (Passing rain: fewer drops, one faint curtain.)
+  const amount = atmo.rainAmount ?? 1, rainOf = (o: { streaks: number; splashes: number; curtains: number; radius: number }) => ({ ...o, streaks: Math.round(o.streaks * Math.max(.4, amount)), splashes: Math.round(o.splashes * amount), curtains: amount < .7 ? 1 : o.curtains, amount });
+  const rain = light.rain ? createRain(field, L, ambient, rainOf(q.effects >= 1.2 ? { streaks: 9000, splashes: 420, curtains: 3, radius: 24 } : q.effects >= 1 ? { streaks: 6500, splashes: 280, curtains: 3, radius: 22 } : { streaks: 2600, splashes: 90, curtains: 1, radius: 16 })) : null;
   if (rain) { rain.group.userData.chunk = -1; objects.push(rain.group); }
   // Street lamps: their heads (the outdoor fittings), a halo and a cone of light in wet or dark air.
-  const heads = fixtures.filter(f => f.where === 'out').map(f => f.p.clone().add(new THREE.Vector3(0, .26, 0)));
+  const heads = [...fixtures.filter(f => f.where === 'out').map(f => f.p.clone().add(new THREE.Vector3(0, .26, 0))), ...backdrop.portLights];
   const glowStrength = light.glow > .7 ? 1.2 : light.rain ? .16 : light.glow * .3;   // daylight washes the scatter out
   const cones = light.glow > .7;                                                          // beams of light read only in the dark
   const lampGlow = createLampGlow(heads, new THREE.Color('#ffd7a3'), glowStrength, cones); lampGlow.group.userData.chunk = -1; lampGlow.group.traverse(o => o.layers.enable(REFLECTED)); objects.push(lampGlow.group);
@@ -186,7 +191,7 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
 
   const wanted: PropKey[] = [...DECOR_PROPS, ...CITY_PROPS];
   const decor = (keys: PropKey[]) => { const add = propMeshes(k => keys.includes(k) && !present.has(k)); for (const k of keys) present.add(k); for (const o of add) { const c = o.userData.chunk as number; o.visible = c === CHUNK_STATION ? !!(lastUnder || lastNear) : !lastUnder || lastNear; } objects.push(...add); return add; };
-  const dispose = () => { clearCityMaterials(); atlas.dispose(); shardTex.dispose(); interiorUniforms.uFillScale.value = 1; rain?.dispose(); lampGlow.dispose(); field.tex.dispose(); cityWeather.uWet.value = 0; cityWeather.uReflect.value = 0; cityWeather.uHeight.value = null; };
+  const dispose = () => { clearCityMaterials(); atlas.dispose(); port.dispose(); shardTex.dispose(); interiorUniforms.uFillScale.value = 1; rain?.dispose(); lampGlow.dispose(); field.tex.dispose(); cityWeather.uWet.value = 0; cityWeather.uReflect.value = 0; cityWeather.uHeight.value = null; };
   void T;
   // The renderer's per-frame entry: the match clock, the server's broken panes, the camera, whether it is under cover.
   let paneKey = '', clock = 0;

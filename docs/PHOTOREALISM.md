@@ -248,3 +248,128 @@ the palm bark is an existing campus texture (433 KB KTX2), everything else is pr
 * **Weapons**: models, textures and animations are the licensed assets as they were; this pass changed their
   lighting, reflections and effects, not the meshes.
 * **Lagoon Sunset** was not captured in this run (software rendering is slow); it uses the same code paths.
+
+## 6. Storm Break and the Port of Okun Bay (November 2026)
+
+Direction: a reference clip of a browser shooter in a container port at golden hour under storm cloud (low sun
+behind the cranes, light shafts, haze glowing toward the sun, soaked asphalt mirroring the bright sky, branded
+containers, hazard-striped steel). This pass brings that look to Operation: Metropolis, whose Industrial Zone is
+already the Port of Okun Bay. Only Metropolis changed; Foundry Yard and Sim Quad render as before.
+
+### Storm Break — the new Quick Play weather
+
+* A fifth atmosphere (`storm` in `city/atmosphere.ts`), first in `METROPOLIS_VARIANTS`, so Quick Play uses it
+  (Harmattan Noon, Rainy Season, Lagoon Sunset and Blue Hour remain for private matches and Training). The sun is
+  15° above the horizon **due south**, over the bay: on the map's axis of symmetry, so both teams see it the same
+  way, and the port's cranes stand between the yard and the sun.
+* The sky gains a **break in the storm deck** along the horizon, widest toward the sun and ragged at its edge, so
+  the sun shines in under dark cloud; cloud undersides are warm only where they face the sun and a cool grey away
+  from it; thin edges near the sun glow with the light coming through them. The sky's horizon haze takes the same
+  glow toward the sun as the height fog, so distant cranes sink into a bright warm haze toward the sun and a cool
+  grey one away from it. (These are new uniforms that are zero for the other weathers, whose skies are unchanged.)
+* Passing rain (`rainAmount`): fewer drops and one faint rain curtain instead of three, over fully wet streets with
+  standing water; High and Ultra reflect the city in them as in Rainy Season.
+* Lifted, cool shade (a stronger bounce fill), a less orange sun, and a grade that cools the shadows and only
+  slightly warms the highlights.
+
+### Light shafts and glare — `scene/shafts.ts` (Medium and up)
+
+* Straight after the world is drawn, the sky pixels (world depth at the far plane) are taken at a quarter of the
+  resolution with their own brightness above a floor, so a bright break in the cloud streams light and a dark
+  deck does not; the mask is blurred radially toward the sun (40 jittered steps) and added before tone mapping.
+  Cranes, masts, towers and the spire cut beams of shadow through it.
+* It fades out as the view turns more than about 50–80° from the sun, and it is kept off the first-person weapon
+  (the composer's depth at the end of the frame is the weapon's own).
+* postprocessing's `GodRaysEffect` was not usable here: it reads the depth when the effect pass runs, after the
+  weapon pass has replaced it.
+* Strength per weather: Storm Break 0.8, Lagoon Sunset 0.7, Harmattan Noon 0.3 (only when looking up toward the
+  high sun), none in rain or at night. Bloom's threshold and strength are also per weather now (Storm Break and
+  Lagoon Sunset let the bright sky around a low sun glow; the others keep the previous values).
+
+### The port — `city/port.ts`
+
+* **Containers** (the yard's, and the one on the container lorry) are rebuilt: trapezoid corrugation with the ribs
+  **facing out** (the shared builder's ribs face in, so the sides read flat — the "container faces read flat"
+  item in [METROPOLIS.md](METROPOLIS.md)), a corrugated front end, a door end with two leaves, stiffeners, four
+  locking bars with cam keepers and handles, hinges, rails, corner posts and castings. Each carries a fictional
+  line's logo along both sides and an owner code on the doors and a top corner, painted decals that follow the
+  ribs, worn in specks and scrapes (alpha-tested, one material per ink, wet in the rain). Container paint now has
+  the city's weathering layers: grime at the foot, rain runs, wet darkening.
+* **Ship-to-shore cranes** across the basin: legs with hazard-striped feet, sill beams and bogies, portal beams and
+  knee braces, two lattice girders (boom over the water toward the yard, back reach over the terminal), an A-frame
+  apex with fore- and backstays, a machinery house carrying the line's mark, trolley, cab and a spreader on its
+  ropes, floodlights under the girders and a beacon.
+* **The far terminal**: an apron, two blocks of containers stacked one to four high with gaps, rubber-tyred gantries
+  over them, and floodlight masts there and on the quay apron (their heads join the lamp halos in rain and dark).
+* The container ship moved to the east berth, under the third crane, so the basin in front of the yard is open
+  water and the low sun is seen over it.
+* Brands: Okun Bay Lines, Iroko Marine, Tidemark, Vespera, Campos Freight, Harmattan — all invented, with simple
+  original marks; owner codes use invented prefixes.
+
+### Shade no longer crushed to black (all Metropolis weathers, Medium and up)
+
+The film grade applied contrast as a straight line about mid-grey in display space, `(c − 0.5) × k + 0.5`: at
+k = 1.1 a dark value of 0.05 became 0.005, at 1.06 it halved. On Medium and up that turned arcades, north-facing
+walls, backlit faces and the dark first-person rifle black (the Harmattan Noon arcade in the earlier High captures,
+`after-high50/day-avenue-high.jpg`), while Low — which has no grade — showed them grey with detail. Contrast is now a
+power curve about mid-grey (black and white stay put; 0.05 → 0.04 at 1.1).
+
+### Shadows
+
+The sun's shadow camera is now fitted to the site as the sun sees it (all Metropolis weathers). With the old square
+frustum a 15° sun spent most of its map on ground it only grazes; fitted, Storm Break's long shadows keep their
+resolution.
+
+### Captures
+
+Software WebGL (SwiftShader) at 1280 × 720, High at 50 % render scale, the sun's shadow drawn once (`?qa-static-shadows`).
+
+* Storm Break: `docs/screenshots/metropolis-photoreal/storm-break/storm-{port,yard,street,south}-high.jpg`, and on Low
+  `storm-{port,street}-low.jpg`. Harmattan Noon's arcade with the grade fix: `storm-break/day-avenue-high-graded.jpg`
+  (compare `after-high50/day-avenue-high.jpg`).
+* Before/after sheets: `compare/storm-break-{port,yard,street,south}-high.jpg` — Harmattan Noon on the code before
+  this pass (what Quick Play showed) beside Storm Break, same viewpoint
+  (`node scripts/qa/metropolis-storm-sheets.mjs <before> <after> <out> port,yard,street,south`). The "before" HUD is
+  in a fallback serif: that capture ran from a separate checkout that could not load the web fonts; the 3D image is
+  unaffected.
+* New harness views (`scripts/qa/metropolis-shots.mjs`): `port` (over the quay wall, into the sun), `yard` (from
+  Harbour Road across the container yard), `south` (from the plaza toward the port).
+
+### Renderer statistics (same viewpoints, High at 50 %)
+
+| View | Calls: Harmattan Noon before → Storm Break after | Triangles |
+|---|---|---|
+| port | 138 → 155 | 0.53 M → 0.57 M |
+| yard | 363 → 453 | 0.77 M → 0.85 M |
+| street | 633 → 808 | 0.55 M → 0.70 M |
+| south | 356 → 454 | 0.76 M → 0.84 M |
+
+Most of the increase is the rain, not the new art: Storm Break is wet, so High draws the street reflection on
+alternate frames (Rainy Season measured 649 → 793 calls on the street view for the same reason); the before column is
+a dry weather. The light shafts add two quarter-resolution full-screen draws (a 4-tap mask and a 40-step radial blur).
+Low, Storm Break: street 346 calls / 0.54 M triangles, port 103 / 0.28 M. Arena 3D chunk (`arena-Scene-*.js`,
+minified): 194.3 KB → 213.4 KB (81.0 KB gzipped). No new downloads: the port, decals, hazard paint and shafts are
+procedural. Offline precache unchanged (2.49 MB).
+
+### Tests and builds
+
+* `npm test`: **340 passed, 0 failed** (the Quick Play weather test now expects Storm Break; Harmattan Noon is
+  covered as a private-match choice).
+* `npm run build` and `npm run verify:release`: pass (no QA hooks in production; precache 2.49 MB).
+
+### What remains
+
+* **Real devices.** As in §5, nothing here was measured on a GPU or a phone. Measure Storm Break on each profile
+  (60 s at the port facing the sun, and on the rain street): it combines the street reflection, the shafts and a
+  low sun's long shadows.
+* **Low (phones)** has no post stack, so Storm Break there has no shafts, bloom or grade: it reads correctly but
+  softer and hazier than on Medium and up (`storm-port-low.jpg`). A cheap grade for Low is the next step if phones
+  should match more closely.
+* **Asset fidelity is the largest gap to the reference.** The reference's weapons, characters, drones and props are
+  authored, high-detail models; Metropolis' buildings, vehicles and port are procedural geometry from the collision
+  boxes, and the weapons and soldiers are the licensed models as they were. Closing that gap needs authored or
+  licensed assets, not more renderer work.
+* Not attempted: motion blur and depth of field (deliberately left out for readability, as in §2), cascaded shadow
+  maps, real-time global illumination, volumetric lighting beyond the screen-space shafts.
+* Foundry Yard and Sim Quad are unchanged (this pass was Metropolis only). Their containers use the shared builder,
+  whose ribs still face inward.

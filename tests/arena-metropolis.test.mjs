@@ -51,8 +51,8 @@ test('the train warns first, crosses in alternating directions, then leaves', ()
   assert.equal(trainAt(TRAIN.firstMs + TRAIN.periodMs + 7000).dir, -1);
   assert.equal(trainAt(TRAIN.firstMs + 30000), null);
 });
-test('Quick Play enforces daylight while private matches validate weather and preserve elevated spawn events', () => {
-  for (const [kind, variant, expected] of [['quick','night','day'],['private','night','night'],['private','invalid','day']]) {
+test('Quick Play enforces the competitive weather while private matches validate weather and preserve elevated spawn events', () => {
+  for (const [kind, variant, expected] of [['quick','night','storm'],['private','night','night'],['private','day','day'],['private','invalid','storm']]) {
     const f = fixture({kind,variant});
     assert.equal(f.m.view().variant, expected);
     f.m.flush(); assert.ok(f.events.filter(e => e.k === 'spawn').every(e => e.y === 5));
