@@ -7,6 +7,8 @@ Mobile rendering improvements, benchmark results, and the itel S24 test checklis
 
 SIG Sauer M7 (free battle rifle, modes, assets, validation): [implementation report](docs/M7-IMPLEMENTATION.md).
 
+Operation: Metropolis rendering (sky and image-based light per weather, height fog, weathered and wet materials, interior-mapped windows, rain, street reflections, profiles and measurements): [photorealism report](docs/PHOTOREALISM.md).
+
 Combat Arena HUD customization, Armory (three free firearms including the SIG Sauer M7, premium weapons), auto-fire and adaptive performance: [engineering report](docs/ARENA-ARMORY-HUD-REPORT.md).
 
 A playable, standalone 3D campus for exploring, meeting people and making small discoveries. The fictional **Òrìṣun Campus** is modelled locally with procedural architecture, vegetation, a walk-in library and a bronze courtyard landmark. No production institutional account is needed.

@@ -41,7 +41,7 @@ export class Builder {
   add(geo: THREE.BufferGeometry, material: THREE.Material, scale: number, matrix?: THREE.Matrix4, rotateUV = false, keepUV = false, chunk?: number) {
     const g = geo.index ? geo.toNonIndexed() : geo.clone();
     if (matrix) g.applyMatrix4(matrix);
-    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && !(keepUV && k === 'uv')) g.deleteAttribute(k);
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && !(keepUV && k === 'uv') && k !== 'aWin') g.deleteAttribute(k);
     if (!g.attributes.normal) g.computeVertexNormals();
     if (!keepUV || !g.attributes.uv) worldUV(g, scale, rotateUV);
     g.clearGroups(); g.morphAttributes = {};

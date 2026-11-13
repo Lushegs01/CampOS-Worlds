@@ -6,6 +6,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { Builder, hash } from '../environment';
 import type { Library } from '../library';
 import { inside, type CityMats, type Where } from './materials';
+import { paneGeometry, WINDOW_ROOM, WINDOW_SHOP } from './windows';
 
 export type Box = { min: number[]; max: number[]; mat: string; thin?: boolean; stair?: boolean };
 export type Deco = Box & { kind: string; alongZ: boolean; wall: string; east?: boolean };
@@ -31,7 +32,10 @@ export function streetExtras(street: number): Box[] {
 
 /** Regions drawn and culled together: 0 the station, 1–9 a 3 × 3 grid of the street level, 10 beyond the site. */
 export const CHUNK_STATION = 0, CHUNK_FAR = 10;
-export function chunkOf(street: number) {
+export function chunkOf(street: number, coarse = false) {
+  // Coarse (Low, phones): the street level in two halves. Most of the 3 × 3 grid is in view from anywhere on the street,
+  // so the finer split mostly multiplies draw calls (one per material per region), which is what a phone's CPU pays for.
+  if (coarse) return (c: THREE.Vector3) => (c.y < street - .3 ? CHUNK_STATION : c.x < 0 ? 4 : 6);
   return (c: THREE.Vector3) => (c.y < street - .3 ? CHUNK_STATION : 1 + (c.x < -20 ? 0 : c.x < 20 ? 1 : 2) + 3 * (c.z < -18 ? 0 : c.z < 11 ? 1 : 2));
 }
 
@@ -49,7 +53,7 @@ const tmpBox = new THREE.Box3(), tmpC = new THREE.Vector3();
 export class CityBuilder extends Builder {
   /** Force the lighting of what is added next (null: decide from its position). */
   force: Where | null = null;
-  constructor(lib: Library, street: number, private where: (x: number, y: number, z: number) => Where) { super(lib, chunkOf(street)); }
+  constructor(lib: Library, street: number, private where: (x: number, y: number, z: number) => Where, coarse = false) { super(lib, chunkOf(street, coarse)); }
   add(geo: THREE.BufferGeometry, material: THREE.Material, scale: number, matrix?: THREE.Matrix4, rotateUV = false, keepUV = false, chunk?: number) {
     if (!geo.boundingBox) geo.computeBoundingBox();
     tmpBox.copy(geo.boundingBox!); if (matrix) tmpBox.applyMatrix4(matrix); tmpBox.getCenter(tmpC);
@@ -97,6 +101,12 @@ export class Face {
     const g = new THREE.BoxGeometry(Math.max(1e-3, u1 - u0), Math.max(1e-3, v1 - v0), Math.max(1e-3, w1 - w0));
     this.b.add(g, material, scale, this.M.clone().multiply(new THREE.Matrix4().makeTranslation((u0 + u1) / 2, (v0 + v1) / 2, (w0 + w1) / 2))); g.dispose();
   }
+  /** A window pane (interior-mapped: see windows.ts) from (u0, v0) to (u1, v1), at depth w, facing out. */
+  pane(u0: number, v0: number, u1: number, v1: number, w: number, material: THREE.Material, seed: number, kind: number) {
+    if (u1 - u0 < .05 || v1 - v0 < .05) return;
+    const g = paneGeometry(u1 - u0, v1 - v0, seed, kind);
+    this.b.add(g, material, 1, this.M.clone().multiply(new THREE.Matrix4().makeTranslation(u0, v0, w)), false, true); g.dispose();
+  }
   matrix() { return this.M; }
 }
 
@@ -115,7 +125,7 @@ export function facade(f: Face, m: CityMats, s: FacadeStyle, detail: number, air
   if (s.ground === 'shops') {
     for (let i = 0; i < bays; i++) {
       const u0 = i * bw + .35, u1 = (i + 1) * bw - .35, open = hash(s.seed, i) > .55;
-      f.box(u0, .12, u1, 2.9, 0, .03, open ? m.glassDark : m.shutter, 1.6);
+      if (open) f.pane(u0, .12, u1, 2.9, .03, m.window, s.seed * 3.7 + i * 17.3, WINDOW_SHOP); else f.box(u0, .12, u1, 2.9, 0, .03, m.shutter, 1.6);
       wall(i * bw, 0, u0, 2.98); wall(u1, 0, (i + 1) * bw, 2.98); wall(u0, 0, u1, .12);
       f.box(u0 - .06, .12, u0, 2.9, .03, D + .03, m.frame, 1); f.box(u1, .12, u1 + .06, 2.9, .03, D + .03, m.frame, 1);
     }
@@ -128,14 +138,18 @@ export function facade(f: Face, m: CityMats, s: FacadeStyle, detail: number, air
     for (let i = 0; i < bays; i++) {
       const u0 = i * bw + bw * .22, u1 = (i + 1) * bw - bw * .22, r = hash(s.seed + k * 7.3, i * 3.1);
       wall(i * bw, v0, u0, v1); wall(u1, v0, (i + 1) * bw, v1);
-      f.box(u0, v0, u1, v1, 0, .02, r > .72 ? m.room : m.glassDark, 1);                                    // the pane (some rooms are lit)
+      f.pane(u0, v0, u1, v1, .02, m.window, s.seed * 1.93 + k * 41.7 + i * 7.31, WINDOW_ROOM);              // the pane, and the room behind it
       f.box(u0, v0, u0 + .06, v1, .02, .07, m.frame, 1); f.box(u1 - .06, v0, u1, v1, .02, .07, m.frame, 1);
       f.box(u0, v1 - .06, u1, v1, .02, .07, m.frame, 1); f.box(u0, v0, u1, v0 + .06, .02, .07, m.frame, 1);
       if (detail) { f.box((u0 + u1) / 2 - .025, v0, (u0 + u1) / 2 + .025, v1, .02, .06, m.frame, 1); f.box(u0 - .08, v0 - .08, u1 + .08, v0, 0, D + .1, s.trim, 1); }
       if (r < s.balcony) {
-        // A shallow balcony: slab, steel balustrade.
-        f.box(u0 - .3, v0 - 1.0, u1 + .3, v0 - .88, D, D + .85, s.trim, 1);
-        f.box(u0 - .3, v0 - .88, u1 + .3, v0 + .05, D + .8, D + .84, m.frame, 1); f.box(u0 - .3, v0 - .88, u0 - .26, v0 + .05, D, D + .84, m.frame, 1); f.box(u1 + .26, v0 - .88, u1 + .3, v0 + .05, D, D + .84, m.frame, 1);
+        // A shallow balcony: slab with a drip edge, a low upstand, a steel balustrade of bars under a handrail.
+        const b0 = u0 - .3, b1 = u1 + .3, y = v0 - .88, front = D + .84;
+        f.box(b0, v0 - 1.02, b1, y, D, D + .88, s.trim, 1); f.box(b0, v0 - 1.06, b1, v0 - 1.02, D + .8, D + .88, s.trim, 1);
+        f.box(b0, y, b1, y + .12, front - .06, front, s.trim, 1);
+        f.box(b0, y + .98, b1, y + 1.03, front - .05, front, m.frame, 1); f.box(b0, y + .12, b0 + .04, y + .98, D, front, m.frame, 1); f.box(b1 - .04, y + .12, b1, y + .98, D, front, m.frame, 1);
+        if (detail) for (let x = b0 + .14; x < b1 - .1; x += .14) f.box(x - .01, y + .12, x + .01, y + .98, front - .035, front - .015, m.frame, 1);
+        else f.box(b0, y + .12, b1, y + .98, front - .03, front - .02, m.frame, 1);
       } else if (aircon && r > .4 && r < .62) aircon(f.matrix().clone().multiply(new THREE.Matrix4().makeTranslation(u1 + .1, v0 - .75, D)));
     }
   }
@@ -151,13 +165,22 @@ export class SignAtlas {
   constructor(size = 2048) { this.canvas.width = this.canvas.height = size; this.g = this.canvas.getContext('2d')!; this.g.fillStyle = '#000'; this.g.fillRect(0, 0, size, size); }
   /** Draw a sign `w` × `h` pixels with `paint`; returns its UV rectangle. */
   slot(w: number, h: number, paint: (g: CanvasRenderingContext2D, w: number, h: number) => void) {
-    const S = this.canvas.width; if (this.x + w > S) { this.x = 0; this.y += this.row + 4; this.row = 0; }
-    const x = this.x, y = this.y; this.x += w + 4; this.row = Math.max(this.row, h);
-    this.g.save(); this.g.translate(x, y); this.g.beginPath(); this.g.rect(0, 0, w, h); this.g.clip(); paint(this.g, w, h); this.g.restore();
-    return [x / S, 1 - (y + h) / S, (x + w) / S, 1 - y / S] as [number, number, number, number];
+    // Sizes are given for a 2560² atlas and scaled to this one, so every tier holds the same signs (Low's 1024² atlas
+    // used to fit one 512 px sign per row and drew later signs over earlier ones).
+    const S = this.canvas.width, k = S / 2560, pw = Math.round(w * k), ph = Math.round(h * k);
+    if (this.x + pw > S) { this.x = 0; this.y += this.row + 4; this.row = 0; }
+    const x = this.x, y = this.y; this.x += pw + 4; this.row = Math.max(this.row, ph);
+    if (y + ph > S) console.warn(`Sign atlas full (${S}²): a sign is drawn over another.`);
+    this.g.save(); this.g.translate(x, y); this.g.scale(k, k); this.g.beginPath(); this.g.rect(0, 0, w, h); this.g.clip(); paint(this.g, w, h); this.g.restore();
+    return [x / S, 1 - (y + ph) / S, (x + pw) / S, 1 - y / S] as [number, number, number, number];
   }
-  /** A plain lettered sign. */
+  private texts = new Map<string, [number, number, number, number]>();
+  /** A plain lettered sign (identical signs share one slot). */
   text(text: string, bg: string, fg: string, w = 512, h = 96, sub = '') {
+    const key = [text, bg, fg, w, h, sub].join('|'), hit = this.texts.get(key); if (hit) return hit;
+    const uv = this.drawText(text, bg, fg, w, h, sub); this.texts.set(key, uv); return uv;
+  }
+  private drawText(text: string, bg: string, fg: string, w: number, h: number, sub: string) {
     return this.slot(w, h, (g, W, H) => {
       g.fillStyle = bg; g.fillRect(0, 0, W, H); g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
       let size = H * (sub ? .46 : .56); g.font = `800 ${size}px "Manrope Variable", system-ui, sans-serif`;
@@ -165,6 +188,24 @@ export class SignAtlas {
       g.fillText(text, W / 2, sub ? H * .4 : H / 2 + 2);
       if (sub) { g.font = `600 ${H * .2}px "Manrope Variable", system-ui, sans-serif`; g.globalAlpha = .85; g.fillText(sub, W / 2, H * .78); }
     });
+  }
+  /** A backlit advertising poster (portrait): a colour field with a soft photographic-style gradient, a headline,
+   *  a line of copy and a brand bar. Original fictional brands only. */
+  private posters = new Map<string, [number, number, number, number]>();
+  poster(head: string, copy: string, brand: string, c0: string, c1: string, fg = '#ffffff') {
+    const hit = this.posters.get(head); if (hit) return hit;
+    const uv = this.slot(256, 384, (g, W, H) => paint(g, W, H));
+    this.posters.set(head, uv); return uv;
+    function paint(g: CanvasRenderingContext2D, W: number, H: number) {
+      const grad = g.createLinearGradient(0, 0, W * .4, H); grad.addColorStop(0, c0); grad.addColorStop(1, c1); g.fillStyle = grad; g.fillRect(0, 0, W, H);
+      // A large soft shape suggesting a product shot.
+      const r = g.createRadialGradient(W * .62, H * .42, 4, W * .62, H * .42, W * .55); r.addColorStop(0, 'rgba(255,255,255,.55)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.beginPath(); g.arc(W * .62, H * .42, W * .55, 0, 6.283); g.fill();
+      g.fillStyle = fg; g.textAlign = 'left'; g.textBaseline = 'top';
+      let size = 46; g.font = `800 ${size}px "Manrope Variable", system-ui, sans-serif`; const words = head.split(' ');
+      words.forEach((w, i) => g.fillText(w, 18, 22 + i * size * 1.02));
+      g.font = `600 17px "Manrope Variable", system-ui, sans-serif`; g.globalAlpha = .9; g.fillText(copy, 18, H - 92); g.globalAlpha = 1;
+      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, H - 52, W, 52); g.fillStyle = fg; g.font = `800 22px "Manrope Variable", system-ui, sans-serif`; g.fillText(brand, 18, H - 38); size = 0;
+    }
   }
   map() { if (!this.texture) { this.texture = new THREE.CanvasTexture(this.canvas); this.texture.colorSpace = THREE.SRGBColorSpace; this.texture.anisotropy = 4; } this.texture.needsUpdate = true; return this.texture; }
 }

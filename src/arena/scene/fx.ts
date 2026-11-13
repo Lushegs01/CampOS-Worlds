@@ -18,10 +18,49 @@ void main() {
   gl_Position = projectionMatrix * mv;
 }`;
 const FRAG = /* glsl */`
-uniform sampler2D map; varying vec4 vColor; varying vec2 vUv;
-void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(vColor.rgb * t.rgb, vColor.a * t.a); if (gl_FragColor.a < .003) discard; }`;
+uniform sampler2D map; uniform float uLight; varying vec4 vColor; varying vec2 vUv;
+void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(vColor.rgb * t.rgb * uLight, vColor.a * t.a); if (gl_FragColor.a < .003) discard; }`;
 
-type P = { alive: boolean; x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; age: number; size: number; grow: number; rot: number; spin: number; r: number; g: number; b: number; a: number; drag: number; gravity: number; stretch: number };
+/** Where debris lands: the surface under (x, z) at or below y (the arena's maps set this; flat ground by default). */
+export type Ground = (x: number, y: number, z: number) => number;
+let ground: Ground = () => 0;
+export function setEffectsGround(fn: Ground | null) { ground = fn ?? (() => 0); }
+
+/** Smoke and dust: a soft, irregular puff (several overlapping blobs with ragged edges), not a perfect disc. */
+let puff: THREE.Texture | null = null;
+export function puffTexture() {
+  if (puff) return puff;
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d')!;
+  const rnd = (() => { let x = 7; return () => (x = (x * 16807) % 2147483647) / 2147483647; })();
+  for (let i = 0; i < 26; i++) {
+    const a = rnd() * 6.283, d = Math.pow(rnd(), .7) * S * .26, x = S / 2 + Math.cos(a) * d, y = S / 2 + Math.sin(a) * d, r = S * (.1 + rnd() * .16);
+    const grad = g.createRadialGradient(x, y, 0, x, y, r); grad.addColorStop(0, `rgba(255,255,255,${.22 + rnd() * .2})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, S, S);
+  }
+  // Fade to nothing at the edge of the quad.
+  const img = g.getImageData(0, 0, S, S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const d = Math.hypot(x - S / 2 + .5, y - S / 2 + .5) / (S / 2), k = Math.max(0, 1 - d * d), i = (y * S + x) * 4 + 3; img.data[i] = Math.min(255, img.data[i] * 1.6 * k); }
+  g.putImageData(img, 0, 0);
+  puff = new THREE.CanvasTexture(c); return puff;
+}
+/** A muzzle flash: a hot core and uneven petals of flame (drawn once; rotated and scaled per shot). */
+let flash: THREE.Texture | null = null;
+export function flashTexture() {
+  if (flash) return flash;
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d')!;
+  g.globalCompositeOperation = 'lighter';
+  const core = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S * .22); core.addColorStop(0, 'rgba(255,255,255,1)'); core.addColorStop(.4, 'rgba(255,240,200,.7)'); core.addColorStop(1, 'rgba(255,200,120,0)');
+  g.fillStyle = core; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 7; i++) {
+    const a = i / 7 * 6.283 + (i % 2) * .3, len = S * (.3 + (i * 37 % 11) / 11 * .18), w = S * .05;
+    g.save(); g.translate(S / 2, S / 2); g.rotate(a);
+    const grad = g.createLinearGradient(0, 0, len, 0); grad.addColorStop(0, 'rgba(255,230,170,.9)'); grad.addColorStop(.5, 'rgba(255,170,80,.45)'); grad.addColorStop(1, 'rgba(255,120,40,0)');
+    g.fillStyle = grad; g.beginPath(); g.moveTo(0, -w); g.quadraticCurveTo(len * .5, -w * .6, len, 0); g.quadraticCurveTo(len * .5, w * .6, 0, w); g.closePath(); g.fill(); g.restore();
+  }
+  flash = new THREE.CanvasTexture(c); return flash;
+}
+
+type P = { alive: boolean; x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; age: number; size: number; grow: number; rot: number; spin: number; r: number; g: number; b: number; a: number; drag: number; gravity: number; stretch: number; floor: number };
 class Particles {
   mesh: THREE.InstancedMesh; private ps: P[]; private color: THREE.InstancedBufferAttribute; private data: THREE.InstancedBufferAttribute; private next = 0; private m = new THREE.Matrix4();
   constructor(count: number, additive: boolean) {
@@ -29,12 +68,13 @@ class Particles {
     this.color = new THREE.InstancedBufferAttribute(new Float32Array(count * 4), 4); this.data = new THREE.InstancedBufferAttribute(new Float32Array(count * 4), 4);
     this.color.setUsage(THREE.DynamicDrawUsage); this.data.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('aColor', this.color); geo.setAttribute('aData', this.data);
-    const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { map: { value: softTexture() } }, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false });
+    // Light particles glow by themselves; smoke and dust take the scene's ambient level (uLight) so they are not bright at night.
+    const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { map: { value: additive ? softTexture() : puffTexture() }, uLight: { value: 1 } }, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false });
     this.mesh = new THREE.InstancedMesh(geo, mat, count); this.mesh.frustumCulled = false; this.mesh.renderOrder = additive ? 6 : 5;
-    this.ps = Array.from({ length: count }, () => ({ alive: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 1, age: 0, size: .1, grow: 0, rot: 0, spin: 0, r: 1, g: 1, b: 1, a: 1, drag: 0, gravity: 0, stretch: 0 }));
+    this.ps = Array.from({ length: count }, () => ({ alive: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 1, age: 0, size: .1, grow: 0, rot: 0, spin: 0, r: 1, g: 1, b: 1, a: 1, drag: 0, gravity: 0, stretch: 0, floor: 0 }));
     for (let i = 0; i < count; i++) { this.m.makeTranslation(0, -999, 0); this.mesh.setMatrixAt(i, this.m); }
   }
-  emit(o: Partial<P> & { x: number; y: number; z: number }) { const p = this.ps[this.next]; this.next = (this.next + 1) % this.ps.length; Object.assign(p, { alive: true, age: 0, vx: 0, vy: 0, vz: 0, life: 1, size: .1, grow: 0, rot: Math.random() * 6.28, spin: 0, r: 1, g: 1, b: 1, a: 1, drag: 0, gravity: 0, stretch: 0 }, o); }
+  emit(o: Partial<P> & { x: number; y: number; z: number }) { const p = this.ps[this.next]; this.next = (this.next + 1) % this.ps.length; Object.assign(p, { alive: true, age: 0, vx: 0, vy: 0, vz: 0, life: 1, size: .1, grow: 0, rot: Math.random() * 6.28, spin: 0, r: 1, g: 1, b: 1, a: 1, drag: 0, gravity: 0, stretch: 0 }, o); p.floor = o.gravity ? ground(o.x, o.y + .05, o.z) : -1e9; }
   update(dt: number) {
     const c = this.color.array as Float32Array, d = this.data.array as Float32Array;
     for (let i = 0; i < this.ps.length; i++) {
@@ -43,7 +83,7 @@ class Particles {
       p.age += dt; if (p.age >= p.life) { p.alive = false; continue; }
       const k = p.age / p.life, damp = Math.exp(-p.drag * dt);
       p.vx *= damp; p.vy = p.vy * damp - p.gravity * dt; p.vz *= damp; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-      if (p.y < .02 && p.gravity > 0) { p.y = .02; p.vy *= -.3; p.vx *= .5; p.vz *= .5; }
+      if (p.y < p.floor + .02 && p.gravity > 0) { p.y = p.floor + .02; p.vy *= -.3; p.vx *= .5; p.vz *= .5; }
       p.rot += p.spin * dt;
       this.m.makeTranslation(p.x, p.y, p.z); this.mesh.setMatrixAt(i, this.m);
       const fade = k < .1 ? k / .1 : 1 - (k - .1) / .9;
@@ -103,6 +143,8 @@ export class Effects {
     for (let i = 0; i < 24; i++) { const mesh = new THREE.Mesh(tgeo, tmat); mesh.visible = false; this.group.add(mesh); this.tracers.push({ mesh, from: new THREE.Vector3(), dir: new THREE.Vector3(), len: 0, t: 1, speed: 420 }); }
     this.group.add(this.glow.mesh, this.smoke.mesh, this.decals.mesh, this.light);
   }
+  /** How much light falls on smoke and dust (1 in daylight; less in overcast, much less at night). */
+  setAmbient(k: number) { (this.smoke.mesh.material as THREE.ShaderMaterial).uniforms.uLight.value = k; }
   /** A bullet travelling from `from` to `to`: a short bright streak moving at ~420 m/s. */
   tracer(from: THREE.Vector3, to: THREE.Vector3) {
     const t = this.tracers[this.ti++ % this.tracers.length], len = from.distanceTo(to); if (len < 1) return;
@@ -125,8 +167,10 @@ export class Effects {
     for (let i = 0; i < 26 * s + 6; i++) { const a = Math.random() * 6.28, up = Math.random(); this.glow.emit({ x: at.x, y: at.y + .3, z: at.z, vx: Math.cos(a) * (2 + Math.random() * 6), vy: 1 + up * 6, vz: Math.sin(a) * (2 + Math.random() * 6), size: .5 + Math.random() * .6, grow: 1.5, life: .35 + Math.random() * .3, r: 1, g: .55 + Math.random() * .2, b: .2, a: .9, drag: 3 }); }
     for (let i = 0; i < 20 * s + 6; i++) { const a = Math.random() * 6.28; this.smoke.emit({ x: at.x, y: at.y + .4, z: at.z, vx: Math.cos(a) * (1 + Math.random() * 3), vy: .8 + Math.random() * 3, vz: Math.sin(a) * (1 + Math.random() * 3), size: .9, grow: 1.2 + r * .1, life: 2.2 + Math.random() * 1.5, r: .22, g: .2, b: .19, a: .75, drag: 1.4, spin: (Math.random() - .5) }); }
     for (let i = 0; i < 18 * s; i++) { const a = Math.random() * 6.28; this.smoke.emit({ x: at.x, y: at.y + .2, z: at.z, vx: Math.cos(a) * (4 + Math.random() * 6), vy: 3 + Math.random() * 6, vz: Math.sin(a) * (4 + Math.random() * 6), size: .04, life: 1.4, r: .12, g: .11, b: .1, a: 1, gravity: 9.8, drag: .3 }); }
-    for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; this.smoke.emit({ x: at.x, y: .15, z: at.z, vx: Math.cos(a) * 7, vy: .2, vz: Math.sin(a) * 7, size: .5, grow: 1.5, life: 1.2, r: .55, g: .5, b: .42, a: .45, drag: 2.5 }); }
-    this.decals.add(new THREE.Vector3(at.x, .01, at.z), new THREE.Vector3(0, 1, 0), r * .5, new THREE.Color('#2a2622'));
+    // The ground ring of dust and the scorch mark sit on whatever the blast stood on.
+    const floor = ground(at.x, at.y + .3, at.z);
+    for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; this.smoke.emit({ x: at.x, y: floor + .15, z: at.z, vx: Math.cos(a) * 7, vy: .2, vz: Math.sin(a) * 7, size: .5, grow: 1.5, life: 1.2, r: .55, g: .5, b: .42, a: .45, drag: 2.5 }); }
+    if (at.y - floor < 1.5) this.decals.add(new THREE.Vector3(at.x, floor + .01, at.z), new THREE.Vector3(0, 1, 0), r * .5, new THREE.Color('#2a2622'));
     this.light.position.copy(at).setY(at.y + 1); this.lightT = .45;
   }
   smokeCloud(at: THREE.Vector3, r: number, seconds: number) {

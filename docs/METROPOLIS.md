@@ -216,3 +216,10 @@ it and steps Ultra → High → Medium → Low. Both stay on the device (not syn
    loop and horn); the map currently uses the Foundry ambience.
 3. Weapons and characters: no model or animation changes were made in this pass. The container end faces in the
    yard still read flat close up; station columns are plain tiled boxes.
+
+## Operation Photorealism (November 2026)
+
+The city's sky, image-based light, fog, exposure and grade now come from one atmosphere per weather; surfaces carry
+weathering, wetness and puddle layers; every window shows an interior-mapped room; rain is occluded by roofs and
+awnings, lit by lamps, with curtains and splashes; High and Ultra reflect the city in wet streets. Graphics profiles,
+measurements, before/after captures and what remains are in [PHOTOREALISM.md](PHOTOREALISM.md).

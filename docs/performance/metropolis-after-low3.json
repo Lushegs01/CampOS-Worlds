@@ -1,0 +1,92 @@
+{
+  "label": "after",
+  "when": "2026-11-13T09:00:20.340Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "overcast-street-low": {
+      "world": 464287,
+      "calls": 336,
+      "triangles": 513079,
+      "textures": 72,
+      "geometries": 356,
+      "fps": 0,
+      "heapMB": 342,
+      "deployMs": 84992
+    },
+    "overcast-avenue-low": {
+      "world": 608743,
+      "calls": 416,
+      "triangles": 657535,
+      "textures": 118,
+      "geometries": 416,
+      "fps": 0,
+      "heapMB": 318,
+      "deployMs": 84992
+    },
+    "overcast-rooftop-low": {
+      "world": 450365,
+      "calls": 288,
+      "triangles": 499157,
+      "textures": 118,
+      "geometries": 416,
+      "fps": 0,
+      "heapMB": 316,
+      "deployMs": 84992
+    },
+    "overcast-skyline-low": {
+      "world": 474233,
+      "calls": 333,
+      "triangles": 523025,
+      "textures": 118,
+      "geometries": 416,
+      "fps": 0,
+      "heapMB": 333,
+      "deployMs": 84992
+    },
+    "night-street-low": {
+      "world": 458795,
+      "calls": 332,
+      "triangles": 507587,
+      "textures": 71,
+      "geometries": 352,
+      "fps": 0,
+      "heapMB": 349,
+      "deployMs": 101418
+    },
+    "night-avenue-low": {
+      "world": 591179,
+      "calls": 403,
+      "triangles": 639971,
+      "textures": 112,
+      "geometries": 403,
+      "fps": 0,
+      "heapMB": 321,
+      "deployMs": 101418
+    },
+    "night-rooftop-low": {
+      "world": 434073,
+      "calls": 283,
+      "triangles": 482865,
+      "textures": 112,
+      "geometries": 411,
+      "fps": 0,
+      "heapMB": 305,
+      "deployMs": 101418
+    },
+    "night-skyline-low": {
+      "world": 457941,
+      "calls": 328,
+      "triangles": 506733,
+      "textures": 112,
+      "geometries": 411,
+      "fps": 0,
+      "heapMB": 312,
+      "deployMs": 101418
+    }
+  },
+  "errors": []
+}

@@ -1,0 +1,54 @@
+{
+  "label": "after",
+  "when": "2026-11-13T09:56:53.596Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "overcast-street-low": {
+      "world": 463711,
+      "calls": 335,
+      "triangles": 512503,
+      "textures": 72,
+      "geometries": 355,
+      "fps": 0,
+      "heapMB": 336,
+      "deployMs": 90953
+    },
+    "overcast-avenue-low": {
+      "world": 596095,
+      "calls": 406,
+      "triangles": 644887,
+      "textures": 115,
+      "geometries": 406,
+      "fps": 0,
+      "heapMB": 297,
+      "deployMs": 90953
+    },
+    "night-street-low": {
+      "world": 458795,
+      "calls": 332,
+      "triangles": 507587,
+      "textures": 72,
+      "geometries": 352,
+      "fps": 0,
+      "heapMB": 347,
+      "deployMs": 73278
+    },
+    "night-avenue-low": {
+      "world": 601979,
+      "calls": 404,
+      "triangles": 650771,
+      "textures": 118,
+      "geometries": 404,
+      "fps": 0,
+      "heapMB": 366,
+      "deployMs": 73278
+    }
+  },
+  "errors": [
+    "overcast/street/low attempt 1: the match ended during the capture"
+  ]
+}

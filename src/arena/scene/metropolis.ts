@@ -1,6 +1,8 @@
 // City presentation follows the shared collision map. No decorative wall closes a playable opening.
-// (Lighting presets for the four weather/time variants are used by the scene's sun, sky and fog.)
+// (Sky, sun, image-based light, fog and exposure for the four weather/time variants: ./city/atmosphere.ts.)
+import * as THREE from 'three';
 import { metropolis } from '../../../shared/arena/metropolis.mjs';
+import { ATMOSPHERE } from './city/atmosphere';
 import { Builder } from './environment';
 import { DECOR_PROPS, CITY_PROPS, type Library, type PropKey } from './library';
 import { buildCity } from './city';
@@ -9,12 +11,9 @@ import { type ArenaQuality } from './world';
 import { cityDetail } from './cityDetail';
 
 type City = ReturnType<typeof metropolis>;
-export const CITY_LIGHT = {
-  day: { sky: '#b7ccda', fog: '#d8d4c6', sun: '#ffe9c4', strength: 3.2, fill: 1.65, env: 1.35, dir: [.5543, .7418, .3775] },
-  overcast: { sky: '#899ba8', fog: '#9faeb5', sun: '#d7e4ef', strength: 1, fill: 1.5, env: .8, dir: [.5543, .7418, .3775] },
-  sunset: { sky: '#d7a58c', fog: '#d9b6a1', sun: '#ffb568', strength: 2.7, fill: .9, env: .8, dir: [-.85, .32, .3] },
-  night: { sky: '#172b46', fog: '#253a50', sun: '#9fbce5', strength: .65, fill: .8, env: .5, dir: [.5543, .7418, .3775] },
-};
+/** The four variants' sun, sky and fog, as colours (the full model, used by the renderer, is ATMOSPHERE). */
+const hex = (v: [number, number, number]) => '#' + new THREE.Color(...v).getHexString();
+export const CITY_LIGHT = Object.fromEntries(Object.entries(ATMOSPHERE).map(([k, a]) => [k, { sky: hex(a.horizon), fog: hex(a.fog), sun: hex(a.sunColor), strength: a.sun, fill: a.fill, env: a.env, dir: a.sunDir }])) as Record<'day' | 'overcast' | 'sunset' | 'night', { sky: string; fog: string; sun: string; strength: number; fill: number; env: number; dir: [number, number, number] }>;
 export type CityVariant = keyof typeof CITY_LIGHT;
 
 /** Everything the city dresses itself with once the match is on screen (streamed; geometry stands in until then). */

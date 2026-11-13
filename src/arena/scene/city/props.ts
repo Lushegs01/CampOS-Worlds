@@ -48,7 +48,12 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         l.box(Ln - .02, 2.6, -W + .3, Ln + .02, 2.9, W - .3, m.led, 1); l.box(-Ln - .015, 1.6, -W + .3, -Ln + .02, 2.5, W - .3, m.glassDark, 1);
         for (const s of [-1, 1]) { l.box(Ln - .05, .7, s * (W - .45) - .16, Ln + .02, .95, s * (W - .45) + .16, m.headlamp, 1); l.box(-Ln - .02, .8, s * (W - .4) - .12, -Ln + .03, 1.1, s * (W - .4) + .12, m.taillamp, 1); for (const u of [-Ln + 2, Ln - 2.3]) l.wheel(u, s * (W - .16), .5, .3); }
         for (const u of [Ln - 1.9, -.4]) l.box(u, .4, W - .005, u + 1.2, 2.5, W + .02, m.frame, 1);
-        l.box(-Ln + .6, H, -W + .4, -Ln + 2.6, H + .22, W - .4, m.white, 1);
+        // Window pillars, wheel arches, bumpers, the rear engine grille and a roof-mounted air-conditioning pod.
+        for (let u = -Ln + .5; u < Ln - .7; u += 1.35) for (const s of [-1, 1]) l.box(u - .05, 1.5, s * W - .025, u + .05, 2.45, s * W + .025, m.black, 1);
+        for (const s of [-1, 1]) for (const u of [-Ln + 2, Ln - 2.3]) l.box(u - .62, .3, s * W - .03, u + .62, 1.08, s * W + .03, m.black, 1);
+        l.rbox(Ln - .12, .3, -W + .05, Ln + .06, .62, W - .05, m.black, .05); l.rbox(-Ln - .06, .3, -W + .05, -Ln + .12, .62, W - .05, m.black, .05);
+        for (let k = 0; k < 6; k++) l.box(-Ln - .03, .72 + k * .1, -W + .5, -Ln + .01, .76 + k * .1, W - .5, m.darkSteel, 1);
+        l.rbox(-Ln + .6, H, -W + .4, -Ln + 3.2, H + .26, W - .4, m.white, .08);
         signPanel(b, signMat, signs.text('OKUN METRO', '#f4f4f0', '#14365c', 512, 96, 'Route 12 · Marina – Port'), 3.4, .62, f.M.clone().multiply(T(-1.5, 1.05, -W - .02)).multiply(RY(Math.PI)));
         break;
       }
@@ -125,7 +130,10 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         const f = frame(box), l = local(f.M), W = f.wid / 2, Ln = f.len / 2;
         for (const u of [-Ln + .06, Ln - .06]) for (const v of [-W + .06, W - .1]) l.box(u - .05, 0, v - .05, u + .05, h - .08, v + .05, m.frame, 1);
         l.box(-Ln - .15, h - .1, -W - .1, Ln + .15, h, W + .35, m.frame, 1); l.box(-Ln + .1, .35, -W + .02, Ln - .1, h - .25, -W + .08, m.glassDark, 2);
-        l.box(-Ln + .3, .42, -W + .25, Ln - 1.2, .48, -W + .65, m.wood, 1); l.box(Ln - 1, .2, -W + .08, Ln - .1, h - .3, -W + .14, m.led, 1);
+        l.box(-Ln + .3, .42, -W + .25, Ln - 1.2, .48, -W + .65, m.wood, 1); l.box(Ln - 1.04, .16, -W + .07, Ln - .06, h - .26, -W + .15, m.frame, 1);
+        { const ads: [string, string, string, string, string][] = [['STAY CONNECTED', 'Unlimited 5G across Okun Bay', 'OKUN TELECOM', '#0f3d6e', '#1b8fbf'], ['TASTE THE COAST', 'Fresh from the lagoon every morning', 'KOLA CAFÉ', '#8c2f2a', '#e0862b'], ['BUILD YOUR FUTURE', 'Evening classes start Monday', 'BAYSIDE INSTITUTE', '#1f5d4a', '#88b04b']];
+          const ad = ads[Math.floor(hash(seed) * ads.length)], uv = signs.poster(ad[0], ad[1], ad[2], ad[3], ad[4]);
+          for (const sgn of [-1, 1]) signPanel(b, litMat, uv, .9, h - .5, f.M.clone().multiply(T(Ln - .55, (h - .1) / 2 + .03, -W + .11 + sgn * .045)).multiply(RY(sgn > 0 ? 0 : Math.PI))); }
         signPanel(b, signMat, signs.text('MARINA AVENUE', '#14365c', '#ffffff', 512, 96, 'Routes 4 · 12 · 31'), f.len * .7, .3, f.M.clone().multiply(T(0, h - .05 + .22, W + .2)));
         break;
       }

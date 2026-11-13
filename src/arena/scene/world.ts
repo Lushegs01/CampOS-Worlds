@@ -11,19 +11,28 @@ export interface ArenaQuality {
   mobileAssets: boolean;
   /** Ambient occlusion at full resolution and the higher sample count (Ultra). */
   aoHigh?: boolean;
+  /** Operation: Metropolis: the street's planar reflection in the rain, as a share of the screen's resolution (0: off,
+   *  wet streets reflect the sky through the image-based light only). */
+  reflections: number;
+  /** Cloud detail in the sky (noise octaves) and the size of the baked image-based light (cube face). */
+  skyOctaves: number; envSize: number;
+  /** N8AO quality preset when ambient occlusion is on. */
+  aoMode?: 'Low' | 'Medium' | 'High';
 }
 /** The arena's profiles: the campus' three plus Ultra (arena only: the campus keeps its own three). */
 export type ArenaQualityId = Quality | 'ultra';
 export const ARENA_QUALITY: Record<ArenaQualityId, ArenaQuality> = {
   // Phones: native-ish resolution, a static sun shadow, no post stack, fewer particles.
-  low: { dpr: 1, antialias: true, shadows: true, shadowSize: 1024, shadowEvery: 0, post: false, ao: false, bloom: false, effects: .5, anisotropy: 2, detail: 0, fogFar: 140, decals: 24, casings: 10, ik: true, lights: 0, mobileAssets: true },
-  // Ordinary laptops: SMAA, restrained bloom, a sharper shadow refreshed every other frame.
-  medium: { dpr: 1.5, antialias: false, shadows: true, shadowSize: 2048, shadowEvery: 2, post: true, ao: false, bloom: true, effects: 1, anisotropy: 4, detail: 1, fogFar: 190, decals: 64, casings: 24, ik: true, lights: 2, mobileAssets: false },
-  // Desktop GPUs: ambient occlusion, full-rate 4K shadows, every effect.
-  high: { dpr: 2, antialias: false, shadows: true, shadowSize: 4096, shadowEvery: 1, post: true, ao: true, bloom: true, effects: 1, anisotropy: 8, detail: 1, fogFar: 240, decals: 120, casings: 40, ik: true, lights: 4, mobileAssets: false },
+  low: { dpr: 1, antialias: true, shadows: true, shadowSize: 1024, shadowEvery: 0, post: false, ao: false, bloom: false, effects: .5, anisotropy: 2, detail: 0, fogFar: 140, decals: 24, casings: 10, ik: true, lights: 0, mobileAssets: true, reflections: 0, skyOctaves: 3, envSize: 64 },
+  // Ordinary laptops: SMAA, restrained bloom, half-resolution ambient occlusion, a sharper shadow refreshed every other frame.
+  medium: { dpr: 1.5, antialias: false, shadows: true, shadowSize: 2048, shadowEvery: 2, post: true, ao: true, bloom: true, effects: 1, anisotropy: 4, detail: 1, fogFar: 190, decals: 64, casings: 24, ik: true, lights: 2, mobileAssets: false, reflections: 0, skyOctaves: 4, envSize: 128, aoMode: 'Low' },
+  // Desktop GPUs: ambient occlusion, 4K shadows, every effect. The sun's shadow map is half of High's draw calls in
+  // Metropolis (measured: 1,255 → 631 per frame on the rain street view without it), and only players move in it, so
+  // it is redrawn every second frame (Ultra: every frame).
+  high: { dpr: 2, antialias: false, shadows: true, shadowSize: 4096, shadowEvery: 2, post: true, ao: true, bloom: true, effects: 1, anisotropy: 8, detail: 1, fogFar: 240, decals: 120, casings: 40, ik: true, lights: 4, mobileAssets: false, reflections: .4, skyOctaves: 5, envSize: 256 },
   // Strong desktop GPUs: full-resolution high-quality ambient occlusion, the sharpest shadow filtering, 16× anisotropy,
   // more fittings casting real light, more decals and casings kept, a longer view. Same models and materials.
-  ultra: { dpr: 2, antialias: false, shadows: true, shadowSize: 4096, shadowEvery: 1, post: true, ao: true, aoHigh: true, bloom: true, effects: 1.25, anisotropy: 16, detail: 1, fogFar: 300, decals: 200, casings: 60, ik: true, lights: 6, mobileAssets: false },
+  ultra: { dpr: 2, antialias: false, shadows: true, shadowSize: 4096, shadowEvery: 1, post: true, ao: true, aoHigh: true, bloom: true, effects: 1.25, anisotropy: 16, detail: 1, fogFar: 300, decals: 200, casings: 60, ik: true, lights: 6, mobileAssets: false, reflections: .6, skyOctaves: 6, envSize: 256 },
 };
 
 /** A soft round sprite texture (smoke, flashes, sparks). */

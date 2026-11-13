@@ -1,0 +1,24 @@
+{
+  "label": "after",
+  "when": "2026-11-13T08:19:33.758Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "day-street-low": {
+      "world": 458171,
+      "calls": 330,
+      "triangles": 506963,
+      "textures": 71,
+      "geometries": 350,
+      "fps": 0,
+      "heapMB": 320,
+      "deployMs": 92881
+    }
+  },
+  "errors": [
+    "day/street/low attempt 1: page.waitForFunction: Timeout 400000ms exceeded."
+  ]
+}
