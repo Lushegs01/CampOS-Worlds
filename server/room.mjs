@@ -32,7 +32,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const str=v=>typeof v==='string'?v:'',num=v=>typeof v==='number'?v:NaN;
 /** `id` names this room instance. Parties and presence are scoped to it, so further instances can be added later. */
-export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',moderationFile=null,accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={},buildings={},arena:arenaSettings={}}={}){
+export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhost:5173','http://127.0.0.1:5173'],capacity=48,adminToken='',invite='',reportDir='server/data',moderationFile=null,accounts={enabled:false},id:roomId='courtyard',partyLimits=PARTY_LIMITS,meetCooldownMs=20000,duelRules=DUEL_RULES,analytics=createAnalytics(),togetherMs=600000,labFile=null,shop:shopSettings={},buildings={},arena:arenaSettings={},heartbeatMs=10000}={}){
  const clients=new Map(),bySocket=new WeakMap(),moderation=createModeration({file:moderationFile});let reportQueue=Promise.resolve(),closing=false,closePromise,ready=false,pendingReports=0;
  const retries=new Set(),startedAt=Date.now(),metrics={slowConnections:0,rejectedUpgrades:0,reportsSaved:0,reportFailures:0,ticks:0,maxTickGapMs:0};
  // Flush already accepted account writes before the process exits; network calls have their own
@@ -603,7 +603,8 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     sendRaw(c.ws,motion||drive?raw.slice(0,-1)+(motion?',"motion":'+JSON.stringify(motion):'')+(drive?',"drive":'+JSON.stringify(drive):'')+'}':raw,true);}
   }
  },1000/30);
- const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),10000);
+ // heartbeatMs: how long a client may go without answering a ping (tests with software rendering lengthen it).
+ const heartbeat=setInterval(()=>clients.forEach(c=>{if(!c.alive)c.ws.terminate();else{c.alive=false;c.ws.ping();}}),heartbeatMs);
  function close(){
   if(closePromise)return closePromise;
   closing=true;ready=false;clearInterval(simulation);clearInterval(heartbeat);retries.forEach(clearTimeout);retries.clear();

@@ -165,11 +165,14 @@ export class SignAtlas {
   constructor(size = 2048) { this.canvas.width = this.canvas.height = size; this.g = this.canvas.getContext('2d')!; this.g.fillStyle = '#000'; this.g.fillRect(0, 0, size, size); }
   /** Draw a sign `w` × `h` pixels with `paint`; returns its UV rectangle. */
   slot(w: number, h: number, paint: (g: CanvasRenderingContext2D, w: number, h: number) => void) {
-    const S = this.canvas.width; if (this.x + w > S) { this.x = 0; this.y += this.row + 4; this.row = 0; }
-    const x = this.x, y = this.y; this.x += w + 4; this.row = Math.max(this.row, h);
-    if (y + h > S) console.warn(`Sign atlas full (${S}²): a sign is drawn over another.`);
-    this.g.save(); this.g.translate(x, y); this.g.beginPath(); this.g.rect(0, 0, w, h); this.g.clip(); paint(this.g, w, h); this.g.restore();
-    return [x / S, 1 - (y + h) / S, (x + w) / S, 1 - y / S] as [number, number, number, number];
+    // Sizes are given for a 2048² atlas and scaled to this one (Low's 1024² atlas holds the same signs at half size;
+    // at full size only one 512 px sign fitted per row and later signs were drawn over earlier ones).
+    const S = this.canvas.width, k = S / 2048, pw = Math.round(w * k), ph = Math.round(h * k);
+    if (this.x + pw > S) { this.x = 0; this.y += this.row + 4; this.row = 0; }
+    const x = this.x, y = this.y; this.x += pw + 4; this.row = Math.max(this.row, ph);
+    if (y + ph > S) console.warn(`Sign atlas full (${S}²): a sign is drawn over another.`);
+    this.g.save(); this.g.translate(x, y); this.g.scale(k, k); this.g.beginPath(); this.g.rect(0, 0, w, h); this.g.clip(); paint(this.g, w, h); this.g.restore();
+    return [x / S, 1 - (y + ph) / S, (x + pw) / S, 1 - y / S] as [number, number, number, number];
   }
   private texts = new Map<string, [number, number, number, number]>();
   /** A plain lettered sign (identical signs share one slot). */
@@ -191,8 +194,7 @@ export class SignAtlas {
   private posters = new Map<string, [number, number, number, number]>();
   poster(head: string, copy: string, brand: string, c0: string, c1: string, fg = '#ffffff') {
     const hit = this.posters.get(head); if (hit) return hit;
-    // Drawn at 256 × 384 and scaled into the atlas (an eighth of its width: smaller on Low's 1024² atlas).
-    const w = this.canvas.width / 8, uv = this.slot(w, w * 1.5, (g, W) => { g.scale(W / 256, W / 256); paint(g, 256, 384); });
+    const uv = this.slot(256, 384, (g, W, H) => paint(g, W, H));
     this.posters.set(head, uv); return uv;
     function paint(g: CanvasRenderingContext2D, W: number, H: number) {
       const grad = g.createLinearGradient(0, 0, W * .4, H); grad.addColorStop(0, c0); grad.addColorStop(1, c1); g.fillStyle = grad; g.fillRect(0, 0, W, H);

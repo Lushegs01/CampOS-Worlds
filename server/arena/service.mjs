@@ -24,7 +24,7 @@ const CODE = /^[A-HJ-NP-Z2-9]{6}$/;
 /** Store item ids an account owns, as sent by account_snapshot (anything malformed is dropped). */
 const ownedList = v => (Array.isArray(v) ? [...new Set(v.filter(i => typeof i === 'string' && /^[a-z0-9-]{1,32}$/.test(i)))].slice(0, 200) : []);
 
-export function createArena({ accounts = { enabled: false }, capacity = 400, maxMatches = 60, rules = {}, logDir = null, log = console, clock = () => Date.now(), minRecordMs = 60000, autoTick = true, slowCloseMs = 6000, identifyMs = 9000, deployLog = false } = {}) {
+export function createArena({ accounts = { enabled: false }, capacity = 400, maxMatches = 60, rules = {}, logDir = null, log = console, clock = () => Date.now(), minRecordMs = 60000, autoTick = true, slowCloseMs = 6000, identifyMs = 9000, deployLog = false, heartbeatMs = 10000 } = {}) {
   const connections = new Map(), matches = new Map(), codes = new Map();
   const metrics = { matchesCreated: 0, matchesFinished: 0, recorded: 0, recordFailures: 0, rejected: 0, identifyDegraded: 0 };
   const deploys = createDeployTraces({ clock, log, enabled: deployLog });
@@ -308,7 +308,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
   const granted = (accountId, item) => { for (const c of connections.values()) if (c.account?.id === accountId && !c.owned.includes(item)) { setOwned(accountId, ownedList([...c.owned, item])); return; } };
   const revoked = (accountId, item) => { for (const c of connections.values()) if (c.account?.id === accountId) { setOwned(accountId, c.owned.filter(i => i !== item)); return; } };
 
-  const heartbeat = setInterval(() => { for (const c of connections.values()) { if (!c.alive) c.ws.terminate(); else { c.alive = false; c.ws.ping(); } if (!c.ready && !c.helloSent && Date.now() - c.openedAt > 15000) c.ws.close(4000, 'Say hello'); } }, 10000);
+  const heartbeat = setInterval(() => { for (const c of connections.values()) { if (!c.alive) c.ws.terminate(); else { c.alive = false; c.ws.ping(); } if (!c.ready && !c.helloSent && Date.now() - c.openedAt > 15000) c.ws.close(4000, 'Say hello'); } }, heartbeatMs);
   heartbeat.unref?.();
   function status() {
     return { connections: connections.size, capacity, matches: [...matches.values()].map(m => m.summary()), ...metrics, deployments: deploys.summary() };

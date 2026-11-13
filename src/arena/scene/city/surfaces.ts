@@ -63,27 +63,39 @@ vec2 cityRipple(vec2 p, float t) {
 }
 `;
 
-function apply(shader: THREE.WebGLProgramParametersWithUniforms, layers: Layer[], m: THREE.Material) {
-  Object.assign(shader.uniforms, cityWeather, own.get(m) ?? {});
-  const has = (l: Layer) => layers.includes(l);
+const BITS: Record<Layer, number> = { macro: 1, road: 2, grime: 4, wet: 8, puddles: 16, reflect: 32, interior: 64 };
+const maskOf = (layers: Layer[]) => layers.reduce((a, l) => a | BITS[l], 0);
+/** Defaults for the interior layer's uniforms on materials that do not use it. */
+const noInterior = { uSkyShare: { value: 1 }, uFill: { value: new THREE.Color(0, 0, 0) }, uFillScale: { value: 1 } };
+
+/**
+ * One program for every layered city surface: each layer's code is behind a test of the material's `uLayers` bits
+ * (a uniform branch, the same for every pixel of a draw). Separate programs per layer combination multiplied the
+ * shaders to compile at deployment — which blocks the main thread on drivers without parallel shader compilation.
+ */
+function apply(shader: THREE.WebGLProgramParametersWithUniforms, m: THREE.Material) {
+  Object.assign(shader.uniforms, cityWeather, noInterior, own.get(m) ?? {});
   shader.vertexShader = 'varying vec3 vCityW; varying vec3 vCityN;\n' + shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
   { vec4 cw = vec4(transformed, 1.);
   #ifdef USE_INSTANCING
     cw = instanceMatrix * cw;
   #endif
     vCityW = (modelMatrix * cw).xyz; vCityN = normalize((vec4(transformedNormal, 0.) * viewMatrix).xyz); }`);
-  let pre = NOISE + 'uniform float uWet, uPuddle, uStreet, uRainTime, uReflect, uReflectDebug; uniform sampler2D uReflectMap; uniform mat4 uReflectMatrix;\n';
-  if (has('puddles')) pre += RIPPLE;
-  if (has('interior')) pre += 'uniform float uSkyShare, uFillScale; uniform vec3 uFill;\n';
-  let body = `{
+  const pre = NOISE + RIPPLE + `uniform float uWet, uPuddle, uStreet, uRainTime, uReflect, uReflectDebug; uniform sampler2D uReflectMap; uniform mat4 uReflectMatrix;
+uniform int uLayers; uniform float uSkyShare, uFillScale; uniform vec3 uFill;
+bool cityHas(int bit) { return (uLayers & bit) != 0; }
+float upwOf(vec3 n) { return smoothstep(.55, .95, normalize(n).y); }
+`;
+  const body = `float cityPuddle = 0.;
+{
   vec3 cn = normalize(vCityN); vec2 cp = cityPlane(vCityW, cn); float upw = smoothstep(.55, .95, cn.y), wallw = 1. - abs(cn.y);
-  float m1 = cN(cp * .09 + 1.7), m2 = cN(cp * .37 + 5.3), m3 = cN(cp * 1.9);\n`;
-  if (has('macro')) body += `
-  // Large-scale variation: a few per cent of tone and warmth, and of roughness.
-  diffuseColor.rgb *= (1. + (m1 - .5) * .24 + (m2 - .5) * .12) * mix(vec3(1.), vec3(1.035, 1., .955), m1 - .3);
-  roughnessFactor = clamp(roughnessFactor * (1. + (m2 - .5) * .3 + (m3 - .5) * .1), .04, 1.);\n`;
-  if (has('road')) body += `
-  if (upw > .5) {
+  float m1 = cN(cp * .09 + 1.7), m2 = cN(cp * .37 + 5.3), m3 = cN(cp * 1.9);
+  if (cityHas(1)) {
+    // Large-scale variation: a few per cent of tone and warmth, and of roughness.
+    diffuseColor.rgb *= (1. + (m1 - .5) * .24 + (m2 - .5) * .12) * mix(vec3(1.), vec3(1.035, 1., .955), m1 - .3);
+    roughnessFactor = clamp(roughnessFactor * (1. + (m2 - .5) * .3 + (m3 - .5) * .1), .04, 1.);
+  }
+  if (cityHas(2) && upw > .5) {
     // Patch repairs: some 6 × 3 m cells were dug up and resurfaced (darker, smoother), edged by a sealed seam.
     vec2 rc = vCityW.xz / vec2(6.3, 3.1), ri = floor(rc), rf = fract(rc); float rr = cH(ri + 17.3);
     vec2 inset = .12 + .2 * vec2(cH(ri + 3.7), cH(ri + 9.1));
@@ -97,19 +109,20 @@ function apply(shader: THREE.WebGLProgramParametersWithUniforms, layers: Layer[]
     diffuseColor.rgb *= 1. - .35 * oil; roughnessFactor *= 1. - .25 * oil;
     float track = smoothstep(.35, .5, abs(fract(vCityW.z / 3.75) - .5)) * .5 + smoothstep(.35, .5, abs(fract(vCityW.x / 3.75) - .5)) * .5;
     roughnessFactor *= 1. - .08 * track * m2;
-  }\n`;
-  if (has('grime')) body += `
-  { float h = vCityW.y - uStreet;
+  }
+  if (cityHas(4)) {
+    float h = vCityW.y - uStreet;
     float splash = (1. - smoothstep(0., .45 + m3 * .4 + m2 * .3, h)) * step(-.3, h) * wallw;
     float runs = smoothstep(.58, .92, cN(vec2(cp.x * 7.5, cp.y * .22))) * smoothstep(.42, .78, cN(cp * .16 + 9.1)) * wallw;
     float g = clamp(splash * .5 + runs * .32 + (m1 - .5) * .12 * wallw, 0., .62);
-    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(.56, .5, .43), g); roughnessFactor = min(1., roughnessFactor + g * .15); }\n`;
-  if (has('wet')) body += `
-  { float wallWet = mix(.25, .8, cN(vec2(cp.x * 2.3, cp.y * .35 - uRainTime * .05)));
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(.56, .5, .43), g); roughnessFactor = min(1., roughnessFactor + g * .15);
+  }
+  if (cityHas(8) && uWet > 0.) {
+    float wallWet = mix(.25, .8, cN(vec2(cp.x * 2.3, cp.y * .35 - uRainTime * .05)));
     float w = uWet * (upw * .9 + (1. - upw) * wallWet * .6);
-    diffuseColor.rgb *= 1. - .42 * w; roughnessFactor = mix(roughnessFactor, roughnessFactor * .3 + .06, w); }\n`;
-  if (has('puddles')) body += `
-  if (uWet > 0.) {
+    diffuseColor.rgb *= 1. - .42 * w; roughnessFactor = mix(roughnessFactor, roughnessFactor * .3 + .06, w);
+  }
+  if (cityHas(16) && uWet > 0.) {
     float pn = cN(vCityW.xz * .19 + 3.) * .65 + cN(vCityW.xz * .83 + 1.3) * .35;
     float puddle = smoothstep(uPuddle, uPuddle + .07, pn) * upw * uWet, damp = smoothstep(uPuddle - .12, uPuddle, pn) * upw * uWet;
     diffuseColor.rgb *= 1. - .3 * damp - .45 * puddle; roughnessFactor = mix(roughnessFactor, .025, puddle);
@@ -118,32 +131,33 @@ function apply(shader: THREE.WebGLProgramParametersWithUniforms, layers: Layer[]
     vec3 wn = normalize(vec3(-r.x * .16, 1., -r.y * .16)), wv = normalize((viewMatrix * vec4(wn, 0.)).xyz);
     normal = normalize(mix(normal, wv, max(puddle, .2 * damp)));
     cityPuddle = puddle;
-  }\n`;
-  body += '}\n';
-  shader.fragmentShader = pre + shader.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-  float cityPuddle = 0.;
-  ${body}`);
-  if (has('reflect')) {
+  }
+}
+`;
+  shader.fragmentShader = pre + shader.fragmentShader
+    .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + body)
     // The street's planar reflection: through the (rippled) surface normal, stronger in standing water and at grazing
     // angles; it replaces part of the sky reflection the IBL would put there (which a street canyon would hide).
-    shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-  vec4 rc = uReflectMatrix * vec4(vCityW, 1.);
-  if (uReflect > 0. && upwOf(vCityN) > .5 && rc.w > 1e-3) {
-    vec2 ruv = rc.xy / rc.w + (normal.xy - nonPerturbedNormal.xy) * .05;
-    float nv = clamp(dot(normal, normalize(vViewPosition)), 0., 1.), fres = .04 + .96 * pow(1. - nv, 5.);
-    float k = uReflect * mix(.35 * uWet, 1., cityPuddle) * (1. - roughnessFactor * .8);
-    vec3 refl = texture2D(uReflectMap, clamp(ruv, .001, .999)).rgb;
-    bool bad = any(isnan(refl)) || any(isinf(refl));
-    refl = bad ? vec3(0.) : min(refl, vec3(64.));
-    if (uReflectDebug > 1.5) refl = bad ? vec3(1., 0., 1.) : vec3(clamp(ruv, 0., 1.), uReflectDebug > 2.5 ? texture2D(uReflectMap, vec2(.5, .3)).g * 3. : 0.);
-    reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular, refl * (fres * .88 + .12) * (1. - roughnessFactor), clamp(k, 0., 1.));
-    if (uReflectDebug > .5) { reflectedLight.directDiffuse = reflectedLight.indirectDiffuse = reflectedLight.directSpecular = vec3(0.); reflectedLight.indirectSpecular = refl; }
+    .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+  if (cityHas(32) && uReflect > 0. && upwOf(vCityN) > .5) {
+    vec4 rc = uReflectMatrix * vec4(vCityW, 1.);
+    if (rc.w > 1e-3) {
+      vec2 ruv = rc.xy / rc.w + (normal.xy - nonPerturbedNormal.xy) * .05;
+      float nv = clamp(dot(normal, normalize(vViewPosition)), 0., 1.), fres = .04 + .96 * pow(1. - nv, 5.);
+      float k = uReflect * mix(.35 * uWet, 1., cityPuddle) * (1. - roughnessFactor * .8);
+      vec3 refl = texture2D(uReflectMap, clamp(ruv, .001, .999)).rgb;
+      bool bad = any(isnan(refl)) || any(isinf(refl));
+      refl = bad ? vec3(0.) : min(refl, vec3(64.));
+      if (uReflectDebug > 1.5) refl = bad ? vec3(1., 0., 1.) : vec3(clamp(ruv, 0., 1.), 0.);
+      reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular, refl * (fres * .88 + .12) * (1. - roughnessFactor), clamp(k, 0., 1.));
+      if (uReflectDebug > .5) { reflectedLight.directDiffuse = reflectedLight.indirectDiffuse = reflectedLight.directSpecular = vec3(0.); reflectedLight.indirectSpecular = refl; }
+    }
+  }`)
+    .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+  if (cityHas(64)) {
+    reflectedLight.indirectDiffuse *= uSkyShare; reflectedLight.indirectSpecular *= uSkyShare;
+    reflectedLight.indirectDiffuse += uFill * uFillScale * BRDF_Lambert( material.diffuseColor );
   }`);
-    shader.fragmentShader = 'float upwOf(vec3 n) { return smoothstep(.55, .95, normalize(n).y); }\n' + shader.fragmentShader;
-  }
-  if (has('interior')) shader.fragmentShader = shader.fragmentShader.replace('#include <aomap_fragment>', `#include <aomap_fragment>
-reflectedLight.indirectDiffuse *= uSkyShare; reflectedLight.indirectSpecular *= uSkyShare;
-reflectedLight.indirectDiffuse += uFill * uFillScale * BRDF_Lambert( material.diffuseColor );`);
 }
 
 /** Give a material these layers (in addition to any it has). Safe to call again; layers apply in a fixed order. */
@@ -162,7 +176,10 @@ export function dropLayers<T extends THREE.Material>(m: T, ...layers: Layer[]): 
 function installLayers(m: THREE.Material) {
   const list = (m.userData.layers as Layer[]) ?? [];
   if (!list.length) { m.onBeforeCompile = () => {}; m.customProgramCacheKey = () => ''; m.needsUpdate = true; return; }
-  m.onBeforeCompile = shader => apply(shader, (m.userData.layers as Layer[]) ?? [], m);
-  m.customProgramCacheKey = () => 'city:' + ((m.userData.layers as Layer[]) ?? []).join(',');
+  // The bits live in this material's own uniform (kept across recompiles); the program is shared by all of them.
+  const u = own.get(m)?.uLayers as { value: number } | undefined;
+  if (u) u.value = maskOf(list); else layerUniforms(m, { uLayers: { value: maskOf(list) } });
+  m.onBeforeCompile = shader => apply(shader, m);
+  m.customProgramCacheKey = () => 'city-surface';
   m.needsUpdate = true;
 }

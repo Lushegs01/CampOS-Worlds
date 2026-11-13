@@ -32,7 +32,7 @@ const VIEWS = [
   { id: 'industrial', at: [-12, 5, 31], yaw: -Math.PI / 2, pitch: .02 },               // Harbour Road and the yard
 ];
 const ROOM_PORT = Number(process.env.ROOM_PORT || 3216), WEB_PORT = Number(process.env.WEB_PORT || 5182);
-const room = createRoom({ port: ROOM_PORT, origins: [`http://127.0.0.1:${WEB_PORT}`], arena: { slowCloseMs: 600000, rules: { countdownMs: 100, spawnProtectMs: 0, mode: { timeMs: 3600000, scoreLimit: 9999 } } } });
+const room = createRoom({ port: ROOM_PORT, origins: [`http://127.0.0.1:${WEB_PORT}`], heartbeatMs: 90000, arena: { heartbeatMs: 90000, slowCloseMs: 600000, rules: { countdownMs: 100, spawnProtectMs: 0, reconnectMs: 900000, mode: { timeMs: 3600000, scoreLimit: 9999 } } } });
 await room.start();
 process.env.ROOM_URL = `127.0.0.1:${ROOM_PORT}`;
 const { createServer } = await import('vite');
@@ -92,7 +92,8 @@ try {
           await writeFile(`${process.env.OUT_ROOT || ''}docs/performance/metropolis-${LABEL}${process.env.PART ? '-' + process.env.PART : ''}.json`, JSON.stringify(results, null, 2) + '\n').catch(() => {});
           break;
         } catch (e) {
-          console.error(`view ${variant}/${view.id}/${quality} failed (attempt ${attempt + 1}):`, String(e.message ?? e).slice(0, 200));
+          const state = await s.page.evaluate(() => ({ self: window.__arena?.self?.(), stats: window.__arenaStats, deploy: window.__arenaDeploy?.().stage })).catch(err => String(err).slice(0, 120));
+          console.error(`view ${variant}/${view.id}/${quality} failed (attempt ${attempt + 1}):`, String(e.message ?? e).slice(0, 200), JSON.stringify(state).slice(0, 300));
           results.errors.push(`${variant}/${view.id}/${quality} attempt ${attempt + 1}: ${String(e.message ?? e).slice(0, 160)}`);
           await s.close(); s = await deployPage(quality, variant);
         }
