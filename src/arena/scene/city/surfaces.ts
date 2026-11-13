@@ -23,6 +23,9 @@ export const cityWeather = {
   uReflect: { value: 0 },
   /** QA: show the raw reflection on the street. */
   uReflectDebug: { value: 0 },
+  /** The rain heightfield (weather.ts): a surface with something above it stays dry. */
+  uHeight: { value: null as THREE.Texture | null },
+  uHeightBox: { value: new THREE.Vector4(0, 0, 1, 1) },
 };
 /** Per-material uniforms (the interior layer's sky share and fill). */
 const own = new WeakMap<THREE.Material, Record<string, { value: unknown }>>();
@@ -82,11 +85,17 @@ function apply(shader: THREE.WebGLProgramParametersWithUniforms, m: THREE.Materi
   #endif
     vCityW = (modelMatrix * cw).xyz; vCityN = normalize((vec4(transformedNormal, 0.) * viewMatrix).xyz); }`);
   const pre = NOISE + RIPPLE + `uniform float uWet, uPuddle, uStreet, uRainTime, uReflect, uReflectDebug; uniform sampler2D uReflectMap; uniform mat4 uReflectMatrix;
-uniform int uLayers; uniform float uSkyShare, uFillScale; uniform vec3 uFill;
+uniform int uLayers; uniform float uSkyShare, uFillScale; uniform vec3 uFill; uniform sampler2D uHeight; uniform vec4 uHeightBox;
+/** 1 where the sky is open above this point (probed a little out from the surface), 0 under a roof or awning. */
+float cityOpen(vec3 p, vec3 n) {
+  vec3 q = p + n * .35; vec2 uv = (q.xz - uHeightBox.xy) / uHeightBox.zw;
+  if (any(lessThan(uv, vec2(0.))) || any(greaterThan(uv, vec2(1.)))) return 1.;
+  return step(texture2D(uHeight, uv).r, q.y + .3);
+}
 bool cityHas(int bit) { return (uLayers & bit) != 0; }
 float upwOf(vec3 n) { return smoothstep(.55, .95, normalize(n).y); }
 `;
-  const body = `float cityPuddle = 0.;
+  const body = `float cityPuddle = 0., cityWet = 0.;
 {
   vec3 cn = normalize(vCityN); vec2 cp = cityPlane(vCityW, cn); float upw = smoothstep(.55, .95, cn.y), wallw = 1. - abs(cn.y);
   float m1 = cN(cp * .09 + 1.7), m2 = cN(cp * .37 + 5.3), m3 = cN(cp * 1.9);
@@ -117,14 +126,15 @@ float upwOf(vec3 n) { return smoothstep(.55, .95, normalize(n).y); }
     float g = clamp(splash * .5 + runs * .32 + (m1 - .5) * .12 * wallw, 0., .62);
     diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(.56, .5, .43), g); roughnessFactor = min(1., roughnessFactor + g * .15);
   }
-  if (cityHas(8) && uWet > 0.) {
+  cityWet = uWet > 0. && (cityHas(8) || cityHas(16)) ? uWet * cityOpen(vCityW, cn) : 0.;
+  if (cityHas(8) && cityWet > 0.) {
     float wallWet = mix(.25, .8, cN(vec2(cp.x * 2.3, cp.y * .35 - uRainTime * .05)));
-    float w = uWet * (upw * .9 + (1. - upw) * wallWet * .6);
+    float w = cityWet * (upw * .9 + (1. - upw) * wallWet * .6);
     diffuseColor.rgb *= 1. - .42 * w; roughnessFactor = mix(roughnessFactor, roughnessFactor * .3 + .06, w);
   }
-  if (cityHas(16) && uWet > 0.) {
+  if (cityHas(16) && cityWet > 0.) {
     float pn = cN(vCityW.xz * .19 + 3.) * .65 + cN(vCityW.xz * .83 + 1.3) * .35;
-    float puddle = smoothstep(uPuddle, uPuddle + .07, pn) * upw * uWet, damp = smoothstep(uPuddle - .12, uPuddle, pn) * upw * uWet;
+    float puddle = smoothstep(uPuddle, uPuddle + .07, pn) * upw * cityWet, damp = smoothstep(uPuddle - .12, uPuddle, pn) * upw * cityWet;
     diffuseColor.rgb *= 1. - .3 * damp - .45 * puddle; roughnessFactor = mix(roughnessFactor, .025, puddle);
     // Standing water is flat (the texture's relief drowns) and rings from the drops spread across it.
     vec2 r = cityRipple(vCityW.xz, uRainTime) * puddle;
@@ -144,7 +154,7 @@ float upwOf(vec3 n) { return smoothstep(.55, .95, normalize(n).y); }
     if (rc.w > 1e-3) {
       vec2 ruv = rc.xy / rc.w + (normal.xy - nonPerturbedNormal.xy) * .05;
       float nv = clamp(dot(normal, normalize(vViewPosition)), 0., 1.), fres = .04 + .96 * pow(1. - nv, 5.);
-      float k = uReflect * mix(.35 * uWet, 1., cityPuddle) * (1. - roughnessFactor * .8);
+      float k = uReflect * mix(.35 * cityWet, 1., cityPuddle) * (1. - roughnessFactor * .8);
       vec3 refl = texture2D(uReflectMap, clamp(ruv, .001, .999)).rgb;
       bool bad = any(isnan(refl)) || any(isinf(refl));
       refl = bad ? vec3(0.) : min(refl, vec3(64.));

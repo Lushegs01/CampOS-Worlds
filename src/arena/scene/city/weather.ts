@@ -167,7 +167,7 @@ const FAR = new THREE.Vector4(0, -1000, 0, 0);
  * Halos around lamps and a faint cone of light beneath them: the light scattered by wet or hazy air. `strength`
  * scales with the variant (none at noon, faint at sunset, clear in rain and at night).
  */
-export function createLampGlow(heads: THREE.Vector3[], color: THREE.Color, strength: number) {
+export function createLampGlow(heads: THREE.Vector3[], color: THREE.Color, strength: number, withCones = true) {
   const group = new THREE.Group(); group.name = 'lamp-glow';
   if (!heads.length || strength <= 0) return { group, dispose: () => {} };
   // Halos: camera-facing quads (instanced), soft radial falloff.
@@ -199,7 +199,7 @@ export function createLampGlow(heads: THREE.Vector3[], color: THREE.Color, stren
       }`,
   }), heads.length);
   const M = new THREE.Matrix4(); heads.forEach((p, i) => cones.setMatrixAt(i, M.makeTranslation(p.x, p.y - .15, p.z)));
-  cones.frustumCulled = false; cones.renderOrder = 8; group.add(cones);
+  cones.frustumCulled = false; cones.renderOrder = 8; if (withCones) group.add(cones);
   const dispose = () => { quad.dispose(); halo.dispose(); cone.dispose(); (cones.material as THREE.Material).dispose(); cones.dispose(); };
   return { group, dispose };
 }

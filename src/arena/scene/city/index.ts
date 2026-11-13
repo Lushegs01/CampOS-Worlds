@@ -116,17 +116,18 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
 
   // ---------------------------------------------------------------- weather
   const light = cityLighting(variant), atmo = atmosphereOf(variant);
-  /** The city's shared weather and room-light state (set when the scene mounts; reset by dispose()). */
-  const activate = () => { cityWeather.uWet.value = light.wet; cityWeather.uStreet.value = L; cityWeather.uPuddle.value = .56; setWindowLight(light.glow, light.rain); };
-  activate();
   const field = heightfield(map.boxes, map.bounds, L);
+  /** The city's shared weather and room-light state (set when the scene mounts; reset by dispose()). */
+  const activate = () => { cityWeather.uWet.value = light.wet; cityWeather.uStreet.value = L; cityWeather.uPuddle.value = .56; cityWeather.uHeight.value = field.tex; cityWeather.uHeightBox.value.copy(field.origin); setWindowLight(light.glow, light.rain); };
+  activate();
   const ambient = new THREE.Color(...atmo.fog);
   const rain = light.rain ? createRain(field, L, ambient, q.effects >= 1.2 ? { streaks: 9000, splashes: 420, curtains: 3, radius: 24 } : q.effects >= 1 ? { streaks: 6500, splashes: 280, curtains: 3, radius: 22 } : { streaks: 2600, splashes: 90, curtains: 1, radius: 16 }) : null;
   if (rain) { rain.group.userData.chunk = -1; objects.push(rain.group); }
   // Street lamps: their heads (the outdoor fittings), a halo and a cone of light in wet or dark air.
   const heads = fixtures.filter(f => f.where === 'out').map(f => f.p.clone().add(new THREE.Vector3(0, .26, 0)));
   const glowStrength = light.glow > .7 ? 1.2 : light.rain ? .16 : light.glow * .3;   // daylight washes the scatter out
-  const lampGlow = createLampGlow(heads, new THREE.Color('#ffd7a3'), glowStrength); lampGlow.group.userData.chunk = -1; lampGlow.group.traverse(o => o.layers.enable(REFLECTED)); objects.push(lampGlow.group);
+  const cones = light.glow > .7;                                                          // beams of light read only in the dark
+  const lampGlow = createLampGlow(heads, new THREE.Color('#ffd7a3'), glowStrength, cones); lampGlow.group.userData.chunk = -1; lampGlow.group.traverse(o => o.layers.enable(REFLECTED)); objects.push(lampGlow.group);
   const nearLamps: THREE.Vector4[] = [];
   // The city's own lights, by variant.
   for (const g of m.glows) { const v = g.day + (g.night - g.day) * light.glow; if ((g.m as THREE.MeshBasicMaterial).isMeshBasicMaterial) (g.m as THREE.MeshBasicMaterial).opacity = v; else (g.m as THREE.MeshStandardMaterial).emissiveIntensity = v; }
@@ -185,7 +186,7 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
 
   const wanted: PropKey[] = [...DECOR_PROPS, ...CITY_PROPS];
   const decor = (keys: PropKey[]) => { const add = propMeshes(k => keys.includes(k) && !present.has(k)); for (const k of keys) present.add(k); for (const o of add) { const c = o.userData.chunk as number; o.visible = c === CHUNK_STATION ? !!(lastUnder || lastNear) : !lastUnder || lastNear; } objects.push(...add); return add; };
-  const dispose = () => { clearCityMaterials(); atlas.dispose(); shardTex.dispose(); interiorUniforms.uFillScale.value = 1; rain?.dispose(); lampGlow.dispose(); field.tex.dispose(); cityWeather.uWet.value = 0; cityWeather.uReflect.value = 0; };
+  const dispose = () => { clearCityMaterials(); atlas.dispose(); shardTex.dispose(); interiorUniforms.uFillScale.value = 1; rain?.dispose(); lampGlow.dispose(); field.tex.dispose(); cityWeather.uWet.value = 0; cityWeather.uReflect.value = 0; cityWeather.uHeight.value = null; };
   void T;
   // The renderer's per-frame entry: the match clock, the server's broken panes, the camera, whether it is under cover.
   let paneKey = '', clock = 0;
