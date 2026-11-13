@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { CityBuilder, Face, facade, SignAtlas, signPanel, T, RY, hash, type Box, type Deco, type CityMap, type Building } from './kit';
 import type { CityMats } from './materials';
+import { WINDOW_TOWER } from './windows';
 
 const SHOPS = ['OKUN MOBILE', 'ADIRE & CO.', 'MARINA PHARMACY', 'BAYSIDE BOOKS', 'KOLA CAFÉ', 'SUNRISE FABRICS', 'HARBOUR ELECTRONICS', 'LAGOON TAILORS', 'ATLANTIC GRILL', 'PALM FORex'.toUpperCase(), 'IROKO FURNITURE', 'BLUE CRANE TRAVEL', 'ZUMA SPORTS', 'CORAL BAKERY'];
 const SIGN_COLOURS: [string, string][] = [['#14365c', '#ffffff'], ['#f1ece2', '#1d2a3a'], ['#8c2f2a', '#fff3dc'], ['#1f5d4a', '#f6e7b4'], ['#e0b21c', '#1d1f22'], ['#2b2d30', '#ffb347'], ['#f4f4f0', '#b5402f']];
@@ -18,6 +19,35 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
   const linings = new Map<string, THREE.Material>();
   const liningOf = (g: Building) => { let l = linings.get(g.fill); if (!l) { l = m.plaster.clone(); l.name = 'lining'; (l as THREE.MeshStandardMaterial).color = new THREE.Color(g.fill).multiplyScalar(1.15); l.userData = { ...m.plaster.userData }; linings.set(g.fill, l); } return l; };
   const renderOf = (x: number, z: number) => m.render[Math.floor(hash(Math.round(Math.abs(x) / 9), Math.round(z / 9)) * m.render.length)];
+  /**
+   * The working roof of a building nobody can reach: a parapet with coping, a lift overrun or stair head, plant,
+   * a water tank on a steel stand, an antenna mast, satellite dishes and vent stacks. Silhouette from the street and
+   * the skyline from the roofs; never in a playable space.
+   */
+  const roofscape = (x0: number, z0: number, x1: number, z1: number, y: number, seed: number, wallMat: THREE.Material) => {
+    const w = x1 - x0, d = z1 - z0; if (w < 3 || d < 3) return;
+    b.force = 'out';
+    const par = .95, t = .18;
+    b.box(x0, y, z0, x1, y + par, z0 + t, wallMat, 2.4); b.box(x0, y, z1 - t, x1, y + par, z1, wallMat, 2.4); b.box(x0, y, z0, x0 + t, y + par, z1, wallMat, 2.4); b.box(x1 - t, y, z0, x1, y + par, z1, wallMat, 2.4);
+    for (const [a0, a1, c0, c1] of [[x0 - .04, x1 + .04, z0 - .04, z0 + t + .04], [x0 - .04, x1 + .04, z1 - t - .04, z1 + .04], [x0 - .04, x0 + t + .04, z0, z1], [x1 - t - .04, x1 + .04, z0, z1]]) b.box(a0, y + par, c0, a1, y + par + .06, c1, m.precast, 2);
+    const r = (k: number) => hash(seed, k), at = (k: number, pad: number) => [x0 + pad + r(k) * Math.max(.1, w - pad * 2), z0 + pad + r(k + 50) * Math.max(.1, d - pad * 2)];
+    // Lift overrun / stair head with a door.
+    { const [cx, cz] = at(1, 2.2), sw = 2.2 + r(2) * 1.2, sd = 2 + r(3), sh = 2.6 + r(4) * .6; b.box(cx - sw / 2, y, cz - sd / 2, cx + sw / 2, y + sh, cz + sd / 2, wallMat, 2.4); b.box(cx - sw / 2 - .06, y + sh, cz - sd / 2 - .06, cx + sw / 2 + .06, y + sh + .12, cz + sd / 2 + .06, m.precast, 2); b.box(cx - .45, y, cz + sd / 2, cx + .45, y + 2.05, cz + sd / 2 + .03, m.darkSteel, 1); }
+    // Plant: louvred cabinets.
+    for (let i = 0; i < 1 + Math.floor(r(5) * 3); i++) { const [cx, cz] = at(10 + i, 1.4), pw = 1.2 + r(11 + i) * 1.6, pd = .9 + r(12 + i) * .6, ph = 1 + r(13 + i) * .8; b.box(cx - pw / 2, y, cz - pd / 2, cx + pw / 2, y + ph, cz + pd / 2, m.sheetCream, 1.2); b.box(cx - pw / 2 - .03, y + ph, cz - pd / 2 - .03, cx + pw / 2 + .03, y + ph + .05, cz + pd / 2 + .03, m.steel, 1); for (let k = 0; k < 4; k++) b.box(cx - pw / 2 + .1, y + .2 + k * ph * .2, cz + pd / 2, cx + pw / 2 - .1, y + .26 + k * ph * .2, cz + pd / 2 + .02, m.darkSteel, 1); }
+    // A water tank on a steel stand (black polyethylene, as on Lagos roofs).
+    if (r(20) > .25) { const [cx, cz] = at(21, 1.6); for (const [dx, dz] of [[-.55, -.55], [.55, -.55], [-.55, .55], [.55, .55]]) b.box(cx + dx - .04, y, cz + dz - .04, cx + dx + .04, y + 1.4, cz + dz + .04, m.darkSteel, 1); b.box(cx - .7, y + 1.4, cz - .7, cx + .7, y + 1.48, cz + .7, m.darkSteel, 1); b.post(cx, cz, y + 1.48, y + 2.9, .68, m.tank, 16, .62); b.post(cx, cz, y + 2.9, y + 3.05, .2, m.tank, 12); }
+    // Antenna mast with cross arms, and a few dishes facing the same satellite.
+    if (r(30) > .3) { const [cx, cz] = at(31, .8), mh = 4 + r(32) * 6; b.post(cx, cz, y, y + mh, .045, m.steel, 6, .03); for (let k = 1; k < 4; k++) b.box(cx - .5 + k * .05, y + mh * (.5 + k * .14), cz - .015, cx + .5 - k * .05, y + mh * (.5 + k * .14) + .03, cz + .015, m.steel, 1); }
+    for (let i = 0; i < Math.floor(r(40) * 3); i++) {
+      const [cx, cz] = at(41 + i, .9), g = new THREE.SphereGeometry(.42 + r(44 + i) * .2, 14, 6, 0, Math.PI * 2, 0, .9);
+      b.add(g, m.white, 1, new THREE.Matrix4().compose(new THREE.Vector3(cx, y + 1.1, cz), new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.2, .6, 0, 'YXZ')), new THREE.Vector3(1, .45, 1))); g.dispose();
+      b.post(cx, cz, y, y + 1.05, .03, m.steel, 6);
+    }
+    // Vent stacks.
+    for (let i = 0; i < 2 + Math.floor(r(60) * 3); i++) { const [cx, cz] = at(61 + i, .5); b.post(cx, cz, y, y + .6 + r(66 + i) * .9, .07 + r(67 + i) * .06, m.steel, 8); }
+    b.force = null;
+  };
 
   // ---------------------------------------------------------------- ground, floors and the station's shell
   const groundMat: Record<string, THREE.Material> = { 'st-asphalt': m.asphalt, 'st-sidewalk': m.sidewalk, 'st-pavers': m.pavers, 'st-plaza': m.plaza, 'st-grass': m.grass, 'st-yard': m.yard, 'st-tile': m.tile, 'st-marble': m.marble, 'st-screed': m.screed };
@@ -234,14 +264,22 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
   };
   for (const box of map.boxes) {
     const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, seed = Math.abs(x0) * 3.1 + z0 * 1.7;
-    if (box.mat === 'bld-tower') solid(box, () => ({ wall: m.render[1], bay: 3.25, floor: 3.25, ground: 'shops', balcony: .34, trim: m.precast, seed }), 0);
+    if (box.mat === 'bld-tower') { solid(box, () => ({ wall: m.render[1], bay: 3.25, floor: 3.25, ground: 'shops', balcony: .34, trim: m.precast, seed }), 0); roofscape(x0, z0, x1, z1, y1, seed, m.render[1]); }
     else if (box.mat === 'bld-brick-upper') solid(box, i => (i === 0 ? { wall: m.brick, bay: 3.2, floor: 3.4, ground: 'none', balcony: 0, trim: m.precast, seed } : { wall: m.brick, bay: 40, floor: 9, ground: 'none', balcony: 0, trim: m.precast, seed }));
     else if (box.mat === 'bld-panel' && Math.min(x1 - x0, z1 - z0) > .8) solid(box, () => ({ wall: m.panel, bay: 2.5, floor: 3.5, ground: 'shops', balcony: 0, trim: m.frame, seed }));
     else if (box.mat === 'bld-tower-base') { b.force = 'out'; b.box(x0, y0, z0, x1, y1, z1, m.cladding, 3); b.box(x0 - .06, y1 - .5, z0 - .06, x1 + .06, y1 - .3, z1 + .06, m.stainless, 1); b.force = null; }
     else if (box.mat === 'bld-glass-tower' || box.mat === 'bld-tower-shaft') {
       // Curtain wall: reflective glass behind a grid of mullions and spandrel bands.
       const shaft = box.mat === 'bld-tower-shaft', glassM = shaft ? m.curtain : m.curtainGreen, top = shaft ? y1 : y1;
-      b.force = 'out'; b.box(x0, y0, z0, x1, top, z1, glassM, 4);
+      // Floor-to-ceiling glass between the spandrels: one interior-mapped pane per office bay (three mullion bays),
+      // so each floor reads as lit or dark offices with desks and ceiling panels behind the reflection.
+      b.force = 'out'; b.box(x0 + .05, top - .05, z0 + .05, x1 - .05, top, z1 - .05, m.frame, 2); void glassM;
+      const cell = shaft ? 1.5 : 2;
+      ([[new THREE.Vector3(x0, y0, z1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), x1 - x0], [new THREE.Vector3(x1, y0, z0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, -1), x1 - x0],
+        [new THREE.Vector3(x1, y0, z1), new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0), z1 - z0], [new THREE.Vector3(x0, y0, z0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1, 0, 0), z1 - z0]] as [THREE.Vector3, THREE.Vector3, THREE.Vector3, number][]).forEach(([o, al, out, len], fi) => {
+        const f = new Face(b, o, al, out, len, top - y0), bays = Math.round(len / cell), bw = len / bays, room = 3;
+        for (let k = 0; y0 + k * 3.6 < top - .5; k++) for (let i = 0; i < bays; i += room) f.pane(i * bw, k * 3.6 + .22, Math.min(bays, i + room) * bw, Math.min(top - y0, (k + 1) * 3.6 - .22), 0, m.window, x0 * 3.1 + fi * 97.3 + k * 13.7 + i * 5.1, WINDOW_TOWER);
+      });
       for (let y = y0; y <= top + .01; y += 3.6) b.box(x0 - .06, y - .22, z0 - .06, x1 + .06, y + .22, z1 + .06, shaft ? m.stainless : m.frame, 2);
       const step = shaft ? 1.5 : 2;
       for (let x = x0; x <= x1 + .01; x += (x1 - x0) / Math.round((x1 - x0) / step)) for (const z of [z0 - .1, z1 + .02]) b.box(x - .04, y0, z, x + .04, top, z + .08, m.frame, 1);
@@ -271,7 +309,9 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
       facade(new Face(b, o, al, out, w, y1 - y0 + extra), m, { wall: wallM, bay: 3.25, floor: 3.3, ground: 'shops', balcony: style === 2 ? .3 : .12, trim: style === 1 ? m.frame : m.precast, seed }, detail, detail ? aircon : undefined);
       const bx0 = ax ? x0 + t : x0, bx1 = ax ? x0 + t + w : x1, bz0 = ax ? z0 : z0 + t, bz1 = ax ? z1 : z0 + t + w;
       // The body behind the front (a little depth beyond the site), and its roof.
-      const back = 6; b.box(ax ? bx0 : x0 < 0 ? bx0 - back : bx0, y0, ax ? (z0 < 0 ? bz0 - back : bz0) : bz0, ax ? bx1 : x0 < 0 ? bx1 : bx1 + back, y1 + extra, ax ? (z0 < 0 ? bz1 : bz1 + back) : bz1, wallM, 3);
+      const back = 6, rx0 = ax ? bx0 : x0 < 0 ? bx0 - back : bx0, rz0 = ax ? (z0 < 0 ? bz0 - back : bz0) : bz0, rx1 = ax ? bx1 : x0 < 0 ? bx1 : bx1 + back, rz1 = ax ? (z0 < 0 ? bz1 : bz1 + back) : bz1;
+      b.box(rx0, y0, rz0, rx1, y1 + extra, rz1, wallM, 3);
+      b.force = null; if (detail || n % 2 === 0) roofscape(rx0, rz0, rx1, rz1, y1 + extra, seed, wallM); b.force = 'out';
       b.force = null; t += w; n++;
     }
   }

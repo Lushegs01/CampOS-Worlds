@@ -114,7 +114,7 @@ export function buildDressing(b: CityBuilder, m: CityMats, lib: Library, map: Ci
   // ---------------------------------------------------------------- palms and shade trees
   const fronds = lib.extra['foliage/palm-frond.ktx2'], leaves = lib.extra['foliage/leaf-broad.ktx2'];
   for (const t of [fronds, leaves]) if (t) { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }
-  const bark = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95 }), frondMat = fronds ? foliageMaterial(fronds, true) : null, leafMat = leaves ? foliageMaterial(leaves, false) : null;
+  const bark = m.bark, frondMat = fronds ? foliageMaterial(fronds, true) : null, leafMat = leaves ? foliageMaterial(leaves, false) : null;
   const palms = map.boxes.filter(x => x.mat === 'palm'), trees = map.boxes.filter(x => x.mat === 'tree');
   const plant = (list: typeof palms, grow: (i: number) => ReturnType<typeof growPalm>, mat: THREE.Material | null, variants: number, scaleOf: (i: number) => number) => {
     for (let v = 0; v < variants; v++) {
@@ -132,16 +132,42 @@ export function buildDressing(b: CityBuilder, m: CityMats, lib: Library, map: Ci
 }
 
 // ====================================================================================== beyond the site
-/** A window-grid texture for distant towers (lit cells glow at night through the emissive map). */
-function towerTexture(seed: number) {
-  const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d')!;
-  g.fillStyle = '#8f9aa3'; g.fillRect(0, 0, 64, 128);
-  for (let y = 0; y < 32; y++) for (let x = 0; x < 8; x++) { const r = hash(seed + x * 3.1, y * 1.7); g.fillStyle = r > .8 ? '#ffe3a6' : r > .4 ? '#31414d' : '#45586a'; g.fillRect(x * 8 + 1, y * 4 + 1, 6, 2.4); }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.NearestFilter;
-  const e = document.createElement('canvas'); e.width = 64; e.height = 128; const h = e.getContext('2d')!; h.fillStyle = '#000'; h.fillRect(0, 0, 64, 128);
-  for (let y = 0; y < 32; y++) for (let x = 0; x < 8; x++) if (hash(seed + x * 3.1, y * 1.7) > .62) { h.fillStyle = hash(x, y + seed) > .5 ? '#ffd28a' : '#cfe6ff'; h.fillRect(x * 8 + 1, y * 4 + 1, 6, 2.4); }
-  const em = new THREE.CanvasTexture(e); em.colorSpace = THREE.SRGBColorSpace; em.wrapS = em.wrapT = THREE.RepeatWrapping; em.magFilter = THREE.NearestFilter;
-  return { map: t, emissive: em };
+/**
+ * Distant towers: the façade is drawn by the shader in world space — 3.4 m storeys, bays, a frame around every window,
+ * reflective glass (dark by day, so the sky shows in it through the image-based light), offices lit at random at
+ * dusk and night (the material's emissive strength, set by the variant), and a style per material: punched windows
+ * in concrete, ribbon glazing between spandrel bands, or a curtain wall.
+ */
+function skylineMaterial(style: number, color: string) {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: .75, metalness: 0, emissive: '#ffffff', emissiveIntensity: 0 });
+  m.userData.fixed = true;
+  m.onBeforeCompile = s => {
+    s.uniforms.uStyle = { value: style };
+    s.vertexShader = 'varying vec3 vTw; varying vec3 vTn;\n' + s.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+      vTw = (modelMatrix * vec4(transformed, 1.)).xyz; vTn = normalize(mat3(modelMatrix) * objectNormal);`);
+    s.fragmentShader = `uniform float uStyle; varying vec3 vTw; varying vec3 vTn;
+      float tH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n` + s.fragmentShader
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        float twin = 0., tlit = 0.;
+        if (abs(vTn.y) < .5) {
+          float u = abs(vTn.x) > abs(vTn.z) ? vTw.z : vTw.x, v = vTw.y - 5.;
+          float bay = uStyle < .5 ? 2.6 : uStyle < 1.5 ? 1.6 : 1.5, storey = 3.4;
+          vec2 cell = vec2(floor(u / bay), floor(v / storey)), f = vec2(fract(u / bay), fract(v / storey));
+          vec2 lo = uStyle < .5 ? vec2(.22, .3) : uStyle < 1.5 ? vec2(.03, .34) : vec2(.03, .08), hi = uStyle < .5 ? vec2(.78, .8) : uStyle < 1.5 ? vec2(.97, .88) : vec2(.97, .94);
+          // Anti-aliased window mask (it is mostly seen far away).
+          vec2 w = fwidth(vec2(u / bay, v / storey)) * 1.2;
+          vec2 inX = smoothstep(lo - w, lo + w, f) * (1. - smoothstep(hi - w, hi + w, f));
+          twin = inX.x * inX.y * step(0., v);
+          float r = tH(cell + floor(u / 31.) * 7.1);
+          tlit = step(.62, r) * twin;
+          diffuseColor.rgb = mix(diffuseColor.rgb * (.85 + .3 * tH(vec2(cell.y, floor(u / 40.)))), vec3(.02, .025, .03) + vec3(.03, .025, .02) * r, twin);
+          roughnessFactor = mix(roughnessFactor, .08 + .1 * tH(cell + 3.), twin);
+        }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        totalEmissiveRadiance *= tlit * (tH(vec2(floor(vTw.x), floor(vTw.y / 3.4))) > .5 ? vec3(1., .82, .55) : vec3(.8, .9, 1.)) * .9;`);
+  };
+  m.customProgramCacheKey = () => 'city-skyline';
+  return m;
 }
 
 export function buildBackdrop(b: CityBuilder, m: CityMats, map: CityMap, detail: number, glows: Glow[]) {
@@ -154,7 +180,7 @@ export function buildBackdrop(b: CityBuilder, m: CityMats, map: CityMap, detail:
   fbox(bx0, L - 2.6, bz1, bx1, L - .02, bz1 + 9, m.concrete, 4); fbox(bx0 - 400, L - 2.6, bz1 + 8.6, bx1 + 400, L + .25, bz1 + 9, m.precast, 4);
   for (let x = bx0 + 6; x < bx1; x += 12) { far(new THREE.CylinderGeometry(.22, .3, .55, 10), m.black, T(x, L + .27, bz1 + 7.6)); }
   // Skyline: towers in three rings, nearer ones with modelled crowns, all with a window grid that lights up at night.
-  const towers = [0, 1, 2].map(i => { const t = towerTexture(31 + i * 17), mat = new THREE.MeshStandardMaterial({ map: t.map, emissiveMap: t.emissive, emissive: '#ffffff', emissiveIntensity: 0, roughness: .5, metalness: .25, color: ['#cfd6da', '#d9cdb8', '#b9c7cf'][i] }); mat.userData.fixed = true; glows.push({ m: mat, day: 0, night: 1.3 }); return mat; });
+  const towers = [0, 1, 2].map(i => { const mat = skylineMaterial(i, ['#b9b4aa', '#c9bba3', '#8d9aa3'][i]); glows.push({ m: mat, day: 0, night: 1.3 }); return mat; });
   const tower = (x: number, z: number, w: number, d: number, h: number, k: number) => {
     const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv as THREE.BufferAttribute, pos = g.attributes.position, nor = g.attributes.normal;
     for (let i = 0; i < uv.count; i++) { const side = Math.abs(nor.getY(i)) > .5; uv.setXY(i, side ? 0 : (Math.abs(nor.getX(i)) > .5 ? pos.getZ(i) : pos.getX(i)) / 12, side ? 0 : pos.getY(i) / 24); }

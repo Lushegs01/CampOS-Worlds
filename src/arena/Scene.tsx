@@ -25,7 +25,10 @@ import { deadline } from '../world/fetcher';
 import { controls, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, loadDecor, loadSurfaceDetail, themeOf, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
-import { buildMetropolis, CITY_DECOR, CITY_LIGHT, type CityVariant } from './scene/metropolis';
+import { buildMetropolis, CITY_DECOR, type CityVariant } from './scene/metropolis';
+import { atmosphereOf, createSky, bakeEnvironment, installHeightFog, setHeightFog, createAdaptation } from './scene/city/atmosphere';
+import { createStreetReflection, REFLECTED } from './scene/city/reflection';
+import { GradeEffect } from './scene/grade';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
@@ -33,13 +36,15 @@ import { forgetAssets, cachedAssets } from '../world/assets';
 import { trackDisposeListeners } from './scene/gpuListeners';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
-import { Effects, Casings } from './scene/fx';
+import { Effects, Casings, setEffectsGround, flashTexture } from './scene/fx';
 import { sfx, setIndoor, startAmbience, stopArenaAmbience, stopMatchSounds, prepareMatch, prepareWeapon, prepareVoice, forgetPrepared, trimBanks, nearSurfaces, actions, remoteActions, breathing, ambienceFrame, setGroundProvider, engine as soundEngine, type StepSurface, type ImpactSurface } from './audio';
 import { reloadPlan } from './sound/reloads.mjs';
 import { stepSurfaceOf, impactSurfaceOf, groundSurface, isStair } from './sound/surfaces.mjs';
 import { createGait, createRemoteGait } from './sound/gait.mjs';
 import { QA_HOOKS } from '../qa';
 
+// Height fog joins three.js' fog chunks before any arena material compiles (off unless a map turns it on).
+installHeightFog();
 const EQUIP_IDS = [...EQUIPMENT_BY_ID.keys()];
 const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), q1 = new THREE.Quaternion(), e1 = new THREE.Euler();
 const scratch = { t: 0, box: null as { i: number } | null, normal: [0, 0, 0], ground: false };
@@ -80,6 +85,7 @@ function ambientEmitters(map: { boxes: { min: number[]; max: number[]; mat: stri
 
 /** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
 const matchTier = { id: '', mobile: false };
+const qaStaticShadows = QA_HOOKS && typeof location !== 'undefined' && new URLSearchParams(location.search).has('qa-static-shadows');
 function tierFor(matchId: string, mobile: boolean) { if (matchTier.id !== matchId) { matchTier.id = matchId; matchTier.mobile = mobile; } return matchTier.mobile; }
 
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
@@ -105,8 +111,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
   const variant = useArena(s => s.match?.variant ?? 'day') as CityVariant;
-  const cityLight = mapId === 'metropolis' ? CITY_LIGHT[variant] ?? CITY_LIGHT.day : null;
-  const citySun = useMemo(() => cityLight ? { dir: new THREE.Vector3(...cityLight.dir as [number, number, number]).normalize(), color: new THREE.Color(cityLight.sun) } : null, [cityLight]);
+  // Operation: Metropolis lights everything (sky, sun, image-based light, fog, exposure, grade) from one atmosphere.
+  const atmo = mapId === 'metropolis' ? atmosphereOf(variant) : null;
+  const cityLight = atmo ? { strength: atmo.sun, env: atmo.env } : null;
+  const citySun = useMemo(() => atmo ? { dir: new THREE.Vector3(...atmo.sunDir).normalize(), color: new THREE.Color(...atmo.sunColor) } : null, [atmo]);
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
   useEffect(() => onRetryAssets(() => setAttempt(n => n + 1)), []);
@@ -143,27 +151,35 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!lib) return null;
     const group = new THREE.Group(), env = mapId === 'metropolis' ? buildMetropolis(lib, map as Parameters<typeof buildMetropolis>[1], q, variant) : buildEnvironment(lib, map, q);
     for (const o of env.objects) group.add(o);
-    group.add(skyDome(cityLight ? { ...lib, skyScale: lib.skyScale * (variant === 'night' ? .035 : variant === 'overcast' ? .45 : variant === 'sunset' ? .65 : 1), horizon: new THREE.Color(cityLight.fog) } : lib));
+    const sky = atmo ? createSky(atmo, lib, q.skyOctaves) : skyDome(lib); sky.layers.enable(REFLECTED); group.add(sky);
     const [bx0, bz0, bx1, bz1] = map.bounds, cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2, half = Math.max(bx1 - bx0, bz1 - bz0) / 2 + 8;
     const sun = new THREE.DirectionalLight(lib.sun.color.clone().multiply(new THREE.Color(1, .95, .86)), lib.sun.irradiance * .95);
     sun.position.set(cx, 0, cz).addScaledVector(lib.sun.dir, 110); sun.target.position.set(cx, 0, cz);
-    if (cityLight) { sun.color.set(cityLight.sun); sun.intensity = cityLight.strength; sun.position.set(cx, 0, cz).addScaledVector(new THREE.Vector3(...cityLight.dir as [number, number, number]), 110); }
+    if (atmo && citySun) { sun.color.copy(citySun.color); sun.intensity = atmo.sun; sun.position.set(cx, 0, cz).addScaledVector(citySun.dir, 110); }
     if (q.shadows) {
-      sun.castShadow = true; sun.shadow.mapSize.set(q.shadowSize, q.shadowSize); sun.shadow.radius = q.shadowSize >= 2048 ? 3 : 2;
+      // Overcast light comes from the whole sky: its 'sun' shadow is wide and faint.
+      sun.castShadow = true; sun.shadow.mapSize.set(q.shadowSize, q.shadowSize); sun.shadow.radius = (q.shadowSize >= 2048 ? 3 : 2) * (atmo?.shadowSoft ?? 1); sun.shadow.intensity = atmo && atmo.shadowSoft > 3 ? .45 : 1;
       const c = sun.shadow.camera; c.left = -half; c.right = half; c.top = half; c.bottom = -half; c.near = 10; c.far = 240; c.updateProjectionMatrix();
       sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
     }
-    const fill = new THREE.HemisphereLight('#cfdcec', '#8a7c62', cityLight?.fill ?? 1.1);
+    // The image-based light carries the sky; the hemisphere fill only adds the bounce between buildings it misses.
+    const fill = atmo ? new THREE.HemisphereLight(new THREE.Color(...atmo.fillSky), new THREE.Color(...atmo.fillGround), atmo.fill) : new THREE.HemisphereLight('#cfdcec', '#8a7c62', 1.1);
     group.add(sun, sun.target, fill);
     // Warm fittings under roofs (unshadowed point lights), nearest the middle of the map first.
     const lamps = [...env.lights].filter(p => p.y < 9).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)).slice(0, q.lights).map(p => { const l = new THREE.PointLight('#ffe2b4', 55, 15, 2); l.position.copy(p).y -= .2; group.add(l); return l; });
     void lamps;
-    return { group, sun, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null, city: 'onPaneBreak' in env ? env as ReturnType<typeof buildMetropolis> : null };
+    // Lights apply only to cameras that share their layer: the street's reflection must be lit like the street.
+    group.traverse(o => { if ((o as THREE.Light).isLight) o.layers.enable(REFLECTED); });
+    return { group, sun, sky, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null, city: 'onPaneBreak' in env ? env as ReturnType<typeof buildMetropolis> : null };
   }, [lib, map, q, variant]);
   useEffect(() => {
     if (!world || !lib) return;
-    scene.add(world.group); scene.environment = lib.env; scene.environmentIntensity = cityLight?.env ?? 1.5;
-    const fog = cityLight ? new THREE.Color(cityLight.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, 55, q.fogFar * 3.2); scene.background = cityLight ? new THREE.Color(cityLight.sky) : fog;
+    // Metropolis: the image-based light is baked from the variant's own sky, so reflections and shade match it.
+    const cityEnv = atmo ? bakeEnvironment(gl, world.sky, q.envSize) : null;
+    scene.add(world.group); scene.environment = cityEnv ?? lib.env; scene.environmentIntensity = atmo?.env ?? 1.5;
+    vm.vmScene.environment = cityEnv ?? lib.env;
+    const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
+    setHeightFog(atmo);
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
     let on = true;
     deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').catch(() => null).then(() => { if (on) setCompiled(true); });
@@ -181,6 +197,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       const shared = cachedAssets('arena/'), weapons = weaponResources();
       releaseGpu(scene, vm.vmScene, world.group, ...shared.scenes, ...weapons.scenes, ...Object.values(lib.props).map(p => p!.scene));
       for (const t of [lib.env, lib.sky, lib.hdr, softTexture(), ...shared.textures]) t.dispose();
+      cityEnv?.dispose(); setHeightFog(null);
       for (const r of standInResources()) { r.geometry.dispose(); r.material.dispose(); }
       for (const m of weapons.materials) m.dispose();
       scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null;
@@ -249,6 +266,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     return { effects, grenades, crates, strikes, muzzleLight, smokes: new Set<number>() };
   }, [q]);
   useEffect(() => { scene.add(fx.effects.group); return () => { scene.remove(fx.effects.group); }; }, [scene, fx]);
+  // Debris lands on the surface beneath it (Metropolis' street is 5 m above the physics ground); smoke takes the light.
+  useEffect(() => {
+    const city = world?.city;
+    setEffectsGround(city ? (x, y, z) => { const h = city.sampleHeight(x, z); return h <= y + .3 ? h : y >= 1 ? 1 : 0; } : null);
+    fx.effects.setAmbient(atmo ? Math.min(1, .1 + (atmo.sun * Math.max(0, atmo.sunDir[1]) + atmo.env * .6) / 3.2) : 1);
+    return () => setEffectsGround(null);
+  }, [world, fx, atmo]);
   // A pane the server broke: fragments burst both ways from where it stood (its sound is played by the network layer).
   useEffect(() => { world?.city?.onPaneBreak(hit => { for (const s of [1, -1]) for (let k = 0; k < 3; k++) fx.effects.impact(v1.copy(hit.at).add(v3.set((Math.random() - .5) * hit.size * .6, (Math.random() - .5) * .8, (Math.random() - .5) * hit.size * .6)), v2.copy(hit.normal).multiplyScalar(s), 'metal', false); }); return () => world?.city?.onPaneBreak(null); }, [world, fx]);
   useEffect(() => () => world?.city?.dispose(), [world]);
@@ -267,7 +291,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     vmScene.add(sun, sun.target, fill);
     const holder = new THREE.Group(); vmScene.add(holder);
     const flash = new THREE.Group(); flash.visible = false; vmScene.add(flash);
-    const fm = new THREE.MeshBasicMaterial({ map: softTexture(), color: new THREE.Color(7, 4.2, 1.6), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    const fm = new THREE.MeshBasicMaterial({ map: flashTexture(), color: new THREE.Color(5.5, 3.6, 1.7), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
     for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(new THREE.PlaneGeometry(.16, .5), fm); p.rotation.set(-Math.PI / 2, 0, i * Math.PI / 3); p.position.z = -.14; flash.add(p); }
     const core = new THREE.Mesh(new THREE.PlaneGeometry(.2, .2), fm); flash.add(core);
     const casings = new Casings(q.casings); vmScene.add(casings.mesh);
@@ -277,7 +301,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       handR: new THREE.Vector3(.2, -.3, .1), handL: new THREE.Vector3(-.2, -.3, .1),
     };
   }, [q]);
-  useEffect(() => { if (lib) { vm.vmScene.environment = lib.env; vm.vmScene.environmentIntensity = .9; vm.gunId = ''; } }, [lib, vm]);
+  useEffect(() => { if (lib) { if (!vm.vmScene.environment) vm.vmScene.environment = lib.env; vm.vmScene.environmentIntensity = .9; vm.gunId = ''; } }, [lib, vm]);
   // The arms are drawn with the weapon; if they cannot be downloaded the weapon is drawn on its own (retried on Retry).
   useEffect(() => { let on = true; preloadArms(P1).then(src => { if (on) { vm.armsSrc = src; vm.armsTeam = -1; } }).catch(e => console.warn('Arena arms could not load.', e?.message ?? e)); return () => { on = false; }; }, [vm, attempt]);
 
@@ -289,19 +313,33 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (q.ao) {
       const ao = new N8AOPostPass(scene, camera, size.width, size.height);
       Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: !q.aoHigh, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
-      ao.setQualityMode(q.aoHigh ? 'High' : 'Medium'); c.addPass(ao);
+      ao.setQualityMode(q.aoMode ?? (q.aoHigh ? 'High' : 'Medium')); c.addPass(ao);
     }
     const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = true; c.addPass(weapon);
     const fxs = [
       ...(q.bloom ? [new BloomEffect({ luminanceThreshold: 2.6, luminanceSmoothing: .5, intensity: .42, mipmapBlur: true, radius: .62 })] : []),
       new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
-      new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 }),
-      new VignetteEffect({ darkness: .42, offset: .28 }),
+      ...(atmo ? [new GradeEffect({ saturation: atmo.saturation, contrast: atmo.contrast, lift: atmo.lift, gain: atmo.gain, grain: .01 })] : [new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 })]),
+      new VignetteEffect({ darkness: atmo ? .32 : .42, offset: .3 }),
     ];
     c.addPass(new EffectPass(camera, ...fxs));
     c.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
     return { c, weapon };
-  }, [gl, scene, camera, q, vm]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gl, scene, camera, q, vm, atmo]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The street's reflection in the rain (High, Ultra), drawn before the frame.
+  const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
+  useEffect(() => () => reflection?.dispose(), [reflection]);
+  useEffect(() => {
+    if (!QA_HOOKS || !reflection) return;
+    // QA: sample the reflection target (half floats) to check what the street reflects.
+    (window as unknown as Record<string, unknown>).__arenaReflect = () => {
+      const t = reflection.target, out: number[][] = [], buf = new Uint16Array(4);
+      for (const [fx, fy] of [[.5, .5], [.25, .7], [.75, .7], [.5, .2], [.5, .9]]) { gl.readRenderTargetPixels(t, Math.floor(t.width * fx), Math.floor(t.height * fy), 1, 1, buf as unknown as Uint8Array); out.push([...buf].map(v => +THREE.DataUtils.fromHalfFloat(v).toFixed(3))); }
+      return { w: t.width, h: t.height, px: out };
+    };
+    return () => { delete (window as unknown as Record<string, unknown>).__arenaReflect; };
+  }, [reflection, gl]);
+  const adapt = useMemo(() => createAdaptation(atmo?.exposure ?? .82), [atmo]);
   useEffect(() => {
     if (!composer) { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = .82; return; }
     const before = gl.toneMapping; gl.toneMapping = THREE.NoToneMapping; gl.toneMappingExposure = .82;
@@ -382,6 +420,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
     world?.update?.(live.matchElapsed < 0 ? -1 : live.matchElapsed + now - live.elapsedAt, live.broken, camera.position, !!vm.indoor, dt);
+    if (world?.city) { world.city.setPixel(2 * Math.tan((camera as THREE.PerspectiveCamera).fov * Math.PI / 360) / Math.max(1, size.height)); const su = (world.sky.material as THREE.ShaderMaterial).uniforms.uTime; if (su) su.value += dt; }
     frameNo.current++;
     pollGamepad(dt, live.sim?.ads ?? 0, zoomOf());
     tickInput(dt);
@@ -439,7 +478,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       setIndoor(vm.indoor);
     }
     // ---- shadows: static on phones, refreshed at the profile's rate otherwise
-    if (world && q.shadows && q.shadowEvery && frameNo.current % q.shadowEvery === 0) world.sun.shadow.needsUpdate = true;
+    // (QA builds: `?qa-static-shadows` draws the sun's shadow once, so software-rendered captures of a still scene finish.)
+    if (world && q.shadows && q.shadowEvery && frameNo.current % q.shadowEvery === 0 && !qaStaticShadows) world.sun.shadow.needsUpdate = true;
     // ---- players
     const t = live.playback.time(now), seenNums = new Set<number>();
     // Soldiers are skinned meshes with culling off (their bones move them outside their bounds), so cull them here:
@@ -669,9 +709,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       v1.copy(citySun?.dir ?? lib.sun.dir).transformDirection(camera.matrixWorldInverse);
       vm.sun.color.copy(citySun?.color ?? lib.sun.color);
       vm.sun.position.copy(v1).multiplyScalar(3); vm.sun.target.position.set(0, 0, 0);
-      const want = (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08) + (now - vm.flashAt < 60 ? 2.5 : 0);
+      // (Metropolis: never below a soft key from above, so a black rifle under an overcast or night sky still reads.)
+      const want = Math.max(atmo ? 1.1 : 0, (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08)) + (now - vm.flashAt < 60 ? 2.5 : 0);
       vm.sun.intensity += (want - vm.sun.intensity) * Math.min(1, dt * 8);
-      vm.vmScene.environmentIntensity = (cityLight?.env ?? .95) * (1 - vm.indoor * .37);
+      vm.vmScene.environmentIntensity = (cityLight?.env ?? .95) * (atmo ? 1.6 : 1) * (1 - vm.indoor * .37) * (camera.position.y < 4.6 && atmo ? .5 : 1);
       vm.vmScene.environmentRotation.setFromQuaternion(q1.copy(camera.quaternion).invert());
     }
     vm.vmCam.aspect = size.width / size.height; const vfov = 56 - ads * 14; if (vm.vmCam.fov !== vfov) { vm.vmCam.fov = vfov; } vm.vmCam.updateProjectionMatrix();
@@ -685,6 +726,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useFrame(({ gl: r }, dt) => {
     if (noRender) return;
     r.info.reset();
+    // Exposure follows the eye: opening up indoors and in the station, closing again outside.
+    r.toneMappingExposure = atmo ? adapt(Math.min(dt, .1), vm.indoor, camera.position.y < 4.6) : .82;
+    if (reflection && world?.city) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
     if (composer) { composer.weapon.enabled = vm.holder.visible; composer.c.render(dt); }
     else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };

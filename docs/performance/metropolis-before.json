@@ -1,0 +1,22 @@
+{
+  "label": "before",
+  "when": "2026-11-12T22:30:44.195Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "overcast-street-high": {
+      "world": 0,
+      "calls": 1255,
+      "triangles": 965317,
+      "textures": 109,
+      "geometries": 673,
+      "fps": 0,
+      "heapMB": 375,
+      "deployMs": 102083
+    }
+  },
+  "errors": []
+}

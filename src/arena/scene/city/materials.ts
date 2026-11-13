@@ -5,6 +5,8 @@
 // underground is lit by a sky it cannot see.
 import * as THREE from 'three';
 import { surface, trackSurfaceMaterial, type Library, type SurfaceKey } from '../library';
+import { addLayers, dropLayers, layerUniforms } from './surfaces';
+import { windowMaterial } from './windows';
 
 export type Where = 'out' | 'shop' | 'hall' | 'ug';
 /** How much sky light reaches a place, and the colour and strength of its own lighting. */
@@ -17,21 +19,15 @@ export const PLACES: Record<Exclude<Where, 'out'>, { sky: number; fill: THREE.Co
 export const interiorUniforms = { uFillScale: { value: 1 } };
 
 const interiorCache = new Map<string, THREE.Material>();
-/** The same material as seen in a place of kind `where`. */
+/** The same material as seen in a place of kind `where` (it keeps its age, loses the weather). */
 export function inside<T extends THREE.Material>(m: T, where: Where): T {
   if (where === 'out' || !(m as unknown as THREE.MeshStandardMaterial).isMeshStandardMaterial || m.userData.fixed) return m;
   const id = m.uuid + where; const hit = interiorCache.get(id); if (hit) return hit as T;
   const c = m.clone() as unknown as THREE.MeshStandardMaterial, place = PLACES[where];
   c.name = `${m.name}@${where}`; c.userData = { ...m.userData, where };
   c.envMapIntensity = (m as unknown as THREE.MeshStandardMaterial).envMapIntensity * (where === 'ug' ? .25 : .6);
-  const uniforms = { uSkyShare: { value: place.sky }, uFill: { value: place.fill }, ...interiorUniforms };
-  c.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, uniforms);
-    shader.fragmentShader = 'uniform float uSkyShare, uFillScale; uniform vec3 uFill;\n' + shader.fragmentShader.replace('#include <aomap_fragment>', `#include <aomap_fragment>
-reflectedLight.indirectDiffuse *= uSkyShare; reflectedLight.indirectSpecular *= uSkyShare;
-reflectedLight.indirectDiffuse += uFill * uFillScale * BRDF_Lambert( material.diffuseColor );`);
-  };
-  c.customProgramCacheKey = () => 'city-interior';
+  layerUniforms(c, { uSkyShare: { value: place.sky }, uFill: { value: place.fill }, ...interiorUniforms });
+  dropLayers(c, 'wet', 'puddles', 'grime', 'reflect'); addLayers(c, 'interior');
   const key = m.userData.surface as SurfaceKey | undefined; if (key) trackSurfaceMaterial(key, c, !!m.userData.metal);
   interiorCache.set(id, c);
   return c as unknown as T;
@@ -74,7 +70,7 @@ export function cityMaterials(lib: Library) {
     container: (key: string) => key === 'container-red' ? S('paintedMetal', { gain: 1.25 }) : S('corrugated', { tint: ({ 'container-blue': '#44709a', 'container-yellow': '#c9a03a', 'container-green': '#5a9068' } as Record<string, string>)[key] ?? '#8a7a62', gain: 1.9 }),
     containerFrame: (key: string) => painted(({ 'container-red': '#86392e', 'container-blue': '#36597b', 'container-yellow': '#a0802e', 'container-green': '#3f644a' } as Record<string, string>)[key] ?? '#6e624e', 1.3),
     // ---- glass, water, light
-    glass: glass('#9fc3cf', .28), glassDark: new THREE.MeshStandardMaterial({ color: '#1c2a33', roughness: .08, metalness: .85, envMapIntensity: 1.9 }),
+    glass: glass('#9fc3cf', .28), glassDark: new THREE.MeshStandardMaterial({ color: '#0c1114', roughness: .05, metalness: 0, envMapIntensity: 1.6 }),
     curtain: new THREE.MeshStandardMaterial({ color: '#27485a', roughness: .1, metalness: .9, envMapIntensity: 2 }), curtainGreen: new THREE.MeshStandardMaterial({ color: '#2b5550', roughness: .1, metalness: .9, envMapIntensity: 2 }),
     water: new THREE.MeshStandardMaterial({ color: '#2f5a66', roughness: .05, metalness: .2, transparent: true, opacity: .82, envMapIntensity: 2 }),
     paintWhite: flat('#e9e6dc', { roughness: .7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), paintYellow: flat('#e0b21c', { roughness: .7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
@@ -84,6 +80,18 @@ export function cityMaterials(lib: Library) {
     bodies: ['#f4f4f0', '#1d2a3a', '#8c2f2a', '#c9c9c4', '#2b2d30', '#e8c21c', '#2f6f9f'].map(c => flat(c, { roughness: .32, metalness: .35, envMapIntensity: 1.4 })),
   };
   for (const k of ['glassDark', 'curtain', 'curtainGreen', 'water'] as const) m[k].userData.fixed = true;
-  return { ...m, glows, flat, painted, glow };
+  // Age and weather (surfaces.ts). Interior copies made by inside() keep the age and drop the weather.
+  for (const g of [m.asphalt, m.sidewalk, m.pavers, m.plaza, m.yard]) addLayers(g, 'macro', 'wet', 'puddles', 'reflect');
+  addLayers(m.asphalt, 'road');
+  for (const g of [m.kerb, m.roofGravel, m.soil, m.screed, m.tile, m.marble, m.ugTile]) addLayers(g, 'macro', 'wet');
+  for (const g of [...m.render, m.brick, m.panel, m.cladding, m.stone, m.block, m.blockwork, m.concrete, m.precast, m.sheetBlue, m.sheetCream, m.sheetGreen, m.plaster]) addLayers(g, 'macro', 'grime', 'wet');
+  for (const g of [m.sheetRoof, m.steel, m.darkSteel, m.white, m.yellow, m.red, m.blue, m.green, m.orange, m.black, m.plate, m.shutter, m.planks, m.wood, m.darkWood, m.ugWall, m.ugConcrete, m.ugCeil, m.ceiling, m.woodFloor]) addLayers(g, 'macro', 'wet');
+  for (const b of m.bodies) addLayers(b, 'grime', 'wet');
+  // Palm trunks: the campus' photographed palm bark (fibrous, ringed), tinted by each instance's vertex colour.
+  const barkMap = lib.extra['textures/palmBark/color.ktx2'];
+  if (barkMap) { barkMap.colorSpace = THREE.SRGBColorSpace; barkMap.wrapS = barkMap.wrapT = THREE.RepeatWrapping; }
+  const bark = new THREE.MeshStandardMaterial({ map: barkMap ?? null, normalMap: lib.extra['textures/palmBark/normal.ktx2'] ?? null, roughness: .92, metalness: 0, vertexColors: true, color: barkMap ? '#d6ccbd' : '#7a6a58' });
+  addLayers(bark, 'wet');
+  return { ...m, glows, flat, painted, glow, window: windowMaterial(), bark };
 }
 export type CityMats = ReturnType<typeof cityMaterials>;

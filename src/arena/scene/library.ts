@@ -20,7 +20,7 @@ export const CITY_PROPS: CityPropKey[] = ['streetLamp', 'aircon', 'trashCan', 'p
 export interface Theme { id: string; surfaces: SurfaceKey[]; decor: PropKey[]; /** Relief and roughness maps arrive after deployment. */ deferDetail: boolean; /** Campus textures the map borrows (grass, foliage). */ extra: string[] }
 export const THEMES: Record<string, Theme> = {
   yard: { id: 'yard', surfaces: SURFACE_KEYS, decor: [], deferDetail: false, extra: [] },
-  city: { id: 'city', surfaces: CITY_SURFACE_KEYS, decor: [], deferDetail: true, extra: ['textures/grass/color.ktx2', 'foliage/palm-frond.ktx2', 'foliage/leaf-broad.ktx2', 'foliage/leaf-hedge.ktx2'] },
+  city: { id: 'city', surfaces: CITY_SURFACE_KEYS, decor: [], deferDetail: true, extra: ['textures/grass/color.ktx2', 'textures/palmBark/color.ktx2', 'foliage/palm-frond.ktx2', 'foliage/leaf-broad.ktx2', 'foliage/leaf-hedge.ktx2'] },
 };
 export const themeOf = (mapId: string) => (mapId === 'metropolis' ? THEMES.city : THEMES.yard);
 export type PropKey = 'jersey' | 'milCrate' | 'oldCrate' | 'ammo' | 'barrel' | 'jerrycan' | 'generator' | 'wallLamp' | 'securityLight' | 'powerBox' | 'utilityBox' | 'tyre' | 'propane' | 'crate' | CityPropKey;
