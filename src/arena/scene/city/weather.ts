@@ -145,7 +145,7 @@ export function createRain(field: ReturnType<typeof heightfield>, street: number
         varying vec2 vUv; varying float vAge; varying vec3 vLit; varying float vA;
         void main() { float d = length(vUv - .5) * 2., r = vAge * .9;
           float ring = smoothstep(.12, 0., abs(d - r)) * (1. - vAge), dots = step(.82, fract(sin(floor(atan(vUv.y - .5, vUv.x - .5) * 3.) * 12.9898) * 437.5)) * smoothstep(.1, 0., abs(d - r * 1.25)) * (1. - vAge);
-          gl_FragColor = vec4(vLit * 1.2, (ring * .3 + dots * .4) * vA);
+          gl_FragColor = vec4(vLit * .9, (ring * .24 + dots * .28) * vA);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
           #include <fog_fragment>

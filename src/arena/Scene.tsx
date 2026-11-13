@@ -713,7 +713,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       vm.sun.color.copy(citySun?.color ?? lib.sun.color);
       vm.sun.position.copy(v1).multiplyScalar(3); vm.sun.target.position.set(0, 0, 0);
       // (Metropolis: never below a soft key from above, so a black rifle under an overcast or night sky still reads.)
-      const want = Math.max(atmo ? 1.1 : 0, (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08)) + (now - vm.flashAt < 60 ? 2.5 : 0);
+      const want = Math.max(atmo ? 1.6 : 0, (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08)) + (now - vm.flashAt < 60 ? 2.5 : 0);
       vm.sun.intensity += (want - vm.sun.intensity) * Math.min(1, dt * 8);
       vm.vmScene.environmentIntensity = (cityLight?.env ?? .95) * (atmo ? 1.6 : 1) * (1 - vm.indoor * .37) * (camera.position.y < 4.6 && atmo ? .5 : 1);
       vm.vmScene.environmentRotation.setFromQuaternion(q1.copy(camera.quaternion).invert());
@@ -735,8 +735,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     r.info.reset();
     // Exposure follows the eye: opening up indoors and in the station, closing again outside.
     r.toneMappingExposure = atmo ? adapt(Math.min(dt, .1), vm.indoor, camera.position.y < 4.6) : .82;
-    // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame.)
-    if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 0)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
+    // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
+    // frames the sun's shadow is not redrawn, so the two passes never land together.)
+    if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
     if (composer) { composer.weapon.enabled = vm.holder.visible; composer.c.render(dt); }
     else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };

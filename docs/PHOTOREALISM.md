@@ -65,7 +65,8 @@ sparkling).
 * `macro` — large-scale tone, warmth and roughness variation in world space: breaks the 2–5 m texture repeat.
 * `grime` — walls: a darker, browner splash zone at the foot, rain-washed runs in patches; also vehicles' lower bodies.
 * `road` — asphalt: rectangular patch repairs with sealed seams, oil stains, faint polished wheel tracks.
-* `wet` — rain: porous surfaces darken, everything gets smoother; walls darken in uneven runs.
+* `wet` — rain: porous surfaces darken, everything gets smoother; walls darken in uneven runs. Anything with a roof,
+  awning or canopy above it (probed in the rain heightfield, a little out from the surface) stays dry.
 * `puddles` — rain on the ground: standing water where the noise is low (flat, mirror-smooth, dark), a damp rim,
   and rings spreading from raindrops (two animated cell layers) only in the water.
 * `reflect` — the planar street reflection (below), read through the rippled normal.
@@ -113,7 +114,8 @@ per region.
 * **Curtains**: one to three cylinders of falling streaks at 16–52 m, depth-tested against buildings and fogged —
   the distance is veiled by rain, not only by fog.
 * **Splashes**: rings and droplet crowns re-seeded each cycle around the player, on the surface beneath.
-* **Lamp halos and light cones** in rain and at night (scattering in wet or dark air).
+* **Lamp halos** in rain and at night, and **light cones** at night only (scattering in wet or dark air; daylight
+  washes beams out). Splashes are faint on dark surfaces.
 * **Planar street reflection** (High, Ultra; rain only): the scene drawn once more from the camera mirrored in the
   street plane at 40 % / 60 % resolution with an oblique near plane 4 cm above the street. Only façades, glass, the
   city's lights, vehicle bodies and the skyline are drawn into it (ground-level geometry is excluded: the pavement
@@ -130,7 +132,8 @@ per region.
 * Smoke and dust use an irregular procedural puff instead of a perfect disc, and take the scene's light level (they
   no longer glow at night).
 * The muzzle flash is a procedural petal flash with a hot core instead of a soft disc.
-* The first-person weapon reflects the baked sky of the variant and dims its reflections in the station.
+* The first-person weapon reflects the baked sky of the variant and dims its reflections in the station; in
+  Metropolis it keeps a minimum soft key light so a black rifle still reads under an overcast or night sky.
 * Weapon models, firing, recoil, reload and inspection animations, hit registration and input are unchanged.
 
 ### Fixes found along the way
@@ -181,9 +184,21 @@ Low's draw calls fall by 35–42 % (the two-region merge) while triangles rise 6
 panes). On a phone the CPU cost of a WebGL draw call usually dominates, so this is expected to be a net gain there —
 **not yet measured on a phone**.
 
-High, rain, street view: 1,255 calls per frame before (631 of them the per-frame sun shadow pass). After: the shadow
-pass every second frame, and the reflection pass every second frame (~85–170 calls with the material whitelist;
-it was ~450 before the whitelist). (Final High numbers below.)
+High (captured at 50 % render scale — full resolution does not deploy reliably in software rendering — with the
+sun's shadow drawn once; same scale before and after):
+
+| View | Calls before → after | Triangles before → after |
+|---|---|---|
+| High · rain · street | 631 → 649 (793 on a frame with the reflection pass) | 0.51 M → 0.58 M (0.66 M) |
+| High · rain · avenue | 711 → 735 (879 with the reflection pass) | 0.97 M → 1.04 M (1.12 M) |
+| High · day · street | 627 → 633 | 0.51 M → 0.55 M |
+| High · night · street | 627 → 637 | 0.51 M → 0.55 M |
+
+The per-frame cost the table leaves out: before, High redrew the sun's shadow map every frame (624 more calls on the
+rain street view, measured: 1,255 in total); after, every second frame. The street reflection (rain only) is
+~144 calls and ~80 k triangles every second frame on High (it was ~450 calls before the material whitelist).
+The two alternate: the shadow pass on even frames, the reflection on odd ones. Net, rain street on High: ~1,255
+calls every frame before; after, ~1,275 on shadow frames and ~795 on reflection frames — about 1,035 on average.
 
 Shader programs (Low, rain): 48 before → 54 after (61 before the shared surface program).
 Arena 3D chunk (`arena-Scene-*.js`, minified): 146.0 KB → 194.3 KB; loaded only with the arena. No new downloads:
@@ -192,8 +207,23 @@ the palm bark is an existing campus texture (433 KB KTX2), everything else is pr
 
 ### Before / after captures
 
-`docs/screenshots/metropolis-photoreal/{before,after}/<weather>-<view>-<profile>.jpg`, side-by-side sheets in
-`compare/` (`node scripts/qa/metropolis-compare.mjs`). Re-run with `LABEL=after node scripts/qa/metropolis-shots.mjs`.
+* Low, full 1280 × 720: `docs/screenshots/metropolis-photoreal/{before,after}/<weather>-<view>-low.jpg` (day, rain,
+  night × street, avenue, rooftop, skyline). The baseline day and rain *skyline* shots were taken before that camera
+  was re-aimed at the skyline, so only the night skyline pair compares the same view.
+* High, 50 % render scale: `{before,after}-high50/<weather>-<view>-high.jpg` (rain, day, night × street, avenue).
+* Side-by-side sheets: `compare/` (`node scripts/qa/metropolis-compare.mjs`; `BEFORE=before-high50
+  AFTER=after-high50` for the High pairs). The full-resolution High baseline of the rain street (and others) is kept
+  in `before/` for reference.
+* Harness: `LABEL=after node scripts/qa/metropolis-shots.mjs` (QUALITIES, VARIANTS, VIEWS, SCALE). Under software
+  rendering it raises the server heartbeat to 90 s, freezes drawing during each screenshot, verifies the match is
+  still running afterwards, and retries a dropped view or deployment.
+
+### Tests and builds
+
+* `npm test`: **340 passed, 0 failed** (unchanged count).
+* `npm run build` and `npm run verify:release`: pass (precache 2.49 MB, no QA hooks in production).
+* Not run in this pass: the long Playwright suites against the account/Postgres stack (`tests/browser-*.mjs`); the
+  Metropolis gameplay suite (`tests/arena-metropolis.test.mjs`, part of `npm test`) passes.
 
 
 ## 5. What remains (honestly)
