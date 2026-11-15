@@ -268,3 +268,35 @@ reach; touch: the on-screen prompt) works the door in front of you within about 
 
 Tests: `tests/arena-doors.test.mjs`; live: `node scripts/qa/arena-doors.mjs` (stills in `docs/screenshots/arena/doors/`).
 Not built yet: enterable upper floors and towers (see [REMAINING_LIMITATIONS.md](REMAINING_LIMITATIONS.md)).
+
+## Enterable towers and upper floors (November 2026)
+
+Every building in the city can now be entered up to its top floor and its roof:
+
+| Building | Storeys (3.5 m) | Way in | Top |
+|---|---|---|---|
+| **Lekan Court** (each corner tower) | 7 | A door from Marina House's shop | roof at 29.5 m |
+| **Okun Trust** (each side of the plaza) | 4 office floors over the banking hall | A stair from the hall's north-west corner | roof at 23 m |
+| **Okun Tower** (the centre) | 13 | Its lobby door on the arcade at objective A | roof at 50.5 m |
+| **The Atlantic Grill** (each side) | its first floor (private dining) | The alley fire escape's landing | the existing roof |
+
+* **Built from real parts** (`tower()` in `shared/arena/metropolis.mjs`): exterior walls per storey with window bays
+  (breakable glass, like every window in the city), floor slabs, an enclosed switchback stair core from the ground
+  (or the hall) to a stair head with a door onto the roof, offices on every floor (desks, tables, cabinets, sofas,
+  kept clear of the stair landing and doorways), and roofs with parapets and plant. The stair cores sit on
+  half-metre coordinates, so every step falls on the bots' navigation grid: bots climb to every floor and roof too.
+* **Fair by construction and by test.** The map stays mirror-symmetric. The one exception is the interior of Okun
+  Tower, on the axis: a single switchback stair is left- or right-handed, and both teams use the same lobby and the
+  same stair. It is declared on the map (`asymmetric`) and exempt only there. No tower window looks onto the other
+  team's spawns: `scripts/qa/metropolis-sightlines.mjs` stands a player in every window (standing and crouching,
+  across its width, doors open, through glass) and looks for every enemy spawn's head and chest. It drove one design
+  change: Okun Tower's side faces have windows only on its 3rd and 4th storeys, because higher up they look along the
+  avenue onto spawns. The south face, over the plaza, has windows all the way up.
+* **Cost.** Collision boxes 1,394 → 3,396 (mostly stair steps), breakable panes 60 → 327. A 10-bot Domination match
+  costs the server about 0.1 ms per tick on both maps (measured locally; not a production benchmark).
+* Okun Tower is now drawn with panel facades: the curtain-wall crown, mast and sign of the solid tower were drawn
+  for its solid box and are not yet rebuilt for the enterable one.
+
+Tests: `tests/arena-metropolis-towers.test.mjs` (both teams reach every storey and roof; a player climbs a stair core
+flight by flight; floor space and furniture on every storey; no window sees an enemy spawn, with a control that the
+check finds a sightline when there is one). Captures: `docs/screenshots/metropolis-photoreal/towers/`.

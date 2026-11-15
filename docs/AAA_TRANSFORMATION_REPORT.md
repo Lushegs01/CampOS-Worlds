@@ -177,3 +177,14 @@ Verification: `tests/arena-doors.test.mjs` (5 tests: symmetry, movement and sigh
 command encoding, server rules including rejoin and round start). A live match check (`scripts/qa/arena-doors.mjs`)
 closes a Marina Avenue shop door with **E**, is stopped by it on both client and server, reopens it and walks in;
 stills are in `docs/screenshots/arena/doors/`. Enterable upper floors and towers (steps 2–3) are not started.
+
+## 9. Fourth pass: enterable towers and upper floors (steps 2–3 of §5)
+
+Every Metropolis building can now be entered to its top floor and roof: Lekan Court (7 storeys, both corners),
+Okun Trust's office floors (4, both sides), Okun Tower (13 storeys, the centre) and the Atlantic Grill's first floor.
+They are built by a generator (`tower()`): walls with window bays, slabs, enclosed stair cores aligned to the bots'
+navigation grid, furnished floors, roofs with stair heads and doors. Fairness is tested: the map stays mirrored
+except Okun Tower's interior on the axis (one stair shared by both teams, declared on the map), and no window
+gives a line of sight onto the other team's spawns (`scripts/qa/metropolis-sightlines.mjs`, which removed Okun
+Tower's upper side windows). Server cost is unchanged (about 0.1 ms per tick for a 10-bot match). Details and
+captures: [METROPOLIS.md](METROPOLIS.md) § Enterable towers.

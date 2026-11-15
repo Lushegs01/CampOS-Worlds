@@ -9,6 +9,7 @@ import { moveBody, raycast, lineOfSight } from '../shared/arena/physics.mjs';
 import { spawnState, step, quantize, encodeCommand, decodeCommand, B, EYE } from '../shared/arena/sim.mjs';
 import { PRESETS } from '../shared/arena/rules.mjs';
 import { createMatch } from '../server/arena/match.mjs';
+import { CENTRAL_INTERIOR } from '../shared/arena/metropolis.mjs';
 
 const map = MAP_BY_ID.get('metropolis');
 /** A street-level door in a wall along x (a normal along z), and points 1 m either side of its middle. */
@@ -19,13 +20,15 @@ function streetDoor(world) {
 }
 
 test('doorways get doors (bays and arcades do not); Metropolis doors are mirrored west to east like the rest of the map', () => {
-  assert.equal(doorsOf(map).length, 36);
+  assert.equal(doorsOf(map).length, 46, '36 street doorways; the Lekan Court entrances, the Grill fire-escape doors, Okun Tower\'s lobby and the tower stair heads onto the roofs');
   for (const m of MAPS) for (const d of doorsOf(m)) assert.ok(d.w <= 2.2 && d.h <= 3.6, `${m.id} door ${d.i} is a doorway`);
   assert.equal(doorsOf(MAP_BY_ID.get('foundry')).length, 0, 'warehouse bays stay open');
   const doors = doorsOf(map), key = d => JSON.stringify([d.min.map(v => +v.toFixed(3)), d.max.map(v => +v.toFixed(3))]), all = new Set(doors.map(key));
   for (const d of doors) {
     assert.ok(d.max[0] > d.min[0] && d.max[1] > d.min[1] && d.max[2] > d.min[2], 'a real box');
     assert.ok(Math.min(d.max[0] - d.min[0], d.max[2] - d.min[2]) < .1, 'a thin leaf');
+    const c = CENTRAL_INTERIOR, cx = (d.min[0] + d.max[0]) / 2, cz = (d.min[2] + d.max[2]) / 2;
+    if (cx > c.x0 && cx < c.x1 && cz > c.z0 && cz < c.z1) continue; // Okun Tower's stair head (one stair for both teams)
     assert.ok(all.has(key({ min: [-d.max[0], d.min[1], d.min[2]], max: [-d.min[0], d.max[1], d.max[2]] })), `mirror of ${key(d)}`);
   }
 });

@@ -34,6 +34,14 @@ const VIEWS = [
   { id: 'port', at: [-22, 5, 41], yaw: Math.PI + .08, pitch: .1 },                     // over the quay wall at the cranes and the sun
   { id: 'yard', at: [-22, 5, 16], yaw: Math.PI + .6, pitch: .05 },                     // from Harbour Road across the container yard
   { id: 'south', at: [-22, 5, 2], yaw: Math.PI, pitch: .04 },                          // from the plaza down to the port
+  // The enterable towers (Lekan Court, Okun Trust): inside, on the roof, and from the street.
+  { id: 'lekan-floor', at: [-55, 26, -36.5], yaw: Math.PI + .5, pitch: -.04 },              // Lekan Court, top floor, to the avenue windows
+  { id: 'lekan-roof', at: [-50.5, 29.5, -34.5], yaw: -Math.PI / 2 + .35, pitch: -.12 },      // Lekan Court roof, over Marina House to the city
+  { id: 'trust-office', at: [-38, 16, -2], yaw: -Math.PI / 2 + .2, pitch: -.03 },            // Okun Trust third floor, toward the plaza
+  { id: 'okun-top', at: [3, 47, -38.6], yaw: Math.PI - .35, pitch: -.18 },                // Okun Tower, 13th floor, over the plaza
+  { id: 'okun-roof', at: [-1, 50.5, -38.8], yaw: Math.PI + .2, pitch: -.32 },              // Okun Tower roof, the whole city below
+  { id: 'towers-street', at: [-40, 5, -24], yaw: Math.PI / 2 - .55, pitch: .32 },            // Lekan Court from Marina Avenue
+  { id: 'trust-street', at: [-17, 5, 4], yaw: Math.PI / 2 + .05, pitch: .2 },                // Okun Trust from the plaza
   // Close views of the Blender-authored props (blender/build.py): roof plant, kerbside bins, the yard forklift.
   { id: 'roofplant', at: [-34.6, 12, -36.2], yaw: .93, pitch: -.08 },                 // two water tanks on the north-block roof
   { id: 'roofac', at: [-31, 12, -37.6], yaw: Math.PI, pitch: -.2 },                   // two condensing units on the north-block roof

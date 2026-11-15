@@ -16,10 +16,10 @@ repeated here ([COMBAT-ARENA.md](COMBAT-ARENA.md) § Not built, [METROPOLIS.md](
 
 ## Requested by the owner, not started
 
-* **Every building enterable to the top floor.** Not started. Doors are done for every doorway (step 1:
-  [METROPOLIS.md](METROPOLIS.md) § Doors). Opening the towers (`bld-tower`, `bld-glass-tower`, 13–16 m solid blocks)
-  and upper storeys changes the shared, symmetric collision map, adds sightlines over objectives and spawns, and
-  needs furnished interiors within the phone budget; steps 2–3 of the plan in the report.
+* **Every building enterable to the top floor.** Done for every building in Metropolis
+  ([METROPOLIS.md](METROPOLIS.md) § Enterable towers). Remaining: Okun Tower's crown, mast and sign are not drawn on
+  the enterable tower; tower interiors are office floors from one generator (no unique layouts, no lifts); the
+  street walls behind the site (`bld-back`) are scenery, outside the playable bounds.
 * Doors: an open leaf is not collision (players pass through where it stands open); hinged doors only (no sliding,
   roller or revolving doors); bays and arcades have no doors.
 

@@ -326,6 +326,18 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
       b.force = null;
     } else if (box.mat === 'bld-block' && Math.min(x1 - x0, z1 - z0) > .8) { b.force = 'out'; b.box(x0, y0, z0, x1, y1, z1, m.blockwork, 1.6); b.force = null; }
   }
+  // Okun Tower, now enterable to its roof: the landmark's mast and aviation light stand on the parapet's north-east
+  // corner (off the walkable roof), and its name is lettered high on the south face, over the plaza.
+  const okun = map.buildings.find(g => g.id === 'okun');
+  if (okun) {
+    const top = okun.y1, mx = okun.x1 - .2, mz = okun.z0 + .2;
+    b.force = 'out';
+    b.post(mx, mz, top + 1.1, top + 12, .14, m.stainless, 8, .05); b.box(mx - .14, top + 12, mz - .14, mx + .14, top + 12.3, mz + .14, m.beacon, 1);
+    // A stainless band capping the parapet (outside it only: the roof itself stays clear).
+    for (const [a0, c0, a1, c1] of [[okun.x0 - .06, okun.z0 - .06, okun.x1 + .06, okun.z0], [okun.x0 - .06, okun.z1, okun.x1 + .06, okun.z1 + .06], [okun.x0 - .06, okun.z0, okun.x0, okun.z1], [okun.x1, okun.z0, okun.x1 + .06, okun.z1]]) b.box(a0, top - .3, c0, a1, top + 1.15, c1, m.stainless, 1);
+    b.force = null;
+    const uv = signs.text('OKUN TOWER', '#0d1b2a', '#f2e6c8', 512, 96); signPanel(b, signMat, uv, 7.4, 1.4, T((okun.x0 + okun.x1) / 2, top - 2.2, okun.z1 + .12));
+  }
   // The street walls behind the site: a row of different buildings, taller than their collision.
   for (const box of map.boxes) {
     if (box.mat !== 'bld-back') continue;
