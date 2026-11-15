@@ -237,3 +237,11 @@ grade that no longer crushes shade to black. Details, captures and measurements:
 Harmattan Noon retuned against a daylight reference clip and made Quick Play's weather; facade articulation (quoins,
 lintels, shutters, cornices, downpipes) on every masonry building; overhead power and telephone lines; a grade on Low;
 viewmodel self-shadowing. Details, before/after captures and measurements: [METROPOLIS-DAYLIGHT.md](METROPOLIS-DAYLIGHT.md).
+
+## Blender-authored props (November 2026)
+
+Six of the city's code-drawn stand-ins (roof water tanks, condensing units, ventilation units, feeder pillars, refuse
+containers, the port forklift; 32 copies) are now original models built and baked in Blender (`blender/build.py`),
+each modelled to its collision box and loaded before deployment, with the code geometry kept as the fallback.
+Collision and gameplay are unchanged. Pipeline: [BLENDER_ASSET_PIPELINE.md](BLENDER_ASSET_PIPELINE.md); files:
+[ASSET_MANIFEST.md](ASSET_MANIFEST.md); results: [AAA_TRANSFORMATION_REPORT.md](AAA_TRANSFORMATION_REPORT.md).

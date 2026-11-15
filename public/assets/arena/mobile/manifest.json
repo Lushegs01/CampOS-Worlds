@@ -21,6 +21,7 @@
   "props/cardboard.glb": 188396,
   "props/cement.glb": 138168,
   "props/crate.glb": 214456,
+  "props/forklift.glb": 256388,
   "props/generator.glb": 351512,
   "props/handTruck.glb": 331024,
   "props/jerrycan.glb": 245940,
@@ -35,6 +36,9 @@
   "props/plasticCrate.glb": 346708,
   "props/powerBox.glb": 249360,
   "props/propane.glb": 202992,
+  "props/roofAC.glb": 211568,
+  "props/roofTank.glb": 201044,
+  "props/roofVent.glb": 178044,
   "props/securityLight.glb": 255176,
   "props/shelves.glb": 144536,
   "props/sofa.glb": 193920,
@@ -44,7 +48,9 @@
   "props/tubeLight.glb": 99476,
   "props/tyre.glb": 193456,
   "props/utilityBox.glb": 185044,
+  "props/utilityCabinet.glb": 136660,
   "props/wallLamp.glb": 368544,
+  "props/wasteBin.glb": 186584,
   "textures/blockWall/arm.ktx2": 51730,
   "textures/blockWall/color.ktx2": 62826,
   "textures/blockWall/normal.ktx2": 100223,
@@ -127,6 +133,6 @@
   "textures/woodFloor/color.ktx2": 57058,
   "textures/woodFloor/normal.ktx2": 21737
  },
- "bytes": 15360775,
- "fullBytes": 29923437
+ "bytes": 16531063,
+ "fullBytes": 31093725
 }

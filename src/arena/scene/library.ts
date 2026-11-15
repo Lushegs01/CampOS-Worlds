@@ -15,15 +15,22 @@ export const SURFACE_KEYS: SurfaceKey[] = ['concreteWall', 'concreteFloor', 'roa
 export const CITY_SURFACE_KEYS: SurfaceKey[] = ['cityAsphalt', 'sidewalk', 'pavers', 'plazaStone', 'floorTile', 'marble', 'subwayTile', 'facadePanel', 'cladding', 'blockWall', 'shutter', 'woodFloor', 'ceiling',
   'concreteWall', 'concreteFloor', 'gravel', 'brick', 'corrugated', 'paintedMetal', 'metalPlate', 'planks', 'plaster'];
 export type CityPropKey = 'streetLamp' | 'aircon' | 'trashCan' | 'parkBench' | 'manhole' | 'tubeLight' | 'shelves' | 'plasticCrate' | 'cardboard' | 'cement' | 'handTruck' | 'officeDesk' | 'planterBox' | 'cafeSet' | 'trashbag' | 'sofa' | 'camera' | 'monobloc';
+/**
+ * Blender-authored props (blender/build.py → scripts/assets/build-blender-props.mjs), each modelled to the collision box it
+ * dresses. Small (≈0.1 MB each with 512² textures), so a theme loads them before deployment and the city builds them in
+ * place of its code-drawn stand-ins; one that cannot be downloaded leaves the stand-in in place.
+ */
+export type HeroPropKey = 'roofTank' | 'roofAC' | 'roofVent' | 'utilityCabinet' | 'wasteBin' | 'forklift';
+export const HERO_PROPS: HeroPropKey[] = ['roofTank', 'roofAC', 'roofVent', 'utilityCabinet', 'wasteBin', 'forklift'];
 export const CITY_PROPS: CityPropKey[] = ['streetLamp', 'aircon', 'trashCan', 'parkBench', 'manhole', 'tubeLight', 'shelves', 'plasticCrate', 'cardboard', 'cement', 'handTruck', 'officeDesk', 'planterBox', 'cafeSet', 'trashbag', 'sofa', 'camera', 'monobloc'];
 /** What a map's art needs from the pack. */
-export interface Theme { id: string; surfaces: SurfaceKey[]; decor: PropKey[]; /** Relief and roughness maps arrive after deployment. */ deferDetail: boolean; /** Campus textures the map borrows (grass, foliage). */ extra: string[] }
+export interface Theme { id: string; surfaces: SurfaceKey[]; decor: PropKey[]; /** Props the art is built from (before deployment; optional). */ hero: PropKey[]; /** Relief and roughness maps arrive after deployment. */ deferDetail: boolean; /** Campus textures the map borrows (grass, foliage). */ extra: string[] }
 export const THEMES: Record<string, Theme> = {
-  yard: { id: 'yard', surfaces: SURFACE_KEYS, decor: [], deferDetail: false, extra: [] },
-  city: { id: 'city', surfaces: CITY_SURFACE_KEYS, decor: [], deferDetail: true, extra: ['textures/grass/color.ktx2', 'textures/palmBark/color.ktx2', 'foliage/palm-frond.ktx2', 'foliage/leaf-broad.ktx2', 'foliage/leaf-hedge.ktx2'] },
+  yard: { id: 'yard', surfaces: SURFACE_KEYS, decor: [], hero: [], deferDetail: false, extra: [] },
+  city: { id: 'city', surfaces: CITY_SURFACE_KEYS, decor: [], hero: HERO_PROPS, deferDetail: true, extra: ['textures/grass/color.ktx2', 'textures/palmBark/color.ktx2', 'foliage/palm-frond.ktx2', 'foliage/leaf-broad.ktx2', 'foliage/leaf-hedge.ktx2'] },
 };
 export const themeOf = (mapId: string) => (mapId === 'metropolis' ? THEMES.city : THEMES.yard);
-export type PropKey = 'jersey' | 'milCrate' | 'oldCrate' | 'ammo' | 'barrel' | 'jerrycan' | 'generator' | 'wallLamp' | 'securityLight' | 'powerBox' | 'utilityBox' | 'tyre' | 'propane' | 'crate' | CityPropKey;
+export type PropKey = 'jersey' | 'milCrate' | 'oldCrate' | 'ammo' | 'barrel' | 'jerrycan' | 'generator' | 'wallLamp' | 'securityLight' | 'powerBox' | 'utilityBox' | 'tyre' | 'propane' | 'crate' | CityPropKey | HeroPropKey;
 export const PROP_KEYS: PropKey[] = ['jersey', 'milCrate', 'oldCrate', 'ammo', 'barrel', 'jerrycan', 'generator', 'wallLamp', 'securityLight', 'powerBox', 'utilityBox', 'tyre', 'propane', 'crate'];
 /** Props that ARE cover (crates and jersey barriers fill collision boxes): needed before anyone can play. */
 export const COVER_PROPS: PropKey[] = ['jersey', 'milCrate', 'oldCrate', 'crate'];
@@ -88,6 +95,8 @@ export function loadLibrary(gl: THREE.WebGLRenderer, q: ArenaQuality, theme: The
     return [key, { color, normal, arm }] as const;
   }));
   const props = Promise.all(COVER_PROPS.map(key => prop(key, mobile, P1)));
+  // Hero props are part of the art but not of the collision: one that fails to arrive is drawn by code instead.
+  const hero = Promise.all(theme.hero.map(key => prop(key, mobile, P1).catch(e => { console.warn(`Arena prop ${key} unavailable, using the drawn stand-in:`, (e as Error).message); return null; })));
   const info = fetch(assetUrlOf('sky/sky.json')).then(r => r.json()).catch(() => null);
   // The campus has usually decoded the sky already (same cache key as src/world/Sky.tsx).
   const hdrP = cached('sky:hdr', () => loadHDR('sky/environment.hdr', P1));
@@ -97,10 +106,10 @@ export function loadLibrary(gl: THREE.WebGLRenderer, q: ArenaQuality, theme: The
   });
   const sky = loadImage(q.detail ? 'sky/sky.jpg' : 'sky/sky-low.jpg', P1).then(t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return t; });
   const extra = Promise.all(theme.extra.map(async path => [path, await loadTexture(path, P1)] as const));
-  const p = Promise.all([surfaces, props, env, sky, info, hdrP, extra]).then(([s, pr, e, sk, i, hdr, ex]) => ({
+  const p = Promise.all([surfaces, props, env, sky, info, hdrP, extra, hero]).then(([s, pr, e, sk, i, hdr, ex, he]) => ({
     hdr, theme, extra: Object.fromEntries(ex),
     surfaces: Object.fromEntries(s) as Record<SurfaceKey, SurfaceSet>,
-    props: Object.fromEntries(pr) as Library['props'],
+    props: Object.fromEntries([...pr, ...he.filter(h => h !== null)]) as Library['props'],
     env: e, sky: sk, skyScale: i?.skyScale ?? 4, skyCoverage: i?.skyCoverage ?? .544, horizon: new THREE.Color().setRGB(...((i?.horizon ?? [.43, .46, .56]) as [number, number, number]), THREE.LinearSRGBColorSpace),
     sun: { dir: new THREE.Vector3(...((i?.sunDirection ?? [.55, .74, .38]) as [number, number, number])).normalize(), color: new THREE.Color().setRGB(...((i?.sunColor ?? [1, .98, .9]) as [number, number, number]), THREE.LinearSRGBColorSpace), irradiance: i?.sunIrradiance ?? 4 },
     mobile,
