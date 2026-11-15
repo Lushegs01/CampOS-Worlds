@@ -1,0 +1,52 @@
+{
+  "label": "blender-before",
+  "when": "2026-11-15T20:11:43.378Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "day-roofplant-high": {
+      "world": 0,
+      "calls": 164,
+      "triangles": 351415,
+      "textures": 113,
+      "geometries": 734,
+      "fps": 1,
+      "heapMB": 410,
+      "deployMs": 37077
+    },
+    "day-roofac-high": {
+      "world": 0,
+      "calls": 644,
+      "triangles": 1004373,
+      "textures": 187,
+      "geometries": 745,
+      "fps": 0,
+      "heapMB": 450,
+      "deployMs": 37077
+    },
+    "day-kerb-high": {
+      "world": 0,
+      "calls": 204,
+      "triangles": 690913,
+      "textures": 187,
+      "geometries": 745,
+      "fps": 1,
+      "heapMB": 445,
+      "deployMs": 37077
+    },
+    "day-forklift-high": {
+      "world": 0,
+      "calls": 245,
+      "triangles": 780617,
+      "textures": 193,
+      "geometries": 784,
+      "fps": 0,
+      "heapMB": 422,
+      "deployMs": 37077
+    }
+  },
+  "errors": []
+}

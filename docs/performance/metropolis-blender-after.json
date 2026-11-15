@@ -1,0 +1,59 @@
+{
+  "label": "blender-after",
+  "when": "2026-11-15T20:16:24.960Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "day-kerb-high": {
+      "world": 0,
+      "calls": 203,
+      "triangles": 788825,
+      "textures": 205,
+      "geometries": 732,
+      "fps": 1,
+      "heapMB": 448
+    },
+    "day-roofplant-high": {
+      "world": 0,
+      "calls": 163,
+      "triangles": 412347,
+      "textures": 131,
+      "geometries": 721,
+      "fps": 1,
+      "heapMB": 388
+    },
+    "day-roofac-high": {
+      "world": 0,
+      "calls": 638,
+      "triangles": 1121881,
+      "textures": 205,
+      "geometries": 732,
+      "fps": 0,
+      "heapMB": 439
+    },
+    "day-forklift-high": {
+      "world": 0,
+      "calls": 244,
+      "triangles": 801393,
+      "textures": 211,
+      "geometries": 770,
+      "fps": 0,
+      "heapMB": 469
+    },
+    "day-kerb-high-recapture": {
+      "world": 0,
+      "calls": 189,
+      "triangles": 483115,
+      "textures": 131,
+      "geometries": 721,
+      "fps": 1,
+      "heapMB": 408,
+      "deployMs": 35559
+    }
+  },
+  "errors": [],
+  "note": "Views from the first after-run (same streaming state as the before-run); day-kerb-high-recapture is after the galvanised-steel rebake, taken before decor had streamed (not comparable)."
+}

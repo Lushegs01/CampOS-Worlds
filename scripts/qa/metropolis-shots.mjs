@@ -34,6 +34,11 @@ const VIEWS = [
   { id: 'port', at: [-22, 5, 41], yaw: Math.PI + .08, pitch: .1 },                     // over the quay wall at the cranes and the sun
   { id: 'yard', at: [-22, 5, 16], yaw: Math.PI + .6, pitch: .05 },                     // from Harbour Road across the container yard
   { id: 'south', at: [-22, 5, 2], yaw: Math.PI, pitch: .04 },                          // from the plaza down to the port
+  // Close views of the Blender-authored props (blender/build.py): roof plant, kerbside bins, the yard forklift.
+  { id: 'roofplant', at: [-34.6, 12, -36.2], yaw: .93, pitch: -.08 },                 // two water tanks on the north-block roof
+  { id: 'roofac', at: [-31, 12, -37.6], yaw: Math.PI, pitch: -.2 },                   // two condensing units on the north-block roof
+  { id: 'kerb', at: [-24, 5, -37.6], yaw: .05, pitch: -.14 },                          // refuse containers behind the north block
+  { id: 'forklift', at: [-18.5, 5, 27], yaw: Math.PI, pitch: -.12 },                    // the forklift in the port yard
 ];
 const ROOM_PORT = Number(process.env.ROOM_PORT || 3216), WEB_PORT = Number(process.env.WEB_PORT || 5182);
 const room = createRoom({ port: ROOM_PORT, origins: [`http://127.0.0.1:${WEB_PORT}`], heartbeatMs: 90000, arena: { heartbeatMs: 90000, slowCloseMs: 600000, rules: { countdownMs: 100, spawnProtectMs: 0, reconnectMs: 900000, mode: { timeMs: 3600000, scoreLimit: 9999 } } } });

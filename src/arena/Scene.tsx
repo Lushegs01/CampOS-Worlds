@@ -39,12 +39,16 @@ import { forgetAssets, cachedAssets } from '../world/assets';
 import { trackDisposeListeners } from './scene/gpuListeners';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
-import { Effects, Casings, setEffectsGround, flashTexture } from './scene/fx';
+import { Effects, Casings, setEffectsGround } from './scene/fx';
+import { ViewmodelAnimator } from './scene/viewmodel';
+import { MuzzleFX } from './scene/muzzle';
 import { sfx, setIndoor, startAmbience, stopArenaAmbience, stopMatchSounds, prepareMatch, prepareWeapon, prepareVoice, forgetPrepared, trimBanks, nearSurfaces, actions, remoteActions, breathing, ambienceFrame, setGroundProvider, engine as soundEngine, type StepSurface, type ImpactSurface } from './audio';
 import { reloadPlan } from './sound/reloads.mjs';
 import { stepSurfaceOf, impactSurfaceOf, groundSurface, isStair } from './sound/surfaces.mjs';
 import { createGait, createRemoteGait } from './sound/gait.mjs';
 import { QA_HOOKS } from '../qa';
+/** How bright the air is under a Metropolis atmosphere (0 dark … 1 open daylight), for smoke and dust. */
+const ambientOf = (atmo: { sun: number; sunDir: number[]; env: number } | null) => (atmo ? Math.min(1, .1 + (atmo.sun * Math.max(0, atmo.sunDir[1]) + atmo.env * .6) / 3.2) : 1);
 
 // Height fog joins three.js' fog chunks before any arena material compiles (off unless a map turns it on).
 installHeightFog();
@@ -289,7 +293,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => {
     const city = world?.city;
     setEffectsGround(city ? (x, y, z) => { const h = city.sampleHeight(x, z); return h <= y + .3 ? h : y >= 1 ? 1 : 0; } : null);
-    fx.effects.setAmbient(atmo ? Math.min(1, .1 + (atmo.sun * Math.max(0, atmo.sunDir[1]) + atmo.env * .6) / 3.2) : 1);
+    fx.effects.setAmbient(ambientOf(atmo));
     return () => setEffectsGround(null);
   }, [world, fx, atmo]);
   // A pane the server broke: fragments burst both ways from where it stood (its sound is played by the network layer).
@@ -317,17 +321,18 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       sun.shadow.bias = -.0008; sun.shadow.normalBias = .006;
     }
     const holder = new THREE.Group(); vmScene.add(holder);
-    const flash = new THREE.Group(); flash.visible = false; vmScene.add(flash);
-    const fm = new THREE.MeshBasicMaterial({ map: flashTexture(), color: new THREE.Color(5.5, 3.6, 1.7), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
-    for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(new THREE.PlaneGeometry(.16, .5), fm); p.rotation.set(-Math.PI / 2, 0, i * Math.PI / 3); p.position.z = -.14; flash.add(p); }
-    const core = new THREE.Mesh(new THREE.PlaneGeometry(.2, .2), fm); flash.add(core);
+    // Muzzle flash, its light on the weapon and barrel smoke; the weapon's motion (src/arena/scene/viewmodel.ts).
+    const muzzle = new MuzzleFX(); vmScene.add(muzzle.group);
+    const anim = new ViewmodelAnimator();
     const casings = new Casings(q.casings); vmScene.add(casings.mesh);
     return {
-      vmScene, vmCam, holder, sun, fill, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
-      bob: 0, swayX: 0, swayY: 0, lastYaw: 0, lastPitch: 0, kickZ: 0, kickPitch: 0, kickRoll: 0, kickZv: 0, kickPitchV: 0, kickRollV: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0, breath: 0, cyl: 0, slideKick: 0,
+      vmScene, vmCam, holder, sun, fill, muzzle, anim, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
+      bob: 0, lastYaw: 0, lastPitch: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0,
       handR: new THREE.Vector3(.2, -.3, .1), handL: new THREE.Vector3(-.2, -.3, .1),
     };
   }, [q]);
+  // Barrel smoke takes the same light level as the world's smoke.
+  useEffect(() => { vm.muzzle.setAmbient(ambientOf(atmo)); }, [vm, atmo]);
   useEffect(() => { if (lib) { if (!vm.vmScene.environment) vm.vmScene.environment = lib.env; vm.vmScene.environmentIntensity = .9; vm.gunId = ''; } }, [lib, vm]);
   // The arms are drawn with the weapon; if they cannot be downloaded the weapon is drawn on its own (retried on Retry).
   useEffect(() => { let on = true; preloadArms(P1).then(src => { if (on) { vm.armsSrc = src; vm.armsTeam = -1; } }).catch(e => console.warn('Arena arms could not load.', e?.message ?? e)); return () => { on = false; }; }, [vm, attempt]);
@@ -430,11 +435,11 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     else if (f.type === 'flash') fx.effects.flashbang(v1.fromArray(f.at));
     else if (f.type === 'muzzle') { const e = soldiers.current.get(f.num); if (e) e.flashAt = now; }
     else if (f.type === 'capture') { const o = objectives.items.find(i => i.o.id === f.id); if (o) fx.effects.capture(v1.set(o.o.x, o.o.y, o.o.z), new THREE.Color(f.team === live.team ? TEAM_COLORS.friend : TEAM_COLORS.enemy), o.o.r); }
-    else if (f.type === 'land') vm.landV -= Math.min(1.2, f.speed * .09);
+    else if (f.type === 'land') { vm.landV -= Math.min(1.2, f.speed * .09); vm.anim.landed(f.speed); }
     else if (f.type === 'shot') {
       // Our own shot: flash, kick, a casing and a wisp of smoke.
       const w = WEAPONS.find(x => x.id === f.weapon)!, heavy = w.category === 'sniper' || w.category === 'shotgun' ? 1 : w.id === 'm7' ? .85 : w.category === 'lmg' ? .55 : w.category === 'pistol' ? .5 : .38, ads = live.sim?.ads ?? 0;
-      vm.flashAt = now; vm.kickZ += .028 * heavy * (1 - ads * .35) + .008; vm.kickPitch += .05 * heavy * (1 - ads * .5) + .008; vm.kickRoll += (Math.random() - .5) * .03 * heavy; vm.slideKick = 1;
+      vm.flashAt = now; vm.anim.shot(w, ads); if (w.fire !== 'melee') vm.muzzle.fire(w.id === 'm7' ? .25 : heavy >= 1 ? 1.5 : w.category === 'pistol' ? .7 : w.category === 'smg' ? .55 : w.category === 'lmg' ? .9 : .8, ads);
       const port = vm.gun?.getObjectByName('ejection');
       if (port && w.fire !== 'bolt' && w.id !== 'bastion' && w.id !== 'thorn') { vm.casings.eject(port.getWorldPosition(v1)); sfx.ejected(w.id); }
       const muzzle = vm.gun?.getObjectByName('muzzle');
@@ -641,105 +646,26 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   function updateViewmodel(dt: number, now: number) {
     const s = live.sim, scoped = !!s && weaponOf(s).category === 'sniper' && s.ads > .85;
     const show = !!s && live.alive && !scoped && !!lib;
-    vm.holder.visible = show; vm.flash.visible = false; if (vm.arms) vm.arms.visible = show;
+    vm.holder.visible = show; if (vm.arms) vm.arms.visible = show;
     if (!s || !lib) return;
     const w = weaponOf(s), skin = live.loadout?.skins?.[w.id] ?? 'standard';
     if (vm.gunId !== w.id || vm.skin !== skin) {
       // The model streams in on first use; until then nothing is drawn (the weapon is still raising).
       const next = weaponModel(w.id, skin);
       if (vm.gun) disposeWeapon(vm.gun);
-      vm.gun = next; if (next) { next.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = o.receiveShadow = !!vm.sun.castShadow; } }); vm.holder.add(next); vm.gunId = w.id; vm.skin = skin; vm.cyl = 0; } else vm.gunId = '';
+      vm.gun = next; if (next) { next.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = o.receiveShadow = !!vm.sun.castShadow; } }); vm.holder.add(next); vm.gunId = w.id; vm.skin = skin; } else vm.gunId = '';
     }
     if (vm.armsSrc && (vm.armsTeam !== live.team || !vm.arms)) { if (vm.arms) { vm.vmScene.remove(vm.arms.root); vm.arms.dispose(); } vm.arms = new FirstPersonArms(vm.armsSrc, live.team); vm.arms.root.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = !!vm.sun.castShadow; }); vm.vmScene.add(vm.arms.root); vm.armsTeam = live.team; }
     if (!vm.gun) { vm.holder.visible = false; if (vm.arms) vm.arms.visible = false; return; }
-    const gun = vm.gun, sightY = (gun.userData.sightY as number) ?? .09, melee = w.fire === 'melee', sidearm = w.category === 'pistol';
-    // Springs: recoil, landing, look sway.
-    // (The kick is an under-damped spring: the rifle punches back into the shoulder and settles with a slight
-    // overshoot, instead of sliding home along an exponential. Viewmodel only; aim and recoil rules are unchanged.)
-    { const h = Math.min(dt, 1 / 30); for (const [k, c, x, v] of [[300, 19, 'kickZ', 'kickZv'], [240, 18, 'kickPitch', 'kickPitchV'], [200, 17, 'kickRoll', 'kickRollV']] as const) { vm[v] += (-k * vm[x] - c * vm[v]) * h; vm[x] += vm[v] * h; } }
-    vm.slideKick *= Math.exp(-dt * 26);
-    vm.landV += (-vm.land * 90 - vm.landV * 13) * dt; vm.land += vm.landV * dt;
+    const gun = vm.gun, melee = w.fire === 'melee';
+    // The weapon's whole motion (hip/sights, sway, recoil, reload choreography, actions) from the simulation's state.
     const dyaw = controls.yaw - vm.lastYaw, dpitch = controls.pitch - vm.lastPitch; vm.lastYaw = controls.yaw; vm.lastPitch = controls.pitch;
-    vm.swayX += (THREE.MathUtils.clamp(dyaw * .9, -.05, .05) - vm.swayX) * Math.min(1, dt * 9); vm.swayY += (THREE.MathUtils.clamp(-dpitch * .9, -.04, .04) - vm.swayY) * Math.min(1, dt * 9);
-    const speed = Math.hypot(s.vx, s.vz); vm.breath += dt; // (vm.bob: the gait's phase, set in the frame)
-    const moving = s.grounded ? Math.min(1, speed / 5) : 0, ads = s.ads * s.ads * (3 - 2 * s.ads), hipK = 1 - ads;
-    // Base pose: hip, blended to the sights when aiming.
-    const hip = melee ? v1.set(.15, -.17, -.42) : sidearm ? v1.set(.085, -sightY - .07, -.5) : v1.set(.1, -sightY - .068, -.4);
-    const aim = v2.set(0, -sightY, (gun.userData.adsZ as number) ?? -.28);
-    let x = hip.x + (aim.x - hip.x) * ads, y = hip.y + (aim.y - hip.y) * ads, z = hip.z + (aim.z - hip.z) * ads;
-    let rx = melee ? .22 : 0, ry = (melee ? .14 : .035) * hipK, rz = melee ? -.25 : 0;
-    // Idle breathing, look sway, walk bob.
-    x += vm.swayX + Math.cos(vm.bob) * .0065 * moving * (hipK * .9 + .1) + Math.sin(vm.breath * .9) * .0012 * hipK;
-    y += vm.swayY - Math.abs(Math.sin(vm.bob)) * .008 * moving * (hipK * .9 + .1) + Math.sin(vm.breath * 1.3) * .0016 * (hipK * .8 + .2) - vm.land * .05;
-    rz += -vm.swayX * 1.4 + Math.sin(vm.bob) * .012 * moving * hipK; rx += vm.swayY * .8;
-    // Sprint: high-ready, canted across the body, with a heavier bob.
-    const sp = (vm as unknown as { sprintK?: number }); sp.sprintK = (sp.sprintK ?? 0) + ((s.sprint ? 1 : 0) - (sp.sprintK ?? 0)) * Math.min(1, dt * 9); const sk = sp.sprintK;
-    if (!melee) { x -= .025 * sk; y += (-.055 + Math.sin(vm.bob * 2) * .012) * sk; z += .03 * sk; rx += -.5 * sk; ry += .58 * sk; rz += .22 * sk; } else { y += Math.sin(vm.bob * 2) * .015 * sk; rx -= .2 * sk; }
-    // Airborne and sliding.
-    if (!s.grounded) { y += THREE.MathUtils.clamp(-s.vy * .004, -.03, .03); rx += THREE.MathUtils.clamp(s.vy * .008, -.06, .06); }
-    if (s.stance === 2) { rz += .26; y -= .02; x += .02; }
-    // Recoil.
-    z += vm.kickZ; rx += vm.kickPitch; rz += vm.kickRoll; y += vm.kickPitch * .08;
-    // Phase animations, driven by the simulation's own timers.
-    let leftToMag = 0, rightToBolt = 0, leftOff = 0;
-    const mag = gun.getObjectByName('mag'), bolt = gun.getObjectByName('bolt'), pump = gun.getObjectByName('pump'), slide = gun.getObjectByName('slide'), cyl = gun.getObjectByName('cylinder');
-    const rest = (o: THREE.Object3D | undefined) => { if (o && o.userData.rest) o.position.copy(o.userData.rest as THREE.Vector3); };
-    rest(mag); rest(bolt); rest(pump); rest(slide); rest(cyl);
-    if (s.phase === 'reload') {
-      // The reload plan (src/arena/sound/reloads.mjs) times both this animation and the sound of each part.
-      const k = THREE.MathUtils.clamp(1 - s.pt / Math.max(1, live.reloadTotal), 0, 1), plan = reloadPlan(w.id, live.reloadEmpty), ss = THREE.MathUtils.smoothstep;
-      if (w.reloadMode === 'shell' || !plan) {
-        // Shell by shell: the support hand goes to the loading port and pushes each shell in (its cue at 0.55).
-        const u = s.pt <= (w.reload ?? 1) ? 1 - s.pt / Math.max(1, w.reload ?? 1) : 0; rx += .3; rz -= .35; y -= .03; leftOff = Math.sin(u * Math.PI) * .12;
-      } else {
-        const tilt = ss(k, plan.tilt[0], plan.tilt[1]) * (1 - ss(k, plan.tilt[2], plan.tilt[3]));
-        rx += .22 * tilt; rz -= .42 * tilt; ry += .12 * tilt; y -= .035 * tilt; x -= .02 * tilt;
-        if (plan.out && plan.in) {
-          const out = ss(k, plan.out[0], plan.out[1]), back = ss(k, plan.in[0], plan.in[1]), drop = out * (1 - back);
-          if (mag) { mag.position.y -= drop * .34; mag.position.z += drop * .05; mag.visible = !(out > .98 && back < .02); }
-        }
-        leftToMag = ss(k, plan.hand[0], plan.hand[1]) * (1 - ss(k, plan.hand[2], plan.hand[3]));
-        // Seat the magazine with a tap; from empty, work the action (a tactical reload keeps its chambered round).
-        if (plan.seat != null) y += Math.sin(THREE.MathUtils.clamp((k - plan.seat) / .06, 0, 1) * Math.PI) * .012;
-        if (plan.rack) { const rack = Math.sin(THREE.MathUtils.clamp((k - plan.rack[0]) / (plan.rack[1] - plan.rack[0]), 0, 1) * Math.PI); if (bolt) bolt.position.z += rack * .05; if (slide) slide.position.z += rack * .035; z += rack * .012; }
-        // A revolver's cylinder swings out for the ejector and the speed-loader, then closes.
-        if (plan.cyl && cyl) { const open = ss(k, plan.cyl[0], plan.cyl[0] + .08) * (1 - ss(k, plan.cyl[1] - .05, plan.cyl[1])); cyl.position.x -= open * .028; rz -= open * .22; }
-      }
-    } else { gun.userData.reloadProgress = -1; if (mag) mag.visible = true; }
-    if (s.phase === 'inspect' && w.id === 'm7') {
-      const k = 1 - s.pt / (w.inspect ?? 144), blend = Math.sin(Math.PI * k) ** 2;
-      x -= .045 * blend; y += .075 * blend; z -= .06 * blend;
-      rz -= .85 * blend; ry += .55 * blend; rx += .12 * blend;
-    }
-    if (s.phase === 'switch') { const k = s.pt / Math.max(1, w.swap), e = k * k; y -= e * .42; rx -= e * 1.0; rz += e * .3; }
-    if (s.phase === 'melee') { const total = melee ? w.swing ?? 30 : 30, k = 1 - s.pt / total, sw = Math.sin(Math.min(1, k * 1.25) * Math.PI); if (melee) { x -= sw * .16; z -= sw * .18; ry += sw * .9; rz += sw * .5; } else { z -= sw * .2; ry += sw * .75; rx += sw * .25; x -= sw * .08; } }
-    if (s.phase === 'throw') { const k = 1 - s.pt / 22, sw = Math.sin(k * Math.PI); y -= sw * .32; rx -= sw * .7; }
-    // Actions that cycle between shots: pump, bolt, slide, cylinder.
-    if (w.rpm && s.cool > 0 && s.phase === 'ready') {
-      const u = 1 - s.cool / (3600 / w.rpm);
-      if (pump) { const c = Math.sin(THREE.MathUtils.clamp((u - .12) / .5, 0, 1) * Math.PI); pump.position.z += c * .085; leftOff = c * .085; }
-      if (bolt && w.fire === 'bolt') { const c = Math.sin(THREE.MathUtils.clamp((u - .15) / .55, 0, 1) * Math.PI); bolt.position.z += c * .075; bolt.position.y += Math.min(1, c * 2) * .012; rightToBolt = Math.min(1, c * 1.6); rz -= c * .1; }
-    }
-    if (slide) slide.position.z += vm.slideKick * .028;
-    // M7 charging handles are non-reciprocating; animate only on reload.
-    if (cyl) { vm.cyl += (s.shots * Math.PI / 3 - vm.cyl) * Math.min(1, dt * 18); cyl.rotation.z = vm.cyl; }
-    vm.holder.position.set(x, y, z); vm.holder.rotation.set(rx, ry, rz); vm.holder.updateMatrixWorld(true);
-    const reticle = gun.getObjectByName('reticle'); if (reticle) reticle.visible = ads > .55 && s.phase !== 'reload';
-    // Muzzle flash: two frames of a star flash at the barrel.
-    const muzzle = gun.getObjectByName('muzzle');
-    if (muzzle && !melee && now - vm.flashAt < 42 && show) { vm.flash.visible = true; muzzle.getWorldPosition(vm.flash.position); vm.flash.quaternion.copy(vm.holder.quaternion); vm.flash.rotateZ(Math.random() * 6.28); const sc = (.5 + Math.random() * .5) * (w.category === 'shotgun' || w.category === 'sniper' ? 1.5 : w.category === 'pistol' ? .7 : 1) * (1 - ads * .45); vm.flash.scale.setScalar(sc * (w.id === 'm7' ? .2 : 1)); }
-    // Arms: two-bone IK from the shoulders to the weapon's grips (or to the magazine, the bolt).
-    if (vm.arms && show) {
-      const gR = gun.getObjectByName('gripR'), gL = gun.getObjectByName('gripL');
-      if (gR && gL) {
-        gR.getWorldPosition(v1); if (rightToBolt && bolt) v1.lerp(bolt.getWorldPosition(v3), rightToBolt * .85); vm.handR.copy(v1);
-        gL.getWorldPosition(v1); v1.z += leftOff;
-        const well = mag ?? gun.getObjectByName('magwell'); if (leftToMag && well) { well.getWorldPosition(v3); if (mag) v3.y -= .07; v1.lerp(v3, leftToMag); }
-        if (s.phase === 'throw' || (s.phase === 'melee' && !melee)) v1.lerp(v3.set(-.25, -.5, .1), .9);
-        vm.handL.lerp(v1, Math.min(1, dt * 30));
-        vm.arms.pose(gun.userData.hold ?? 'rifle', vm.handR, vm.handL, vm.holder.quaternion, leftToMag);
-      }
-    }
+    vm.landV += (-vm.land * 90 - vm.landV * 13) * dt; vm.land += vm.landV * dt;
+    const o = vm.anim.update({ dt, sim: s, weapon: w, reloadTotal: live.reloadTotal, reloadEmpty: live.reloadEmpty, mag: s.wpn[s.slot]?.mag ?? 1, dyaw, dpitch, bob: vm.bob }, gun, vm.holder);
+    const reticle = gun.getObjectByName('reticle'); if (reticle) reticle.visible = o.ads > .55 && s.phase !== 'reload';
+    vm.muzzle.update(dt, show && !melee ? gun.getObjectByName('muzzle') ?? null : null, vm.anim.barrelHeat, vm.holder.quaternion);
+    // Arms: two-bone IK from the shoulders to the hand targets the animator placed.
+    if (vm.arms && show) vm.arms.pose(gun.userData.hold ?? 'rifle', o.handR, o.handL, vm.holder.quaternion, o.reachL);
     // Light on the weapon follows the world: the sun in camera space, dimmed in shade.
     if (lib) {
       v1.copy(citySun?.dir ?? lib.sun.dir).transformDirection(camera.matrixWorldInverse);
@@ -753,7 +679,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       vm.vmScene.environmentIntensity = (cityLight?.env ?? .95) * (atmo ? 1.6 : 1) * (1 - vm.indoor * .37) * (camera.position.y < 4.6 && atmo ? .5 : 1);
       vm.vmScene.environmentRotation.setFromQuaternion(q1.copy(camera.quaternion).invert());
     }
-    vm.vmCam.aspect = size.width / size.height; const vfov = 56 - ads * 14; if (vm.vmCam.fov !== vfov) { vm.vmCam.fov = vfov; } vm.vmCam.updateProjectionMatrix();
+    vm.vmCam.aspect = size.width / size.height; vm.vmCam.fov = o.vfov; vm.vmCam.updateProjectionMatrix();
   }
 
   const passes = useMemo(() => ({ world: 0 }), []);

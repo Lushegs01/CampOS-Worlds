@@ -43,27 +43,71 @@ if (mode === 'sheet') {
   document.title = 'done';
 }
 
-if (mode === 'fp') {
+if (mode === 'fp' || mode === 'seq') {
+  // The match's own animator and muzzle effects, driven through scripted scenarios on a 60 Hz simulated clock.
+  //   ?mode=fp&id=…&pose=hip|ads|reload|reloadEmpty|sprint|fire   one still (the scenario at a representative moment)
+  //   ?mode=seq&id=…&seq=…&fps=30   window.__frame(i) renders frame i (scripts/qa/arena-weapons.mjs seq → video)
   const { weaponModel, preloadWeapon, preloadArms, FirstPersonArms } = await import('../../src/arena/scene/weapons');
-  const id = params.get('id') ?? 'vanguard', pose = params.get('pose') ?? 'hip', team = Number(params.get('team') ?? 0);
-  renderer.setSize(1280, 720);
+  const { ViewmodelAnimator } = await import('../../src/arena/scene/viewmodel');
+  const { MuzzleFX } = await import('../../src/arena/scene/muzzle');
+  const { WEAPON_BY_ID } = await import('../../shared/arena/weapons.mjs');
+  const id = params.get('id') ?? 'vanguard', team = Number(params.get('team') ?? 0), W = 1280, H = 720;
+  renderer.setSize(W, H);
   const scene = new THREE.Scene(); scene.environment = env; scene.background = hdr; scene.backgroundIntensity = .8; scene.environmentIntensity = .95;
-  const sun = new THREE.DirectionalLight('#fff0d8', 3.2); sun.position.set(1.2, 2, .8); scene.add(sun, new THREE.HemisphereLight('#cdd9e8', '#5a5348', .5));
-  const cam = new THREE.PerspectiveCamera(pose === 'ads' ? 42 : 56, 1280 / 720, .01, 50);
+  // ?bg=dim: an overcast/indoor backdrop (the flash, smoke and the hands' shading read as they do under cover).
+  if (params.get('bg') === 'dim') { scene.backgroundIntensity = .12; scene.environmentIntensity = .35; }
+  const sun = new THREE.DirectionalLight('#fff0d8', params.get('bg') === 'dim' ? .9 : 3.2); sun.position.set(1.2, 2, .8); scene.add(sun, new THREE.HemisphereLight('#cdd9e8', '#5a5348', .5));
+  const cam = new THREE.PerspectiveCamera(50, W / H, .01, 50);
   await Promise.all([preloadWeapon(id), preloadArms()]);
   const gun = weaponModel(id, params.get('skin') ?? 'standard')!, holder = new THREE.Group(); holder.add(gun); scene.add(holder);
   const arms = new FirstPersonArms(await preloadArms(), team); scene.add(arms.root);
-  const sightY = gun.userData.sightY as number, hold = gun.userData.hold as string;
-  let x = hold === 'blade' ? .15 : hold === 'pistol' ? .085 : .1, y = hold === 'blade' ? -.17 : -sightY - (hold === 'pistol' ? .07 : .068), z = hold === 'blade' ? -.42 : hold === 'pistol' ? -.5 : -.4;
-  let rx = hold === 'blade' ? .22 : 0, ry = hold === 'blade' ? .14 : .035, rz = hold === 'blade' ? -.25 : 0, toMag = 0;
-  if (pose === 'ads') { x = 0; y = -sightY; z = gun.userData.adsZ; ry = 0; rz = 0; const r = gun.getObjectByName('reticle'); if (r) r.visible = true; }
-  if (pose === 'sprint') { x -= .025; y -= .055; z += .03; rx -= .5; ry += .58; rz += .22; }
-  if (pose === 'reload') { rx += .22; rz -= .42; ry += .12; y -= .035; x -= .02; toMag = 1; const mag = gun.getObjectByName('mag'); if (mag) mag.position.y -= .12; }
-  holder.position.set(x, y, z); holder.rotation.set(rx, ry, rz); holder.updateMatrixWorld(true);
-  const r = gun.getObjectByName('gripR')!.getWorldPosition(new THREE.Vector3()), l = gun.getObjectByName('gripL')!.getWorldPosition(new THREE.Vector3());
-  if (toMag) { const well = gun.getObjectByName('mag') ?? gun.getObjectByName('magwell')!; well.getWorldPosition(l); if (gun.getObjectByName('mag')) l.y -= .07; }
-  if (pose === 'bind') { holder.visible = false; cam.position.set(0, .45, -1.4); cam.lookAt(0, -.35, -.45); }
-  else arms.pose(hold as 'rifle', r, l, holder.quaternion, toMag);
-  renderer.render(scene, cam);
+  const anim = new ViewmodelAnimator(), fx = new MuzzleFX(); scene.add(fx.group);
+  (window as unknown as Record<string, unknown>).__fx = fx;
+  fx.setAmbient(params.get('bg') === 'dim' ? .25 : 1);
+  const w = WEAPON_BY_ID.get(id) as unknown as { id: string; category: string; fire: string; rpm?: number; reloadMode?: string; reload: number; reloadEmpty: number; swap: number; ads: number; mag: number; burst?: number };
+  const weight = w.category === 'shotgun' || w.category === 'sniper' ? 1.5 : w.category === 'pistol' ? .7 : w.category === 'smg' ? .55 : w.id === 'm7' ? .25 : w.category === 'lmg' ? .9 : .8;
+  const sim = { phase: 'ready', pt: 0, cool: 0, ads: 0, sprint: false, stance: 0, grounded: true, vx: 0, vy: 0, vz: 0, shots: 0 };
+  let mag = w.mag, reloadTotal = 1, reloadEmpty = false, bob = 0, tick = 0;
+  /** What the player is doing at time t (seconds) in each scenario. */
+  type Want = { ads?: boolean; fire?: boolean; reload?: boolean; sprint?: boolean; walk?: boolean; empty?: boolean };
+  const SCENARIOS: Record<string, { length: number; at: (t: number) => Want }> = {
+    hip: { length: 2, at: () => ({}) },
+    ads: { length: 3, at: t => ({ ads: t > .4 && t < 2.1 }) },
+    fire: { length: 3.2, at: t => ({ ads: t > .2, fire: t > .6 && t < 1.8 }) },
+    hipfire: { length: 2.6, at: t => ({ fire: t > .4 && t < 1.4 }) },
+    reload: { length: (w.reload ?? 120) / 60 + 1, at: t => ({ reload: t > .3 && t < .4 }) },
+    reloadEmpty: { length: (w.reloadEmpty ?? 150) / 60 + 1, at: t => ({ reload: t > .3 && t < .4, empty: true }) },
+    sprint: { length: 2.4, at: t => ({ sprint: t > .2 && t < 2, walk: t > .2 }) },
+    walk: { length: 2.4, at: () => ({ walk: true }) },
+  };
+  // A still is the scenario at its telling moment.
+  const STILL: Record<string, [string, number]> = { hip: ['hip', 1.5], ads: ['ads', 1.6], reload: ['reload', .3 + (w.reload ?? 120) / 60 * .25], reloadEmpty: ['reloadEmpty', .3 + (w.reloadEmpty ?? 150) / 60 * .5], sprint: ['sprint', 1.4], fire: ['fire', .64], walk: ['walk', 1.2] };
+  const seqName = mode === 'fp' ? STILL[params.get('pose') ?? 'hip']?.[0] ?? 'hip' : params.get('seq') ?? 'fire';
+  const sc = SCENARIOS[seqName] ?? SCENARIOS.hip;
+  if (sc === SCENARIOS.reloadEmpty) mag = 0; else if (sc === SCENARIOS.reload) mag = Math.max(1, w.mag - 9);
+  const stepTick = () => {
+    const t = tick / 60, want = sc.at(t); tick++;
+    if (want.reload && sim.phase === 'ready' && mag < w.mag) { sim.phase = 'reload'; reloadEmpty = !!want.empty || mag === 0; sim.pt = reloadTotal = reloadEmpty ? w.reloadEmpty : w.reload; sim.ads = 0; }
+    if (sim.phase === 'reload' && --sim.pt <= 0) { sim.phase = 'ready'; sim.pt = 0; mag = w.mag; }
+    sim.sprint = !!want.sprint;
+    if (want.ads && !sim.sprint && sim.phase === 'ready') sim.ads = Math.min(1, sim.ads + 1 / Math.max(1, w.ads)); else sim.ads = Math.max(0, sim.ads - 1.25 / Math.max(1, w.ads));
+    const speed = want.sprint ? 6.4 : want.walk ? 4 : 0; sim.vz = -speed;
+    if (speed) bob += (1 / 60) * (want.sprint ? 11 : 7.5);
+    if (sim.cool > 0) sim.cool--;
+    if (want.fire && sim.phase === 'ready' && sim.cool <= 0 && mag > 0 && w.rpm) {
+      sim.cool = Math.max(3600 / w.rpm, w.fire === 'auto' ? 0 : 14); mag--; sim.shots++;
+      anim.shot(w, sim.ads); fx.fire(weight, sim.ads);
+    }
+    let dyaw = 0, dpitch = 0; if (want.walk) dyaw = Math.sin(t * 3) * .004;
+    const out = anim.update({ dt: 1 / 60, sim, weapon: w, reloadTotal, reloadEmpty, mag, dyaw, dpitch, bob }, gun, holder);
+    arms.pose(gun.userData.hold ?? 'rifle', out.handR, out.handL, holder.quaternion, out.reachL);
+    const reticle = gun.getObjectByName('reticle'); if (reticle) reticle.visible = out.ads > .55 && sim.phase !== 'reload';
+    fx.update(1 / 60, gun.getObjectByName('muzzle') ?? null, anim.barrelHeat, holder.quaternion);
+    if (Math.abs(cam.fov - out.vfov) > .01) { cam.fov = out.vfov; cam.updateProjectionMatrix(); }
+  };
+  const fps = Number(params.get('fps') ?? 30);
+  (window as unknown as Record<string, unknown>).__frame = (i: number) => { while (tick < Math.round(i / fps * 60)) stepTick(); renderer.render(scene, cam); return i / fps < sc.length; };
+  (window as unknown as Record<string, unknown>).__frames = Math.ceil(sc.length * fps);
+  if (mode === 'fp') { const at = STILL[params.get('pose') ?? 'hip']?.[1] ?? 1.5; while (tick < at * 60) stepTick(); renderer.render(scene, cam); }
   document.title = 'done';
 }

@@ -17,21 +17,23 @@ interface Spec {
   eject: [number, number, number] | null; eye: number; hold: Hold;
   /** Red-dot optics: z of the emitter window, where the reticle is drawn. */
   dot?: number;
+  /** Where the support hand works the action on an empty reload [x, y, z]: bolt catch, charging handle, cocking lever. */
+  charge?: [number, number, number];
 }
 // Measured from the normalised models (y up from the bore, z back from the muzzle, metres).
 const SPECS: Record<string, Spec> = {
-  m7: { grip: [-.09, .69], fore: [-.035, .4], sight: [.104, .6], mag: [-.13, .58], eject: [.035, .0, .61], eye: .22, hold: 'rifle', dot: .51 },
-  vanguard: { grip: [-.09, .58], fore: [-.035, .3], sight: [.0685, .41], mag: [-.12, .38], eject: [.025, 0, .5], eye: .26, hold: 'rifle', dot: .35 },
-  halcyon: { grip: [-.09, .66], fore: [-.03, .38], sight: [.053, .4], mag: [-.12, .48], eject: [.025, .01, .55], eye: .17, hold: 'rifle' },
-  wasp: { grip: [-.1, .39], fore: [-.03, .14], sight: [.071, .285], mag: [-.12, .17], eject: [.025, .02, .3], eye: .26, hold: 'rifle', dot: .25 },
-  kestrel: { grip: [-.075, .55], fore: [-.03, .3], sight: [.122, .47], mag: [-.13, .42], eject: [.03, .04, .45], eye: .26, hold: 'rifle', dot: .405 },
-  bastion: { grip: [-.08, .68], fore: [-.035, .32], sight: [.03, .55], mag: [-.04, .5], eject: [.025, 0, .55], eye: .17, hold: 'rifle' },
-  rampart: { grip: [-.08, .7], fore: [-.04, .34], sight: [.045, .58], mag: [-.04, .52], eject: [.03, 0, .55], eye: .17, hold: 'rifle' },
-  longbow: { grip: [-.1, .78], fore: [-.035, .45], sight: [.1, .86], mag: [-.1, .66], eject: [.03, .02, .7], eye: .1, hold: 'rifle' },
-  talon: { grip: [-.1, .76], fore: [-.035, .42], sight: [.11, .8], mag: [-.1, .58], eject: [.03, .02, .68], eye: .1, hold: 'rifle' },
-  anvil: { grip: [-.08, .7], fore: [-.05, .36], sight: [.058, .71], mag: [-.12, .55], eject: [.03, 0, .62], eye: .16, hold: 'rifle' },
-  sparrow: { grip: [-.072, .165], fore: [-.088, .155], sight: [.008, .19], mag: [-.1, .16], eject: [.012, 0, .12], eye: .45, hold: 'pistol' },
-  thorn: { grip: [-.088, .2], fore: [-.1, .19], sight: [.012, .18], mag: [-.03, .1], eject: null, eye: .45, hold: 'pistol' },
+  m7: { grip: [-.09, .69], fore: [-.035, .4], sight: [.104, .6], mag: [-.13, .58], eject: [.035, .0, .61], eye: .22, hold: 'rifle', dot: .51 , charge: [-.022, -.02, .52] },
+  vanguard: { grip: [-.09, .58], fore: [-.035, .3], sight: [.0685, .41], mag: [-.12, .38], eject: [.025, 0, .5], eye: .26, hold: 'rifle', dot: .35 , charge: [-.022, -.012, .43] },
+  halcyon: { grip: [-.09, .66], fore: [-.03, .38], sight: [.053, .4], mag: [-.12, .48], eject: [.025, .01, .55], eye: .17, hold: 'rifle' , charge: [.035, .025, .5] },
+  wasp: { grip: [-.1, .39], fore: [-.03, .14], sight: [.071, .285], mag: [-.12, .17], eject: [.025, .02, .3], eye: .26, hold: 'rifle', dot: .25 , charge: [-.03, .035, .1] },
+  kestrel: { grip: [-.075, .55], fore: [-.03, .3], sight: [.122, .47], mag: [-.13, .42], eject: [.03, .04, .45], eye: .26, hold: 'rifle', dot: .405 , charge: [-.03, .03, .44] },
+  bastion: { grip: [-.08, .68], fore: [-.035, .32], sight: [.062, .55], mag: [-.04, .5], eject: [.025, 0, .55], eye: .3, hold: 'rifle' },
+  rampart: { grip: [-.08, .7], fore: [-.04, .34], sight: [.045, .58], mag: [-.04, .52], eject: [.03, 0, .55], eye: .17, hold: 'rifle' , charge: [.03, .0, .5] },
+  longbow: { grip: [-.1, .78], fore: [-.035, .45], sight: [.1, .86], mag: [-.1, .66], eject: [.03, .02, .7], eye: .1, hold: 'rifle' , charge: [.035, .03, .74] },
+  talon: { grip: [-.1, .76], fore: [-.035, .42], sight: [.11, .8], mag: [-.1, .58], eject: [.03, .02, .68], eye: .1, hold: 'rifle' , charge: [.035, .03, .62] },
+  anvil: { grip: [-.08, .7], fore: [-.05, .36], sight: [.058, .71], mag: [-.12, .55], eject: [.03, 0, .62], eye: .16, hold: 'rifle' , charge: [.035, .035, .56] },
+  sparrow: { grip: [-.072, .165], fore: [-.088, .155], sight: [.008, .19], mag: [-.1, .16], eject: [.012, 0, .12], eye: .55, hold: 'pistol' },
+  thorn: { grip: [-.088, .2], fore: [-.1, .19], sight: [.012, .18], mag: [-.03, .1], eject: null, eye: .55, hold: 'pistol' },
   knife: { grip: [.03, .26], fore: [-.3, .3], sight: [0, .2], mag: [-.3, .3], eject: null, eye: .3, hold: 'blade' },
   hammer: { grip: [.085, .33], fore: [-.3, .4], sight: [0, .25], mag: [-.3, .4], eject: null, eye: .3, hold: 'blade' },
 };
@@ -83,12 +85,22 @@ export function weaponModel(id: string, skin = 'standard', lod = false): THREE.G
   inner.position.z = -o; g.add(inner);
   inner.traverse(n => { const m = n as THREE.Mesh; if (m.isMesh) m.material = skinned(m.material as THREE.Material, skin); });
   // Moving parts (named by the build) are found by name; remember where they rest.
-  for (const name of MOVING) { const p = inner.getObjectByName(name); if (p) p.userData.rest = p.position.clone(); }
+  // Each moving part hangs from a pivot at the top-centre of its bounds (a magazine rocks about its feed lips, a
+  // revolver's cylinder turns about its centre). The pivot takes the part's name, so callers move and turn the pivot.
+  g.updateMatrixWorld(true);
+  for (const name of MOVING) {
+    const p = inner.getObjectByName(name); if (!p) continue;
+    const box = new THREE.Box3().setFromObject(p), pivot = new THREE.Group();
+    pivot.position.set((box.min.x + box.max.x) / 2, name === 'cylinder' ? (box.min.y + box.max.y) / 2 : box.max.y, (box.min.z + box.max.z) / 2); g.add(pivot); pivot.updateMatrixWorld(true);
+    p.name = name + 'Mesh'; pivot.attach(p); pivot.name = name;
+    pivot.userData.rest = pivot.position.clone(); pivot.userData.size = box.getSize(new THREE.Vector3());
+  }
   const at = (yz: [number, number]) => [yz[0], yz[1] - o] as const;
   anchor(g, 'muzzle', 0, 0, -o);
   const [gy, gz] = at(s.grip), [fy, fz] = at(s.fore), [my, mz] = at(s.mag), [sy, sz] = at(s.sight);
   anchor(g, 'gripR', 0, gy, gz); anchor(g, 'gripL', s.hold === 'pistol' ? -.012 : 0, fy, fz); anchor(g, 'magwell', 0, my, mz);
   if (s.eject) anchor(g, 'ejection', s.eject[0], s.eject[1], s.eject[2] - o);
+  if (s.charge) anchor(g, 'charge', s.charge[0], s.charge[1], s.charge[2] - o);
   if (s.dot != null) {
     // The illuminated dot: drawn over everything, shown only on the sights (see the viewmodel).
     const dot = new THREE.Group(); dot.name = 'reticle'; dot.position.set(0, sy, s.dot - o); dot.visible = false; dot.renderOrder = 20;
@@ -133,6 +145,28 @@ const SHOULDERS = new THREE.Vector3(0, -.3, -.03), STANCE = -.3;
 let armsLoad: Promise<THREE.Group> | null = null;
 export function preloadArms(fetch?: FetchOptions) { const p = (armsLoad ??= loadModel('arena/weapons/arms.glb', fetch).then(g => g.scene)); p.catch(() => { if (armsLoad === p) armsLoad = null; }); return p; }
 
+/**
+ * The source arms wear fingerless gloves; a soldier in full kit wears full ones. Every vertex skinned to a finger or
+ * thumb bone gets a weight (from the rig itself, no texture edit), and the shader draws those areas as the glove's dark
+ * knit, roughened, so both hands read as gloved like the rest of the kit.
+ */
+function fullGloves(m: THREE.SkinnedMesh, mat: THREE.MeshStandardMaterial) {
+  const geo = m.geometry, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight; if (!si || !sw || geo.attributes.aGlove) { if (geo.attributes.aGlove) patchGlove(mat); return; }
+  const finger = m.skeleton.bones.map(b => /_(point|middle|ring|pink|thumb)\d/.test(b.name));
+  const out = new Float32Array(si.count);
+  for (let i = 0; i < si.count; i++) { let w = 0; for (let j = 0; j < 4; j++) if (finger[si.getComponent(i, j)]) w += sw.getComponent(i, j); out[i] = w; }
+  geo.setAttribute('aGlove', new THREE.BufferAttribute(out, 1)); patchGlove(mat);
+}
+function patchGlove(mat: THREE.MeshStandardMaterial) {
+  mat.onBeforeCompile = sh => {
+    sh.vertexShader = 'attribute float aGlove;\nvarying float vGlove;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlove = aGlove;');
+    sh.fragmentShader = 'varying float vGlove;\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', '#include <map_fragment>\nfloat gloveK = smoothstep(.25, .6, vGlove);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(.032, .033, .031) * (.8 + .4 * dot(diffuseColor.rgb, vec3(.33))), gloveK);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, .82, gloveK);');
+  };
+  mat.customProgramCacheKey = () => 'fp-gloves';
+}
+
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4();
 interface Side {
@@ -147,7 +181,7 @@ export class FirstPersonArms {
     // The rig faces +z in centimetres: turn it to face −z (the camera's forward) and scale to metres.
     this.root.rotation.y = Math.PI + STANCE; this.root.scale.setScalar(ARM_SCALE); this.root.updateMatrixWorld(true);
     const tint = new THREE.Color(team === 1 ? '#d8c6a4' : '#c2cbb0');
-    this.root.traverse(o => { const m = o as THREE.SkinnedMesh; if (m.isMesh) { m.frustumCulled = false; const mat = (m.material as THREE.MeshStandardMaterial).clone(); mat.color.multiply(tint); m.material = mat; } });
+    this.root.traverse(o => { const m = o as THREE.SkinnedMesh; if (m.isMesh) { m.frustumCulled = false; const mat = (m.material as THREE.MeshStandardMaterial).clone(); mat.color.multiply(tint); m.material = mat; if (m.isSkinnedMesh) fullGloves(m, mat); } });
     this.root.updateMatrixWorld(true);
     const bones: THREE.Bone[] = []; this.root.traverse(o => { if ((o as THREE.Bone).isBone) bones.push(o as THREE.Bone); });
     const find = (re: RegExp) => bones.find(b => re.test(b.name))!;

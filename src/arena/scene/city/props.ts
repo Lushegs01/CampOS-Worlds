@@ -29,6 +29,16 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
     M,
   });
   void wheel;
+  /**
+   * A Blender-authored prop (library HERO_PROPS) filling a collision box: its long axis (+x) along the box's long axis,
+   * as `frame` lays out the code-drawn version, scaled to the box exactly. False when the model is not loaded.
+   */
+  const hero = (key: PropKey, box: Box, P: Props) => {
+    const s = lib.props[key]?.size; if (!s) return false;
+    const f = frame(box), [x0, y0, z0] = box.min, [x1, y1, z1] = box.max;
+    P.place(key, (x0 + x1) / 2, y0, (z0 + z1) / 2, f.alongX ? 0 : -Math.PI / 2, f.len / s.x, (y1 - y0) / s.y, f.wid / s.z);
+    return true;
+  };
 
   for (const box of map.boxes) {
     const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = x1 - x0, d = z1 - z0, h = y1 - y0, seed = Math.abs(cx) * 7.1 + cz * 3.3 + y0;
@@ -99,6 +109,7 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         break;
       }
       case 'forklift': {
+        if (hero('forklift', box, P)) break;
         const f = frame(box), l = local(f.M), W = f.wid / 2, Ln = f.len / 2;
         l.rbox(-Ln, .3, -W, Ln - .9, 1.05, W, m.orange, .1); l.box(-Ln, 1.05, -W + .05, -Ln + .5, 1.3, W - .05, m.black, 1);
         for (const [u, v] of [[-Ln + .06, -W + .06], [-Ln + .06, W - .06], [.1, -W + .06], [.1, W - .06]]) l.box(u - .04, 1.05, v - .04, u + .04, h, v + .04, m.black, 1);
@@ -164,9 +175,9 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         if (ug) l.box(-Ln, h, -W, Ln, h + .4, -W + .05, m.stainless, 1);
         break;
       }
-      case 'bin': { const n = Math.max(1, Math.round(Math.max(w, d) / .7)); for (let i = 0; i < n; i++) { const px = w >= d ? x0 + (i + .5) * w / n : cx, pz = w >= d ? cz : z0 + (i + .5) * d / n; b.rbox(px - .3, y0, pz - .3, px + .3, y1 - .08, pz + .3, i % 2 ? m.green : m.blue, .06); b.box(px - .33, y1 - .08, pz - .33, px + .33, y1, pz + .33, m.black, 1); for (const s of [-1, 1]) b.box(px + s * .26 - .04, y0, pz + .22, px + s * .26 + .04, y0 + .14, pz + .3, m.rubber, 1); } break; }
+      case 'bin': { if (w <= 1.25 && d <= 1.25 && hero('wasteBin', box, P)) break; const n = Math.max(1, Math.round(Math.max(w, d) / .7)); for (let i = 0; i < n; i++) { const px = w >= d ? x0 + (i + .5) * w / n : cx, pz = w >= d ? cz : z0 + (i + .5) * d / n; b.rbox(px - .3, y0, pz - .3, px + .3, y1 - .08, pz + .3, i % 2 ? m.green : m.blue, .06); b.box(px - .33, y1 - .08, pz - .33, px + .33, y1, pz + .33, m.black, 1); for (const s of [-1, 1]) b.box(px + s * .26 - .04, y0, pz + .22, px + s * .26 + .04, y0 + .14, pz + .3, m.rubber, 1); } break; }
       case 'bollard': b.post(cx, cz, y0, y1 - .05, Math.min(w, d) / 2 - .04, m.darkSteel, 14); b.post(cx, cz, y1 - .05, y1, Math.min(w, d) / 2, m.yellow, 14); b.post(cx, cz, y0 + h * .55, y0 + h * .7, Math.min(w, d) / 2 - .035, m.white, 14); break;
-      case 'utility': b.rbox(x0, y0 + .08, z0, x1, y1, z1, m.steel, .04); b.box(x0 - .03, y0, z0 - .03, x1 + .03, y0 + .08, z1 + .03, m.concrete, 1); b.box(cx - .01, y0 + .15, z0 - .008, cx + .01, y1 - .1, z1 + .008, m.darkSteel, 1); b.box(x0 + .1, y1 - .3, z1, x0 + .32, y1 - .12, z1 + .008, m.yellow, 1); break;
+      case 'utility': if (hero('utilityCabinet', box, P)) break; b.rbox(x0, y0 + .08, z0, x1, y1, z1, m.steel, .04); b.box(x0 - .03, y0, z0 - .03, x1 + .03, y0 + .08, z1 + .03, m.concrete, 1); b.box(cx - .01, y0 + .15, z0 - .008, cx + .01, y1 - .1, z1 + .008, m.darkSteel, 1); b.box(x0 + .1, y1 - .3, z1, x0 + .32, y1 - .12, z1 + .008, m.yellow, 1); break;
       case 'lamppost': {
         // The column; the lantern arm reaches over the carriageway (toward the nearest road axis).
         b.post(cx, cz, y0, y0 + .9, .11, m.darkSteel, 10, .08); b.post(cx, cz, y0 + .9, y1 + 1.4, .08, m.darkSteel, 8, .05);
@@ -211,6 +222,7 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
       case 'ug-room': b.box(x0, y0, z0, x1, y1, z1, m.ugWall, 1.2); b.box(x0 + .5, y0 + 1, z1, x1 - .5, y0 + 2, z1 + .02, m.glassDark, 1); b.box(x0 + .4, y0 + 2.2, z1, x1 - .4, y0 + 2.6, z1 + .03, m.blue, 1); signPanel(b, litMat, signs.text('STATION CONTROL', '#14365c', '#ffffff', 512, 64), w - 1, .34, T(cx, y0 + 2.4, z1 + .035)); b.box(x0 - .02, y0 + 1.2, cz - .5, x0, y0 + 2.2, cz + .5, m.led, 1); b.box(x1, y0 + 1.2, cz - .5, x1 + .02, y0 + 2.2, cz + .5, m.led, 1); break;
       // ------------------------------------------------------------ roofs
       case 'tank': {
+        if (hero('roofTank', box, P)) break;
         // A ribbed polyethylene water tank on a steel stand: on every roof in the city.
         const r = Math.min(w, d) / 2 - .05, stand = .55, body = h - stand - .25, pts: THREE.Vector2[] = [];
         for (let i = 0; i <= 14; i++) { const t = i / 14; pts.push(new THREE.Vector2(r * (1 - .02 * Math.cos(t * Math.PI * 10)) * (t > .93 ? 1 - (t - .93) * 3 : 1), t * body)); }
@@ -220,8 +232,8 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         b.cyl(new THREE.Vector3(cx + r, y0 + stand + .15, cz), new THREE.Vector3(cx + r + .12, y0 + .05, cz), .025, m.plastic, 6);
         break;
       }
-      case 'ac': if (lib.props.aircon) props.fit(lib, 'aircon' as PropKey, x0, y0 + .1, z0, x1, y1, z1); else b.rbox(x0, y0 + .1, z0, x1, y1, z1, m.white, .04); b.box(x0, y0, z0 + .1, x1, y0 + .1, z0 + .2, m.steel, 1); b.box(x0, y0, z1 - .2, x1, y0 + .1, z1 - .1, m.steel, 1); break;
-      case 'vent': b.box(x0, y0, z0, x1, y1 - .3, z1, m.steel, 1.5); for (let y = y0 + .15; y < y1 - .4; y += .12) b.box(x0 - .012, y, z0 + .1, x1 + .012, y + .05, z1 - .1, m.darkSteel, 1); b.post(cx - w * .22, cz, y1 - .3, y1, .22, m.steel, 12, .3); b.post(cx + w * .22, cz, y1 - .3, y1, .22, m.steel, 12, .3); break;
+      case 'ac': if (hero('roofAC', box, P)) break; if (lib.props.aircon) props.fit(lib, 'aircon' as PropKey, x0, y0 + .1, z0, x1, y1, z1); else b.rbox(x0, y0 + .1, z0, x1, y1, z1, m.white, .04); b.box(x0, y0, z0 + .1, x1, y0 + .1, z0 + .2, m.steel, 1); b.box(x0, y0, z1 - .2, x1, y0 + .1, z1 - .1, m.steel, 1); break;
+      case 'vent': if (hero('roofVent', box, P)) break; b.box(x0, y0, z0, x1, y1 - .3, z1, m.steel, 1.5); for (let y = y0 + .15; y < y1 - .4; y += .12) b.box(x0 - .012, y, z0 + .1, x1 + .012, y + .05, z1 - .1, m.darkSteel, 1); b.post(cx - w * .22, cz, y1 - .3, y1, .22, m.steel, 12, .3); b.post(cx + w * .22, cz, y1 - .3, y1, .22, m.steel, 12, .3); break;
       case 'plant': b.box(x0, y0, z0, x1, y1 - .12, z1, m.cladding, 3); b.box(x0 - .08, y1 - .12, z0 - .08, x1 + .08, y1, z1 + .08, m.steel, 1); for (let y = y0 + .4; y < y1 - .5; y += .14) b.box(x0 + .2, y, z1, x1 - .2, y + .06, z1 + .02, m.darkSteel, 1); b.box(x0 - .02, y0, cz - .45, x0, y0 + 2, cz + .45, m.steel, 1); break;
       // ------------------------------------------------------------ plaza, station entrances, transit
       case 'plinth': b.box(x0, y0, z0, x1, y1, z1, m.plaza, 2); b.box(x0 + .5, y1, z0 + .5, x1 - .5, y1 + .18, z1 - .5, m.stone, 2); break;
