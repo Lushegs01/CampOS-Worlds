@@ -54,7 +54,7 @@ interface Arena {
   open: boolean; phase: Phase; status: 'idle' | 'connecting' | 'ready' | 'offline' | 'replaced'; error: string;
   /** Something the player should know about this session (accounts unavailable: playing as a guest). */
   notice: string;
-  me: { name: string; verified: boolean; handle: string | null; level: number; xp: number; emblem: string; weaponLevels: Record<string, number> } | null;
+  me: { name: string; verified: boolean; handle: string | null; level: number; xp: number; emblem: string; weaponLevels: Record<string, number>; weaponXp: Record<string, number> } | null;
   /** Store items the account owns, as the arena server knows them (premium weapons: 'weapon-<id>'). */
   owned: string[];
   loadout: Loadout; loadouts: Loadout[]; online: number;
@@ -99,3 +99,42 @@ export const useBanners = create<{ list: Banner[]; push: (b: Omit<Banner, 'id' |
   list: [],
   push: b => { const item = { ...b, id: ++bannerId, at: performance.now() }; set({ list: [...get().list.filter(x => performance.now() - x.at < x.ms).slice(-4), item] }); setTimeout(() => set({ list: get().list.filter(x => x.id !== item.id) }), b.ms); },
 }));
+
+/**
+ * Moment-to-moment combat feedback, outside the main store so a burst of eliminations re-renders only these
+ * views: the card for the player you just eliminated, the experience popup beside the crosshair (with the
+ * medals that came with it), the count of eliminations this life, lead changes, and unlocks reached mid-match.
+ */
+export type ElimCard = { id: number; num: number; name: string; level: number; emblem: string; bot: boolean; head: boolean; at: number };
+export type ScorePop = { id: number; xp: number; tags: string[]; kill: boolean; at: number };
+export type LeadCall = { id: number; kind: 'taken' | 'back' | 'lost'; at: number };
+export type UnlockToast = { id: number; title: string; sub: string; colors?: string[]; glyph?: string; at: number };
+let feedbackId = 0;
+const POP_MERGE_MS = 1800, POP_MS = 2300, CARD_MS = 2600, COUNT_MS = 2400, LEAD_MS = 3200, UNLOCK_MS = 3600;
+/** How long feedback stays, as a multiple (QA captures under software rendering hold it; see net.ts hooks). */
+export const feedbackTiming = { scale: 1 };
+export const useFeedback = create<{
+  card: ElimCard | null; pop: ScorePop | null; count: { id: number; n: number } | null; lead: LeadCall | null; unlocks: UnlockToast[];
+  eliminated: (c: Omit<ElimCard, 'id' | 'at'>) => void; score: (xp: number, tags: string[], kill?: boolean) => void; counted: (n: number) => void;
+  leadChanged: (kind: LeadCall['kind']) => void; unlocked: (u: Omit<UnlockToast, 'id' | 'at'>) => void; clear: () => void;
+}>()((set, get) => {
+  const expire = <K extends 'card' | 'pop' | 'count' | 'lead'>(key: K, id: number, ms: number) => setTimeout(() => { if ((get()[key] as { id: number } | null)?.id === id) set({ [key]: null } as never); }, ms * feedbackTiming.scale);
+  return {
+    card: null, pop: null, count: null, lead: null, unlocks: [],
+    eliminated: c => { const card = { ...c, id: ++feedbackId, at: performance.now() }; set({ card }); expire('card', card.id, CARD_MS); },
+    // Experience arriving close together adds up in one popup (an elimination, then its assist, then a capture).
+    score: (xp, tags, kill = false) => {
+      const now = performance.now(), cur = get().pop;
+      const pop = cur && now - cur.at < POP_MERGE_MS ? { ...cur, xp: cur.xp + xp, tags: [...cur.tags, ...tags.filter(t => !cur.tags.includes(t))].slice(-4), kill: cur.kill || kill, at: now } : { id: ++feedbackId, xp, tags: tags.slice(0, 4), kill, at: now };
+      set({ pop }); setTimeout(() => { const p = get().pop; if (p && p.id === pop.id && performance.now() - p.at >= POP_MS * feedbackTiming.scale - 20) set({ pop: null }); }, POP_MS * feedbackTiming.scale);
+    },
+    counted: n => { const count = { id: ++feedbackId, n }; set({ count }); expire('count', count.id, COUNT_MS); },
+    leadChanged: kind => { const lead = { id: ++feedbackId, kind, at: performance.now() }; set({ lead }); expire('lead', lead.id, LEAD_MS); },
+    unlocked: u => {
+      const item = { ...u, id: ++feedbackId, at: performance.now() };
+      set({ unlocks: [...get().unlocks.slice(-2), item] });
+      setTimeout(() => set({ unlocks: get().unlocks.filter(x => x.id !== item.id) }), UNLOCK_MS * feedbackTiming.scale);
+    },
+    clear: () => set({ card: null, pop: null, count: null, lead: null, unlocks: [] }),
+  };
+});

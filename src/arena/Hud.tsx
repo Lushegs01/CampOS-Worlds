@@ -8,36 +8,39 @@ import { Skull } from 'lucide-react';
 import { DISTRICTS, districtAt } from '../../shared/arena/metropolis.mjs';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
 import { WEAPON_BY_ID, EQUIPMENT_BY_ID, CATEGORIES, EMBLEM_BY_ID } from '../../shared/arena/weapons.mjs';
-import { MODE_BY_ID } from '../../shared/arena/rules.mjs';
+import { MODE_BY_ID, MEDALS } from '../../shared/arena/rules.mjs';
 import { weaponOf, B } from '../../shared/arena/sim.mjs';
-import { useArena, useBanners } from './store';
+import { useArena, useBanners, useFeedback } from './store';
 import { live, currentSpread, useStreak } from './net';
 import { controls, press } from './input';
 import { useActiveLayout, useHudProfile, type Layout } from './hudLayout';
-import { Slot, useViewport, layoutVars, CrosshairMarks, TimerView, ScoreView, HealthView, AmmoView, WeaponInfoView, WeaponSlotsView, NetView, ObjectivesView, StreaksView, KillfeedView, BannerView, fmtClock } from './hudViews';
+import { cinematic } from './look';
+import { Slot, useViewport, layoutVars, CrosshairMarks, TimerView, ScoreView, HealthView, AmmoView, WeaponInfoView, WeaponSlotsView, NetView, ObjectivesView, StreaksView, KillfeedView, BannerView, ElimCardView, ScorePopView, KillCountView, LeadCallView, UnlockToastView, fmtClock } from './hudViews';
 
 const weaponName = (id: string | null) => (id ? WEAPON_BY_ID.get(id)?.name ?? EQUIPMENT_BY_ID.get(id)?.name ?? (id === 'strike' ? 'Tactical Strike' : id === 'melee' ? 'Melee' : id === 'fall' ? 'Fall' : id) : '');
 type P = { layout: Layout; view: { w: number; h: number } };
 
 export default function Hud() {
   const phase = useArena(s => s.phase), dead = useArena(s => !s.hud.alive), scoreboard = useArena(s => s.scoreboard), mode = useArena(s => s.match?.mode);
+  const ref = cinematic(useArena(s => s.match?.map));
   const layout = useActiveLayout(), view = useViewport(), touch = useHudProfile() !== 'desktop';
   if (phase !== 'match') return null;
   const p = { layout, view };
-  return <div className={`ar-hud${layout.global.contrast === 'high' ? ' contrast-high' : ''}${touch ? ' touch' : ''}`} style={layoutVars(layout)} aria-live="polite">
+  return <div className={`ar-hud${layout.global.contrast === 'high' ? ' contrast-high' : ''}${touch ? ' touch' : ''}${ref ? ' cinematic' : ''}`} style={layoutVars(layout)} aria-live="polite">
     <HudFx layout={layout} />
     <Slot id="timer" {...p}><Timer /></Slot>
     <Slot id="score" {...p}><Score /></Slot>
     <Slot id="compass" {...p}><Compass /></Slot>
     {mode === 'dom' && <Slot id="objectives" {...p}><Objectives /></Slot>}
-    <Slot id="killfeed" {...p}><KillFeed /></Slot>
+    <Slot id="killfeed" {...p}>{ref ? <div className="ar-feedcol"><ElimCard /><KillFeed /></div> : <KillFeed />}</Slot>
     <Slot id="minimap" {...p}><Minimap /></Slot>
     <Slot id="health" {...p}><Vitals /></Slot>
     <Slot id="weaponSlots" {...p}><WeaponSlots /></Slot>
     <Slot id="weaponInfo" {...p}><WeaponInfo keys={!touch} /></Slot>
     <Slot id="ammo" {...p}><Ammo /></Slot>
     <Slot id="streaks" {...p} interactive><Streaks keys={!touch} /></Slot>
-    <Slot id="killNotify" {...p}><Banners /></Slot>
+    <Slot id="killNotify" {...p}>{ref ? <div className="ar-notify"><LeadCall /><UnlockToasts /><Banners /></div> : <Banners />}</Slot>
+    {ref && layout.elements.killNotify?.visible !== false && <CenterFeedback text={layout.global.textScale} />}
     <Slot id="status" {...p}><Netline /></Slot>
     <MatchStatus />
     {dead && <Respawn />}
@@ -140,40 +143,67 @@ function KillFeed() {
   return <KillfeedView rows={feed.filter(f => now - f.at < 7000).map(f => ({ id: f.id, killer: f.killer !== f.victim ? name(f.killer) : null, victim: name(f.victim), weapon: weaponName(f.weapon), weaponId: f.weapon && WEAPON_BY_ID.has(f.weapon) ? f.weapon : null, head: f.head }))} />;
 }
 
-/** North-up tactical map: teammates always; enemies only while visible and firing, or revealed by Recon Pulse. */
+/**
+ * Tactical map: teammates always; enemies only while visible and firing, or revealed by Recon Pulse. North-up and
+ * square on most maps; on Metropolis (the cinematic HUD) round, centred on the player and turning with their view.
+ */
 const Minimap = memo(function Minimap() {
   const ref = useRef<HTMLCanvasElement>(null!), mapId = useArena(s => s.match?.map ?? 'foundry'), mode = useArena(s => s.match?.mode);
-  useEffect(() => { const stop = drawMinimap(ref.current, mapId, mode === 'dom', true); return stop; }, [mapId, mode]);
-  return <canvas ref={ref} className="ar-minimap" style={{ width: 168, height: 168 }} aria-label="Tactical map" />;
+  const centred = cinematic(mapId);
+  useEffect(() => { const stop = drawMinimap(ref.current, mapId, mode === 'dom', true, centred); return stop; }, [mapId, mode, centred]);
+  return <canvas ref={ref} className={`ar-minimap${centred ? ' round' : ''}`} style={{ width: 168, height: 168 }} aria-label="Tactical map" />;
 });
+/** Metres of the map from the centre to the edge of the round, player-centred map. */
+const ROUND_RANGE = 42;
 /** Draws the tactical map into `c`; when `live` is set it keeps redrawing players ten times a second. */
-export function drawMinimap(c: HTMLCanvasElement, mapId: string, dom: boolean, liveMode: boolean) {
+export function drawMinimap(c: HTMLCanvasElement, mapId: string, dom: boolean, liveMode: boolean, centred = false) {
   const map = MAP_BY_ID.get(mapId) ?? MAP_BY_ID.get('foundry')!, g = c.getContext('2d'); if (!g) return () => {};
   const size = 168, ratio = Math.min(2, window.devicePixelRatio || 1);
   c.width = c.height = size * ratio; g.setTransform(ratio, 0, 0, ratio, 0, 0);
-  const [x0, z0, x1, z1] = map.bounds, span = Math.max(x1 - x0, z1 - z0) * 1.05, k = size / span, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-  const P = (x: number, z: number) => [size / 2 + (x - cx) * k, size / 2 + (z - cz) * k];
-  const base = document.createElement('canvas'); base.width = base.height = size; const bg = base.getContext('2d')!;
+  const [x0, z0, x1, z1] = map.bounds, span = Math.max(x1 - x0, z1 - z0) * 1.05, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  // The base layer: the whole map once (at 3 px a metre when centred, so it stays sharp when turned and scaled).
+  const ppm = centred ? 3 : size / span, margin = centred ? ROUND_RANGE : 0;
+  const bx0 = centred ? x0 - margin : cx - span / 2, bz0 = centred ? z0 - margin : cz - span / 2;
+  const bw = centred ? Math.ceil((x1 - x0 + margin * 2) * ppm) : size, bh = centred ? Math.ceil((z1 - z0 + margin * 2) * ppm) : size;
+  const B = (x: number, z: number) => [(x - bx0) * ppm, (z - bz0) * ppm];
+  const base = document.createElement('canvas'); base.width = bw; base.height = bh; const bg = base.getContext('2d')!;
   let level = '';
   const drawBase = (next: string) => {
-    level = next; bg.clearRect(0, 0, size, size); bg.fillStyle = 'rgba(16,22,26,.88)'; bg.fillRect(0, 0, size, size);
+    level = next; bg.clearRect(0, 0, bw, bh); bg.fillStyle = centred ? 'rgba(20,27,31,.9)' : 'rgba(16,22,26,.88)'; bg.fillRect(0, 0, bw, bh);
+    if (centred) { const [a1, b1] = B(x0, z0), [a2, b2] = B(x1, z1); bg.fillStyle = 'rgba(58,68,72,.55)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1); }
     for (const b of map.boxes) {
       const street = 'street' in map ? map.street : 0;
       if (mapId === 'metropolis') {
         if (level === 'underground' ? b.min[1] >= 4.4 || b.max[1] <= 1 : b.max[1] <= street) continue;
       } else if (b.max[1] - b.min[1] < 1.4 && b.max[1] < 2.5) continue;
-      const [a1, b1] = P(b.min[0], b.min[2]), [a2, b2] = P(b.max[0], b.max[2]);
-      bg.fillStyle = b.min[1] > street + 2.5 ? 'rgba(160,170,175,.18)' : 'rgba(185,195,200,.55)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1);
+      const [a1, b1] = B(b.min[0], b.min[2]), [a2, b2] = B(b.max[0], b.max[2]);
+      bg.fillStyle = b.min[1] > street + 2.5 ? 'rgba(160,170,175,.18)' : centred ? 'rgba(196,204,207,.62)' : 'rgba(185,195,200,.55)'; bg.fillRect(a1, b1, a2 - a1, b2 - b1);
     }
   };
+  // Where a map point is drawn: north-up, or turned about the player (their view straight up) and scaled to the range.
+  const view = { px: cx, pz: cz, yaw: 0 };
+  const s = centred ? size / 2 / ROUND_RANGE : 1;
+  const P = (x: number, z: number) => {
+    if (!centred) return B(x, z);
+    const dx = x - view.px, dz = z - view.pz, cs = Math.cos(view.yaw), sn = Math.sin(view.yaw);
+    return [size / 2 + (dx * cs - dz * sn) * s, size / 2 + (dx * sn + dz * cs) * s];
+  };
+  const arrow = (px: number, py: number, rot: number) => { g.save(); g.translate(px, py); g.rotate(rot); g.fillStyle = '#ffe9a8'; g.beginPath(); g.moveTo(0, -6); g.lineTo(4.5, 5); g.lineTo(0, 2.5); g.lineTo(-4.5, 5); g.closePath(); g.fill(); g.restore(); };
   const draw = () => {
     const now = performance.now(), a = useArena.getState();
     const district = mapId === 'metropolis' && live.sim ? districtAt(live.sim.x, live.sim.y, live.sim.z) : 'surface';
     const next = district === 'underground' ? district : 'surface'; if (level !== next) drawBase(next);
-    g.clearRect(0, 0, size, size); g.drawImage(base, 0, 0);
-    if (mapId === 'metropolis') { g.fillStyle = '#f2efe6'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText(DISTRICTS.find(d => d.id === district)?.name ?? 'Okun Bay', size / 2, size - 5); }
+    if (live.sim) { view.px = live.sim.x; view.pz = live.sim.z; } view.yaw = centred && liveMode ? controls.yaw : 0;
+    g.clearRect(0, 0, size, size);
+    if (centred) {
+      g.save(); g.beginPath(); g.arc(size / 2, size / 2, size / 2, 0, 6.2832); g.clip();
+      g.translate(size / 2, size / 2); g.rotate(view.yaw); g.scale(s, s); g.translate(-view.px, -view.pz);
+      g.drawImage(base, bx0, bz0, bw / ppm, bh / ppm); g.restore();
+      g.save(); g.beginPath(); g.arc(size / 2, size / 2, size / 2, 0, 6.2832); g.clip();
+    } else g.drawImage(base, 0, 0);
+    if (mapId === 'metropolis' && !centred) { g.fillStyle = '#f2efe6'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText(DISTRICTS.find(d => d.id === district)?.name ?? 'Okun Bay', size / 2, size - 5); }
     if (dom) map.objectives.forEach((o: { id: string; x: number; z: number }, i: number) => { const [px, py] = P(o.x, o.z), owner = a.hud.objectives[i]?.[0] ?? -1; g.fillStyle = owner < 0 ? '#f2efe6' : owner === live.team ? '#4fb3ff' : '#ff5a48'; g.font = '700 11px Manrope Variable, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(o.id, px, py); });
-    if (!liveMode) { const [px, py] = P(cx, cz); g.fillStyle = '#ffe9a8'; g.beginPath(); g.moveTo(px, py - 6); g.lineTo(px + 4.5, py + 5); g.lineTo(px, py + 2.5); g.lineTo(px - 4.5, py + 5); g.closePath(); g.fill(); return; }
+    if (!liveMode) { const [px, py] = P(cx, cz); arrow(px, py, 0); if (centred) g.restore(); return; }
     for (const r of live.remotes.values()) {
       if (!(r.flags & 1) || !r.seenAt) continue;
       const friend = r.team === live.team;
@@ -181,16 +211,26 @@ export function drawMinimap(c: HTMLCanvasElement, mapId: string, dom: boolean, l
       const [px, py] = P(r.pos.x, r.pos.z); g.fillStyle = friend ? '#4fb3ff' : '#ff5a48'; g.beginPath(); g.arc(px, py, 3.2, 0, 6.3); g.fill();
     }
     for (const [, x, z] of live.radar) { const [px, py] = P(x / 100, z / 100); g.fillStyle = '#ff5a48'; g.beginPath(); g.arc(px, py, 3.4, 0, 6.3); g.fill(); g.strokeStyle = 'rgba(255,90,72,.5)'; g.beginPath(); g.arc(px, py, 5 + (now / 120 % 4), 0, 6.3); g.stroke(); }
-    for (const s of live.strikes) { const [px, py] = P(s.x, s.z); g.strokeStyle = '#ff3b2f'; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, s.r * k, 0, 6.3); g.stroke(); }
-    if (live.sim) {
-      const [px, py] = P(live.sim.x, live.sim.z), yaw = controls.yaw;
-      g.save(); g.translate(px, py); g.rotate(-yaw); g.fillStyle = '#ffe9a8'; g.beginPath(); g.moveTo(0, -6); g.lineTo(4.5, 5); g.lineTo(0, 2.5); g.lineTo(-4.5, 5); g.closePath(); g.fill(); g.restore();
+    for (const st of live.strikes) { const [px, py] = P(st.x, st.z); g.strokeStyle = '#ff3b2f'; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, st.r * (centred ? s : ppm), 0, 6.3); g.stroke(); }
+    if (live.sim) { const [px, py] = P(live.sim.x, live.sim.z); arrow(px, py, centred ? 0 : -controls.yaw); }
+    if (centred) {
+      // The view cone, and north on the rim.
+      const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, 46); grad.addColorStop(0, 'rgba(255,233,168,.22)'); grad.addColorStop(1, 'rgba(255,233,168,0)');
+      g.fillStyle = grad; g.beginPath(); g.moveTo(size / 2, size / 2); g.arc(size / 2, size / 2, 46, -Math.PI / 2 - .55, -Math.PI / 2 + .55); g.closePath(); g.fill();
+      if (mapId === 'metropolis') { g.fillStyle = 'rgba(242,239,230,.85)'; g.font = '700 8.5px Manrope Variable, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText((DISTRICTS.find(d => d.id === district)?.name ?? 'Okun Bay').toUpperCase(), size / 2, size - 16); }
+      g.restore();
+      const nx = size / 2 + Math.sin(view.yaw) * (size / 2 - 9), ny = size / 2 - Math.cos(view.yaw) * (size / 2 - 9);
+      g.fillStyle = 'rgba(10,14,16,.85)'; g.beginPath(); g.arc(nx, ny, 7, 0, 6.3); g.fill();
+      g.fillStyle = '#f2efe6'; g.font = '800 9px Manrope Variable, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('N', nx, ny + .5);
     }
-    if (live.reconUntil > now) { g.strokeStyle = 'rgba(79,179,255,.6)'; g.lineWidth = 2; g.strokeRect(1, 1, size - 2, size - 2); }
+    if (live.reconUntil > now) { g.strokeStyle = 'rgba(79,179,255,.6)'; g.lineWidth = 2; if (centred) { g.beginPath(); g.arc(size / 2, size / 2, size / 2 - 1, 0, 6.3); g.stroke(); } else g.strokeRect(1, 1, size - 2, size - 2); }
   };
   draw();
   if (!liveMode) return () => {};
-  const timer = window.setInterval(draw, 100);
+  // Turning with the view needs a smoother redraw than the north-up map's ten a second.
+  let timer = 0, raf = 0;
+  if (centred) { const loop = () => { raf = requestAnimationFrame(loop); if (performance.now() - timer >= 33) { timer = performance.now(); draw(); } }; raf = requestAnimationFrame(loop); return () => cancelAnimationFrame(raf); }
+  timer = window.setInterval(draw, 100);
   return () => clearInterval(timer);
 }
 
@@ -217,6 +257,14 @@ function Ammo() {
 function Streaks({ keys }: { keys: boolean }) {
   const earned = useArena(s => s.hud.earned), pts = useArena(s => s.hud.streakPts), level = useArena(s => s.me?.level ?? 1), perks = useArena(s => s.loadout.perks);
   return <StreaksView earned={earned} pts={pts} level={level} hardline={perks.includes('hardline')} onUse={useStreak} keys={keys} />;
+}
+function ElimCard() { return <ElimCardView card={useFeedback(s => s.card)} />; }
+function LeadCall() { return <LeadCallView lead={useFeedback(s => s.lead)} />; }
+function UnlockToasts() { return <UnlockToastView list={useFeedback(s => s.unlocks)} />; }
+/** Beside and below the crosshair (fixed, like the crosshair): the experience popup and the count this life. */
+function CenterFeedback({ text }: { text: number }) {
+  const pop = useFeedback(s => s.pop), count = useFeedback(s => s.count);
+  return <div className="ar-center-fb" style={{ '--fb-s': text } as React.CSSProperties}><ScorePopView pop={pop} medals={MEDALS} /><KillCountView count={count} /></div>;
 }
 function Banners() {
   const list = useBanners(s => s.list);

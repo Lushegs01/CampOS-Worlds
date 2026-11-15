@@ -8,12 +8,17 @@ import { WEAPON_BY_ID, EQUIPMENT_BY_ID, PERK_BY_ID, STREAK_BY_ID, EMBLEM_BY_ID }
 import { useArena } from './store';
 import { deployTo, leaveMatch } from './net';
 import { WeaponGlyph } from './WeaponGlyph';
+import AfterAction, { reportPages } from './AfterAction';
+import { cinematic } from './look';
 
 const itemName = (id: string) => (id.startsWith('emblem:') ? `${EMBLEM_BY_ID.get(id.slice(7))?.name} emblem` : WEAPON_BY_ID.get(id)?.name ?? EQUIPMENT_BY_ID.get(id)?.name ?? PERK_BY_ID.get(id)?.name ?? STREAK_BY_ID.get(id)?.name ?? EMBLEM_BY_ID.get(id)?.name ?? id);
 
 export default function Results({ onExit }: { onExit: () => void }) {
   const result = useArena(s => s.result), you = useArena(s => s.you), progress = useArena(s => s.progress), record = useArena(s => s.record), me = useArena(s => s.me);
+  // The after-action unlock report (Metropolis) shows once per saved result, over the results.
+  const [reported, setReported] = useState('');
   if (!result || !you) return null;
+  const report = cinematic(result.map) && progress && reported !== result.id && reportPages(progress).length > 0;
   const mine = result.players.find(p => p.num === you.num), team = mine?.team ?? you.team;
   const won = result.winner === team, draw = result.winner === null;
   const kd = mine ? (mine.kills / Math.max(1, mine.deaths)).toFixed(2) : '0';
@@ -56,6 +61,7 @@ export default function Results({ onExit }: { onExit: () => void }) {
           {rows(t).map(p => <tr key={p.num} className={p.num === you.num ? 'me' : ''}><td>{p.name}{p.bot && <em className="ar-bot">SIM</em>}{p.headshots > 0 && <span title="Headshots" className="ar-hs"><Crosshair size={11} />{p.headshots}</span>}</td><td>{p.score}</td><td>{p.kills}</td><td>{p.deaths}</td><td>{p.assists}</td>{result.mode === 'dom' && <td>{p.captures}</td>}<td>{p.bot ? '—' : p.xp}</td></tr>)}
         </tbody></table></div>)}</section>
     </div>
+    {report && <AfterAction progress={progress} onDone={() => setReported(result.id)} />}
     <footer>
       <button className="ar-primary" onClick={playAgain}><Repeat size={16} />Play again</button>
       <button className="ar-secondary" onClick={() => void leaveMatch()}><ArrowLeft size={16} />Lobby</button>

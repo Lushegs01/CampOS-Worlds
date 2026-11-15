@@ -117,7 +117,13 @@ export function balanceTeam(counts,scores){
 }
 
 /** Medal names shown in the interface (the server awards them). */
-export const MEDALS={headshot:'Headshot',double:'Double Elimination',triple:'Triple Elimination',first:'First Blood',revenge:'Revenge',longshot:'Longshot',defend:'Defender',capture:'Captured',assist:'Assist',payback:'Payback',streak5:'Five in a Row',streak10:'Unstoppable'};
+export const MEDALS={headshot:'Headshot',double:'Double Elimination',triple:'Triple Elimination',first:'First Blood',revenge:'Revenge',longshot:'Longshot',defend:'Defender',capture:'Captured',assist:'Assist',payback:'Payback',streak5:'Five in a Row',streak10:'Unstoppable',
+ wallbang:'Wallbang',pointblank:'Point Blank',buzzkill:'Buzzkill'};
+/** What each medal is awarded for (the interface explains them). */
+export const MEDAL_TEXT={headshot:'Eliminated with a shot to the head.',double:'Two eliminations within 4 seconds.',triple:'Three or more eliminations within 4 seconds.',first:'The first elimination of the match.',
+ revenge:'Eliminated the player who last eliminated you.',longshot:'Eliminated from more than 40 m (not with a shotgun).',defend:'Eliminated an enemy at a zone your team holds.',capture:'Helped capture a zone.',
+ assist:'Did 20 or more damage to a player a teammate eliminated.',payback:'Your shot landed after you were eliminated.',streak5:'Five eliminations without dying.',streak10:'Ten eliminations without dying.',
+ wallbang:'Eliminated through thin cover.',pointblank:'Eliminated with a gun from under 2.5 m.',buzzkill:'Ended an enemy’s run of three or more eliminations.'};
 
 // ---------------------------------------------------------------- fairness (premium weapons are not stronger)
 /** Seconds to eliminate a full-health player at `distance` with body shots that all hit (0 = instant). */

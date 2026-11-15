@@ -36,6 +36,10 @@ existing shooter.
 A team with nobody connected for 45 s forfeits. Free-for-all, Search and Destroy and Hardpoint are new
 entries in `MODES` (`shared/arena/rules.mjs`) plus their scoring in `server/arena/match.mjs`.
 
+Operation: Metropolis also has the **cinematic presentation**: a filmic finish over each weather, a round player-centred
+map, an elimination card with experience and medals beside the crosshair, lead calls ("Back on top") and an
+after-action weapon-unlocks report ([cinematic presentation](ARENA-CINEMATIC.md)).
+
 ### Maps
 
 All three maps are mirror images across their centre line (tested), so neither team has an advantage.
@@ -317,7 +321,7 @@ per match.
 **Progression**: experience for eliminations (100), headshots (+25), assists (40), captures (150),
 neutralising (60), defending a zone (50), and finishing the match (win 600, draw 400, loss 250);
 30 levels (each costs 800 + 200 × the previous level). Levels unlock weapons, equipment, perks, the
-Tactical Strike and emblems; weapon levels (from eliminations with that weapon) unlock finishes.
+Tactical Strike and emblems; weapon levels (from eliminations with that weapon) unlock finishes, one at every weapon level from 2 to 10.
 Everything except the premium Armory weapons is earned; the Armory sells weapons, never progression, statistics or experience.
 
 ## Visuals and rendering
@@ -462,11 +466,12 @@ Physical phones were **not** available to test; the 30 fps mobile target is unve
 | `tests/browser-arena-soak.mjs` | Five Training matches in one page, then leaving and re-entering the arena: heap, DOM, listeners, voices and deployment time per match | pass (`docs/performance/arena-soak.json`) |
 | `scripts/qa/arena-deploy.mjs` | Deployment benchmark (normal, 4G, 3G, failed and stalled downloads, dropped connection, repeats) | `docs/performance/arena-deploy-{before,after}.json` |
 | `scripts/qa/arena-sounds.mjs` | Every weapon's built reports and footsteps measured: peaks, spectra, distinctness between weapons and between variants | `docs/performance/arena-sounds.json` |
+| `tests/arena-feedback.test.mjs` | Lead taken, lost and back on top (both sides, combat log); one elimination summary per kill (experience, medals, count this life) to the shooter only; Point Blank, Buzzkill and a real Wallbang through thin cover; a finish at every weapon level | 4 / 4 pass |
 | `tests/arena-audio.test.mjs` | Reload plans, gait cadence and phase, surfaces, hit-reaction rules, body parts, shuffle bags | 13 / 13 pass |
 | `tests/browser-arena-audio-match.mjs` | Chromium, desktop: a Training match against the server's bots — their gunfire layered by distance, their footsteps on the map's surfaces, body impacts, reactions and eliminations from validated damage, no clipping | 5 / 5 checks pass (`docs/arena-audio-match-results.json`) |
 | `scripts/qa/arena-heap.mjs` | Heap snapshots across matches and arena visits: growth by type and retaining paths of live WebGL contexts | no per-match growth (see the report) |
 | `scripts/qa/arena-ui-shots.mjs` | Lobby, training, settings, deployment, HUD and results at five screen sizes; no horizontal scroll | `docs/screenshots/arena/premium/` |
-| `npm test` (everything) | All campus suites plus the arena suites | 309 / 309 pass |
+| `npm test` (everything) | All campus suites plus the arena suites | 344 / 344 pass |
 
 The fuzz test found a real defect during development (an oversized message raised an unhandled
 socket error that would have stopped the server); it is fixed and covered.

@@ -10,12 +10,14 @@
 import { createWorld, raycast } from '../../shared/arena/physics.mjs';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
 import { step, spawnState, unpackState, quantize, encodeCommand, DT, B, eyeOf, weaponOf, fireModeOf, spreadOf, direction } from '../../shared/arena/sim.mjs';
-import { WEAPONS, WEAPON_BY_ID, STREAK_BY_ID } from '../../shared/arena/weapons.mjs';
-import { MEDALS, MODE_BY_ID } from '../../shared/arena/rules.mjs';
+import { WEAPONS, WEAPON_BY_ID, STREAK_BY_ID, skinsBetween } from '../../shared/arena/weapons.mjs';
+import { MEDALS, MODE_BY_ID, XP, weaponXp, weaponLevel, levelFor, unlocksAt } from '../../shared/arena/rules.mjs';
 import { createPlayback, createTrack } from '../network/interpolation.mjs';
 import { accountAccess } from '../network/client';
 import { useGame } from '../state';
-import { useArena, useBanners, emptyHud, inputPaused, type Loadout, type MatchView, type Progress } from './store';
+import { useArena, useBanners, useFeedback, feedbackTiming, emptyHud, inputPaused, type Loadout, type MatchView, type Progress } from './store';
+import { unlockName } from './unlocks';
+import { cinematic } from './look';
 import { autoFireDecision } from '../../shared/arena/autofire.mjs';
 import { syncFromAccount } from './hudLayout';
 import { controls, buttons, axes } from './input';
@@ -137,6 +139,44 @@ function resetMatch() {
   live.broken.clear(); live.matchElapsed = -1; live.elapsedAt = 0;
   live.remotes.clear(); live.grenades.clear(); live.smokes = []; live.supplies = []; live.strikes = []; live.playback.reset();
   useArena.getState().set({ match: null, you: null, feed: [], board: {}, hud: emptyHud(), killedBy: null, scoreboard: false });
+  useFeedback.getState().clear(); tally.reset();
+}
+
+/**
+ * This match's experience and weapon eliminations as the server reports them, to announce unlocks the moment
+ * they are reached. Only where the match will be recorded (Quick Play, signed in, two or more people, after the
+ * first minute: the same rule the server records by); the results and after-action report are authoritative.
+ */
+const tally = {
+  xp: 0, weapons: new Map<string, { kills: number; headshots: number }>(), announced: new Set<string>(), waiting: [] as (() => boolean)[],
+  reset() { this.xp = 0; this.weapons.clear(); this.announced.clear(); this.waiting = []; },
+};
+function recorded() {
+  const a = useArena.getState(), m = a.match;
+  if (!m || m.kind !== 'quick' || !a.me?.verified || m.state !== 'playing') return false;
+  return m.players.filter(p => !p.bot).length >= 2 && m.timeMs - a.hud.timeLeft >= 60000;
+}
+/** Announce now if the match counts already; otherwise once it does (checked with every snapshot). */
+function whenRecorded(say: () => void) { const go = () => { if (!recorded()) return false; say(); return true; }; if (!go()) tally.waiting.push(go); }
+function addXp(xp: number) {
+  const me = useArena.getState().me; if (!me || !xp) return;
+  const before = levelFor(me.xp + tally.xp); tally.xp += xp; const after = levelFor(me.xp + tally.xp);
+  for (let l = before + 1; l <= after; l++) {
+    if (tally.announced.has('level:' + l)) continue; tally.announced.add('level:' + l);
+    const items = unlocksAt(l).map(unlockName);
+    whenRecorded(() => { useFeedback.getState().unlocked({ title: `Level ${l}`, sub: items.length ? `Unlocked: ${items.slice(0, 3).join(', ')}` : 'Level up', glyph: String(l) }); sfx.ui('streak'); });
+  }
+}
+function addWeaponKill(id: string | null, head: boolean) {
+  const me = useArena.getState().me; if (!me || !id || !WEAPON_BY_ID.has(id)) return;
+  const t = tally.weapons.get(id) ?? { kills: 0, headshots: 0 }, base = me.weaponXp?.[id] ?? 0;
+  const before = weaponLevel(base + weaponXp(t.kills, t.headshots));
+  t.kills++; if (head) t.headshots++; tally.weapons.set(id, t);
+  const after = weaponLevel(base + weaponXp(t.kills, t.headshots));
+  for (const skin of skinsBetween(before, after)) {
+    if (tally.announced.has(id + ':' + skin.id)) continue; tally.announced.add(id + ':' + skin.id);
+    whenRecorded(() => { useFeedback.getState().unlocked({ title: `${skin.name} finish unlocked`, sub: `${WEAPON_BY_ID.get(id)?.name} · weapon level ${skin.weaponLevel}`, colors: skin.colors }); sfx.ui('medal'); });
+  }
 }
 
 // ---------------------------------------------------------------- incoming
@@ -146,7 +186,7 @@ function receive(m: Record<string, any>) {
     case 'ready': {
       retry = 0; clearTimeout(helloTimer);
       a.set({ notice: m.notice === 'accounts-unavailable' ? 'Your account could not be checked just now, so you are playing as a guest: progress from these matches is not saved. Reopen the arena to try again.' : '', error: a.error.startsWith('The arena is taking') ? '' : a.error });
-      a.set({ status: 'ready', me: { name: m.name, verified: m.verified, handle: m.handle, level: m.level, xp: m.xp, emblem: m.emblem, weaponLevels: m.weaponLevels ?? {} }, online: m.online, owned: Array.isArray(m.owned) ? m.owned : [] });
+      a.set({ status: 'ready', me: { name: m.name, verified: m.verified, handle: m.handle, level: m.level, xp: m.xp, emblem: m.emblem, weaponLevels: m.weaponLevels ?? {}, weaponXp: m.weaponXp ?? {} }, online: m.online, owned: Array.isArray(m.owned) ? m.owned : [] });
       if (m.verified) void syncFromAccount();
       if (m.verified && Array.isArray(m.loadouts) && m.loadouts.length) a.set({ loadouts: m.loadouts, loadout: m.loadout });
       else raw({ t: 'loadout', loadout: a.loadout, ref: ++ref });
@@ -178,7 +218,14 @@ function receive(m: Record<string, any>) {
     case 'record': a.set({ record: { state: m.state, reason: m.reason ?? null } }); return;
     case 'progress': {
       a.set({ progress: m as unknown as Progress, record: { state: 'saved', reason: null } });
-      if (a.me) a.set({ me: { ...a.me, level: m.level, xp: m.total_xp } });
+      if (a.me) {
+        // Weapon levels reached this match apply at once (the finishes they unlock can be equipped straight away).
+        const weaponLevels = { ...a.me.weaponLevels }, xpBy = { ...a.me.weaponXp };
+        for (const w of Array.isArray(m.weapon_levels) ? m.weapon_levels : []) if (typeof w?.weapon === 'string' && Number.isInteger(w.level)) weaponLevels[w.weapon] = w.level;
+        const row = a.result?.players.find(p => p.num === a.you?.num) as { weapons?: Record<string, { kills: number; headshots: number }> } | undefined;
+        if (a.result?.id === m.match) for (const [id, w] of Object.entries(row?.weapons ?? {})) if (w?.kills) xpBy[id] = (xpBy[id] ?? 0) + weaponXp(w.kills, w.headshots);
+        a.set({ me: { ...a.me, level: m.level, xp: m.total_xp, weaponLevels, weaponXp: xpBy } });
+      }
       return;
     }
   }
@@ -277,6 +324,7 @@ function victimNear(p: number[]) {
 let lastTimeLeft = Infinity;
 function progress(timeLeft: number | undefined, scores: number[] | undefined) {
   const a = useArena.getState(); if (a.match?.state !== 'playing') { lastTimeLeft = Infinity; return; }
+  if (tally.waiting.length) tally.waiting = tally.waiting.filter(go => !go());
   if (typeof timeLeft === 'number') { if (lastTimeLeft > 60000 && timeLeft <= 60000 && timeLeft > 0) sfx.ui('notify'); lastTimeLeft = timeLeft; }
   const limit = a.match.scoreLimit, ours = scores?.[live.team] ?? 0, theirs = scores?.[1 - live.team] ?? 0;
   if (limit && theirs >= limit * .8 && theirs > ours) announcer.say('losing', { gap: 60 });
@@ -380,15 +428,52 @@ function event(ev: Record<string, any>) {
       a.set({ feed: [...a.feed.slice(-5), { id: now + Math.random(), killer: ev.a, victim: ev.v, weapon: ev.w, head: ev.hs, at: now }] });
       const r = live.remotes.get(ev.v); if (r) { r.deadAt = now; r.flags &= ~1; fx({ type: 'death', num: ev.v }); sfx.death(ev.v, [r.pos.x, r.pos.y + 1.5, r.pos.z], soldierModelFor(ev.v), r.deadAt); remoteActions.forget(ev.v); }
       else if (mine(ev.v)) sfx.death(null, undefined, '', live.life);
-      if (mine(ev.a) && !mine(ev.v)) banner({ text: `Eliminated ${nameOf(ev.v)}`, sub: ev.hs ? 'Headshot · +125' : '+100', tone: 'good', ms: 1800 });
-      if (ev.as?.includes(live.num)) banner({ text: 'Assist', sub: `${nameOf(ev.v)} · +40`, tone: 'medal', ms: 1500 });
+      // Our own eliminations are shown by 'elim'. An assist: on Metropolis it joins the experience popup, elsewhere a banner.
+      if (ev.as?.includes(live.num)) {
+        if (cinematic(live.mapId)) { useFeedback.getState().score(XP.assist, ['assist']); addXp(XP.assist); }
+        else banner({ text: 'Assist', sub: `${nameOf(ev.v)} · +40`, tone: 'medal', ms: 1500 });
+      }
+      return;
+    }
+    case 'elim': {
+      const medals: string[] = Array.isArray(ev.m) ? ev.m : [];
+      if (!cinematic(live.mapId)) {
+        // The other maps keep their banners: the elimination, then each medal.
+        banner({ text: `Eliminated ${nameOf(ev.v)}`, sub: medals.includes('headshot') ? 'Headshot · +125' : '+100', tone: 'good', ms: 1800 });
+        for (const id of medals) banner({ text: MEDALS[id as keyof typeof MEDALS] ?? id, tone: 'medal', ms: 1600 });
+        if (medals.length) sfx.ui('medal');
+        return;
+      }
+      // Metropolis: the eliminated player's card, the experience with its medals beside the crosshair, the count this life.
+      const p = a.match?.players.find(x => x.num === ev.v), f = useFeedback.getState();
+      f.eliminated({ num: ev.v, name: p?.name ?? 'Player', level: p?.level ?? 1, emblem: p?.emblem ?? 'recruit', bot: !!p?.bot, head: medals.includes('headshot') });
+      f.score(ev.xp ?? XP.kill, medals.filter(id => id in MEDALS), true);
+      if (ev.n >= 2) f.counted(ev.n);
+      if (medals.length) sfx.ui('medal');
+      addXp((ev.xp ?? XP.kill) + (medals.includes('defend') ? XP.defend : 0));
+      addWeaponKill(typeof ev.w === 'string' ? ev.w : null, medals.includes('headshot'));
+      return;
+    }
+    case 'lead': {
+      // Lead changes (Metropolis), worded for our side: taken, back on top (regained after being overtaken), or lost.
+      if (!cinematic(live.mapId)) return;
+      const ours = ev.team === live.team, kind = ours ? (ev.back ? 'back' : 'taken') : 'lost';
+      useFeedback.getState().leadChanged(kind);
+      sfx.ui(ours ? 'streak' : 'notify');
+      announcer.say(ours ? 'goodwork' : 'losing', { gap: 10 });
       return;
     }
     case 'died': {
       live.alive = false; a.set({ killedBy: { num: ev.by, weapon: ev.w }, scoreboard: false, hud: { ...a.hud, alive: false, hp: 0 } });
       return;
     }
-    case 'medal': if (ev.id !== 'assist') { banner({ text: MEDALS[ev.id as keyof typeof MEDALS] ?? ev.id, tone: 'medal', ms: 1600 }); sfx.ui('medal'); } return;
+    case 'medal': {
+      if (ev.id === 'assist') return; // counted with its elimination ('kill')
+      if (!cinematic(live.mapId)) { banner({ text: MEDALS[ev.id as keyof typeof MEDALS] ?? ev.id, tone: 'medal', ms: 1600 }); sfx.ui('medal'); return; }
+      const xp = ev.id === 'capture' ? XP.capture : 0;
+      useFeedback.getState().score(xp, [ev.id]); addXp(xp); sfx.ui('medal');
+      return;
+    }
     case 'earned': { const s = STREAK_BY_ID.get(ev.id); banner({ text: `${s?.name ?? 'Reward'} ready`, sub: `Press ${ev.id === 'recon' ? 3 : ev.id === 'supply' ? 4 : 5} (or its button) to use it`, tone: 'good', ms: 2600 }); sfx.ui('streak'); return; }
     case 'streakResult': if (!ev.ok) banner({ text: ev.reason, tone: 'bad', ms: 2200 }); return;
     case 'recon': {
@@ -415,7 +500,8 @@ function event(ev: Record<string, any>) {
     case 'blind': live.blindUntil = now + ev.ms; live.blindMs = ev.ms; sfx.deafen(ev.ms); return;
     case 'capture': case 'neutral': {
       const ours = ev.team === live.team, inIt = ev.by?.includes(live.num);
-      banner({ text: ev.k === 'capture' ? `${ours ? 'We' : 'Enemy'} captured ${ev.id}` : `${ev.id} ${ours ? 'neutralised' : 'lost'}`, sub: inIt ? '+150' : undefined, tone: ours ? 'good' : 'bad', ms: 2200 });
+      banner({ text: ev.k === 'capture' ? `${ours ? 'We' : 'Enemy'} captured ${ev.id}` : `${ev.id} ${ours ? 'neutralised' : 'lost'}`, sub: inIt && ev.k === 'capture' && !cinematic(live.mapId) ? '+150' : undefined, tone: ours ? 'good' : 'bad', ms: 2200 });
+      if (inIt && ev.k === 'neutral' && cinematic(live.mapId)) { useFeedback.getState().score(XP.neutralize, ['neutralize']); addXp(XP.neutralize); }
       // Radio: ours secured; ours neutralised by them, lost; theirs captured, losing ground.
       if (ev.k === 'capture') announcer.say(ours ? 'secured' : 'losing', { gap: 6 }); else if (!ours) announcer.say('lost', { gap: 6 });
       sfx.ui(ours ? 'confirm' : 'notify');
@@ -591,6 +677,11 @@ if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<stri
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
   deploy: () => ({ ...deploy.useDeploy.getState(), recent: deploy.recentDeployments() }),
+  /** QA captures: the combat feedback store (stage an unlock notice) and the interface store (stage a saved result). */
+  feedback: () => useFeedback.getState(),
+  /** Keep combat feedback on screen `scale` times longer (and its CSS fades with it, via a class on the HUD). */
+  holdFeedback: (scale: number) => { feedbackTiming.scale = scale; document.documentElement.classList.toggle('ar-qa-hold', scale > 1); },
+  stage: (v: Record<string, unknown>) => useArena.getState().set(v as never),
   /** Change arena settings (QA: the audio suite sets category volumes). */
   settings: (v: Record<string, unknown>) => { useArena.getState().setSettings(v); return useArena.getState().settings; },
   self: () => (live.sim ? { x: live.sim.x, y: live.sim.y, z: live.sim.z, alive: live.alive, ammo: live.sim.wpn[live.sim.slot].mag, reserve: live.sim.wpn[live.sim.slot].reserve, slot: live.sim.slot, weapon: weaponOf(live.sim).id, phase: live.sim.phase, pt: live.sim.pt, reloadStart: live.reloadStart, reloadTotal: live.reloadTotal, reloadEmpty: live.reloadEmpty, pending: live.pending.length, autoFiring: live.autoFiring, autoReason: live.autoReason } : null),

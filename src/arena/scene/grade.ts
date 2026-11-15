@@ -3,7 +3,7 @@
 // per lighting variant (cool shade, warm light), and a very fine animated grain so smooth gradients (fog, sky,
 // wet asphalt) do not band. Nothing here sharpens, distorts or separates colour channels.
 import * as THREE from 'three';
-import { Effect, BlendFunction } from 'postprocessing';
+import { Effect, BlendFunction, EffectAttribute } from 'postprocessing';
 
 const FRAG = /* glsl */`
 uniform float saturation, contrast, grain, time; uniform vec3 lift, gain;
@@ -33,4 +33,24 @@ export class GradeEffect extends Effect {
     });
   }
   update(_r: THREE.WebGLRenderer, _i: THREE.WebGLRenderTarget, dt?: number) { (this.uniforms.get('time')!.value as number) += (dt ?? .016) * 60; if ((this.uniforms.get('time')!.value as number) > 1000) this.uniforms.get('time')!.value = 0; }
+}
+
+// Contrast-adaptive sharpening, after antialiasing (the cinematic finish on Operation: Metropolis): each pixel is pushed
+// away from the average of its four neighbours, less where the local contrast is already high, so fine texture
+// (brick, fabric, print on signs) reads crisply without haloes around edges that are already sharp.
+const SHARPEN = /* glsl */`
+uniform float amount;
+void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+  vec3 c = inputColor.rgb;
+  vec3 n = texture2D(inputBuffer, uv + vec2(0., texelSize.y)).rgb, s = texture2D(inputBuffer, uv - vec2(0., texelSize.y)).rgb;
+  vec3 e = texture2D(inputBuffer, uv + vec2(texelSize.x, 0.)).rgb, w = texture2D(inputBuffer, uv - vec2(texelSize.x, 0.)).rgb;
+  vec3 mn = min(c, min(min(n, s), min(e, w))), mx = max(c, max(max(n, s), max(e, w)));
+  vec3 amp = sqrt(clamp(min(mn, 1. - mx) / max(mx, vec3(1e-4)), 0., 1.));
+  vec3 lobe = -amp * mix(.08, .2, amount);
+  outputColor = vec4(clamp((c + (n + s + e + w) * lobe) / (1. + 4. * lobe), 0., 1.), inputColor.a);
+}`;
+export class SharpenEffect extends Effect {
+  constructor(amount = .5) {
+    super('SharpenEffect', SHARPEN, { blendFunction: BlendFunction.SRC, attributes: EffectAttribute.CONVOLUTION, uniforms: new Map([['amount', new THREE.Uniform(amount)]]) });
+  }
 }
