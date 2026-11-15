@@ -7,15 +7,32 @@ import pg from 'pg';
 import { existsSync } from 'node:fs';
 import { readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createServer } from 'node:net';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const USER = 'postgres', PASSWORD = 'campos-local-only';
 
+/**
+ * A port for a test cluster: free right now, and never in 54300–54399, where the local Supabase stand-ins listen on
+ * fixed ports (54321 and up, see tests/support/stack.mjs). A random pick from 54000–54899 used to land on one of those
+ * now and then (or a cluster left behind by an earlier suite did), and the stand-in then failed with EADDRINUSE.
+ */
+async function clusterPort() {
+  for (let i = 0; i < 40; i++) {
+    let port = 54000 + Math.floor(Math.random() * 800);
+    if (port >= 54300) port += 100; // 54000–54299 or 54400–54899
+    const free = await new Promise(done => { const s = createServer().once('error', () => done(false)).listen(port, '127.0.0.1', () => s.close(() => done(true))); });
+    if (free) return port;
+  }
+  throw new Error('No free port for a test PostgreSQL cluster in 54000–54299 or 54400–54899.');
+}
+
 /** Start (or reuse) a cluster in `dir` and create a fresh database with the schema applied. */
 /** Each test file uses its own cluster (`name`) so files can run in parallel. */
-export async function startDatabase({ name = 'test', dir = join(tmpdir(), `campos-worlds-pg17-${name}`), port = 54000 + Math.floor(Math.random() * 900), database = `campos_${Date.now().toString(36)}`, keep = false } = {}) {
+export async function startDatabase({ name = 'test', dir = join(tmpdir(), `campos-worlds-pg17-${name}`), port, database = `campos_${Date.now().toString(36)}`, keep = false } = {}) {
+  port ??= await clusterPort();
   const server = new EmbeddedPostgres({ databaseDir: dir, user: USER, password: PASSWORD, port, persistent: true, initdbFlags: ['--encoding=UTF8', '--no-locale'], onLog: () => {}, onError: () => {} });
   if (!existsSync(join(dir, 'PG_VERSION'))) await server.initialise();
   try { await server.start(); }
