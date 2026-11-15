@@ -118,9 +118,16 @@ export type FacadeStyle = { wall: THREE.Material; bay: number; floor: number; gr
  */
 export function facade(f: Face, m: CityMats, s: FacadeStyle, detail: number, aircon?: (M: THREE.Matrix4) => void) {
   // The visible wall stands D proud of the collision face, built as piers and bands around the openings, so every
-  // window sits in a real reveal.
+  // window sits in a real reveal. Masonry is articulated the way real load-bearing fronts are: corner quoins, a
+  // lintel and a projecting sill with a drip on every opening (brick or cast stone dressings on rendered walls),
+  // timber louvred shutters (open against the wall or closed over the opening), burglar-proof grilles on the
+  // lowest windows, a stepped cornice, and a downpipe with brackets and a hopper head.
   const L = f.length, H = f.height, D = .14, bays = Math.max(1, Math.round(L / s.bay)), bw = L / bays;
   const wall = (u0: number, v0: number, u1: number, v1: number) => { if (u1 - u0 > .01 && v1 - v0 > .01) f.box(u0, v0, u1, v1, 0, D, s.wall, 2.4); };
+  const rendered = m.render.includes(s.wall as THREE.MeshStandardMaterial), brick = s.wall === m.brick, masonry = rendered || brick;
+  // Dressings: brick on most rendered fronts (as on the older blocks of the reference), cast stone on brick ones.
+  const dress = brick ? m.precast : rendered ? (hash(s.seed, 71) > .35 ? m.brick : m.precast) : s.trim;
+  const shutterMat = hash(s.seed, 73) > .5 ? m.shutterWood : hash(s.seed, 74) > .5 ? m.shutterGreen : m.shutterGrey;
   let v = 0;
   if (s.ground === 'shops') {
     for (let i = 0; i < bays; i++) {
@@ -128,21 +135,46 @@ export function facade(f: Face, m: CityMats, s: FacadeStyle, detail: number, air
       if (open) f.pane(u0, .12, u1, 2.9, .03, m.window, s.seed * 3.7 + i * 17.3, WINDOW_SHOP); else f.box(u0, .12, u1, 2.9, 0, .03, m.shutter, 1.6);
       wall(i * bw, 0, u0, 2.98); wall(u1, 0, (i + 1) * bw, 2.98); wall(u0, 0, u1, .12);
       f.box(u0 - .06, .12, u0, 2.9, .03, D + .03, m.frame, 1); f.box(u1, .12, u1 + .06, 2.9, .03, D + .03, m.frame, 1);
+      // A stall riser of tiles under the glass and a shutter box over the opening.
+      if (open) f.box(u0, .12, u1, .5, .03, .06, m.kerb, 1);
+      f.box(u0 - .06, 2.9, u1 + .06, 2.98, .03, D + .08, m.steel, 1);
     }
-    f.box(0, 2.9, L, 3.55, 0, D + .12, s.trim, 2); v = 3.55;
+    f.box(0, 2.9, L, 3.55, 0, D + .12, s.trim, 2); f.box(-.02, 3.48, L + .02, 3.6, 0, D + .18, s.trim, 2); v = 3.6;
   } else if (s.ground === 'plain') { f.box(0, 0, L, .6, 0, D + .05, s.trim, 2); v = .6; }
   const floors = Math.max(0, Math.floor((H - v - .5) / s.floor));
   for (let k = 0; k < floors; k++) {
     const base = v + k * s.floor, v0 = base + .95, v1 = v0 + 1.55;
     wall(0, base, L, v0); wall(0, v1, L, base + s.floor);
     for (let i = 0; i < bays; i++) {
-      const u0 = i * bw + bw * .22, u1 = (i + 1) * bw - bw * .22, r = hash(s.seed + k * 7.3, i * 3.1);
+      const u0 = i * bw + bw * .22, u1 = (i + 1) * bw - bw * .22, r = hash(s.seed + k * 7.3, i * 3.1), sh = hash(s.seed + k * 3.1, i * 5.7);
+      const balcony = r < s.balcony, closed = !balcony && masonry && sh > .82, shutters = !balcony && masonry && sh > .45 && !closed;
       wall(i * bw, v0, u0, v1); wall(u1, v0, (i + 1) * bw, v1);
-      f.pane(u0, v0, u1, v1, .02, m.window, s.seed * 1.93 + k * 41.7 + i * 7.31, WINDOW_ROOM);              // the pane, and the room behind it
-      f.box(u0, v0, u0 + .06, v1, .02, .07, m.frame, 1); f.box(u1 - .06, v0, u1, v1, .02, .07, m.frame, 1);
-      f.box(u0, v1 - .06, u1, v1, .02, .07, m.frame, 1); f.box(u0, v0, u1, v0 + .06, .02, .07, m.frame, 1);
-      if (detail) { f.box((u0 + u1) / 2 - .025, v0, (u0 + u1) / 2 + .025, v1, .02, .06, m.frame, 1); f.box(u0 - .08, v0 - .08, u1 + .08, v0, 0, D + .1, s.trim, 1); }
-      if (r < s.balcony) {
+      if (closed) {
+        // Closed louvred shutters in the reveal (no room to draw behind them).
+        f.box(u0, v0, u1, v1, .03, .07, shutterMat, 1.1); f.box((u0 + u1) / 2 - .015, v0, (u0 + u1) / 2 + .015, v1, .07, .085, shutterMat, 1);
+      } else {
+        f.pane(u0, v0, u1, v1, .02, m.window, s.seed * 1.93 + k * 41.7 + i * 7.31, WINDOW_ROOM);              // the pane, and the room behind it
+        f.box(u0, v0, u0 + .06, v1, .02, .07, m.frame, 1); f.box(u1 - .06, v0, u1, v1, .02, .07, m.frame, 1);
+        f.box(u0, v1 - .06, u1, v1, .02, .07, m.frame, 1); f.box(u0, v0, u1, v0 + .06, .02, .07, m.frame, 1);
+        if (detail) { f.box((u0 + u1) / 2 - .025, v0, (u0 + u1) / 2 + .025, v1, .02, .06, m.frame, 1); f.box(u0 + .06, v0 + (v1 - v0) * .62, u1 - .06, v0 + (v1 - v0) * .62 + .04, .02, .06, m.frame, 1); }
+      }
+      if (masonry) {
+        // Dressings: a lintel over the head (a little wider than the opening), jamb surrounds, a projecting sill with a drip.
+        f.box(u0 - .14, v1, u1 + .14, v1 + .22, 0, D + .035, dress, 1.2);
+        if (detail) { f.box(u0 - .14, v0, u0, v1, 0, D + .02, dress, 1.2); f.box(u1, v0, u1 + .14, v1, 0, D + .02, dress, 1.2); }
+        f.box(u0 - .1, v0 - .07, u1 + .1, v0, 0, D + .1, m.precast, 1); f.box(u0 - .1, v0 - .09, u1 + .1, v0 - .07, D + .07, D + .1, m.precast, 1);
+      } else f.box(u0 - .08, v0 - .08, u1 + .08, v0, 0, D + .1, s.trim, 1);
+      if (shutters) {
+        // Two louvred leaves folded open against the wall either side of the window.
+        const lw = Math.min((u1 - u0) / 2, bw * .22 - .16), gap = masonry ? .15 : .03;
+        if (lw > .25) { f.box(u0 - gap - lw, v0 + .02, u0 - gap, v1 - .02, D + .04, D + .075, shutterMat, 1.1); f.box(u1 + gap, v0 + .02, u1 + gap + lw, v1 - .02, D + .04, D + .075, shutterMat, 1.1); }
+      }
+      if (detail && !closed && !balcony && k === 0 && hash(s.seed + 11, i) > .45) {
+        // Burglar-proof bars: a welded frame of square bars in front of the lowest windows.
+        const g0 = D + .05, g1 = D + .075; f.box(u0 - .04, v0, u1 + .04, v0 + .03, g0, g1, m.darkSteel, 1); f.box(u0 - .04, v1 - .03, u1 + .04, v1, g0, g1, m.darkSteel, 1); f.box(u0 - .04, (v0 + v1) / 2 - .015, u1 + .04, (v0 + v1) / 2 + .015, g0, g1, m.darkSteel, 1);
+        for (let x = u0 + .06; x < u1 - .04; x += .13) f.box(x - .012, v0, x + .012, v1, g0, g1, m.darkSteel, 1);
+      }
+      if (balcony) {
         // A shallow balcony: slab with a drip edge, a low upstand, a steel balustrade of bars under a handrail.
         const b0 = u0 - .3, b1 = u1 + .3, y = v0 - .88, front = D + .84;
         f.box(b0, v0 - 1.02, b1, y, D, D + .88, s.trim, 1); f.box(b0, v0 - 1.06, b1, v0 - 1.02, D + .8, D + .88, s.trim, 1);
@@ -154,8 +186,24 @@ export function facade(f: Face, m: CityMats, s: FacadeStyle, detail: number, air
     }
   }
   wall(0, v + floors * s.floor, L, H);
-  for (let k = 1; k <= floors && detail; k++) f.box(0, v + k * s.floor - .08, L, v + k * s.floor + .06, D, D + .05, s.trim, 2);
-  f.box(-.06, H - .28, L + .06, H, 0, D + .18, s.trim, 2);
+  // String courses at each floor (a brick band on rendered walls).
+  for (let k = 1; k <= floors; k++) if (detail || masonry) f.box(0, v + k * s.floor - .08, L, v + k * s.floor + .06, D, D + (masonry ? .035 : .05), masonry ? dress : s.trim, 2);
+  // Quoins: alternating long and short blocks up both corners, proud of the render.
+  if (masonry && L > 3) {
+    for (let y = v, n = 0; y < H - .55; y += .32, n++) {
+      const w = n % 2 ? .3 : .5, y1 = Math.min(H - .55, y + .3);
+      f.box(0, y, w, y1, 0, D + .025, dress, 1.2); f.box(L - w, y, L, y1, 0, D + .025, dress, 1.2);
+    }
+  }
+  // A stepped cornice: bed mould, corona, cymatium.
+  f.box(-.03, H - .55, L + .03, H - .4, 0, D + .07, s.trim, 2); f.box(-.06, H - .4, L + .06, H - .24, 0, D + .16, s.trim, 2); f.box(-.09, H - .24, L + .09, H, 0, D + .25, s.trim, 2);
+  if (detail && masonry) for (let x = .2; x < L - .1; x += .32) f.box(x - .06, H - .62, x + .06, H - .55, D, D + .09, s.trim, 1);
+  // A downpipe from the roof to the pavement with brackets, a hopper head and a shoe.
+  if (L > 4 && H > 5) {
+    const u = hash(s.seed, 79) > .5 ? L - .2 : .2, w0 = D + .04, w1 = D + .14, pipe = hash(s.seed, 81) > .5 ? m.darkSteel : m.plasticGrey;
+    f.box(u - .05, .15, u + .05, H - .7, w0, w1, pipe, 1); f.box(u - .1, H - .95, u + .1, H - .62, w0 - .02, w1 + .04, pipe, 1); f.box(u - .05, 0, u + .05, .15, w0, w1 + .12, pipe, 1);
+    for (let y = 1.2; y < H - 1; y += 1.8) f.box(u - .07, y, u + .07, y + .05, D, w1 + .01, pipe, 1);
+  }
 }
 
 /** Signs drawn into one texture: shop fascias, street names, station signs, posters. */

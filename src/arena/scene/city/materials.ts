@@ -62,11 +62,16 @@ export function cityMaterials(lib: Library) {
     sheetBlue: S('corrugated', { tint: '#5b86a8', gain: 1.5 }), sheetCream: S('corrugated', { tint: '#d9d2bd', gain: 1.5 }), sheetGreen: S('corrugated', { tint: '#4f8a6c', gain: 1.4 }), sheetRoof: S('corrugated', { tint: '#a9adb0', gain: 1.3 }),
     concrete: S('concreteWall'), precast: S('concreteWall', { tint: '#e6e0d4', gain: 1.15 }), plaster: S('plaster', { tint: '#f1ece2', gain: 1.2 }), ceiling: S('ceiling', { gain: 1.2 }), shutter: S('shutter', { gain: 1.1 }),
     woodFloor: S('woodFloor', { gain: 1.1, rough: .7 }), planks: S('planks'), wood: S('woodFloor', { tint: '#b98d5e', rough: .6 }), darkWood: S('woodFloor', { tint: '#6b4a32', rough: .55 }),
-    roofGravel: S('gravel', { tint: '#b9b4a8' }),
+    // Flat roofs: a pale cement screed (as on the reference's rooftops), weathered by the macro layer.
+    roofGravel: S('concreteFloor', { tint: '#d6d0c4', gain: 1.12, rough: .95 }),
     // ---- metal and paint
     steel: painted('#8e949b', 1.1), darkSteel: painted('#3f4449', 1), white: painted('#eceae4', 1.2), yellow: painted('#e3ab22', 1.5), red: painted('#b5402f', 1.2), blue: painted('#2f6f9f', 1.2), green: painted('#3f8a5c', 1.2), orange: painted('#d9772b', 1.3), black: painted('#1d1f22', 1, .5),
     plate: S('metalPlate', { metal: .5, gain: 1.3 }), stainless: flat('#c9ced2', { metalness: 1, roughness: .22 }), bronze: flat('#a8793f', { metalness: 1, roughness: .32 }), frame: flat('#2c3136', { metalness: .7, roughness: .4 }),
-    tank: flat('#16181a', { roughness: .45 }), rubber: flat('#17181a', { roughness: .92 }), plastic: flat('#d8d4c8', { roughness: .5 }),
+    tank: flat('#16181a', { roughness: .45 }), rubber: flat('#17181a', { roughness: .92 }), plastic: flat('#d8d4c8', { roughness: .5 }), plasticGrey: flat('#8d8f8c', { roughness: .55 }),
+    // Louvred timber shutters (the roller-shutter slat set, painted), weathered like the walls they hang on.
+    shutterWood: S('shutter', { tint: '#7c5434', gain: 1.15, rough: .8 }), shutterGreen: S('shutter', { tint: '#4f6a55', gain: 1.2, rough: .78 }), shutterGrey: S('shutter', { tint: '#8f9590', gain: 1.15, rough: .75 }),
+    // Overhead services: PVC-sheathed cable, glazed porcelain insulators, creosoted timber, spun-concrete poles.
+    cable: flat('#121314', { roughness: .62 }), insulator: flat('#c9c4b8', { roughness: .25, envMapIntensity: 1.3 }), timber: S('planks', { tint: '#6e5a45', gain: .9, rough: .85 }), poleConcrete: S('concreteWall', { tint: '#bdb8ae', gain: 1.05 }),
     container: (key: string) => key === 'container-red' ? S('paintedMetal', { gain: 1.25 }) : S('corrugated', { tint: ({ 'container-blue': '#44709a', 'container-yellow': '#c9a03a', 'container-green': '#5a9068' } as Record<string, string>)[key] ?? '#8a7a62', gain: 1.9 }),
     containerFrame: (key: string) => painted(({ 'container-red': '#86392e', 'container-blue': '#36597b', 'container-yellow': '#a0802e', 'container-green': '#3f644a' } as Record<string, string>)[key] ?? '#6e624e', 1.3),
     // ---- glass, water, light
@@ -85,6 +90,7 @@ export function cityMaterials(lib: Library) {
   addLayers(m.asphalt, 'road');
   for (const g of [m.kerb, m.roofGravel, m.soil, m.screed, m.tile, m.marble, m.ugTile]) addLayers(g, 'macro', 'wet');
   for (const g of [...m.render, m.brick, m.panel, m.cladding, m.stone, m.block, m.blockwork, m.concrete, m.precast, m.sheetBlue, m.sheetCream, m.sheetGreen, m.plaster]) addLayers(g, 'macro', 'grime', 'wet');
+  for (const g of [m.shutterWood, m.shutterGreen, m.shutterGrey, m.timber, m.poleConcrete]) addLayers(g, 'macro', 'grime', 'wet');
   for (const g of [m.sheetRoof, m.steel, m.darkSteel, m.white, m.yellow, m.red, m.blue, m.green, m.orange, m.black, m.plate, m.shutter, m.planks, m.wood, m.darkWood, m.ugWall, m.ugConcrete, m.ugCeil, m.ceiling, m.woodFloor]) addLayers(g, 'macro', 'wet');
   for (const b of m.bodies) addLayers(b, 'grime', 'wet');
   // Palm trunks: the campus' photographed palm bark (fibrous, ringed), tinted by each instance's vertex colour.

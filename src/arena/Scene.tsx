@@ -29,7 +29,7 @@ import { buildMetropolis, CITY_DECOR, type CityVariant } from './scene/metropoli
 import { atmosphereOf, createSky, bakeEnvironment, installHeightFog, setHeightFog, createAdaptation } from './scene/city/atmosphere';
 import { createStreetReflection, REFLECTED } from './scene/city/reflection';
 import { cityWeather } from './scene/city/surfaces';
-import { GradeEffect, SharpenEffect } from './scene/grade';
+import { GradeEffect, SharpenEffect, installToneGrade } from './scene/grade';
 import { cinematicFinish } from './scene/cinematic';
 import { ShaftsPass } from './scene/shafts';
 import { buildEnvironment, surfaceOf } from './scene/environment';
@@ -128,6 +128,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const cityLight = atmo ? { strength: atmo.sun, env: atmo.env } : null;
   // Metropolis: the cinematic finish over its weather's grade and exposure (scene/cinematic.ts).
   const fin = useMemo(() => (atmo ? cinematicFinish(atmo) : null), [atmo]);
+  // Low (no post stack): the same grade, folded into the tone mapper (scene/grade.ts). Set before anything compiles.
+  const toneGraded = useMemo(() => { const on = !q.post && !!fin; installToneGrade(on ? fin : null); return on; }, [q.post, fin]);
   const citySun = useMemo(() => atmo ? { dir: new THREE.Vector3(...atmo.sunDir).normalize(), color: new THREE.Color(...atmo.sunColor) } : null, [atmo]);
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
@@ -307,6 +309,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const vmScene = new THREE.Scene(), vmCam = new THREE.PerspectiveCamera(56, 1, .01, 6);
     const sun = new THREE.DirectionalLight('#fff0d8', 3.2), fill = new THREE.HemisphereLight('#cdd9e8', '#5a5348', .5);
     vmScene.add(sun, sun.target, fill);
+    // Self-shadowing (Medium and up): the hands, optic and furniture shade the rest of the weapon, as the key light
+    // falls across it. A tight orthographic map around the viewmodel (under a metre across), redrawn with it each frame.
+    if (q.post && q.shadows) {
+      sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 2.5; sun.shadow.intensity = .82;
+      const c = sun.shadow.camera; c.left = -.42; c.right = .42; c.top = .42; c.bottom = -.42; c.near = 2; c.far = 4.2; c.updateProjectionMatrix();
+      sun.shadow.bias = -.0008; sun.shadow.normalBias = .006;
+    }
     const holder = new THREE.Group(); vmScene.add(holder);
     const flash = new THREE.Group(); flash.visible = false; vmScene.add(flash);
     const fm = new THREE.MeshBasicMaterial({ map: flashTexture(), color: new THREE.Color(5.5, 3.6, 1.7), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
@@ -315,7 +324,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const casings = new Casings(q.casings); vmScene.add(casings.mesh);
     return {
       vmScene, vmCam, holder, sun, fill, flash, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
-      bob: 0, swayX: 0, swayY: 0, lastYaw: 0, lastPitch: 0, kickZ: 0, kickPitch: 0, kickRoll: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0, breath: 0, cyl: 0, slideKick: 0,
+      bob: 0, swayX: 0, swayY: 0, lastYaw: 0, lastPitch: 0, kickZ: 0, kickPitch: 0, kickRoll: 0, kickZv: 0, kickPitchV: 0, kickRollV: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0, breath: 0, cyl: 0, slideKick: 0,
       handR: new THREE.Vector3(.2, -.3, .1), handL: new THREE.Vector3(-.2, -.3, .1),
     };
   }, [q]);
@@ -336,7 +345,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: !q.aoHigh, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
       ao.setQualityMode(q.aoMode ?? (q.aoHigh ? 'High' : 'Medium')); c.addPass(ao);
     }
-    const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = true; c.addPass(weapon);
+    const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = !vm.sun.castShadow; c.addPass(weapon);
     const fxs = [
       ...(q.bloom ? [new BloomEffect({ luminanceThreshold: atmo?.bloomThreshold ?? 2.6, luminanceSmoothing: .5, intensity: fin?.bloom ?? .42, mipmapBlur: true, radius: atmo && atmo.bloomThreshold < 2.6 ? .72 : .62 })] : []),
       ...(shafts ? [shafts.effect] : []),
@@ -365,10 +374,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   }, [reflection, gl]);
   const adapt = useMemo(() => createAdaptation((atmo?.exposure ?? .82) * (fin?.exposure ?? 1)), [atmo, fin]);
   useEffect(() => {
-    if (!composer) { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = .82; return; }
+    if (!composer) { gl.toneMapping = toneGraded ? THREE.CustomToneMapping : THREE.ACESFilmicToneMapping; gl.toneMappingExposure = .82; return () => { gl.toneMapping = THREE.ACESFilmicToneMapping; installToneGrade(null); }; }
     const before = gl.toneMapping; gl.toneMapping = THREE.NoToneMapping; gl.toneMappingExposure = .82;
     return () => { composer.c.dispose(); gl.toneMapping = before; };
-  }, [composer, gl]);
+  }, [composer, gl, toneGraded]);
   useEffect(() => { composer?.c.setSize(size.width, size.height); }, [composer, size, dprNow]);
   // Change the R3F DPR as well as the renderer so QA captures include full-resolution postprocessing.
   useEffect(() => {
@@ -639,13 +648,16 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       // The model streams in on first use; until then nothing is drawn (the weapon is still raising).
       const next = weaponModel(w.id, skin);
       if (vm.gun) disposeWeapon(vm.gun);
-      vm.gun = next; if (next) { vm.holder.add(next); vm.gunId = w.id; vm.skin = skin; vm.cyl = 0; } else vm.gunId = '';
+      vm.gun = next; if (next) { next.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = o.receiveShadow = !!vm.sun.castShadow; } }); vm.holder.add(next); vm.gunId = w.id; vm.skin = skin; vm.cyl = 0; } else vm.gunId = '';
     }
-    if (vm.armsSrc && (vm.armsTeam !== live.team || !vm.arms)) { if (vm.arms) { vm.vmScene.remove(vm.arms.root); vm.arms.dispose(); } vm.arms = new FirstPersonArms(vm.armsSrc, live.team); vm.vmScene.add(vm.arms.root); vm.armsTeam = live.team; }
+    if (vm.armsSrc && (vm.armsTeam !== live.team || !vm.arms)) { if (vm.arms) { vm.vmScene.remove(vm.arms.root); vm.arms.dispose(); } vm.arms = new FirstPersonArms(vm.armsSrc, live.team); vm.arms.root.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = !!vm.sun.castShadow; }); vm.vmScene.add(vm.arms.root); vm.armsTeam = live.team; }
     if (!vm.gun) { vm.holder.visible = false; if (vm.arms) vm.arms.visible = false; return; }
     const gun = vm.gun, sightY = (gun.userData.sightY as number) ?? .09, melee = w.fire === 'melee', sidearm = w.category === 'pistol';
     // Springs: recoil, landing, look sway.
-    vm.kickZ *= Math.exp(-dt * 13); vm.kickPitch *= Math.exp(-dt * 11); vm.kickRoll *= Math.exp(-dt * 9); vm.slideKick *= Math.exp(-dt * 26);
+    // (The kick is an under-damped spring: the rifle punches back into the shoulder and settles with a slight
+    // overshoot, instead of sliding home along an exponential. Viewmodel only; aim and recoil rules are unchanged.)
+    { const h = Math.min(dt, 1 / 30); for (const [k, c, x, v] of [[300, 19, 'kickZ', 'kickZv'], [240, 18, 'kickPitch', 'kickPitchV'], [200, 17, 'kickRoll', 'kickRollV']] as const) { vm[v] += (-k * vm[x] - c * vm[v]) * h; vm[x] += vm[v] * h; } }
+    vm.slideKick *= Math.exp(-dt * 26);
     vm.landV += (-vm.land * 90 - vm.landV * 13) * dt; vm.land += vm.landV * dt;
     const dyaw = controls.yaw - vm.lastYaw, dpitch = controls.pitch - vm.lastPitch; vm.lastYaw = controls.yaw; vm.lastPitch = controls.pitch;
     vm.swayX += (THREE.MathUtils.clamp(dyaw * .9, -.05, .05) - vm.swayX) * Math.min(1, dt * 9); vm.swayY += (THREE.MathUtils.clamp(-dpitch * .9, -.04, .04) - vm.swayY) * Math.min(1, dt * 9);
@@ -732,7 +744,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (lib) {
       v1.copy(citySun?.dir ?? lib.sun.dir).transformDirection(camera.matrixWorldInverse);
       vm.sun.color.copy(citySun?.color ?? lib.sun.color);
-      vm.sun.position.copy(v1).multiplyScalar(3); vm.sun.target.position.set(0, 0, 0);
+      // (Aimed at the middle of the viewmodel, so its shadow map's tight frustum covers the weapon and both hands.)
+      vm.sun.target.position.set(.05, -.17, -.38); vm.sun.position.copy(v1).multiplyScalar(3).add(vm.sun.target.position);
       // (Metropolis: never below a soft key from above, so a black rifle under an overcast or night sky still reads.)
       const want = Math.max(atmo ? 1.6 : 0, (cityLight?.strength ?? lib.sun.irradiance) * .8 * (vm.sunSeen ? 1 : .08)) + (now - vm.flashAt < 60 ? 2.5 : 0);
       vm.sun.intensity += (want - vm.sun.intensity) * Math.min(1, dt * 8);
