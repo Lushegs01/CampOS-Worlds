@@ -106,11 +106,43 @@ before this pass (so no edit could leak into it); the "after" set from a frozen 
 
 ### Tone against the reference (central region, HUD excluded)
 
-TONE_TABLE
+| View | Mean luminance before → after | Shade floor (p5) | Highlights (p95) | Saturation |
+|---|---|---|---|---|
+| street | 0.36 → **0.46** | 0.03 → **0.09** | 0.76 → **0.83** | 0.15 → **0.16** |
+| avenue | 0.25 → **0.38** | 0.03 → **0.13** | 0.72 → **0.75** | 0.20 → **0.17** |
+| rooftop | 0.28 → **0.41** | 0.04 → **0.12** | 0.69 → **0.74** | 0.13 → **0.14** |
+| plaza | 0.37 → **0.50** | 0.03 → **0.15** | 0.81 → **0.84** | 0.17 → **0.16** |
+| industrial | 0.28 → **0.36** | 0.02 → **0.09** | 0.79 → **0.82** | 0.28 → **0.32** |
+| *Reference (7 frames, average)* | *0.44 (0.40–0.47)* | *0.12* | *0.76* | *0.23* |
+
+Every view's shade floor moved from near black (0.02–0.04) into the reference's range, and the means from 0.25–0.37 to
+0.36–0.50 against the reference's 0.40–0.47. Saturation remains a little below the reference (0.15–0.17 against 0.23) in
+the city views; the container yard is above it (its painted steel).
+
+### Side by side with the reference
+
+Judged view by view against reference frames of the same kind of shot (rooftop over a low-rise street, street level,
+open plaza):
+
+* **Now comparable**: light balance (sunlit walls bright, shade readable and cool, no crushed blacks), the pale hazy sky
+  and blue-grey distance, the architectural vocabulary of the walls (plaster with brick dressings, quoins, shutters,
+  cornices), pale roofs, and the clutter of poles and cables overhead that gives the reference its depth and scale.
+* **Still clearly behind**: surface texture richness (the reference's plaster, brick and asphalt carry dense, unique
+  photographic weathering; ours are tiling 1K sets with procedural variation), warm colour in sunlit surfaces, ground
+  clutter (debris, rubble, puddles of dust), and above all the weapon: the reference's rifle, optic and gloves are far
+  more detailed models and materials than ours (§5).
 
 ### Renderer statistics (same viewpoints, High at 50 %)
 
-STATS_TABLE
+| View | Draw calls before → after | Triangles before → after | Resident geometries |
+|---|---|---|---|
+| street | 647 → 688 (+6 %) | 0.59 M → 0.77 M (+32 %) | 689 → 734 |
+| avenue | 724 → 768 (+6 %) | 1.05 M → 1.23 M (+18 %) | 759 → 797 |
+| rooftop | 497 → 528 (+6 %) | 0.80 M → 0.97 M (+21 %) | 759 → 797 |
+| plaza | 632 → 669 (+6 %) | 0.98 M → 1.13 M (+15 %) | 759 → 797 |
+| industrial | 455 → 480 (+5 %) | 0.74 M → 0.87 M (+18 %) | 759 → 805 |
+
+(The 'after' call counts include the viewmodel's new shadow pass.)
 
 All additions merge into the existing per-material, per-region batches (one draw call per material per region), so
 draw calls grow far less than geometry. No new downloads: everything is procedural. Arena 3D chunk

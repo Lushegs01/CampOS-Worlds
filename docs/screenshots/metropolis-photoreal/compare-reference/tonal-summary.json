@@ -1,0 +1,82 @@
+{
+  "day-avenue-high.jpg": {
+    "before": {
+      "mean": 0.248,
+      "median": 0.15,
+      "p5": 0.027,
+      "p95": 0.718,
+      "saturation": 0.2
+    },
+    "after": {
+      "mean": 0.384,
+      "median": 0.345,
+      "p5": 0.127,
+      "p95": 0.746,
+      "saturation": 0.168
+    }
+  },
+  "day-industrial-high.jpg": {
+    "before": {
+      "mean": 0.277,
+      "median": 0.107,
+      "p5": 0.018,
+      "p95": 0.785,
+      "saturation": 0.284
+    },
+    "after": {
+      "mean": 0.361,
+      "median": 0.217,
+      "p5": 0.089,
+      "p95": 0.824,
+      "saturation": 0.318
+    }
+  },
+  "day-plaza-high.jpg": {
+    "before": {
+      "mean": 0.374,
+      "median": 0.288,
+      "p5": 0.033,
+      "p95": 0.811,
+      "saturation": 0.171
+    },
+    "after": {
+      "mean": 0.498,
+      "median": 0.48,
+      "p5": 0.146,
+      "p95": 0.836,
+      "saturation": 0.159
+    }
+  },
+  "day-rooftop-high.jpg": {
+    "before": {
+      "mean": 0.276,
+      "median": 0.244,
+      "p5": 0.037,
+      "p95": 0.686,
+      "saturation": 0.129
+    },
+    "after": {
+      "mean": 0.408,
+      "median": 0.415,
+      "p5": 0.12,
+      "p95": 0.743,
+      "saturation": 0.145
+    }
+  },
+  "day-street-high.jpg": {
+    "before": {
+      "mean": 0.365,
+      "median": 0.376,
+      "p5": 0.03,
+      "p95": 0.761,
+      "saturation": 0.155
+    },
+    "after": {
+      "mean": 0.461,
+      "median": 0.446,
+      "p5": 0.092,
+      "p95": 0.827,
+      "saturation": 0.161
+    }
+  }
+}
