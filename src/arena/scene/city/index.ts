@@ -21,7 +21,7 @@ import { setWindowLight } from './windows';
 import { heightfield, createRain, createLampGlow } from './weather';
 import { REFLECTED } from './reflection';
 import { portArt } from './port';
-import { buildUtilities } from './utility';
+import { buildUtilities, cablePixel } from './utility';
 
 export interface CityLighting { glow: number; rain: boolean; wet: number }
 /** The city's own light level and weather for a variant (everything else about it is in atmosphere.ts). */
@@ -207,7 +207,7 @@ export function buildCity(lib: Library, map: CityMap, q: ArenaQuality, variant: 
   };
   let onBreak: ((hit: NonNullable<ReturnType<typeof breakPane>>) => void) | null = null;
   const group = new THREE.Group(); group.name = 'metropolis'; group.add(...objects);
-  return { objects: [group] as THREE.Object3D[], group, lights: [] as THREE.Vector3[], setPixel: (px: number) => { pixel = px; }, activate, rainGroup: rain?.group ?? null, atmosphere: atmo, sampleHeight: field.sample, decor: (keys: PropKey[]) => decor(keys), wanted, update: frame, onPaneBreak: (fn: typeof onBreak) => { onBreak = fn; }, setPanes, setPower, lighting: light, dispose, fixtures, placeOf: where, services };
+  return { objects: [group] as THREE.Object3D[], group, lights: [] as THREE.Vector3[], setPixel: (px: number) => { pixel = px; cablePixel.value = px; }, activate, rainGroup: rain?.group ?? null, atmosphere: atmo, sampleHeight: field.sample, decor: (keys: PropKey[]) => decor(keys), wanted, update: frame, onPaneBreak: (fn: typeof onBreak) => { onBreak = fn; }, setPanes, setPower, lighting: light, dispose, fixtures, placeOf: where, services };
 }
 export type City = ReturnType<typeof buildCity>;
 const hash2 = (i: number) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };

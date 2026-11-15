@@ -13,8 +13,27 @@ import type { CityMats } from './materials';
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
+/** The angle one drawn pixel subtends (radians), set every frame by the city: cables never get thinner than this. */
+export const cablePixel = { value: 1 / 720 };
+/**
+ * Overhead cable material: a few millimetres of sheathed cable is far under a pixel beyond ~15 m, and a sub-pixel tube
+ * rasterises as a broken dashed line. Each vertex is pushed out along its (radial) normal so the cable is never
+ * narrower than about one pixel on screen; close up the true radius is kept. Opaque, so no sorting or blending cost.
+ */
+export function cableMaterial(base: THREE.MeshStandardMaterial) {
+  const m = base.clone(); m.name = 'cable'; m.userData = { ...base.userData, fixed: true };
+  m.onBeforeCompile = s => {
+    s.uniforms.uCablePixel = cablePixel;
+    s.vertexShader = 'uniform float uCablePixel;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      { vec4 cw = modelMatrix * vec4(transformed, 1.); float dist = length(cw.xyz - cameraPosition);
+        transformed += normalize(objectNormal) * max(0., dist * uCablePixel * .6 - .012); }`);
+  };
+  m.customProgramCacheKey = () => 'city-cable';
+  return m;
+}
+
 export function buildUtilities(b: CityBuilder, m: CityMats, map: CityMap, detail: number) {
-  const L = map.street, sides = detail ? 5 : 3, segs = detail ? 14 : 8;
+  const L = map.street, sides = detail ? 5 : 3, segs = detail ? 14 : 8, wire = cableMaterial(m.cable as THREE.MeshStandardMaterial);
   // What a cable can meet: whole building footprints (their walls are broken up by window bands at cable height, so a
   // ray against the wall boxes slips through a window into the room) and solid blocks.
   const walls: Box[] = [
@@ -37,7 +56,7 @@ export function buildUtilities(b: CityBuilder, m: CityMats, map: CityMap, detail
     const pts: THREE.Vector3[] = [];
     for (let i = 0; i <= segs; i++) { const t = i / segs; pts.push(a.clone().lerp(c, t).add(V(0, -4 * sag * t * (1 - t), 0))); }
     const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), segs, r, sides, false);
-    b.add(g, m.cable, 1); g.dispose();
+    b.add(g, wire, 1); g.dispose();
   };
   /** A wall bracket with an insulator, where a cable meets a building (n: the wall's outward normal). */
   const bracket = (p: THREE.Vector3, n: THREE.Vector3) => {

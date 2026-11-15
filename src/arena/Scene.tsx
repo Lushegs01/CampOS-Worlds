@@ -453,7 +453,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
     world?.update?.(live.matchElapsed < 0 ? -1 : live.matchElapsed + now - live.elapsedAt, live.broken, camera.position, !!vm.indoor, dt);
-    if (world?.city) { world.city.setPixel(2 * Math.tan((camera as THREE.PerspectiveCamera).fov * Math.PI / 360) / Math.max(1, size.height)); const su = (world.sky.material as THREE.ShaderMaterial).uniforms.uTime; if (su) su.value += dt; }
+    if (world?.city) { world.city.setPixel(2 * Math.tan((camera as THREE.PerspectiveCamera).fov * Math.PI / 360) / Math.max(1, gl.domElement.height || size.height)); /* per drawn pixel, after resolution scale */ const su = (world.sky.material as THREE.ShaderMaterial).uniforms.uTime; if (su) su.value += dt; }
     frameNo.current++;
     pollGamepad(dt, live.sim?.ads ?? 0, zoomOf());
     tickInput(dt);
