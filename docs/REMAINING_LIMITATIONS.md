@@ -27,14 +27,16 @@ repeated here ([COMBAT-ARENA.md](COMBAT-ARENA.md) § Not built, [METROPOLIS.md](
 * Modular authored facades, building interiors above street level, roof access structures.
 * Vehicles: the cars, bus, van, pickups and lorries are still code-built (`src/world/vehicleModels.ts`,
   `city/props.ts`). No wheel, suspension or door animation exists in the arena.
-* Soldiers: no new models, rig changes or animation clips in this pass. First-person reloads remain procedural poses
-  driven by the simulation's timers (not keyframed). The Wasp, Kestrel and Bastion magazines remain fused to the gun.
-* Weapons: no mesh changes in this pass.
+* Soldiers: no new models, rig changes or animation clips. Third-person soldiers do not mirror the new first-person
+  reloads or recoil.
+* First-person weapons (second pass, [ANIMATION_SYSTEM.md](ANIMATION_SYSTEM.md)): reloads, aiming, recoil and the
+  muzzle were rebuilt, but as authored curves rather than motion capture. Weapon meshes are the existing licensed
+  models; only the Wasp's and Kestrel's magazines were split out. Compact pistols remain small in frame.
 * Other Metropolis box types still drawn by code: kiosks, shelters, vending machines, ATMs, bollards, benches,
   planters, racking, switchgear, the plant rooms (`plant`).
 * The Blender props have no LODs (justified at ≤ 8 copies each, but required before wider use) and no destroyed states.
 
 ## Systems not changed
 
-Movement, camera, recoil, VFX, explosions, destruction, weather, shadows, reflections, networking, HUD and audio were
+Movement, camera, VFX other than the first-person muzzle, explosions, destruction, weather, shadows, reflections, networking, HUD and audio were
 audited from their reports and code but not modified in this pass.

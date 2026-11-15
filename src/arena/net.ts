@@ -20,7 +20,7 @@ import { unlockName } from './unlocks';
 import { cinematic } from './look';
 import { autoFireDecision } from '../../shared/arena/autofire.mjs';
 import { syncFromAccount } from './hudLayout';
-import { controls, buttons, axes } from './input';
+import { controls, buttons, axes, hold } from './input';
 import { sfx, actions, remoteActions, announcer, countdown, ground } from './audio';
 import { soldierModelFor } from './models';
 import { QA_HOOKS } from '../qa';
@@ -676,6 +676,8 @@ if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<stri
   refreshOwned: async () => { const r = await request({ t: 'owned' }); if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); return r.owned; },
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
+  /** Hold or release buttons by name (QA only: the weapon-motion capture fires, aims and reloads without a mouse). */
+  buttons: (names: string[], on: boolean) => { for (const n of names) { const bit = (B as Record<string, number>)[n]; if (bit) hold(bit, on); } },
   deploy: () => ({ ...deploy.useDeploy.getState(), recent: deploy.recentDeployments() }),
   /** QA captures: the combat feedback store (stage an unlock notice) and the interface store (stage a saved result). */
   feedback: () => useFeedback.getState(),

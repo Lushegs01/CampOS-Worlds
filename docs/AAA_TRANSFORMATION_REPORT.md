@@ -127,3 +127,33 @@ New: this report, [BLENDER_ASSET_PIPELINE.md](BLENDER_ASSET_PIPELINE.md), [ASSET
 changed no animation or renderer code and measured no device. The existing documents
 ([COMBAT-ARENA.md](COMBAT-ARENA.md), [PHOTOREALISM.md](PHOTOREALISM.md), [MOBILE-PERFORMANCE.md](MOBILE-PERFORMANCE.md))
 remain the accurate description, and new files would only restate them.
+
+## 7. Second pass: weapons (framing, hands, reloads, aiming, firing, muzzle)
+
+Requested after the first pass: weapon framing and hands, the fused magazines, muzzle effects, and reloading,
+scoping and shooting as realistic as the supplied footage. Details: [ANIMATION_SYSTEM.md](ANIMATION_SYSTEM.md).
+
+* **One animator** (`src/arena/scene/viewmodel.ts`) replaces the inline viewmodel code in `Scene.tsx`, driven by the
+  simulation's state and the shared reload timeline (the same keys that time the reload sounds), and used unchanged
+  by the QA renders.
+* **Framing.** The hip pose follows the reference composition (low right, muzzle in, canted). The viewmodel field of
+  view narrows on the sights so an optic fills the eye (the Vanguard's optic went from about 4 % to about 12 % of the
+  frame width). The shotgun's and pistols' sight lines were corrected.
+* **Hands.** Full gloves derived from the rig's finger bones; reload turns pivot on the firing hand, so the hand and
+  stock no longer swing into the lens.
+* **Reloads.** Weapon raised and rolled to show the well. Tactical: the magazine is stripped, carried to a pouch,
+  replaced, driven home and seated with a palm tap. From empty: the magazine drops free under gravity and the action
+  is worked per mechanism (bolt catch, charging handle, bolt, slide). The Wasp and Kestrel magazines were split from
+  their receivers (`scripts/assets/split-weapon-part.mjs`), so every detachable-magazine weapon has a real magazine.
+* **Aiming and firing.** Spring-driven ADS with an arc and settle; a breathing drift on the reticle; per-class recoil
+  springs (back, climb, roll, yaw, shake) with a visible sight lift that settles in about half a second. A pistol's
+  slide locks back on empty.
+* **Muzzle** (`src/arena/scene/muzzle.ts`). A per-shot varied flash that reads in daylight, a light on the weapon and
+  hands, and faint barrel smoke that lingers after sustained fire.
+
+Verification: `tests/arena-viewmodel.test.mjs` (4 tests: reload follows the timeline, a cancelled reload leaves
+nothing behind, sights on the camera axis, recoil settles, simulation state untouched). Footage is in
+`docs/screenshots/arena/visual/motion/`: 30 fps renders of the shared animator (`<weapon>-<sequence>.mp4`) and a
+real-time recording of a live training match on the real room server (`match-vanguard.mp4`, trimmed to the gameplay, with stills; recorded before the final smoke tuning). Both are
+Chromium software WebGL: the motion and timing are correct; the frame rate of the match recording is not a device
+measurement. Gameplay values (damage, recoil, spread, fire rate, reload times) are unchanged.

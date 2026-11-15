@@ -494,10 +494,10 @@ Proxy `/arena` like `/ws` ([deployment](DEPLOYMENT.md)). Apply the migration wit
 * Kill cams, voice, parties queuing together, spectating.
 * Physical-device performance verification on low-end Android phones.
 * Art still to raise: Sim Quad's planters, benches and interior blocks are textured boxes rather than
-  modelled props; the Wasp, Kestrel and Bastion magazines are fused to the gun (reloads move the hand
-  but nothing drops); the Talon's third-person LOD stays at ~20k triangles (its source mesh does not
-  simplify); bespoke animation clips for the first-person arms (reloads are procedural poses driven by
-  the simulation, not keyframed animation).
+  modelled props; the Talon's third-person LOD stays at ~20k triangles (its source mesh does not
+  simplify); motion-captured clips for the first-person arms (reloads are authored curves keyed to the shared
+  reload timeline: magazines leave, travel and seat, the action is worked; see [ANIMATION_SYSTEM.md](ANIMATION_SYSTEM.md)).
+  The Wasp and Kestrel magazines are now separate parts; the Bastion is tube-fed and loads shell by shell.
 * Phones on metered data: the Low profile now needs about 7 MB before play and about 14 MB in all (phone texture
   tier); a smaller first-person weapon tier for phones was not made (weapons stay full resolution by choice).
 * Keeping one renderer across matches (a new match currently creates a new WebGL context, re-uploads textures and
