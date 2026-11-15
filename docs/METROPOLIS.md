@@ -231,3 +231,9 @@ measurements, before/after captures and what remains are in [PHOTOREALISM.md](PH
 **Storm Break** (Quick Play's weather since November 2026): a low sun due south over the bay under storm cloud,
 passing rain, light shafts, the rebuilt port (containers, lattice cranes, the far terminal, floodlight masts) and a
 grade that no longer crushes shade to black. Details, captures and measurements: [PHOTOREALISM.md](PHOTOREALISM.md) §6.
+
+## Daylight fidelity pass (November 2026)
+
+Harmattan Noon retuned against a daylight reference clip and made Quick Play's weather; facade articulation (quoins,
+lintels, shutters, cornices, downpipes) on every masonry building; overhead power and telephone lines; a grade on Low;
+viewmodel self-shadowing. Details, before/after captures and measurements: [METROPOLIS-DAYLIGHT.md](METROPOLIS-DAYLIGHT.md).
