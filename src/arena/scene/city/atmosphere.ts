@@ -65,19 +65,19 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
   },
   // Harmattan Noon (Quick Play): dry-season daylight through dust haze, matched to the daylight reference footage
   // (frames measured in the central region, HUD excluded: mean luminance ~0.44, shade floor ~0.11, highlights ~0.76,
-  // mean saturation ~0.22, a pale blue-grey sky). The haze softens the sun and lifts the shade: most of a shaded
+  // mean saturation ~0.22, a pale blue-grey sky; tuned by measuring captures of the same kind of view against them). The haze softens the sun and lifts the shade: most of a shaded
   // wall's light is the bright sky and the sunlit street bouncing back, so the sky and ground are bright and the sun's
   // share is lower than under a clear sky. Distance goes blue-grey, not brown. The sun stands due south at ~53°, on
   // the map's axis of symmetry (fair to both teams, and never in the eye line).
   day: {
     sunDir: [0, .8, .6], sunColor: [1, .95, .87], sun: 2.9, shadowSoft: 1.35,
-    zenith: [.3, .42, .58], horizon: [.8, .81, .8], ground: [.34, .31, .27], glow: [0, 0, 0],
-    photo: .22, photoTint: [.94, .97, 1], photoScale: 3.2,
-    clouds: .28, cloudDark: .08, cloudLit: [1.25, 1.24, 1.2], cloudShade: [.78, .8, .84],
-    fog: [.63, .67, .7], fogDensity: .0055, fogFalloff: .04, fogBase: 5, fogStart: 10, fogMax: .9, fogSun: [.32, .28, .2],
-    exposure: .76, env: 1.75, fill: .62, fillSky: D('#d3dce8'), fillGround: D('#a39176'),
+    zenith: [.24, .39, .62], horizon: [.72, .77, .82], ground: [.34, .31, .27], glow: [0, 0, 0],
+    photo: .3, photoTint: [.94, .97, 1], photoScale: 3.2,
+    clouds: .22, cloudDark: .08, cloudLit: [1.25, 1.24, 1.2], cloudShade: [.78, .8, .84],
+    fog: [.6, .66, .72], fogDensity: .0055, fogFalloff: .04, fogBase: 5, fogStart: 10, fogMax: .9, fogSun: [.32, .28, .2],
+    exposure: .7, env: 1.75, fill: .62, fillSky: D('#d3dce8'), fillGround: D('#a39176'),
     glowLevel: 0, rain: false, wet: 0,
-    saturation: .9, contrast: 1.04, lift: [1, 1, 1.02], gain: [1.02, 1, .97],
+    saturation: 1.12, contrast: 1.08, lift: [1, 1, 1.02], gain: [1.02, 1, .97],
     gap: 0, rim: 0, shafts: .25, bloomThreshold: 2.6, bloomIntensity: .38,
   },
   // Rainy Season: a low, heavy overcast. No hard shadows; the street is wet; rain hangs in the air as mist.

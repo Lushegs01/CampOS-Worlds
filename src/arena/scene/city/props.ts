@@ -72,7 +72,7 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         }
         l.box(-Ln - .03, .75, -W, -Ln + .02, h, -W + .12, m.steel, 1); l.box(-Ln - .03, .75, W - .12, -Ln + .02, h, W, m.steel, 1); l.box(-Ln - .03, h - .16, -W, -Ln + .02, h, W, m.steel, 1);
         l.box(-Ln - .02, .8, -W + .12, -Ln + .01, h - .16, W - .12, m.white, 1.2); l.box(-Ln - .03, .8, -.008, -Ln + .015, h - .16, .008, m.darkSteel, 1);
-        for (const v of [-W + .45, -.25, .25, W - .45]) { l.box(-Ln - .06, .85, v - .02, -Ln - .02, h - .2, v + .02, m.stainless, 1); for (const y of [.95, h - .3]) l.box(-Ln - .07, y, v - .04, -Ln - .02, y + .08, v + .04, m.darkSteel, 1); }
+        for (const v of [-W + .45, -.25, .25, W - .45]) { l.box(-Ln - .06, .85, v - .02, -Ln - .02, h - .2, v + .02, m.darkSteel, 1); for (const y of [.95, h - .3]) l.box(-Ln - .07, y, v - .04, -Ln - .02, y + .08, v + .04, m.darkSteel, 1); }
         for (const s of [-1, 1]) for (const y of [1.1, (h + .8) / 2, h - .45]) l.box(-Ln - .05, y, s * (W - .12) - .03, -Ln - .01, y + .14, s * (W - .12) + .05, m.darkSteel, 1);
         l.box(-Ln - .12, .38, -W + .1, -Ln + .1, .5, W - .1, m.black, 1);
         for (const v of [-W + .2, 0, W - .2]) l.box(-Ln - .03, h - .12, v - .05, -Ln - .005, h - .06, v + .05, m.taillamp, 1);

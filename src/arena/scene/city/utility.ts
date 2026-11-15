@@ -15,12 +15,17 @@ const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 export function buildUtilities(b: CityBuilder, m: CityMats, map: CityMap, detail: number) {
   const L = map.street, sides = detail ? 5 : 3, segs = detail ? 14 : 8;
-  const walls = map.boxes.filter(x => /^bld-|^parapet/.test(x.mat) && x.max[1] > L + 4);
+  // What a cable can meet: whole building footprints (their walls are broken up by window bands at cable height, so a
+  // ray against the wall boxes slips through a window into the room) and solid blocks.
+  const walls: Box[] = [
+    ...map.buildings.map(g => ({ min: [g.x0, g.y0, g.z0], max: [g.x1, g.y1, g.z1], mat: 'building' })),
+    ...map.boxes.filter(x => /^bld-/.test(x.mat) && x.max[1] > L + 4 && Math.min(x.max[0] - x.min[0], x.max[2] - x.min[2]) > .8),
+  ];
   const inside = (x: number, y: number, z: number) => walls.some(w => x > w.min[0] && x < w.max[0] && y > w.min[1] && y < w.max[1] && z > w.min[2] && z < w.max[2]);
   /** Distance along ±x or ±z from (x, y, z) to the first building wall, or Infinity. */
   const cast = (x: number, y: number, z: number, axis: 'x' | 'z', dir: 1 | -1, max: number) => {
     let best = Infinity;
-    for (const w of walls as Box[]) {
+    for (const w of walls) {
       if (y < w.min[1] || y > w.max[1]) continue;
       if (axis === 'x') { if (z < w.min[2] || z > w.max[2]) continue; const t = ((dir > 0 ? w.min[0] : w.max[0]) - x) * dir; if (t > .05 && t < best) best = t; }
       else { if (x < w.min[0] || x > w.max[0]) continue; const t = ((dir > 0 ? w.min[2] : w.max[2]) - z) * dir; if (t > .05 && t < best) best = t; }
@@ -98,7 +103,7 @@ export function buildUtilities(b: CityBuilder, m: CityMats, map: CityMap, detail
   // ------------------------------------------------------------ bundles strung across the street, wall to wall
   // Sampled along every street: where both kerb lines are fronted by buildings within reach, a bundle of two to four
   // cables crosses at 5.5–7 m between wall brackets (some with a junction box on the wall).
-  const streets = map.boxes.filter(x => x.mat === 'st-asphalt' && x.max[1] > L - .3);
+  const streets = map.boxes.filter(x => x.mat === 'st-asphalt' && x.max[1] > L - .3 && Math.min(x.max[0] - x.min[0], x.max[2] - x.min[2]) >= 4);
   let spans = 0;
   for (const s of streets) {
     const along: 'x' | 'z' = s.max[0] - s.min[0] >= s.max[2] - s.min[2] ? 'x' : 'z', across: 'x' | 'z' = along === 'x' ? 'z' : 'x';

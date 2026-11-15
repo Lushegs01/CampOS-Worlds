@@ -18,6 +18,9 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
   const spaceAt = (x: number, z: number) => { let hit: (typeof spaces)[number] | null = null; for (const s of spaces) if (x > s[0] && x < s[2] && z > s[1] && z < s[3]) hit = s; return hit; };
   const linings = new Map<string, THREE.Material>();
   const liningOf = (g: Building) => { let l = linings.get(g.fill); if (!l) { l = m.plaster.clone(); l.name = 'lining'; (l as THREE.MeshStandardMaterial).color = new THREE.Color(g.fill).multiplyScalar(1.15); l.userData = { ...m.plaster.userData }; linings.set(g.fill, l); } return l; };
+  const masonryWall = (wall: string) => wall === 'bld-render' || wall === 'bld-brick' || wall === 'bld-stone';
+  /** Dressings (lintels, surrounds, quoins): cast stone on brick, brick on most rendered walls, per building. */
+  const dressOf = (wall: string, x: number, z: number) => wall === 'bld-brick' ? m.precast : wall === 'bld-stone' ? m.precast : (hash(Math.round(Math.abs(x) / 9) + 3, Math.round(z / 9)) > .35 ? m.brick : m.precast);
   const renderOf = (x: number, z: number) => m.render[Math.floor(hash(Math.round(Math.abs(x) / 9), Math.round(z / 9)) * m.render.length)];
   /**
    * The working roof of a building nobody can reach: a parapet with coping, a lift overrun or stair head, plant,
@@ -214,7 +217,18 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
       if (g && g.enter && cy < g.y1) continue;
       const out = (w0: number, w1: number): [number, number] => side > 0 ? [t + w0, t + w1] : [-t - w1, -t - w0];
       b.force = 'out';
-      if (d.kind === 'window') { const [p, q] = out(0, .1); f.box(-.08, y0 - .07, w + .08, y0, p, q, m.precast, 1); if (detail && hash(a0, c) > .55 && y0 > L + 3) aircon(f.matrix().clone().multiply(T(w * .5, y0 - .85, side > 0 ? t : -t)).multiply(RY(side > 0 ? 0 : Math.PI))); }
+      if (d.kind === 'window') {
+        const [p, q] = out(0, .1); f.box(-.08, y0 - .07, w + .08, y0, p, q, m.precast, 1);
+        // Masonry dressings round the opening (the glass itself is the server's breakable pane: nothing covers it):
+        // a lintel, jamb surrounds, a drip under the sill, and louvred shutters folded flat against the wall.
+        if (masonryWall(d.wall)) {
+          const k = hash(a0 * 1.3, c), dress = dressOf(d.wall, a0, c), [l0, l1] = out(0, .035), [s0, s1] = out(.04, .075), [d0, d1] = out(.07, .1);
+          f.box(-.14, y1, w + .14, y1 + .22, l0, l1, dress, 1.2); f.box(-.08, y0 - .09, w + .08, y0 - .07, d0, d1, m.precast, 1);
+          if (detail) { f.box(-.14, y0, 0, y1, ...out(0, .02), dress, 1.2); f.box(w, y0, w + .14, y1, ...out(0, .02), dress, 1.2); }
+          const lw = Math.min(w / 2, .62);
+          if (k > .4 && w < 2.4 && y0 > L + 2) { const sm = k > .75 ? m.shutterWood : k > .55 ? m.shutterGreen : m.shutterGrey; f.box(-.16 - lw, y0 + .02, -.16, y1 - .02, s0, s1, sm, 1.1); f.box(w + .16, y0 + .02, w + .16 + lw, y1 - .02, s0, s1, sm, 1.1); }
+        }
+        if (detail && hash(a0, c) > .55 && y0 > L + 3) aircon(f.matrix().clone().multiply(T(w * .5, y0 - .85, side > 0 ? t : -t)).multiply(RY(side > 0 ? 0 : Math.PI))); }
       else if (d.kind === 'shop' || (d.kind === 'door' && y0 - L < .1 && !ug)) {
         const upper = y0 > L + 2;
         if (d.kind === 'shop' && !upper) {
@@ -240,6 +254,28 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
         const [h0, h1] = out(0, .34); f.box(-.1, y1 - .05, w + .1, y1 + .4, h0, h1, m.steel, 1);
         f.box(j, y1 - .5, w - j, y1 - .05, -.03, .03, m.shutter, 1.2);
         for (const u of [-.14, w + .02]) f.box(u, y0, u + .12, y0 + 1, h0, h0 + (side > 0 ? .12 : -.12) + (side > 0 ? 0 : .34), m.yellow, 1);
+      }
+      b.force = null;
+    }
+  }
+
+  // ---------------------------------------------------------------- quoins on the street buildings' outer corners
+  // Alternating long and short blocks up each exposed corner of a rendered or brick building, from the plinth to the
+  // parapet. A corner with an opening near it, or that meets a neighbour, is left plain.
+  for (const g of map.buildings) {
+    if (g.y1 - g.y0 < 4) continue;
+    const wallBox = map.boxes.find(x => x.mat.startsWith('bld-') && Math.min(x.max[0] - x.min[0], x.max[2] - x.min[2]) < .8 && x.min[0] >= g.x0 - .05 && x.max[0] <= g.x1 + .05 && x.min[2] >= g.z0 - .05 && x.max[2] <= g.z1 + .05);
+    if (!wallBox || !masonryWall(wallBox.mat)) continue;
+    const dress = dressOf(wallBox.mat, g.x0, g.z0), top = Math.max(...map.boxes.filter(x => x.mat === 'parapet' && x.min[0] < g.x1 && x.max[0] > g.x0 && x.min[2] < g.z1 && x.max[2] > g.z0).map(x => x.max[1]), g.y1);
+    for (const [cx, cz, sx, sz] of [[g.x0, g.z0, 1, 1], [g.x1, g.z0, -1, 1], [g.x0, g.z1, 1, -1], [g.x1, g.z1, -1, -1]] as const) {
+      if (buildingAt(cx - sx * .6, cz - sz * .6) || buildingAt(cx - sx * .6, cz + sz * .6) || buildingAt(cx + sx * .6, cz - sz * .6)) continue;
+      if (Math.abs(cx) > map.bounds[2] - .3 || Math.abs(cz) > map.bounds[3] - .3) continue;
+      if (map.deco.some(d => d.min[0] < cx + .75 && d.max[0] > cx - .75 && d.min[2] < cz + .75 && d.max[2] > cz - .75 && d.max[1] > g.y0 + .5)) continue;
+      b.force = 'out';
+      for (let y = g.y0 + .45, n = 0; y < top - .35; y += .32, n++) {
+        const q = n % 2 ? .3 : .5, y1 = Math.min(top - .35, y + .3);
+        b.box(Math.min(cx, cx + sx * q), y, Math.min(cz - sz * .03, cz), Math.max(cx, cx + sx * q), y1, Math.max(cz - sz * .03, cz), dress, 1.2);
+        b.box(Math.min(cx - sx * .03, cx), y, Math.min(cz, cz + sz * q), Math.max(cx - sx * .03, cx), y1, Math.max(cz, cz + sz * q), dress, 1.2);
       }
       b.force = null;
     }
