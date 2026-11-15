@@ -148,6 +148,17 @@ All additions merge into the existing per-material, per-region batches (one draw
 draw calls grow far less than geometry. No new downloads: everything is procedural. Arena 3D chunk
 (`arena-Scene-*.js`, minified): 213.4 KB → 226.5 KB (85.6 KB gzipped). Offline precache unchanged (2.49 MB).
 
+### Low (phones): verified to deploy, not captured
+
+Low captures could not be completed in this container, **before or after** this pass (the baseline run on the untouched
+previous commit stalled the same way). Low deploys normally (29 s, mobile asset tier, no page errors), but SwiftShader
+has no `KHR_parallel_shader_compile`, so Low compiles every program on the main thread. On this 4-core software renderer
+that blocks the page long enough for the client to leave the match before a view can be photographed. Real phones
+compile on the GPU driver in a fraction of that time. What this pass changes on Low: one new program (the cable
+material), the grade folded into the existing tone mapper (no new pass), and the added merged geometry (cables at three
+sides and eight segments, no grilles, dentils or jamb surrounds). **Capture and time Low on a real phone before
+release.**
+
 ### Tests and builds
 
 * `npm test`: **344 passed, 0 failed** (the Quick Play weather test now expects Harmattan Noon; Storm Break is covered as
