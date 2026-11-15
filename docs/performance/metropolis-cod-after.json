@@ -1,0 +1,62 @@
+{
+  "label": "cod-after",
+  "when": "2026-11-15T07:59:10.161Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "day-street-high": {
+      "world": 0,
+      "calls": 688,
+      "triangles": 773355,
+      "textures": 113,
+      "geometries": 734,
+      "fps": 1,
+      "heapMB": 386,
+      "deployMs": 49178
+    },
+    "day-avenue-high": {
+      "world": 0,
+      "calls": 768,
+      "triangles": 1228655,
+      "textures": 193,
+      "geometries": 797,
+      "fps": 0,
+      "heapMB": 459,
+      "deployMs": 49178
+    },
+    "day-rooftop-high": {
+      "world": 0,
+      "calls": 528,
+      "triangles": 968747,
+      "textures": 193,
+      "geometries": 797,
+      "fps": 1,
+      "heapMB": 431,
+      "deployMs": 49178
+    },
+    "day-plaza-high": {
+      "world": 0,
+      "calls": 669,
+      "triangles": 1129825,
+      "textures": 193,
+      "geometries": 797,
+      "fps": 1,
+      "heapMB": 434,
+      "deployMs": 49178
+    },
+    "day-industrial-high": {
+      "world": 0,
+      "calls": 480,
+      "triangles": 871031,
+      "textures": 193,
+      "geometries": 805,
+      "fps": 1,
+      "heapMB": 429,
+      "deployMs": 49178
+    }
+  },
+  "errors": []
+}

@@ -94,7 +94,9 @@ function cardsGeometry(cards: Card[], canopyCenter: THREE.Vector3, canopyScale: 
 }
 
 /** `lite` trees (the distant belt) keep only trunk and main limbs as geometry. */
-export function growTree(species: keyof typeof PROFILES, seed: number, density = 1, lite = false): TreeGeometry {
+/** `cardScale` < 1 grows the same crown from smaller, more numerous leaf cards (a finer silhouette and less visible card
+ *  edges up close; the leaf area stays about the same, at 1/cardScale² the cards). */
+export function growTree(species: keyof typeof PROFILES, seed: number, density = 1, lite = false, cardScale = 1): TreeGeometry {
   const P = PROFILES[species], r = rng(seed * 7919 + 13), woods: THREE.BufferGeometry[] = [], cards: Card[] = [];
   const queue: Branch[] = [{ start: new THREE.Vector3(0, -.3, 0), dir: new THREE.Vector3((r() - .5) * P.trunkLean, 1, (r() - .5) * P.trunkLean).normalize(), length: P.trunkHeight + .3, radius: P.trunkRadius, level: 0 }];
   const spawn = (b: Branch, path: THREE.Vector3[], radii: number[]) => {
@@ -139,15 +141,15 @@ export function growTree(species: keyof typeof PROFILES, seed: number, density =
     if (b.radius > .028 && b.level <= (lite ? 0 : 2)) woods.push(tube(path, radii, b.level === 0 ? 8 : b.level === 1 ? 6 : b.level === 2 ? 4 : 3));
     spawn(b, path, radii);
     if (b.level >= P.leafLevel || (P.whorls && b.level >= 1)) {
-      const n = Math.max(1, Math.round(P.leavesPerBranch * density * (b.level >= P.leafLevel ? 1 : .5)));
+      const n = Math.max(1, Math.round(P.leavesPerBranch * density * (b.level >= P.leafLevel ? 1 : .5) / (cardScale * cardScale)));
       for (let i = 0; i < n; i++) {
         const t = .35 + .65 * (i + r()) / n, k = Math.min(path.length - 1, Math.round(t * (path.length - 1)));
-        const center = path[k].clone().add(new THREE.Vector3((r() - .5) * .6, (r() - .2) * .4, (r() - .5) * .6));
+        const spread = cardScale < 1 ? 1.5 : 1, center = path[k].clone().add(new THREE.Vector3((r() - .5) * .6 * spread, (r() - .2) * .4 * spread, (r() - .5) * .6 * spread));
         const facing = new THREE.Vector3((r() - .5) * 2, 0, (r() - .5) * 2);
         const normal = facing.multiplyScalar(1 - P.leafFacing).add(new THREE.Vector3(0, P.leafFacing + r() * .3, 0)).normalize();
         const right = new THREE.Vector3(r() - .5, 0, r() - .5).cross(normal).normalize();
         if (right.lengthSq() < .01) right.set(1, 0, 0);
-        cards.push({ center, normal, right, size: P.leafSize[0] + r() * (P.leafSize[1] - P.leafSize[0]), cell: P.leafCells[Math.floor(r() * P.leafCells.length)], tint: .82 + r() * .3 });
+        cards.push({ center, normal, right, size: (P.leafSize[0] + r() * (P.leafSize[1] - P.leafSize[0])) * cardScale, cell: P.leafCells[Math.floor(r() * P.leafCells.length)], tint: .82 + r() * .3 });
       }
     }
   }

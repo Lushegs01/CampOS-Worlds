@@ -128,7 +128,7 @@ export function buildDressing(b: CityBuilder, m: CityMats, lib: Library, map: Ci
     }
   };
   plant(palms, v => growPalm(v % 2 ? 'coconut' : 'royal', 11 + v, detail ? 1 : .6, false), frondMat, 2, i => .78 + (i % 3) * .05);
-  plant(trees, v => growTree(v % 2 ? 'mango' : 'terminalia', 5 + v, detail ? 1 : .6, false), leafMat, 2, i => .62 + (i % 2) * .08);
+  plant(trees, v => growTree(v % 2 ? 'mango' : 'terminalia', 5 + v, detail ? 1 : .6, false, detail ? .55 : 1), leafMat, 2, i => .62 + (i % 2) * .08);
   return { objects };
 }
 

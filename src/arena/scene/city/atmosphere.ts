@@ -63,17 +63,22 @@ export const ATMOSPHERE: Record<string, Atmosphere> = {
     saturation: .94, contrast: 1.1, lift: [.955, .985, 1.07], gain: [1.05, 1, .93],
     gap: .9, rim: .7, shafts: .8, bloomThreshold: 1.8, bloomIntensity: .55,
   },
-  // Harmattan Noon: high sun through a dry, dusty haze. The sky is pale; far towers fade to warm grey.
+  // Harmattan Noon (Quick Play): dry-season daylight through dust haze, matched to the daylight reference footage
+  // (frames measured in the central region, HUD excluded: mean luminance ~0.44, shade floor ~0.11, highlights ~0.76,
+  // mean saturation ~0.22, a pale blue-grey sky; tuned by measuring captures of the same kind of view against them). The haze softens the sun and lifts the shade: most of a shaded
+  // wall's light is the bright sky and the sunlit street bouncing back, so the sky and ground are bright and the sun's
+  // share is lower than under a clear sky. Distance goes blue-grey, not brown. The sun stands due south at ~53°, on
+  // the map's axis of symmetry (fair to both teams, and never in the eye line).
   day: {
-    sunDir: [.5543, .7418, .3775], sunColor: [1, .93, .82], sun: 3.4, shadowSoft: 1,
-    zenith: [.14, .25, .44], horizon: [.62, .6, .55], ground: [.17, .155, .135], glow: [0, 0, 0],
-    photo: .7, photoTint: [.92, .95, 1], photoScale: 3.2,
-    clouds: 0, cloudDark: .2, cloudLit: [1, .97, .92], cloudShade: [.55, .57, .6],
-    fog: [.56, .54, .5], fogDensity: .0042, fogFalloff: .045, fogBase: 5, fogStart: 14, fogMax: .9, fogSun: [.35, .3, .2],
-    exposure: .74, env: 1, fill: .25, fillSky: D('#cfdcec'), fillGround: D('#8a7c62'),
+    sunDir: [0, .8, .6], sunColor: [1, .95, .87], sun: 2.9, shadowSoft: 1.35,
+    zenith: [.24, .39, .62], horizon: [.72, .77, .82], ground: [.34, .31, .27], glow: [0, 0, 0],
+    photo: .3, photoTint: [.94, .97, 1], photoScale: 3.2,
+    clouds: .22, cloudDark: .08, cloudLit: [1.25, 1.24, 1.2], cloudShade: [.78, .8, .84],
+    fog: [.6, .66, .72], fogDensity: .0055, fogFalloff: .04, fogBase: 5, fogStart: 10, fogMax: .9, fogSun: [.32, .28, .2],
+    exposure: .7, env: 1.75, fill: .62, fillSky: D('#d3dce8'), fillGround: D('#a39176'),
     glowLevel: 0, rain: false, wet: 0,
-    saturation: .93, contrast: 1.06, lift: [.995, 1, 1.01], gain: [1.02, 1, .97],
-    gap: 0, rim: 0, shafts: .3, bloomThreshold: 2.6, bloomIntensity: .42,
+    saturation: 1.12, contrast: 1.08, lift: [1, 1, 1.02], gain: [1.02, 1, .97],
+    gap: 0, rim: 0, shafts: .25, bloomThreshold: 2.6, bloomIntensity: .38,
   },
   // Rainy Season: a low, heavy overcast. No hard shadows; the street is wet; rain hangs in the air as mist.
   overcast: {

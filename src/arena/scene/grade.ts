@@ -54,3 +54,28 @@ export class SharpenEffect extends Effect {
     super('SharpenEffect', SHARPEN, { blendFunction: BlendFunction.SRC, attributes: EffectAttribute.CONVOLUTION, uniforms: new Map([['amount', new THREE.Uniform(amount)]]) });
   }
 }
+
+// ---------------------------------------------------------------------------------------- the grade on Low (phones)
+// Low has no post stack, so it used to show each weather ungraded (renderer ACES only): flatter and more saturated than
+// Medium and up. The same grade (lift/gain tint, saturation, power-curve contrast) is folded into three's tone-mapping
+// step instead, as a custom tone mapper: ACES, then the grade in display space, per fragment, in the shader every lit
+// material already runs. No extra pass, no extra render target, nothing for a phone's fill rate to pay for.
+// (The values are compiled in: the arena's canvas, and with it every program, is rebuilt for each match.)
+const STOCK_CUSTOM = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
+let stockChunk: string | null = null;
+export function installToneGrade(o: { saturation: number; contrast: number; lift: [number, number, number]; gain: [number, number, number] } | null) {
+  const C = THREE.ShaderChunk as unknown as Record<string, string>;
+  stockChunk ??= C.tonemapping_pars_fragment;
+  if (!o) { C.tonemapping_pars_fragment = stockChunk; return; }
+  const f = (v: number) => v.toFixed(4), v3 = (v: [number, number, number]) => `vec3(${v.map(f).join(', ')})`;
+  C.tonemapping_pars_fragment = stockChunk.replace(STOCK_CUSTOM, `vec3 CustomToneMapping( vec3 color ) {
+    vec3 c = clamp( ACESFilmicToneMapping( color ), 0., 1. );
+    c = pow( c, vec3( 1. / 2.2 ) );
+    float l = dot( c, vec3( .2126, .7152, .0722 ) );
+    c = mix( c * ${v3(o.lift)}, c * ${v3(o.gain)}, smoothstep( .05, .85, l ) );
+    c = mix( vec3( dot( c, vec3( .2126, .7152, .0722 ) ) ), c, ${f(o.saturation)} );
+    vec3 lo = .5 * pow( max( c * 2., 0. ), vec3( ${f(o.contrast)} ) ), hi = 1. - .5 * pow( max( 2. - c * 2., 0. ), vec3( ${f(o.contrast)} ) );
+    c = mix( lo, hi, step( .5, c ) );
+    return pow( clamp( c, 0., 1. ), vec3( 2.2 ) );
+  }`);
+}
