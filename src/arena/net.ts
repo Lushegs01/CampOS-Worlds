@@ -7,7 +7,8 @@
 // commands the server has not applied yet, and smooths any small visual difference away. Remote
 // players are drawn ~100 ms in the past, interpolated between snapshots, and every batch of commands
 // says which moment that is (`rt`) so the server can check shots against what the player saw.
-import { createWorld, raycast } from '../../shared/arena/physics.mjs';
+import { raycast } from '../../shared/arena/physics.mjs';
+import { arenaWorld, setDoor, openAllDoors, doorInReach, doorOpen } from '../../shared/arena/doors.mjs';
 import { MAP_BY_ID } from '../../shared/arena/maps.mjs';
 import { step, spawnState, unpackState, quantize, encodeCommand, DT, B, eyeOf, weaponOf, fireModeOf, spreadOf, direction } from '../../shared/arena/sim.mjs';
 import { WEAPONS, WEAPON_BY_ID, STREAK_BY_ID, skinsBetween } from '../../shared/arena/weapons.mjs';
@@ -44,8 +45,8 @@ export type Fx =
 /** Everything that changes every frame, outside React. */
 export const live = {
   broken: new Set<number>(), matchElapsed: -1, elapsedAt: 0,
-  sim: null as Sim | null, ctx: null as { world: ReturnType<typeof createWorld>; seed: number; num: number; perks: Set<string> } | null,
-  world: null as ReturnType<typeof createWorld> | null, mapId: '', alive: false, life: 0, num: 0, team: 0,
+  sim: null as Sim | null, ctx: null as { world: ReturnType<typeof arenaWorld>; seed: number; num: number; perks: Set<string> } | null,
+  world: null as ReturnType<typeof arenaWorld> | null, mapId: '', alive: false, life: 0, num: 0, team: 0,
   pending: [] as Cmd[], outgoing: [] as number[][], seq: 0, acc: 0, lastSend: 0,
   smooth: { x: 0, y: 0, z: 0 }, prev: { x: 0, y: 0, z: 0 }, remotes: new Map<number, Remote>(), playback: createPlayback(100),
   grenades: new Map<number, { kind: number; x: number; y: number; z: number; at: number }>(),
@@ -239,7 +240,7 @@ function enterMatch(view: MatchView, you: { num: number; team: number; key: stri
   if (same && deploy.useDeploy.getState().stage === 'recovering') deploy.resumed(); else if (!same || deploy.useDeploy.getState().stage !== 'deployed') deploy.assigned();
   live.loadedSent = ''; live.haveState = false; live.syncRetries = 0;
   const map = MAP_BY_ID.get(view.map)!;
-  live.world = createWorld(map.boxes, map.bounds); live.mapId = view.map; live.num = you.num; live.team = you.team;
+  live.world = arenaWorld(map); for (const i of view.closed ?? []) setDoor(live.world, i, false); live.mapId = view.map; live.num = you.num; live.team = you.team;
   live.broken = new Set(view.broken ?? []); live.matchElapsed = view.elapsed ?? -1; live.elapsedAt = performance.now();
   live.loadout = loadout; live.perks = new Set(loadout.perks);
   live.ctx = { world: live.world, seed: view.seed, num: you.num, perks: live.perks };
@@ -307,6 +308,7 @@ function snapshot(m: Record<string, any>) {
     ...prev, hp: me?.hp ?? prev.hp, alive: !!me?.alive, respawnMs: me?.respawn ?? 0, timeLeft: m.tl, scores: m.sc, matchState: m.st, objectives: m.o,
     earned: me?.earned ?? [], streakPts: me?.pts ?? 0, streak: me?.streak ?? 0, ping: Math.round(live.rtt),
     ...(s && w ? hudWeapon(s, w) : {}),
+    door: (() => { if (!s || !live.alive || !live.world) return -1; const i = doorInReach(live.world, s.x, eyeOf(s), s.z, s.yaw); return i < 0 ? -1 : doorOpen(live.world, i) ? 1 : 0; })(),
   };
   if (JSON.stringify(next) !== JSON.stringify(prev)) a.set({ hud: next });
   if (a.match && m.st !== a.match.state) a.set({ match: { ...a.match, state: m.st, scores: m.sc } });
@@ -346,6 +348,14 @@ function hudWeapon(s: Sim, w: ReturnType<typeof weaponOf>) {
 function event(ev: Record<string, any>) {
   const a = useArena.getState(), now = performance.now(), mine = (n: number | null) => n === live.num, team = (n: number | null) => teamOf(n ?? -1);
   switch (ev.k) {
+    case 'door': {
+      // The server moved a door (or a new round opened them all): the shared world follows, so prediction collides
+      // with exactly what the server does.
+      if (!live.world) return;
+      if (ev.reset) { openAllDoors(live.world); return; }
+      if (Number.isInteger(ev.i)) { const d = live.world.doors[ev.i]; if (!d) return; setDoor(live.world, ev.i, !!ev.open); sfx.door(!!ev.open, [(d.min[0] + d.max[0]) / 2, d.min[1] + 1.1, (d.min[2] + d.max[2]) / 2]); }
+      return;
+    }
     case 'glass': { if (ev.reset) live.broken.clear(); else if (Number.isInteger(ev.i)) { live.broken.add(ev.i); const map = MAP_BY_ID.get(live.mapId); const g = map && 'glass' in map ? map.glass[ev.i] : null; if (g) sfx.impact('glass', [(g.min[0] + g.max[0]) / 2, (g.min[1] + g.max[1]) / 2, (g.min[2] + g.max[2]) / 2]); } return; }
     case 'train': { banner({ text: 'Train approaching', sub: 'Plaza Station · stay off the tracks', tone: 'info', ms: Math.max(2500, ev.inMs ?? 0) }); sfx.ui('notify'); return; }
     case 'spawn': {
@@ -676,6 +686,10 @@ if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<stri
   refreshOwned: async () => { const r = await request({ t: 'owned' }); if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); return r.owned; },
   /** Point the view (QA only: lets the browser suite aim without synthesising mouse movement). */
   look: (yaw: number, pitch: number) => { controls.yaw = yaw; controls.pitch = pitch; },
+  /** Doors (QA): the door in reach of the player, and which doors are open. */
+  doors: () => (live.world && live.sim ? { reach: doorInReach(live.world, live.sim.x, eyeOf(live.sim), live.sim.z, live.sim.yaw), open: live.world.doors.map((d: { i: number }) => doorOpen(live.world!, d.i)) } : null),
+  /** Hold a movement axis (QA only: software rendering draws too few frames to sample a held key). */
+  move: (mx: number, mz: number) => { controls.touchMx = mx; controls.touchMz = mz; },
   /** Hold or release buttons by name (QA only: the weapon-motion capture fires, aims and reloads without a mouse). */
   buttons: (names: string[], on: boolean) => { for (const n of names) { const bit = (B as Record<string, number>)[n]; if (bit) hold(bit, on); } },
   deploy: () => ({ ...deploy.useDeploy.getState(), recent: deploy.recentDeployments() }),

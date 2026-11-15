@@ -16,11 +16,12 @@ repeated here ([COMBAT-ARENA.md](COMBAT-ARENA.md) § Not built, [METROPOLIS.md](
 
 ## Requested by the owner, not started
 
-* **Every building enterable to the top floor; every door opens and closes.** This changes the shared, symmetric
-  collision map in `shared/arena/metropolis.mjs`, adds server-authoritative door state, and touches bot navigation,
-  interest management (line of sight through doors), spawn safety and map balance. Today the towers
-  (`bld-tower`, `bld-glass-tower`, 13–16 m blocks) and upper storeys are solid collision. Shops, halls and the station
-  are walkable, and door leaves are static art standing open. A staged plan is needed (see the report).
+* **Every building enterable to the top floor.** Not started. Doors are done for every doorway (step 1:
+  [METROPOLIS.md](METROPOLIS.md) § Doors). Opening the towers (`bld-tower`, `bld-glass-tower`, 13–16 m solid blocks)
+  and upper storeys changes the shared, symmetric collision map, adds sightlines over objectives and spawns, and
+  needs furnished interiors within the phone budget; steps 2–3 of the plan in the report.
+* Doors: an open leaf is not collision (players pass through where it stands open); hinged doors only (no sliding,
+  roller or revolving doors); bays and arcades have no doors.
 
 ## Art still to produce
 

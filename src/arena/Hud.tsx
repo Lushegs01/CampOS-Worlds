@@ -41,6 +41,7 @@ export default function Hud() {
     <Slot id="streaks" {...p} interactive><Streaks keys={!touch} /></Slot>
     <Slot id="killNotify" {...p}>{ref ? <div className="ar-notify"><LeadCall /><UnlockToasts /><Banners /></div> : <Banners />}</Slot>
     {ref && layout.elements.killNotify?.visible !== false && <CenterFeedback text={layout.global.textScale} />}
+    <UsePrompt touch={touch} />
     <Slot id="status" {...p}><Netline /></Slot>
     <MatchStatus />
     {dead && <Respawn />}
@@ -262,6 +263,15 @@ function ElimCard() { return <ElimCardView card={useFeedback(s => s.card)} />; }
 function LeadCall() { return <LeadCallView lead={useFeedback(s => s.lead)} />; }
 function UnlockToasts() { return <UnlockToastView list={useFeedback(s => s.unlocks)} />; }
 /** Beside and below the crosshair (fixed, like the crosshair): the experience popup and the count this life. */
+/** A door in reach: what pressing Use will do (and, on touch screens, the button that does it). */
+function UsePrompt({ touch }: { touch: boolean }) {
+  const door = useArena(s => s.hud.door), alive = useArena(s => s.hud.alive);
+  if (door < 0 || !alive) return null;
+  const label = door ? 'Close door' : 'Open door';
+  return <button type="button" className={`ar-use${touch ? ' ar-use-touch' : ''}`} aria-label={label} onPointerDown={e => { e.preventDefault(); press(B.USE); }}>
+    {!touch && <kbd>E</kbd>}<span>{label}</span>
+  </button>;
+}
 function CenterFeedback({ text }: { text: number }) {
   const pop = useFeedback(s => s.pop), count = useFeedback(s => s.count);
   return <div className="ar-center-fb" style={{ '--fb-s': text } as React.CSSProperties}><ScorePopView pop={pop} medals={MEDALS} /><KillCountView count={count} /></div>;

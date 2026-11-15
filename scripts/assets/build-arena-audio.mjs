@@ -51,7 +51,8 @@ async function source(ref) {
   const i = ref.indexOf('/'), pack = ref.slice(0, i), rest = ref.slice(i + 1), P = PACKS[pack];
   if (!P) throw new Error('unknown pack ' + ref);
   let file;
-  if (pack === 'bsb') { if (!BSB[rest]) throw new Error(`BigSoundBank ${rest} is not in the catalogue`); file = await download(P.file(rest), path.join(SRC, 'bsb', rest + '.ogg')); }
+  if (P.local) file = path.join(ROOT, P.local, rest);
+  else if (pack === 'bsb') { if (!BSB[rest]) throw new Error(`BigSoundBank ${rest} is not in the catalogue`); file = await download(P.file(rest), path.join(SRC, 'bsb', rest + '.ogg')); }
   else if (P.files) { const url = P.files[rest]; if (!url) throw new Error('not in pack: ' + ref); file = await download(url, path.join(SRC, pack, rest)); }
   else {
     const name = decodeURIComponent(P.archive.split('/').pop()), archive = await download(P.archive, path.join(SRC, pack, name)), dir = path.join(SRC, pack, 'x');

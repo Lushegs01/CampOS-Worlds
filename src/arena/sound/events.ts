@@ -26,6 +26,8 @@ export const EV = E({
   mechRemote: { cat: 'weapons', gain: .8, priority: 52, group: 'mech', ref: 2, rolloff: 1.3, range: 20, vary: [.02, .8] },
   flyby: { cat: 'weapons', gain: .55, priority: 90, group: 'flyby', ref: 1, rolloff: .5, direct: true },
   // ---------------------------------------------------------------- bullets, casings, magazines
+  // A door swinging open or shut, heard from the doorway (environment, a little room reverb).
+  door: { cat: 'environment', gain: .8, priority: 48, group: 'door', ref: 2.5, rolloff: 1.2, range: 30, vary: [.04, 1], send: .25 },
   impact: { cat: 'explosions', gain: .55, priority: 36, group: 'impact', ref: 3, rolloff: 1.2, range: 60, vary: [.05, 1.5], send: .05 },
   ricochet: { cat: 'explosions', gain: .5, priority: 40, group: 'impact', ref: 3, rolloff: 1, range: 60, vary: [.06, 1.5] },
   bodyHit: { cat: 'character', gain: .7, priority: 74, group: 'body', ref: 3, rolloff: 1.1, range: 60, vary: [.04, 1.2] },

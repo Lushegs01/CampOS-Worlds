@@ -6,11 +6,12 @@
 const CELL = 4;
 
 /**
- * Build a collision world. Each box is { min:[x,y,z], max:[x,y,z], thin?:boolean } (thin cover can be
- * shot through by penetrating rounds). `bounds` is [minX, minZ, maxX, maxZ]: the playable area.
+ * Build a collision world. Each box is { min:[x,y,z], max:[x,y,z], thin?:boolean, door?:number } (thin cover can be
+ * shot through by penetrating rounds). A box with `off` set (an open door, shared/arena/doors.mjs) is ignored by every
+ * query and ray. `bounds` is [minX, minZ, maxX, maxZ]: the playable area.
  */
 export function createWorld(boxes, bounds) {
-  const list = boxes.map((b, i) => ({ i, x0: b.min[0], y0: b.min[1], z0: b.min[2], x1: b.max[0], y1: b.max[1], z1: b.max[2], thin: !!b.thin, stamp: 0 }));
+  const list = boxes.map((b, i) => ({ i, x0: b.min[0], y0: b.min[1], z0: b.min[2], x1: b.max[0], y1: b.max[1], z1: b.max[2], thin: !!b.thin, door: b.door ?? -1, off: false, stamp: 0 }));
   const [bx0, bz0, bx1, bz1] = bounds;
   const cols = Math.ceil((bx1 - bx0) / CELL) + 2, rows = Math.ceil((bz1 - bz0) / CELL) + 2;
   const cells = Array.from({ length: cols * rows }, () => []);
@@ -24,6 +25,7 @@ export function createWorld(boxes, bounds) {
     found.length = 0; stamp++;
     for (let i = cx(x0); i <= cx(x1); i++) for (let j = cz(z0); j <= cz(z1); j++) for (const b of cells[j * cols + i]) {
       if (b.stamp === stamp) continue; b.stamp = stamp;
+      if (b.off) continue; // an open door (doors.mjs)
       if (b.x1 > x0 && b.x0 < x1 && b.z1 > z0 && b.z0 < z1) found.push(b);
     }
     return found;
@@ -156,7 +158,7 @@ export function raycast(world, ox, oy, oz, dx, dy, dz, maxT, skip = null, out = 
     if (i < 0 || j < 0 || i >= cols || j >= rows || tCell > best) break;
     for (const b of world.cells[j * cols + i]) {
       if (b.stamp === stamp) continue; b.stamp = stamp;
-      if (skip && skip(b)) continue;
+      if (b.off || (skip && skip(b))) continue;
       const t = rayBox(ox, oy, oz, dx, dy, dz, b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, best, n);
       if (t >= 0 && t < best) { best = t; hit = b; out.normal[0] = n[0]; out.normal[1] = n[1]; out.normal[2] = n[2]; }
     }

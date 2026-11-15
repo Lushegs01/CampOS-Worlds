@@ -9,6 +9,7 @@
 
 import { createWorld, overlaps, lineOfSight } from '../../shared/arena/physics.mjs';
 import { B, EYE, wrapAngle, weaponOf } from '../../shared/arena/sim.mjs';
+import { doorInReach, doorOpen } from '../../shared/arena/doors.mjs';
 
 const navCache = new Map();
 /** Walkable cells for a map: { nodes:[{x,y,z,links:[i…]}], at(x,y,z) }. Cached per map (immutable). */
@@ -96,7 +97,7 @@ export function createBrain({ match, player, difficulty = 'normal', random = Mat
   const d = DIFFICULTY[difficulty] ?? DIFFICULTY.normal;
   const nav = navigation(match.map);
   let path = null, pathAt = 0, goal = null, target = null, seenAt = 0, lastPos = null, stuckAt = 0, jumpUntil = 0;
-  let strafe = 1, strafeUntil = 0, fireUntil = 0, pauseUntil = 0, aimYaw = 0, aimPitch = 0, crouchUntil = 0;
+  let strafe = 1, strafeUntil = 0, fireUntil = 0, pauseUntil = 0, aimYaw = 0, aimPitch = 0, crouchUntil = 0, doorUseAt = 0;
   const seq = { n: 0 };
   function chooseGoal(now) {
     const s = player.sim, map = match.map;
@@ -171,6 +172,8 @@ export function createBrain({ match, player, difficulty = 'normal', random = Mat
         if (path.length > 6 && Math.abs(wrapAngle(wantYaw - s.yaw)) < .4) b |= B.SPRINT;
       } else goal = null;
       if (weaponOf(s).mag && s.wpn[s.slot].mag < weaponOf(s).mag * .4) b |= B.RELOAD;
+      // A closed door on the way (the route was planned with every door open): open it, as a player would.
+      if (next && now > doorUseAt) { const i = doorInReach(match.world, s.x, s.y + EYE[s.stance], s.z, s.yaw); if (i >= 0 && !doorOpen(match.world, i)) { b |= B.USE; doorUseAt = now + 700; } }
     }
     // ---------------- stuck: jump, then pick a new route
     if (!lastPos || Math.hypot(lastPos.x - s.x, lastPos.z - s.z) > .5) { lastPos = { x: s.x, z: s.z }; stuckAt = now; }

@@ -157,3 +157,23 @@ nothing behind, sights on the camera axis, recoil settles, simulation state unto
 real-time recording of a live training match on the real room server (`match-vanguard.mp4`, trimmed to the gameplay, with stills; recorded before the final smoke tuning). Both are
 Chromium software WebGL: the motion and timing are correct; the frame rate of the match recording is not a device
 measurement. Gameplay values (damage, recoil, spread, fire rate, reload times) are unchanged.
+
+## 8. Third pass: doors (step 1 of §5)
+
+Every Metropolis doorway (36, mirrored west and east) now has a door that opens and closes: **E**, gamepad **X** when
+a door is in reach, or the on-screen prompt on touch. Details: [METROPOLIS.md](METROPOLIS.md) § Doors.
+
+* Server-authoritative (`shared/arena/doors.mjs`). The server picks the door in reach, refuses to close it onto a
+  player or move it mid-swing, broadcasts the change, includes shut doors in the join/rejoin view, and opens all of them
+  when a match starts.
+* One collision world with switchable door boxes (`physics.mjs` skips an open door). Server movement, hit registration
+  and line of sight, and client prediction, all see the same doors. Doors start open, so balance is unchanged until
+  a player closes one. Bots open shut doors on their route.
+* Animated single and double leaves (`src/arena/scene/doorLeaves.ts`, three draw calls), and positional door sounds
+  (a new `doors` bank built by the audio pipeline from the existing Kenney CC0 recordings; QC clean).
+* Foundry Yard's warehouse bays and Sim Quad's arcades (3–6 m openings) are not doorways and stay open.
+
+Verification: `tests/arena-doors.test.mjs` (5 tests: symmetry, movement and sight blocked only when shut, reach,
+command encoding, server rules including rejoin and round start). A live match check (`scripts/qa/arena-doors.mjs`)
+closes a Marina Avenue shop door with **E**, is stopped by it on both client and server, reopens it and walks in;
+stills are in `docs/screenshots/arena/doors/`. Enterable upper floors and towers (steps 2–3) are not started.

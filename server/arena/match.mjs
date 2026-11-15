@@ -8,11 +8,12 @@
 // interpolation time, capped at MATCH.maxRewindMs), using the same snapshot positions the client drew.
 
 import { randomBytes } from 'node:crypto';
-import { createWorld, raycast, rayBox, raySphere, lineOfSight } from '../../shared/arena/physics.mjs';
+import { raycast, rayBox, raySphere, lineOfSight } from '../../shared/arena/physics.mjs';
 import { step, spawnState, packState, decodeCommand, hitbox, eyeOf, heightOf, direction, RADIUS, B } from '../../shared/arena/sim.mjs';
 import { WEAPON_BY_ID, WEAPON_INDEX, EQUIPMENT_BY_ID, STREAK_BY_ID, STREAKS, QUICK_MELEE, damageAt, TICK_RATE } from '../../shared/arena/weapons.mjs';
 import { MATCH, MODE_BY_ID, balanceTeam, matchXp, PRESETS, BOT_PRESETS, autoFireAllowed, XP } from '../../shared/arena/rules.mjs';
 import { createBrain } from './bots.mjs';
+import { arenaWorld, doorInReach, setDoor, doorOpen, closedDoors, openAllDoors, doorBlocked, DOOR_SWING_MS } from '../../shared/arena/doors.mjs';
 import { trainAt, STATION as STATION_FLOOR } from '../../shared/arena/metropolis.mjs';
 
 const cm = v => Math.round(v * 100), mr = v => Math.round(v * 1000);
@@ -27,7 +28,10 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   send, sendRaw, onFinish = () => {}, onClose = () => {}, log = () => {}, bots = 0, difficulty = 'normal', autoTick = true, random = Math.random, variant: variantId = null }) {
   const R = { ...MATCH, ...rules };
   const mode = { ...MODE_BY_ID.get(modeId), ...(rules.mode ?? {}) };
-  const world = createWorld(map.boxes, map.bounds);
+  // The collision world, with a switchable box per door (all open at the start: shared/arena/doors.mjs).
+  const world = arenaWorld(map);
+  /** When each door last moved (a door cannot be worked again mid-swing). */
+  const doorMoved = new Map();
   const seed = randomBytes(4).readInt32LE(0);
   // Map variants (lighting and weather) never change the collision world. Recorded play always uses the first one.
   const variant = map.variants ? (kind === 'quick' ? map.variants[0] : map.variants.find(v => v.id === variantId) ?? map.variants[0]).id : null;
@@ -64,7 +68,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   const describe = p => ({ num: p.num, name: p.name, team: p.team, verified: !!p.account, handle: p.handle ?? null, bot: !!p.bot, connected: p.bot || p.connected, level: p.level ?? 1, emblem: p.emblem ?? 'recruit' });
   const roster = () => players.map(describe);
   const view = () => ({ id, mode: mode.id, map: map.id, kind, code, state, autoFire: autoFireAllowed(kind), maxPerTeam, scoreLimit, timeMs: mode.timeMs, seed, scores: [...scores], players: roster(), objectives: objectives.map(o => ({ id: o.id, x: o.x, y: o.y ?? 0, z: o.z, r: o.r })),
-    ...(variant ? { variant } : {}), ...(glass.length ? { broken: [...broken] } : {}), ...(train ? { elapsed: state === 'playing' ? clock() - startedAt : -1 } : {}) });
+    ...(variant ? { variant } : {}), ...(glass.length ? { broken: [...broken] } : {}), ...(world.doors.length ? { closed: closedDoors(world) } : {}), ...(train ? { elapsed: state === 'playing' ? clock() - startedAt : -1 } : {}) });
   function announceRoster() { emitAll({ k: 'roster', players: roster() }); }
 
   // ---------------------------------------------------------------- joining, leaving, reconnecting
@@ -172,6 +176,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     Object.assign(lead, { team: -1, led: [false, false], overtaken: [false, false] });
     projectiles.length = smokes.length = supplies.length = strikes.length = 0;
     if (broken.size) { broken.clear(); emitAll({ k: 'glass', reset: 1 }); }
+    if (openAllDoors(world)) { doorMoved.clear(); emitAll({ k: 'door', reset: 1 }); }
     trainSeen = -1;
     for (const o of objectives) Object.assign(o, { owner: -1, progress: 0, capTeam: -1, contested: false });
     for (const p of players) {
@@ -311,10 +316,26 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       if (ev.kind === 'shot') resolveShot(p, ev, now, false);
       else if (ev.kind === 'melee') resolveMelee(p, ev, now);
       else if (ev.kind === 'throw') throwEquipment(p, ev);
+      else if (ev.kind === 'use') useDoor(p, now);
       // `e`: a reload from an empty magazine (others hear the action worked as well).
       else if (ev.kind === 'reload' || ev.kind === 'switch' || ev.kind === 'slide') emitAll({ k: 'act', num: p.num, a: ev.kind, w: ev.weapon ?? null, ...(ev.kind === 'reload' && ev.empty ? { e: 1 } : {}) }, o => o !== p);
     }
     if (supplies.length) touchSupplies(p, now);
+  }
+  /**
+   * A player works the door in reach (the server's own reach test, from its own state of the player). Closing is
+   * refused while anyone stands in the doorway; each door finishes its swing before it can move again.
+   */
+  function useDoor(p, now) {
+    if (!world.doors.length || state === 'ended' || now - (p.doorAt ?? -1e9) < 250) return;
+    p.doorAt = now;
+    const s = p.sim, i = doorInReach(world, s.x, eyeOf(s), s.z, s.yaw);
+    if (i < 0 || now - (doorMoved.get(i) ?? -1e9) < DOOR_SWING_MS) return;
+    const open = !doorOpen(world, i);
+    if (!open && doorBlocked(world, i, players.filter(o => o.alive && o.sim).map(o => o.sim))) return;
+    setDoor(world, i, open); doorMoved.set(i, now);
+    emitAll({ k: 'door', i, open: open ? 1 : 0, num: p.num });
+    record({ type: 'door', door: i, open, player: p.num });
   }
   const ctxCache = new WeakMap();
   function ctx(p) { let c = ctxCache.get(p); if (!c) ctxCache.set(p, c = { world, seed, num: p.num, perks: p.perks }); c.perks = p.perks; return c; }

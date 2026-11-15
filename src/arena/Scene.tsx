@@ -42,6 +42,8 @@ import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 import { Effects, Casings, setEffectsGround } from './scene/fx';
 import { ViewmodelAnimator } from './scene/viewmodel';
 import { MuzzleFX } from './scene/muzzle';
+import { createDoorLeaves } from './scene/doorLeaves';
+import { doorsOf } from '../../shared/arena/doors.mjs';
 import { sfx, setIndoor, startAmbience, stopArenaAmbience, stopMatchSounds, prepareMatch, prepareWeapon, prepareVoice, forgetPrepared, trimBanks, nearSurfaces, actions, remoteActions, breathing, ambienceFrame, setGroundProvider, engine as soundEngine, type StepSurface, type ImpactSurface } from './audio';
 import { reloadPlan } from './sound/reloads.mjs';
 import { stepSurfaceOf, impactSurfaceOf, groundSurface, isStair } from './sound/surfaces.mjs';
@@ -171,6 +173,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!lib) return null;
     const group = new THREE.Group(), env = mapId === 'metropolis' ? buildMetropolis(lib, map as Parameters<typeof buildMetropolis>[1], q, variant) : buildEnvironment(lib, map, q);
     for (const o of env.objects) group.add(o);
+    // Door leaves (every map): they follow the shared world's door state (server authority, shared/arena/doors.mjs).
+    const leaves = createDoorLeaves(doorsOf(map as Parameters<typeof doorsOf>[0]), q.shadows); group.add(leaves.group);
     const sky = atmo ? createSky(atmo, lib, q.skyOctaves) : skyDome(lib); sky.layers.enable(REFLECTED); group.add(sky);
     const [bx0, bz0, bx1, bz1] = map.bounds, cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2, half = Math.max(bx1 - bx0, bz1 - bz0) / 2 + 8;
     const sun = new THREE.DirectionalLight(lib.sun.color.clone().multiply(new THREE.Color(1, .95, .86)), lib.sun.irradiance * .95);
@@ -193,7 +197,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     void lamps;
     // Lights apply only to cameras that share their layer: the street's reflection must be lit like the street.
     group.traverse(o => { if ((o as THREE.Light).isLight) o.layers.enable(REFLECTED); });
-    return { group, sun, sky, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null, city: 'onPaneBreak' in env ? env as ReturnType<typeof buildMetropolis> : null };
+    return { group, sun, sky, leaves, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null, city: 'onPaneBreak' in env ? env as ReturnType<typeof buildMetropolis> : null };
   }, [lib, map, q, variant]);
   useEffect(() => {
     if (!world || !lib) return;
@@ -560,6 +564,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     for (const [num, e] of soldiers.current) if (!seenNums.has(num)) { if (!live.remotes.has(num)) { dropSoldier(e); soldiers.current.delete(num); } else e.s.root.visible = false; }
     // ---- effects
     fx.effects.update(dt); vm.casings.update(dt);
+    if (world && world.leaves.update(dt, live.world) && world.sun.castShadow) world.sun.shadow.needsUpdate = true;
     if (fx.muzzleLight.intensity > 0) fx.muzzleLight.intensity = Math.max(0, fx.muzzleLight.intensity - dt * 600);
     if (q.detail && s && now - dustAt.current > 260) { dustAt.current = now; fx.effects.mote(v1.set(cam.position.x + (Math.random() - .5) * 14, .2 + Math.random() * 2.2, cam.position.z + (Math.random() - .5) * 14)); }
     let gi = 0; for (const gr of live.grenades.values()) { const m = fx.grenades[gi++]; if (!m) break; m.visible = true; m.position.set(gr.x, gr.y, gr.z); (m.material as THREE.MeshStandardMaterial).color.set(EQUIP_IDS[gr.kind] === 'flash' ? '#b9bcc0' : EQUIP_IDS[gr.kind] === 'smoke' ? '#5f6c78' : '#3f4a34'); }

@@ -20,7 +20,7 @@ const SLIDE = { boost: 8.8, friction: 6.2, ticks: 50, cooldown: 72, fleetCooldow
 export const PITCH_LIMIT = 1.45;
 
 /** Input buttons (bit flags in each command). */
-export const B = { FIRE: 1, ADS: 2, JUMP: 4, CROUCH: 8, SPRINT: 16, RELOAD: 32, SWAP: 64, MELEE: 128, LETHAL: 256, TACTICAL: 512, SLOT1: 1024, SLOT2: 2048, MODE: 4096, INSPECT: 8192 };
+export const B = { FIRE: 1, ADS: 2, JUMP: 4, CROUCH: 8, SPRINT: 16, RELOAD: 32, SWAP: 64, MELEE: 128, LETHAL: 256, TACTICAL: 512, SLOT1: 1024, SLOT2: 2048, MODE: 4096, INSPECT: 8192, USE: 16384 };
 export const PHASES = ['ready', 'reload', 'switch', 'melee', 'throw', 'inspect'];
 const THROW_TICKS = 22;
 
@@ -30,7 +30,7 @@ export function quantize(cmd) {
   cmd.mz = Math.round(Math.max(-1, Math.min(1, cmd.mz)) * 127) / 127;
   cmd.yaw = Math.round(wrapAngle(cmd.yaw) * 10000) / 10000;
   cmd.pitch = Math.round(Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cmd.pitch)) * 10000) / 10000;
-  cmd.b = cmd.b & 16383;
+  cmd.b = cmd.b & 32767;
   return cmd;
 }
 export const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -39,7 +39,7 @@ export const encodeCommand = c => [c.seq, c.b, Math.round(c.mx * 127), Math.roun
 export function decodeCommand(a) {
   if (!Array.isArray(a) || a.length !== 6 || !a.every(Number.isInteger)) return null;
   const [seq, b, mx, mz, yaw, pitch] = a;
-  if (seq < 0 || b < 0 || b > 16383 || Math.abs(mx) > 127 || Math.abs(mz) > 127 || Math.abs(yaw) > 31416 || Math.abs(pitch) > PITCH_LIMIT * 10000 + 1) return null;
+  if (seq < 0 || b < 0 || b > 32767 || Math.abs(mx) > 127 || Math.abs(mz) > 127 || Math.abs(yaw) > 31416 || Math.abs(pitch) > PITCH_LIMIT * 10000 + 1) return null;
   return { seq, b, mx: mx / 127, mz: mz / 127, yaw: yaw / 10000, pitch: pitch / 10000 };
 }
 
@@ -215,6 +215,8 @@ export function step(s, cmd, ctx) {
     events.push({ kind: 'mode', mode: cur.mode });
   }
   const fire = fireModeOf(s);
+  // Use (doors): the server decides which door, if any, and whether it may move (shared/arena/doors.mjs).
+  if (pressed & B.USE) events.push({ kind: 'use' });
   if ((pressed & B.INSPECT) && w.inspect && s.phase === 'ready' && !(b & (B.FIRE | B.ADS | B.SPRINT | B.RELOAD))) {
     s.phase = 'inspect'; s.pt = w.inspect; events.push({ kind: 'inspect' });
   }

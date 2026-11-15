@@ -243,11 +243,8 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
             b.add(g2, [m.red, m.green, m.orange, m.blue][idx % 4], 1, Mx); g2.dispose();
           }
         } else if (d.kind === 'door') {
-          // A door leaf standing open against the wall, and a small canopy.
+          // A small canopy over the door (the leaves themselves open and close: scene/doorLeaves.ts).
           const [c0, c1] = out(0, .7); f.box(-.15, y1 + .1, w + .15, y1 + .16, c0, c1, m.frame, 1);
-          const leaf = new THREE.BoxGeometry(Math.min(1, w * .5), y1 - y0 - .1, .045), lw = Math.min(1, w * .5);
-          const Mx = f.matrix().clone().multiply(T(.05, (y0 + y1) / 2, side * (t + .03))).multiply(RY(side * 1.45)).multiply(T(lw / 2, 0, 0));
-          b.add(leaf, m.darkWood, 1, Mx); leaf.dispose();
         }
       } else if (d.kind === 'roller') {
         // The shutter rolled up into its housing.

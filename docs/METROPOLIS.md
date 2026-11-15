@@ -245,3 +245,26 @@ containers, the port forklift; 32 copies) are now original models built and bake
 each modelled to its collision box and loaded before deployment, with the code geometry kept as the fallback.
 Collision and gameplay are unchanged. Pipeline: [BLENDER_ASSET_PIPELINE.md](BLENDER_ASSET_PIPELINE.md); files:
 [ASSET_MANIFEST.md](ASSET_MANIFEST.md); results: [AAA_TRANSFORMATION_REPORT.md](AAA_TRANSFORMATION_REPORT.md).
+
+## Doors (November 2026)
+
+Every doorway in the city (36: shop and office doors on Marina Avenue, the arcade, the plaza buildings, the station's
+service rooms, mirrored west and east) has a door that opens and closes. **E** (gamepad **X** when a door is in
+reach; touch: the on-screen prompt) works the door in front of you within about 2 m.
+
+* **Server authority.** The server decides which door a player can reach, moves it, and tells everyone; it will not
+  close a door onto anyone standing in the doorway, and a door finishes its 0.45 s swing before it can move again.
+  A rejoining player is told which doors are shut; a new match opens them all.
+* **Same world everywhere.** A door is a box in the shared collision world, switched off while open
+  (`shared/arena/doors.mjs`, `physics.mjs`): the server's movement, hit registration and line of sight and the
+  client's prediction all see the same doors. Closed doors block movement and sight; like other thin cover, a
+  penetrating round goes through.
+* **Balance.** Every door starts open, so routes, sightlines and spawns are exactly as designed until a player
+  chooses to shut one. Training bots plan routes with doors open and open a shut door they walk into.
+* **Presentation.** Single or double leaves (glazed upper halves on tall shop doors) swing on their hinges
+  (`src/arena/scene/doorLeaves.ts`, three instanced draw calls for all of them); open and close sounds with a latch,
+  from the doorway (`doors` sound bank, Kenney CC0).
+* Wider openings are not doors: Foundry Yard's warehouse bays and Sim Quad's arcades stay open.
+
+Tests: `tests/arena-doors.test.mjs`; live: `node scripts/qa/arena-doors.mjs` (stills in `docs/screenshots/arena/doors/`).
+Not built yet: enterable upper floors and towers (see [REMAINING_LIMITATIONS.md](REMAINING_LIMITATIONS.md)).
