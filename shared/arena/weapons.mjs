@@ -180,14 +180,25 @@ export const STREAKS=[
 export const STREAK_BY_ID=new Map(STREAKS.map(s=>[s.id,s]));
 
 // ---------------------------------------------------------------- cosmetics (earned, never bought)
-/** Weapon finishes, earned by weapon level (eliminations with that weapon). Purely visual. */
+/**
+ * Weapon finishes, earned by weapon level (eliminations with that weapon). Purely visual. Every weapon level
+ * from 2 to 10 unlocks one, so each level-up has something to show in the after-action report.
+ */
 export const SKINS=[
  {id:'standard',name:'Standard',weaponLevel:1,colors:['#4d545c','#2c3136']},
+ {id:'slate',name:'Slate',weaponLevel:2,colors:['#66727d','#323a42']},
  {id:'tidewater',name:'Tidewater',weaponLevel:3,colors:['#2f6f7a','#1c3f46']},
+ {id:'dune',name:'Dune',weaponLevel:4,colors:['#b39363','#5b452a']},
  {id:'ember',name:'Ember',weaponLevel:5,colors:['#a4482b','#3b1e14']},
+ {id:'fieldcraft',name:'Fieldcraft',weaponLevel:6,colors:['#66733f','#2e351d']},
  {id:'verdigris',name:'Verdigris',weaponLevel:7,colors:['#4f8a6d','#2a4339']},
+ {id:'cobalt',name:'Cobalt',weaponLevel:8,colors:['#3d62ad','#1a2a55']},
+ {id:'arctic',name:'Arctic',weaponLevel:9,colors:['#cfd8de','#7e8b94']},
  {id:'gilded',name:'Gilded',weaponLevel:10,colors:['#c9a24a','#5a4518']},
 ];
+/** The finishes weapon level `level` unlocks, and those unlocked going from level `from` to `to`. */
+export const skinsAt = level => SKINS.filter(k => k.weaponLevel === level);
+export const skinsBetween = (from, to) => SKINS.filter(k => k.weaponLevel > from && k.weaponLevel <= to);
 export const SKIN_BY_ID=new Map(SKINS.map(s=>[s.id,s]));
 /** Player emblems shown on the scoreboard and kill feed, earned by player level. */
 export const EMBLEMS=[

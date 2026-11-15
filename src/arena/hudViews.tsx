@@ -105,6 +105,58 @@ export function KillfeedView({ rows }: { rows: { id: number | string; killer?: {
 export function BannerView({ list }: { list: { id: number | string; text: string; sub?: string; tone: string }[] }) {
   return <div className="ar-banners">{list.map(b => <div key={b.id} className={`ar-banner ${b.tone}`}><strong>{b.text}</strong>{b.sub && <span>{b.sub}</span>}</div>)}</div>;
 }
+// ---------------------------------------------------------------- combat feedback
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'TH' : ['TH', 'ST', 'ND', 'RD'][n % 10] ?? 'TH'}`;
+/** Labels for experience popups: medals by name, plus the objective actions that are not medals. */
+const POP_LABELS: Record<string, string> = { neutralize: 'Neutralised', capture: 'Zone captured', assist: 'Assist', defend: 'Defender' };
+/** The card of the player you just eliminated: their emblem, name and level on a plate in their emblem's colour. */
+export function ElimCardView({ card }: { card: { id: number | string; name: string; level: number; emblem: string; bot: boolean; head: boolean } | null }) {
+  if (!card) return null;
+  const e = EMBLEM_BY_ID.get(card.emblem) ?? EMBLEM_BY_ID.get('recruit')!;
+  // The plate's pattern follows the emblem, so each player's card looks like theirs.
+  const angle = 100 + (card.emblem.length * 37) % 60;
+  return <div key={card.id} className="ar-elimcard" style={{ '--em': e.color, '--ang': `${angle}deg` } as CSSProperties}>
+    <span className="ar-elimcard-tag">{card.head && <CrosshairIcon size={11} aria-label="Headshot" />}Enemy eliminated</span>
+    <div className="ar-elimcard-plate"><i className="ar-elimcard-glyph" aria-hidden="true">{e.glyph}</i><b>{card.name}</b>{card.bot && <em className="ar-bot">SIM</em>}<span className="ar-elimcard-lvl" aria-label={`Level ${card.level}`}>{card.level}</span></div>
+  </div>;
+}
+/** Experience beside the crosshair, with the medals that came with it. Re-keyed so each addition pops. */
+export function ScorePopView({ pop, medals }: { pop: { id: number | string; xp: number; tags: string[]; kill: boolean } | null; medals: Record<string, string> }) {
+  if (!pop) return null;
+  return <div key={`${pop.id}:${pop.xp}:${pop.tags.length}`} className={`ar-pop${pop.kill ? ' kill' : ''}`} aria-live="off">
+    {pop.kill && <span className="ar-pop-confirm">Eliminated</span>}
+    {pop.xp > 0 && <b>+{pop.xp}<small>XP</small></b>}
+    {pop.tags.length > 0 && <ul>{pop.tags.map(t => <li key={t}>{medals[t] ?? POP_LABELS[t] ?? t}</li>)}</ul>}
+  </div>;
+}
+/** Eliminations this life ("2ND KILL"), shown from the second. */
+export function KillCountView({ count }: { count: { id: number | string; n: number } | null }) {
+  if (!count) return null;
+  return <div key={count.id} className="ar-kcount"><b>{ordinal(count.n)}</b> kill</div>;
+}
+const LEAD_TEXT = { taken: ['Taken the lead', 'Your team is ahead'], back: ['Back on top', 'Your team regained the lead'], lost: ['Lead lost', 'The enemy team is ahead'] } as const;
+/** A lead change, worded for your side, under a team crest. */
+export function LeadCallView({ lead }: { lead: { id: number | string; kind: 'taken' | 'back' | 'lost' } | null }) {
+  if (!lead) return null;
+  const [text, sub] = LEAD_TEXT[lead.kind];
+  return <div key={lead.id} className={`ar-lead ${lead.kind}`} role="status">
+    <svg className="ar-lead-crest" viewBox="0 0 48 56" aria-hidden="true">
+      <path d="M24 2 44 9v17c0 13-8.6 22.8-20 28C12.6 48.8 4 39 4 26V9z" className="shield" />
+      <path d="M24 8 39 13.4V26c0 9.8-6.2 17.6-15 22.2C15.2 43.6 9 35.8 9 26V13.4z" className="inner" />
+      {lead.kind === 'lost' ? <path d="m16 22 8 9 8-9" className="mark" /> : <path d="m16 32 8-9 8 9M16 25l8-9 8 9" className="mark" />}
+    </svg>
+    <strong>{text}</strong><span>{sub}</span>
+  </div>;
+}
+/** Unlocks reached mid-match: a finish (its swatch) or a player level. */
+export function UnlockToastView({ list }: { list: { id: number | string; title: string; sub: string; colors?: string[]; glyph?: string }[] }) {
+  if (!list.length) return null;
+  return <div className="ar-unlockt">{list.map(u => <div key={u.id} className="ar-unlockt-item">
+    <i className="ar-unlockt-icon" style={u.colors ? { background: `linear-gradient(135deg, ${u.colors[0]}, ${u.colors[1]})` } : undefined}>{u.glyph}</i>
+    <div><b>{u.title}</b><small>{u.sub}</small></div>
+  </div>)}</div>;
+}
+
 /** A static compass strip (the live one moves with the view). */
 export function CompassStatic() {
   const marks = [], WIDTH = 360, SPAN = 120;

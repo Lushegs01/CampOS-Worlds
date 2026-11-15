@@ -295,7 +295,10 @@ export function bakeEnvironment(gl: THREE.WebGLRenderer, sky: THREE.Mesh, size =
 export function createAdaptation(base: number) {
   let current = base;
   return (dt: number, indoor: number, underground: boolean) => {
-    const target = base * (underground ? 1.35 : 1 + indoor * .45);
+    // The cinematic finish: rooms read dim against the bright windows and doors around them (the sky light reaches
+    // every shop interior, so they are exposed down rather than up as the player walks in); the station, lit by its own
+    // fittings, opens up a little.
+    const target = base * (underground ? 1.15 : 1 - indoor * .38);
     const rate = target < current ? 2.2 : 1.1;
     current += (target - current) * Math.min(1, dt * rate);
     return current;

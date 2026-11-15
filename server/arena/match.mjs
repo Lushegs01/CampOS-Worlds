@@ -11,7 +11,7 @@ import { randomBytes } from 'node:crypto';
 import { createWorld, raycast, rayBox, raySphere, lineOfSight } from '../../shared/arena/physics.mjs';
 import { step, spawnState, packState, decodeCommand, hitbox, eyeOf, heightOf, direction, RADIUS, B } from '../../shared/arena/sim.mjs';
 import { WEAPON_BY_ID, WEAPON_INDEX, EQUIPMENT_BY_ID, STREAK_BY_ID, STREAKS, QUICK_MELEE, damageAt, TICK_RATE } from '../../shared/arena/weapons.mjs';
-import { MATCH, MODE_BY_ID, balanceTeam, matchXp, PRESETS, BOT_PRESETS, autoFireAllowed } from '../../shared/arena/rules.mjs';
+import { MATCH, MODE_BY_ID, balanceTeam, matchXp, PRESETS, BOT_PRESETS, autoFireAllowed, XP } from '../../shared/arena/rules.mjs';
 import { createBrain } from './bots.mjs';
 import { trainAt, STATION as STATION_FLOOR } from '../../shared/arena/metropolis.mjs';
 
@@ -44,6 +44,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   const projectiles = [], smokes = [], supplies = [], strikes = [], reveals = [0, 0];
   const teamStreakCd = [{}, {}];
   let nextProjectile = 1, firstBlood = false;
+  // Lead changes: the team ahead right now (-1 when level), which teams have led, and which have since been overtaken.
+  const lead = { team: -1, led: [false, false], overtaken: [false, false] };
   const combatLog = [];
   const record = entry => { combatLog.push({ at: clock(), ...entry }); if (combatLog.length > 2000) combatLog.shift(); log(entry); };
   const scoreLimit = typeof mode.scoreLimit === 'function' ? mode.scoreLimit(maxPerTeam) : mode.scoreLimit;
@@ -167,6 +169,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   /** Start: everyone respawns fresh, scores and statistics reset. */
   function begin() {
     startedAt = clock(); scores[0] = scores[1] = 0; firstBlood = false; scoreTickAt = startedAt;
+    Object.assign(lead, { team: -1, led: [false, false], overtaken: [false, false] });
     projectiles.length = smokes.length = supplies.length = strikes.length = 0;
     if (broken.size) { broken.clear(); emitAll({ k: 'glass', reset: 1 }); }
     trainSeen = -1;
@@ -355,13 +358,13 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       ends.push([cm(ev.ox + dx * hitT), cm(ev.oy + dy * hitT), cm(ev.oz + dz * hitT), hit ? 1 : 0]);
       if (!hit) continue;
       const base = damageAt(w, hitT) * (head ? w.head : legs ? w.legs : 1) * (penetrated ? keep : 1);
-      const d = damage.get(hit) ?? { amount: 0, head: false, legs: true, dist: hitT };
-      d.amount += base; d.head ||= head; d.legs &&= legs; damage.set(hit, d);
+      const d = damage.get(hit) ?? { amount: 0, head: false, legs: true, dist: hitT, wall: false };
+      d.amount += base; d.head ||= head; d.legs &&= legs; d.wall ||= !!penetrated; damage.set(hit, d);
     }
     emitAll({ k: 'shot', num: p.num, w: WEAPON_INDEX.get(w.id), o: [cm(ev.ox), cm(ev.oy), cm(ev.oz)], e: ends.slice(0, 4) }, o => o !== p);
     for (const [o, d] of damage) {
       p.stats.hits++; p.stats.weapons[w.id].hits++;
-      hurt(o, Math.round(d.amount), p, { weapon: w.id, head: d.head, legs: d.legs && !d.head, dist: d.dist, trade });
+      hurt(o, Math.round(d.amount), p, { weapon: w.id, head: d.head, legs: d.legs && !d.head, dist: d.dist, trade, wall: d.wall });
     }
   }
   function resolveMelee(p, ev, now) {
@@ -402,6 +405,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   function eliminate(v, k, cause) {
     const now = clock();
     v.alive = false; v.hp = 0; v.diedAt = now; v.respawnAt = now + mode.respawnMs;
+    const victimStreak = v.streak;
     v.stats.deaths++; v.streak = 0; v.streakPts = 0;
     remember(v, now);
     const medals = [];
@@ -416,7 +420,11 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       killer.recentKills = killer.recentKills.filter(t => now - t < 4000); killer.recentKills.push(now);
       if (killer.recentKills.length === 2) medals.push('double'); else if (killer.recentKills.length >= 3) medals.push('triple');
       if (killer.lastKiller === v.num) { medals.push('revenge'); killer.lastKiller = null; }
-      if (cause.dist > 40 && WEAPON_BY_ID.get(cause.weapon)?.category !== 'shotgun') medals.push('longshot');
+      const firearm = WEAPON_BY_ID.get(cause.weapon), gun = !!firearm && firearm.fire !== 'melee';
+      if (cause.dist > 40 && gun && firearm.category !== 'shotgun') medals.push('longshot');
+      if (gun && cause.dist < 2.5 && !cause.equipment) medals.push('pointblank');
+      if (cause.wall) medals.push('wallbang');
+      if (victimStreak >= 3) medals.push('buzzkill');
       if (cause.trade) medals.push('payback');
       if (killer.streak === 5) medals.push('streak5'); else if (killer.streak === 10) medals.push('streak10');
       if (mode.id === 'dom' && objectives.some(o => o.owner === killer.team && (inZone(o, v.sim) || inZone(o, killer.sim)))) { killer.stats.defends++; killer.stats.score += 50; medals.push('defend'); }
@@ -432,12 +440,31 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       if (total >= R.assistMinDamage) { assisted.add(d.from); d.from.stats.assists++; d.from.stats.score += 40; emit(d.from, { k: 'medal', id: 'assist' }); }
     }
     emitAll({ k: 'kill', a: killer?.num ?? null, v: v.num, w: cause.weapon ?? cause.equipment ?? cause.streak ?? null, hs: !!cause.head, as: [...assisted].map(a => a.num) });
-    if (killer) for (const m of medals) emit(killer, { k: 'medal', id: m });
+    // The shooter's own summary: experience earned, the medals, and how many eliminations this life (one event, so
+    // the client shows one score popup rather than a burst of separate messages).
+    if (killer) emit(killer, { k: 'elim', v: v.num, w: cause.weapon ?? cause.equipment ?? cause.streak ?? null, xp: XP.kill + (cause.head ? XP.headshot : 0), m: medals, n: killer.streak });
     emit(v, { k: 'died', by: killer?.num ?? null, respawnMs: mode.respawnMs, w: cause.weapon ?? cause.equipment ?? cause.streak ?? null });
     record({ type: 'elimination', killer: killer?.num ?? null, victim: v.num, cause: cause.weapon ?? cause.equipment ?? cause.streak, head: !!cause.head, medals });
+    checkLead();
     lifecycle();
   }
   const inZone = (o, s) => s && Math.hypot(s.x - o.x, s.z - o.z) <= o.r && Math.abs(s.y - o.y) < 2.5;
+
+  // ---------------------------------------------------------------- lead changes
+  /**
+   * Announce when a team goes ahead: `back` when that team had led before and the other team then overtook it
+   * (a level score is not a change of lead). Told to everyone; each client words it for its own side.
+   */
+  function checkLead() {
+    if (state !== 'playing') return;
+    const ahead = scores[0] === scores[1] ? -1 : scores[0] > scores[1] ? 0 : 1;
+    if (ahead === -1 || ahead === lead.team) { if (ahead === -1) lead.team = -1; return; }
+    const back = lead.led[ahead] && lead.overtaken[ahead];
+    if (lead.led[1 - ahead]) lead.overtaken[1 - ahead] = true;
+    lead.team = ahead; lead.led[ahead] = true; lead.overtaken[ahead] = false;
+    emitAll({ k: 'lead', team: ahead, back, sc: [...scores] });
+    record({ type: 'lead', team: ahead, back, scores: [...scores] });
+  }
 
   // ---------------------------------------------------------------- scorestreaks
   const streakCost = (p, s) => Math.max(1, s.cost - (p.perks.has('hardline') ? 1 : 0));
@@ -615,8 +642,9 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       const before = o.progress; o.progress = Math.min(1, o.progress + rate);
       if (o.owner === 1 - t && before < .5 && o.progress >= .5) {
         o.owner = -1;
-        for (const p of players) if (p.alive && p.team === t && inZone(o, p.sim)) { p.stats.neutralizes++; p.stats.score += 60; }
-        emitAll({ k: 'neutral', id: o.id, team: t }); record({ type: 'neutralize', objective: o.id, team: t });
+        const by = [];
+        for (const p of players) if (p.alive && p.team === t && inZone(o, p.sim)) { p.stats.neutralizes++; p.stats.score += 60; by.push(p.num); }
+        emitAll({ k: 'neutral', id: o.id, team: t, by }); record({ type: 'neutralize', objective: o.id, team: t, by });
       }
       if (o.progress >= 1) {
         o.owner = t; o.progress = 0; o.capTeam = -1;
@@ -628,6 +656,7 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     if (now - scoreTickAt >= mode.tickMs) {
       scoreTickAt += mode.tickMs;
       for (const o of objectives) if (o.owner >= 0) scores[o.owner]++;
+      checkLead();
     }
   }
 

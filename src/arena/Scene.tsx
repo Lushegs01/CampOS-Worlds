@@ -29,7 +29,8 @@ import { buildMetropolis, CITY_DECOR, type CityVariant } from './scene/metropoli
 import { atmosphereOf, createSky, bakeEnvironment, installHeightFog, setHeightFog, createAdaptation } from './scene/city/atmosphere';
 import { createStreetReflection, REFLECTED } from './scene/city/reflection';
 import { cityWeather } from './scene/city/surfaces';
-import { GradeEffect } from './scene/grade';
+import { GradeEffect, SharpenEffect } from './scene/grade';
+import { cinematicFinish } from './scene/cinematic';
 import { ShaftsPass } from './scene/shafts';
 import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
@@ -125,6 +126,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // Operation: Metropolis lights everything (sky, sun, image-based light, fog, exposure, grade) from one atmosphere.
   const atmo = mapId === 'metropolis' ? atmosphereOf(variant) : null;
   const cityLight = atmo ? { strength: atmo.sun, env: atmo.env } : null;
+  // Metropolis: the cinematic finish over its weather's grade and exposure (scene/cinematic.ts).
+  const fin = useMemo(() => (atmo ? cinematicFinish(atmo) : null), [atmo]);
   const citySun = useMemo(() => atmo ? { dir: new THREE.Vector3(...atmo.sunDir).normalize(), color: new THREE.Color(...atmo.sunColor) } : null, [atmo]);
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
@@ -335,16 +338,17 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     }
     const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = true; c.addPass(weapon);
     const fxs = [
-      ...(q.bloom ? [new BloomEffect({ luminanceThreshold: atmo?.bloomThreshold ?? 2.6, luminanceSmoothing: .5, intensity: atmo?.bloomIntensity ?? .42, mipmapBlur: true, radius: atmo && atmo.bloomThreshold < 2.6 ? .72 : .62 })] : []),
+      ...(q.bloom ? [new BloomEffect({ luminanceThreshold: atmo?.bloomThreshold ?? 2.6, luminanceSmoothing: .5, intensity: fin?.bloom ?? .42, mipmapBlur: true, radius: atmo && atmo.bloomThreshold < 2.6 ? .72 : .62 })] : []),
       ...(shafts ? [shafts.effect] : []),
       new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
-      ...(atmo ? [new GradeEffect({ saturation: atmo.saturation, contrast: atmo.contrast, lift: atmo.lift, gain: atmo.gain, grain: .01 })] : [new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 })]),
-      new VignetteEffect({ darkness: atmo ? .32 : .42, offset: .3 }),
+      ...(fin ? [new GradeEffect({ saturation: fin.saturation, contrast: fin.contrast, lift: fin.lift, gain: fin.gain, grain: fin.grain })] : [new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 })]),
+      new VignetteEffect({ darkness: fin?.vignette ?? .42, offset: fin?.vignetteOffset ?? .3 }),
     ];
     c.addPass(new EffectPass(camera, ...fxs));
     c.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
+    if (fin) c.addPass(new EffectPass(camera, new SharpenEffect(fin.sharpen)));
     return { c, weapon, shafts };
-  }, [gl, scene, camera, q, vm, atmo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gl, scene, camera, q, vm, atmo, fin]); // eslint-disable-line react-hooks/exhaustive-deps
   // The street's reflection in the rain (High, Ultra), drawn before the frame.
   const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
   useEffect(() => { reflection?.attach(); return () => reflection?.dispose(); }, [reflection]);
@@ -359,7 +363,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     (window as unknown as Record<string, unknown>).__arenaReflectDebug = (mode: number | boolean) => { cityWeather.uReflectDebug.value = +mode; };
     return () => { delete (window as unknown as Record<string, unknown>).__arenaReflect; };
   }, [reflection, gl]);
-  const adapt = useMemo(() => createAdaptation(atmo?.exposure ?? .82), [atmo]);
+  const adapt = useMemo(() => createAdaptation((atmo?.exposure ?? .82) * (fin?.exposure ?? 1)), [atmo, fin]);
   useEffect(() => {
     if (!composer) { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = .82; return; }
     const before = gl.toneMapping; gl.toneMapping = THREE.NoToneMapping; gl.toneMappingExposure = .82;
@@ -752,7 +756,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (noRender || frozen.current) return;
     r.info.reset();
     // Exposure follows the eye: opening up indoors and in the station, closing again outside.
-    r.toneMappingExposure = atmo ? adapt(Math.min(dt, .1), vm.indoor, camera.position.y < 4.6) : .82;
+    // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
+    r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
     // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
     // frames the sun's shadow is not redrawn, so the two passes never land together.)
     if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);

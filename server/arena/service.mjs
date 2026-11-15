@@ -113,7 +113,16 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
       for (const p of m.players) {
         if (!p.account || !p.conn) continue;
         const r = byUser.get(p.account);
-        if (r) { send(p.conn, { t: 'progress', match: m.id, ...r }); if (p.conn.account?.id === p.account) { p.conn.level = r.level ?? p.conn.level; p.conn.xp = r.total_xp ?? p.conn.xp; } }
+        if (r) {
+          send(p.conn, { t: 'progress', match: m.id, ...r });
+          if (p.conn.account?.id === p.account) {
+            p.conn.level = r.level ?? p.conn.level; p.conn.xp = r.total_xp ?? p.conn.xp;
+            // Weapon levels reached this match count at once: finishes they unlock can be equipped without reopening the arena.
+            const row = result.players.find(x => x.account === p.account);
+            for (const [id, w] of Object.entries(row?.weapons ?? {})) if (w?.kills) p.conn.weaponXp[id] = (p.conn.weaponXp[id] ?? 0) + weaponXp(w.kills, w.headshots);
+            for (const w of Array.isArray(r.weapon_levels) ? r.weapon_levels : []) if (typeof w?.weapon === 'string' && Number.isInteger(w.level)) p.conn.weaponLevels[w.weapon] = w.level;
+          }
+        }
       }
     }).catch(e => {
       if (n < 3 && !closing) setTimeout(() => attempt(n + 1), 1500 * 2 ** n);
@@ -131,7 +140,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
   /** Resolve within `ms`, or settle as `fallback` (a slow account service must not hold a player at the door). */
   const within = (p, ms, fallback) => Promise.race([p, new Promise(r => { const t = setTimeout(() => r(fallback), ms); t.unref?.(); })]);
   async function identify(c, m) {
-    c.name = guestName(m.name); c.account = null; c.level = 1; c.xp = 0; c.weaponLevels = {}; c.loadouts = []; c.owned = [];
+    c.name = guestName(m.name); c.account = null; c.level = 1; c.xp = 0; c.weaponLevels = {}; c.weaponXp = {}; c.loadouts = []; c.owned = [];
     c.caps = Object.fromEntries((Array.isArray(m.caps) ? m.caps : []).filter(x => typeof x === 'string' && x.length < 24).slice(0, 8).map(x => [x, true]));
     let notice = null;
     const started = clock();
@@ -150,7 +159,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
             c.xp = arena?.xp ?? 0; c.level = levelFor(c.xp);
             // Premium weapons the account owns (store items granted only from verified payments).
             c.owned = ownedList(snap.owned);
-            for (const w of arena?.weapons ?? []) c.weaponLevels[w.weapon] = weaponLevel(weaponXp(w.kills, w.headshots));
+            for (const w of arena?.weapons ?? []) { c.weaponXp[w.weapon] = weaponXp(w.kills, w.headshots); c.weaponLevels[w.weapon] = weaponLevel(c.weaponXp[w.weapon]); }
             c.loadouts = (arena?.loadouts ?? []).map(l => validateLoadout(l, c.level, c.weaponLevels, c.owned)).filter(r => r.ok).map(r => r.loadout);
             c.emblem = typeof arena?.emblem === 'string' ? arena.emblem : 'recruit';
           }
@@ -169,7 +178,7 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
     c.emblem = emblem.id;
     c.loadout = c.loadouts?.[0] ?? PRESETS[0];
     c.ready = true;
-    send(c, { t: 'ready', id: c.id, name: c.name, verified: !!c.account, handle: c.account?.handle ?? null, level: c.level, xp: c.xp, weaponLevels: c.weaponLevels ?? {}, emblem: c.emblem, owned: c.owned ?? [],
+    send(c, { t: 'ready', id: c.id, name: c.name, verified: !!c.account, handle: c.account?.handle ?? null, level: c.level, xp: c.xp, weaponLevels: c.weaponLevels ?? {}, weaponXp: c.weaponXp ?? {}, emblem: c.emblem, owned: c.owned ?? [],
       loadout: c.loadout, loadouts: c.loadouts ?? [], modes: MODES.map(({ id, name, text }) => ({ id, name, text })), maps: MAPS.map(({ id, name, blurb }) => ({ id, name, blurb })),
       online: [...connections.values()].filter(o => o.ready).length, matches: matches.size, ...(notice ? { notice } : {}) });
   }

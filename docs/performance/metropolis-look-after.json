@@ -1,0 +1,92 @@
+{
+  "label": "look-after",
+  "when": "2026-11-15T03:37:42.420Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "storm-street-high": {
+      "world": 0,
+      "calls": 655,
+      "triangles": 599579,
+      "textures": 112,
+      "geometries": 717,
+      "fps": 1,
+      "heapMB": 395,
+      "deployMs": 66663
+    },
+    "storm-rooftop-high": {
+      "world": 0,
+      "calls": 505,
+      "triangles": 815087,
+      "textures": 182,
+      "geometries": 753,
+      "fps": 1,
+      "heapMB": 437,
+      "deployMs": 66663
+    },
+    "storm-interior-high": {
+      "world": 0,
+      "calls": 619,
+      "triangles": 899425,
+      "textures": 182,
+      "geometries": 753,
+      "fps": 1,
+      "heapMB": 427,
+      "deployMs": 66663
+    },
+    "storm-station-high": {
+      "world": 0,
+      "calls": 598,
+      "triangles": 948453,
+      "textures": 187,
+      "geometries": 762,
+      "fps": 1,
+      "heapMB": 440,
+      "deployMs": 66663
+    },
+    "day-street-high": {
+      "world": 0,
+      "calls": 647,
+      "triangles": 586745,
+      "textures": 112,
+      "geometries": 689,
+      "fps": 1,
+      "heapMB": 402,
+      "deployMs": 31791
+    },
+    "day-rooftop-high": {
+      "world": 0,
+      "calls": 497,
+      "triangles": 802253,
+      "textures": 182,
+      "geometries": 699,
+      "fps": 1,
+      "heapMB": 428,
+      "deployMs": 31791
+    },
+    "day-interior-high": {
+      "world": 0,
+      "calls": 609,
+      "triangles": 886589,
+      "textures": 182,
+      "geometries": 699,
+      "fps": 1,
+      "heapMB": 412,
+      "deployMs": 31791
+    },
+    "day-station-high": {
+      "world": 0,
+      "calls": 596,
+      "triangles": 947983,
+      "textures": 188,
+      "geometries": 751,
+      "fps": 1,
+      "heapMB": 416,
+      "deployMs": 31791
+    }
+  },
+  "errors": []
+}
