@@ -11,11 +11,19 @@ test('priority 1 overtakes queued background decodes; two at a time', async () =
   const job = (name, ms) => async () => { order.push(name); peak = Math.max(peak, decodeState().running); await later(ms); return name; };
   const all = [decodeSlot({ priority: 3 }, 'a', job('bg1', 30)), decodeSlot({ priority: 3 }, 'b', job('bg2', 30)), decodeSlot({ priority: 2 }, 'c', job('bg3', 5)), decodeSlot({ priority: 3 }, 'd', job('bg4', 5)), decodeSlot({ priority: 1 }, 'e', job('needed', 5))];
   await Promise.all(all);
-  assert.deepEqual(order, ['bg1', 'bg2', 'needed', 'bg3', 'bg4']);
+  // One slot is kept for priority 1: bg1 starts, bg2 waits; 'needed' (queued last) starts at once beside bg1.
+  assert.deepEqual(order, ['bg1', 'needed', 'bg3', 'bg2', 'bg4']);
   assert.equal(peak, 2);
+});
+test('a long background decode never holds up a priority-1 decode', async () => {
+  let release; const stuck = decodeSlot({ priority: 2 }, 'slow', () => new Promise(r => { release = r; }));
+  const started = []; const bg = decodeSlot({ priority: 3 }, 'queued', async () => { started.push('bg'); });
+  const t0 = Date.now(); await decodeSlot({ priority: 1 }, 'needed', async () => { started.push('needed'); });
+  assert.ok(Date.now() - t0 < 50, 'started at once'); assert.deepEqual(started, ['needed'], 'the background one still waits');
+  release(); await Promise.all([stuck, bg]); assert.deepEqual(started, ['needed', 'bg']);
 });
 test('a decode that throws frees its place, and the queue carries on', async () => {
   await assert.rejects(decodeSlot({ priority: 1 }, 'bad', () => { throw new Error('corrupt file'); }), /corrupt/);
   assert.equal(await decodeSlot({ priority: 1 }, 'good', async () => 'ok'), 'ok');
-  assert.deepEqual(decodeState(), { running: 0, queued: 0 });
+  assert.deepEqual(decodeState(), { running: 0, background: 0, queued: 0 });
 });
