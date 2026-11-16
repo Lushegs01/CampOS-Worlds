@@ -26,6 +26,16 @@
       "fps": 0,
       "heapMB": 438,
       "deployMs": 132689
+    },
+    "day-veh-car-medium": {
+      "world": 0,
+      "calls": 409,
+      "triangles": 1438933,
+      "textures": 215,
+      "geometries": 723,
+      "fps": 0,
+      "heapMB": 440,
+      "deployMs": 132689
     }
   },
   "errors": [
