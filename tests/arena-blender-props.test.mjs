@@ -10,7 +10,10 @@ import { getBounds } from '@gltf-transform/functions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { MAPS } from '../shared/arena/maps.mjs';
 
-const HERO = { roofTank: 'tank', roofAC: 'ac', roofVent: 'vent', utilityCabinet: 'utility', wasteBin: 'bin', forklift: 'forklift' };
+const HERO = { roofTank: 'tank', roofAC: 'ac', roofVent: 'vent', utilityCabinet: 'utility', wasteBin: 'bin', forklift: 'forklift',
+  sedanSilver: 'car', sedanRed: 'car', pickup: 'pickup', cityBus: 'bus', boxVan: 'van' };
+/** Triangle budgets: street props, and vehicles (larger, seen closer, at most a few copies each). */
+const BUDGET = { Vehicles: 14000 };
 const lib = readFileSync('src/arena/scene/library.ts', 'utf8');
 const manifest = JSON.parse(readFileSync('public/assets/arena/blender.json', 'utf8'));
 
@@ -38,7 +41,8 @@ test('each Blender prop decodes in both tiers, fits its box, and stays within bu
       assert.ok(existsSync(file), file);
       const doc = await io.read(file), root = doc.getRoot();
       let tris = 0; for (const mesh of root.listMeshes()) for (const p of mesh.listPrimitives()) tris += p.getIndices().getCount() / 3;
-      assert.ok(tris > 500 && tris <= 8000, `${key}: ${tris} triangles`);
+      const cap = BUDGET[entry.family] ?? 8000;
+      assert.ok(tris > 500 && tris <= cap, `${key}: ${tris} triangles (budget ${cap})`);
       assert.equal(root.listMaterials().length, 1, `${key}: one material (one draw call per instance batch)`);
       for (const t of root.listTextures()) assert.equal(t.getMimeType(), 'image/ktx2', `${key}: KTX2 texture`);
       const { min, max } = getBounds(root.listScenes()[0]);

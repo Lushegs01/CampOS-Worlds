@@ -33,10 +33,10 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
    * A Blender-authored prop (library HERO_PROPS) filling a collision box: its long axis (+x) along the box's long axis,
    * as `frame` lays out the code-drawn version, scaled to the box exactly. False when the model is not loaded.
    */
-  const hero = (key: PropKey, box: Box, P: Props) => {
+  const hero = (key: PropKey, box: Box, P: Props, flip = false) => {
     const s = lib.props[key]?.size; if (!s) return false;
     const f = frame(box), [x0, y0, z0] = box.min, [x1, y1, z1] = box.max;
-    P.place(key, (x0 + x1) / 2, y0, (z0 + z1) / 2, f.alongX ? 0 : -Math.PI / 2, f.len / s.x, (y1 - y0) / s.y, f.wid / s.z);
+    P.place(key, (x0 + x1) / 2, y0, (z0 + z1) / 2, (f.alongX ? 0 : -Math.PI / 2) + (flip ? Math.PI : 0), f.len / s.x, (y1 - y0) / s.y, f.wid / s.z);
     return true;
   };
 
@@ -46,6 +46,8 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
     switch (box.mat) {
       // ------------------------------------------------------------ vehicles
       case 'car': {
+        // Blender-authored saloons (two paints), facing either way along the box; the code-drawn car is the fallback.
+        if (hero((carNo + (cx > 0 ? 1 : 0)) % 2 ? 'sedanRed' : 'sedanSilver', box, P, hash(seed) > .5)) { carNo++; break; }
         const model = buildVehicleModel(`metro-${carNo}`, 'car'), paint = m.bodies[(carNo++ + (cx > 0 ? 3 : 0)) % m.bodies.length];
         const yaw = w > d ? (hash(seed) > .5 ? Math.PI / 2 : -Math.PI / 2) : hash(seed) > .5 ? 0 : Math.PI;
         b.bake(model.root, T(cx, y0, cz).multiply(RY(yaw)), mat => (mat.name === 'paint' || mat.name.startsWith('paint') ? paint : mat));
@@ -54,6 +56,14 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
       case 'bus': {
         // An Okun Metro city bus: two-tone body, a glazed band, doors, a lit destination board.
         const f = frame(box), l = local(f.M), H = h, W = f.wid / 2, Ln = f.len / 2;
+        if (hero('cityBus', box, P)) {
+          // The Blender bus (body half-width 1.17 of its 1.3 with mirrors): the lit board and the route sign on the side
+          // away from its doors are drawn here.
+          const side = W * 1.17 / 1.3;
+          l.box(Ln * .975, H * .835, -side * .72, Ln * .985, H * .92, side * .72, m.led, 1);
+          signPanel(b, signMat, signs.text('OKUN METRO', '#f4f4f0', '#14365c', 512, 96, 'Route 12 · Marina – Port'), 3.4, .62, f.M.clone().multiply(T(-1.5, 1.85, -side - .015)).multiply(RY(Math.PI)));
+          break;
+        }
         l.rbox(-Ln, .34, -W, Ln, H, W, m.bodies[0], .22); l.box(-Ln + .02, .34, -W - .01, Ln - .02, 1.15, W + .01, m.blue, 2);
         l.box(-Ln + .5, 1.5, -W - .015, Ln - .7, 2.45, W + .015, m.glassDark, 2); l.box(Ln - .04, 1.35, -W + .15, Ln + .015, 2.55, W - .15, m.glassDark, 2);
         l.box(Ln - .02, 2.6, -W + .3, Ln + .02, 2.9, W - .3, m.led, 1); l.box(-Ln - .015, 1.6, -W + .3, -Ln + .02, 2.5, W - .3, m.glassDark, 1);
@@ -70,6 +80,11 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
       }
       case 'van': {
         const f = frame(box), l = local(f.M), W = f.wid / 2, Ln = f.len / 2, cab = Ln - 1.9;
+        if (hero('boxVan', box, P)) {
+          // The Blender box van (body half-width 1.03 of its 1.17 with mirrors): its livery is drawn here.
+          signPanel(b, signMat, signs.text('BAY LOGISTICS', '#f1ece2', '#b5402f', 512, 96, 'Port of Okun Bay'), 3, .6, f.M.clone().multiply(T(-1.2, h * .62, W * 1.03 / 1.17 + .012)));
+          break;
+        }
         l.rbox(cab, .5, -W + .08, Ln, h * .72, W - .08, m.bodies[3], .2); l.box(cab + .5, h * .42, -W + .06, Ln + .012, h * .68, W - .06, m.glassDark, 1);
         l.rbox(-Ln, .75, -W, cab - .08, h, W, m.white, .05); l.box(-Ln + .2, .5, -W + .3, Ln - .5, .75, W - .3, m.darkSteel, 1);
         for (const s of [-1, 1]) { for (const u of [-Ln + 1.5, Ln - 1.1]) l.wheel(u, s * (W - .16), .42); l.box(Ln - .03, .7, s * (W - .4) - .13, Ln + .02, .92, s * (W - .4) + .13, m.headlamp, 1); l.box(-Ln - .02, .8, s * (W - .25) - .08, -Ln + .02, 1.1, s * (W - .25) + .08, m.taillamp, 1); }
@@ -102,6 +117,7 @@ export function buildProps(b: CityBuilder, m: CityMats, lib: Library, map: CityM
         break;
       }
       case 'pickup': {
+        if (hero('pickup', box, P, hash(seed) > .5)) break;
         const f = frame(box), l = local(f.M), W = f.wid / 2, Ln = f.len / 2, paint = m.bodies[(Math.floor(hash(seed) * 5) + 2) % m.bodies.length];
         l.rbox(-Ln, .45, -W, Ln, 1.05, W, paint, .12); l.rbox(-.3, 1.0, -W + .06, Ln - 1.3, h, W - .06, paint, .18); l.box(-.25, 1.15, -W + .04, Ln - 1.35, h - .1, W - .04, m.glassDark, 1);
         l.box(-Ln + .12, 1.05, -W + .1, -.4, 1.12, W - .1, m.black, 1);
