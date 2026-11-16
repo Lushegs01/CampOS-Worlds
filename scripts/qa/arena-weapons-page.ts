@@ -69,7 +69,7 @@ if (mode === 'fp' || mode === 'seq') {
   const sim = { phase: 'ready', pt: 0, cool: 0, ads: 0, sprint: false, stance: 0, grounded: true, vx: 0, vy: 0, vz: 0, shots: 0 };
   let mag = w.mag, reloadTotal = 1, reloadEmpty = false, bob = 0, tick = 0;
   /** What the player is doing at time t (seconds) in each scenario. */
-  type Want = { ads?: boolean; fire?: boolean; reload?: boolean; sprint?: boolean; walk?: boolean; empty?: boolean };
+  type Want = { ads?: boolean; fire?: boolean; reload?: boolean; sprint?: boolean; walk?: boolean; empty?: boolean; melee?: boolean };
   const SCENARIOS: Record<string, { length: number; at: (t: number) => Want }> = {
     hip: { length: 2, at: () => ({}) },
     ads: { length: 3, at: t => ({ ads: t > .4 && t < 2.1 }) },
@@ -79,15 +79,18 @@ if (mode === 'fp' || mode === 'seq') {
     reloadEmpty: { length: (w.reloadEmpty ?? 150) / 60 + 1, at: t => ({ reload: t > .3 && t < .4, empty: true }) },
     sprint: { length: 2.4, at: t => ({ sprint: t > .2 && t < 2, walk: t > .2 }) },
     walk: { length: 2.4, at: () => ({ walk: true }) },
+    melee: { length: 1.6, at: t => ({ melee: t > .3 && t < .35 }) },
   };
   // A still is the scenario at its telling moment.
-  const STILL: Record<string, [string, number]> = { hip: ['hip', 1.5], ads: ['ads', 1.6], reload: ['reload', .3 + (w.reload ?? 120) / 60 * .25], reloadEmpty: ['reloadEmpty', .3 + (w.reloadEmpty ?? 150) / 60 * .5], sprint: ['sprint', 1.4], fire: ['fire', .64], walk: ['walk', 1.2] };
+  const STILL: Record<string, [string, number]> = { hip: ['hip', 1.5], ads: ['ads', 1.6], reload: ['reload', .3 + (w.reload ?? 120) / 60 * .25], reloadEmpty: ['reloadEmpty', .3 + (w.reloadEmpty ?? 150) / 60 * .5], sprint: ['sprint', 1.4], fire: ['fire', .64], walk: ['walk', 1.2], melee: ['melee', .3 + ((w as { swing?: number }).swing ?? 30) / 60 * .45] };
   const seqName = mode === 'fp' ? STILL[params.get('pose') ?? 'hip']?.[0] ?? 'hip' : params.get('seq') ?? 'fire';
   const sc = SCENARIOS[seqName] ?? SCENARIOS.hip;
   if (sc === SCENARIOS.reloadEmpty) mag = 0; else if (sc === SCENARIOS.reload) mag = Math.max(1, w.mag - 9);
   const stepTick = () => {
     const t = tick / 60, want = sc.at(t); tick++;
     if (want.reload && sim.phase === 'ready' && mag < w.mag) { sim.phase = 'reload'; reloadEmpty = !!want.empty || mag === 0; sim.pt = reloadTotal = reloadEmpty ? w.reloadEmpty : w.reload; sim.ads = 0; }
+    if (want.melee && sim.phase === 'ready') { sim.phase = 'melee'; sim.pt = (w as { swing?: number }).swing ?? 30; }
+    if (sim.phase === 'melee' && --sim.pt <= 0) { sim.phase = 'ready'; sim.pt = 0; }
     if (sim.phase === 'reload' && --sim.pt <= 0) { sim.phase = 'ready'; sim.pt = 0; mag = w.mag; }
     sim.sprint = !!want.sprint;
     if (want.ads && !sim.sprint && sim.phase === 'ready') sim.ads = Math.min(1, sim.ads + 1 / Math.max(1, w.ads)); else sim.ads = Math.max(0, sim.ads - 1.25 / Math.max(1, w.ads));

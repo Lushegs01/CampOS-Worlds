@@ -70,6 +70,8 @@ class Spring {
 
 const _eA = new THREE.Euler(), _eB = new THREE.Euler(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), q1 = new THREE.Quaternion();
 const POUCH = new THREE.Vector3(-.17, -.56, -.2);
+/** The melee support hand's guard, in camera space: low left, in view at the hip field of view. */
+const GUARD = new THREE.Vector3(-.17, -.14, -.4);
 
 export class ViewmodelAnimator {
   // Recoil: displacement springs (back, pitch, roll, yaw), a settling spring for impacts (seat, chamber, landing), the
@@ -117,7 +119,9 @@ export class ViewmodelAnimator {
     const hip = melee ? v1.set(.15, -.17, -.42) : sidearm ? v1.set(.095, -sightY - .085, -.5) : v1.set(.125, -sightY - .068, -.33);
     const aim = v2.set(0, -sightY, (ud.adsZ as number) ?? -.28);
     let x = hip.x + (aim.x - hip.x) * ads, y = hip.y + (aim.y - hip.y) * ads, z = hip.z + (aim.z - hip.z) * ads;
-    let rx = melee ? .22 : sidearm ? 0 : .025 * hipK, ry = (melee ? .14 : sidearm ? .06 : .17) * hipK, rz = (melee ? -.25 : sidearm ? 0 : .07) * hipK;
+    // (The knife is carried turned across the body, tip raised, so its blade reads along its length rather than end on.)
+    const knife = w.id === 'knife';
+    let rx = melee ? (knife ? .34 : .22) : sidearm ? 0 : .025 * hipK, ry = (melee ? (knife ? .62 : .14) : sidearm ? .06 : .17) * hipK, rz = (melee ? -.25 : sidearm ? 0 : .07) * hipK;
     // Bringing it up: a small arc (dip, then rise into the eye line) and the muzzle leading, settling on arrival.
     const arc = Math.sin(Math.PI * clamp01(a));
     y -= .014 * arc; rx += .035 * arc; x += .01 * arc;
@@ -277,6 +281,16 @@ export class ViewmodelAnimator {
       let want = grip;
       if (hand) want = hand(grip);
       if (s.phase === 'throw' || (s.phase === 'melee' && !melee)) want = grip.lerp(v3.set(-.25, -.5, .1), .9);
+      // Melee weapons are held in the firing hand alone. The support hand stays in view as a guard: a loose fist low
+      // in the left of the frame, rising and falling with the stride (pumping when sprinting), drawn back toward the
+      // chest as the blade swings through (the counterbalance of a real cut) and forward again on recovery.
+      if (melee && s.phase !== 'throw') {
+        const swing = s.phase === 'melee' ? Math.sin(clamp01(1 - s.pt / Math.max(1, w.swing ?? 30)) * Math.PI) : 0;
+        const raise = s.phase === 'switch' ? clamp01(s.pt / Math.max(1, w.swap ?? 18)) : 0;
+        want = v3.set(GUARD.x + this.swayX * .6 - swing * .05 + Math.cos(bob) * .006 * moving,
+          GUARD.y + this.swayY * .5 - Math.abs(Math.sin(bob)) * .01 * moving + Math.sin(bob) * .035 * sk - swing * .035 - raise * .12,
+          GUARD.z + Math.cos(bob) * .035 * sk + swing * .09);
+      }
       // The hand follows its target quickly but not instantly (a reach has weight; a tap stays crisp).
       this.handL.lerp(want, Math.min(1, dt * (s.phase === 'reload' ? 22 : 30)));
     }

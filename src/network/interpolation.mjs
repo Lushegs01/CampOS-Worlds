@@ -34,8 +34,11 @@ export function createClock() {
  * used to show as a small change of speed). Any number of reads per frame give the same result.
  */
 export function createPlayback(delay = INTERP_DELAY) {
-  const clock = createClock(); let offset = null, last = 0;
+  const clock = createClock(); let offset = null, last = 0, want = delay;
   return {
+    /** Change the interpolation delay (eased in over about a second, so drawn players never jump). */
+    setDelay(ms) { want = ms; },
+    get delay() { return delay; },
     reset() { clock.reset(); offset = null; },
     receive(roomMs, localMs) { clock.receive(roomMs, localMs); },
     /** Room time to draw at, at local time `localMs`; null before any message. */
@@ -43,6 +46,7 @@ export function createPlayback(delay = INTERP_DELAY) {
       const target = clock.offset; if (target == null) return null;
       if (offset == null || Math.abs(target - offset) > 500) offset = target;
       else if (localMs > last) offset += (target - offset) * Math.min(1, (localMs - last) / 500);
+      if (localMs > last && last) delay += (want - delay) * Math.min(1, (localMs - last) / 1000);
       last = Math.max(last, localMs);
       return localMs - offset - delay;
     },

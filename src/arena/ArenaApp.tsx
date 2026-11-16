@@ -21,6 +21,7 @@ import TouchControls from './Touch';
 import LoadoutEditor from './Loadout';
 import { toggleAutoFire } from './net';
 import { recommendQuality } from './device';
+import { cacheReport, clearAssetCaches, type CacheReport } from '../world/assetCache';
 import { sfx, prepareInterface } from './audio';
 import './arena.css';
 
@@ -169,9 +170,29 @@ function ArenaSettings() {
       </div>
       <button className="ar-secondary" onClick={() => useGame.getState().set({ volume: volume ? 0 : .7 })}>{volume ? 'Mute' : 'Unmute'}</button>
       <p className="ar-fine">Footsteps of other players carry gameplay information: lowering them makes enemies harder to hear. The mix is limited, so loud firefights never distort.</p></fieldset>
+    <OfflineAssets />
     <fieldset><legend>Diagnostics</legend>
       <p className="ar-fine">Your last deployments on this device (stage timings in milliseconds). Nothing personal is included; you can share it if support asks.</p>
       <pre className="ar-diag">{recentDeployments().slice(-3).map(d => `${d.ok ? 'OK ' : 'FAIL'} ${d.kind ?? ''} ${(d.total / 1000).toFixed(1)} s · ${(d.bytes / 1e6).toFixed(1)} MB · ${d.files} files${d.retries ? ` · ${d.retries} retries` : ''}${d.failure ? ` · ${d.failure}` : ''}\n  ${Object.entries(d.stages).map(([k, v]) => `${k} ${v}`).join(' · ')}`).join('\n') || 'No deployments yet.'}</pre>
     </fieldset>
   </div></div>;
+}
+
+const mb = (n: number) => `${(n / 1048576).toFixed(n < 10485760 ? 1 : 0)} MB`;
+/**
+ * What this device keeps for the arena (src/sw.ts caches code and revisioned models, textures and audio as they are
+ * first used). Only static files: never accounts, matches or anything live. Read on demand, since it touches every entry.
+ */
+function OfflineAssets() {
+  const [r, setR] = useState<CacheReport | null>(null), [busy, setBusy] = useState(false);
+  const read = () => { setBusy(true); cacheReport(__CAMPUS_ASSET_VERSION__).then(setR).catch(() => setR({ supported: false, files: 0, bytes: 0, code: 0, groups: {}, stale: 0 })).finally(() => setBusy(false)); };
+  useEffect(read, []);
+  const worker = typeof navigator !== 'undefined' && !!navigator.serviceWorker?.controller;
+  return <fieldset className="ar-assets"><legend>Downloaded assets</legend>
+    {!r ? <p className="ar-fine">Checking…</p> : !r.supported || !worker ? <p className="ar-fine">This browser is not keeping arena files between visits{r.supported ? ' yet (it starts after the app has been installed or reloaded once)' : ''}. Each visit downloads what it needs.</p> : <>
+      <p className="ar-fine">Kept on this device so the next match starts without downloading them again: <b>{r.files} files, {mb(r.bytes)}</b>{r.code ? ` (arena code ${mb(r.code)})` : ''}. Files are kept as you use them; nothing is downloaded in advance.</p>
+      <ul className="ar-asset-groups">{Object.entries(r.groups).sort().map(([k, g]) => <li key={k}><span>{k}</span><b>{g.files} · {mb(g.bytes)}</b></li>)}</ul>
+      {r.usage != null && r.quota ? <p className="ar-fine">This site uses {mb(r.usage)} of the {mb(r.quota)} the browser allows{r.persisted ? '' : '; the browser may clear it if storage runs low'}.</p> : null}
+      <button className="ar-secondary" disabled={busy || !r.files} onClick={() => { setBusy(true); void clearAssetCaches().then(read); }}>Remove downloaded files</button></>}
+  </fieldset>;
 }

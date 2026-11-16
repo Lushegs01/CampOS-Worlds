@@ -5,7 +5,7 @@
 // <Slot> places one element where the player's layout puts it (viewport-relative, inside the safe area; see
 // shared/arena/hud.mjs) at its size, opacity and alignment.
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Crosshair as CrosshairIcon, Radar, Package, Target, Wifi, RotateCw, ArrowUp, ChevronsDown, Repeat, Bomb, Sparkles, Swords, Menu, ListOrdered, Zap, Footprints } from 'lucide-react';
+import { Crosshair as CrosshairIcon, Radar, Package, Target, RotateCw, ArrowUp, ChevronsDown, Repeat, Bomb, Sparkles, Swords, Menu, ListOrdered, Zap, Footprints } from 'lucide-react';
 import { HUD_ELEMENT_BY_ID, drawnScale } from '../../shared/arena/hud.mjs';
 import { STREAKS, EMBLEM_BY_ID } from '../../shared/arena/weapons.mjs';
 import type { Layout } from './hudLayout';
@@ -76,8 +76,13 @@ export function WeaponInfoView({ name, category, state, lethal, tactical, lethal
 export function WeaponSlotsView({ slot, primary, secondary }: { slot: number; primary: string; secondary: string }) {
   return <div className="ar-slots"><span className={slot === 0 ? 'on' : ''}>1 · {primary}</span><span className={slot === 1 ? 'on' : ''}>2 · {secondary}</span></div>;
 }
-export function NetView({ ping, fps, showFps, ok, autoFire }: { ping: number; fps: number; showFps: boolean; ok: boolean; autoFire: boolean }) {
-  return <div className={`ar-net${ok ? '' : ' bad'}`}><Wifi size={12} />{ok ? `${ping} ms` : 'reconnecting'}{showFps && ` · ${fps} fps`}{autoFire && <em className="ar-af-tag">AUTO-FIRE</em>}</div>;
+const NET_LABEL = { good: 'Connection good', fair: 'Connection fair', poor: 'Connection poor: other players may lag', critical: 'Connection unstable: recovering' } as const;
+/** Connection status: a four-bar signal coloured by the measured grade (latency, jitter, loss, snapshot gaps), and ping. */
+export function NetView({ ping, fps, showFps, ok, autoFire, grade = 'good' }: { ping: number; fps: number; showFps: boolean; ok: boolean; autoFire: boolean; grade?: keyof typeof NET_LABEL }) {
+  const g = ok ? grade : 'critical', bars = { good: 4, fair: 3, poor: 2, critical: 1 }[g];
+  return <div className={`ar-net net-${g}${ok ? '' : ' bad'}`} role="status" aria-label={`${NET_LABEL[g]}, ${ping} milliseconds`} title={NET_LABEL[g]}>
+    <svg className="ar-net-bars" viewBox="0 0 14 12" width="14" height="12" aria-hidden="true">{[0, 1, 2, 3].map(i => <rect key={i} x={i * 3.6} y={9 - i * 3} width="2.6" height={3 + i * 3} rx=".6" className={i < bars ? 'on' : ''} />)}</svg>
+    {ok ? `${ping} ms` : 'reconnecting'}{showFps && ` · ${fps} fps`}{autoFire && <em className="ar-af-tag">AUTO-FIRE</em>}</div>;
 }
 export function ObjectivesView({ objectives, team }: { objectives: [number, number, number, number][]; team: number }) {
   return <div className="ar-objectives">{['A', 'B', 'C'].map((id, i) => {

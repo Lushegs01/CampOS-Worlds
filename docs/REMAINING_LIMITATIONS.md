@@ -1,5 +1,40 @@
 # Remaining limitations
 
+## After the November 2026 "ultimate FPS" pass ([ULTIMATE_FPS_TRANSFORMATION.md](ULTIMATE_FPS_TRANSFORMATION.md))
+
+Done in this pass, so no longer open:
+
+* both hands visible with melee weapons;
+* per-weapon anchor validation with no fallback;
+* the Bastion sight fix;
+* Bastion pump and Thorn cylinder moving;
+* a first-person body;
+* a persistent asset cache and asset manager;
+* connection-quality measurement, with a HUD indicator and jitter-adaptive interpolation.
+
+Still open from the brief:
+
+* **Blender.** No Blender MCP connection, and no new Blender-authored asset in this pass. Remaining art: weapon
+  remodels, vehicles, soldier rig and clips (jump, fall, land, slide, hit reactions), interior uniqueness and lifts,
+  facades.
+* **Maps.** Foundry Yard and Sim Quad buildings are not made enterable. Their warehouse bays and arcades are open
+  structures, and their interiors were not audited room by room in this pass. Open door leaves still have no
+  collision.
+* **Weapons.** Longbow bolt and Sparrow magazine are still fused to their models. No inspection animation.
+* **First-person body.** No air, landing or slide clips. It is the third-person mesh with bones collapsed.
+* **First-person body validation.** The live-match capture (`scripts/qa/arena-body.mjs`) waits for the soldier models
+  to stream in (priority 2). In this container's software WebGL they had not arrived within 5 minutes on the first
+  run, so the in-game body assertions and stills were **not obtained in this pass**. The script is committed for
+  rerunning on a machine with a GPU. The body code is type-checked and builds, but its in-game appearance is
+  unverified here.
+* **Networking.** No server-side per-client snapshot adaptation, no binary or delta protocol, and no shaped-network
+  (netem) end-to-end test.
+* **Offline.** No offline practice mode, and no "download everything" pack.
+* **Devices and audio.** Still no physical-device frame times and no listening tests. Nothing in this pass is a device
+  measurement.
+
+## Earlier pass
+
 Status after the November 2026 Warzone-fidelity pass ([AAA_TRANSFORMATION_REPORT.md](AAA_TRANSFORMATION_REPORT.md)).
 This pass delivered one vertical slice: a headless Blender production pipeline and six original props integrated into
 Operation: Metropolis. Everything below is **not done**. Earlier passes' open items still stand where they are not

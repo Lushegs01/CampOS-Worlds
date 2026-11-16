@@ -24,9 +24,10 @@ favicon and the standalone offline recovery page. `npm run verify:release` enfor
 under 5 MiB and rejects world models, textures, audio and private endpoint paths in that cache.
 The measured size for this release is recorded in `docs/release/artifacts.json`.
 
-There are no runtime cache routes. Accounts, API requests, payment returns, WebSockets,
-economic records and multiplayer state are never supplied from the worker cache. The existing
-browser HTTP asset cache remains separate; gameplay assets retain content-revision URLs.
+Runtime caching covers static files only: Combat Arena's content-hashed code chunks and revisioned
+models, textures and audio, kept cache-first as they are first used and replaced when their revision
+changes ([OFFLINE_ASSET_CACHING.md](OFFLINE_ASSET_CACHING.md)). Accounts, API requests, payment returns,
+WebSockets, economic records and multiplayer state are never supplied from the worker cache.
 The worker does not proactively download the 34 MB world asset library. Workbox revisions
 invalidate changed files and remove obsolete precache entries when an update activates.
 If worker installation fails (for example, insufficient storage), the online game remains
