@@ -42,7 +42,7 @@ Triangle counts and texture formats are unchanged; the files grew by 5 KB each.
 | Kestrel K-45 (`kestrel`) | smg | 1503, 24127, image/ktx2 | 247, 5291 | mag | rifle | pass | smg |
 | Bastion 12G (`bastion`) | shotgun | 586, 15816, image/ktx2 | 100, 2597 | pump | rifle | pass | shotgun |
 | Rampart Auto (`rampart`) | shotgun | 1228, 25184, image/ktx2 | 181, 2655 | bolt | rifle | pass | shotgun |
-| Longbow SR (`longbow`) | sniper | 762, 15257, image/ktx2 | 198, 6026 | mag | rifle | pass | sniper |
+| Longbow SR (`longbow`) | sniper | 764, 15257, image/ktx2 | 198, 6026 | mag, bolt | rifle | pass | sniper |
 | Talon DMR (`talon`) | sniper | 975, 22235, image/ktx2 | 631, 20684 | mag | rifle | pass | dmr |
 | Anvil LMG (`anvil`) | lmg | 932, 26848, image/ktx2 | 174, 5237 | mag | rifle | pass | lmg |
 | Sparrow P9 (`sparrow`) | pistol | 691, 7556, image/ktx2 | 102, 2106 | slide | pistol | pass | pistol |
@@ -51,8 +51,12 @@ Triangle counts and texture formats are unchanged; the files grew by 5 KB each.
 | Breach Axe (`hammer`) | melee | 610, 5250, image/ktx2 | 96, 2600 | — | blade | pass | hammer |
 | SIG Sauer M7 (`m7`) | battle | 188, 8488, image/ktx2 | 96, 2568 | mag, bolt | rifle | pass | m7-suppressed |
 
-Still missing, measured from the files: the Longbow's bolt is fused to the receiver (it is hidden in the side view, so
-its outline cannot be measured from the sheets as the others were); the Sparrow P9's magazine is fused to its frame. Their
+* **Longbow bolt handle** (72 triangles). It is hidden in the side view, so it was located from the geometry: the
+  triangles standing out 2.8–7.5 cm to the right of the receiver. The split tool now takes an x range for such parts.
+  The Longbow fires in `bolt` mode, so the animator works the handle after each shot with the firing hand. At the hip,
+  the receiver is outside the frame, so the motion has not been seen on screen.
+
+Still missing, measured from the files: the Sparrow P9's magazine is fused to its frame. Their
 reloads animate the hand and weapon but not those parts. The models are the existing licensed assets (`docs/ASSETS.md`);
 none was remodelled in this pass.
 
