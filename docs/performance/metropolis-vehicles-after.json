@@ -16,6 +16,16 @@
       "fps": 1,
       "heapMB": 405,
       "deployMs": 132689
+    },
+    "day-veh-van-medium": {
+      "world": 0,
+      "calls": 414,
+      "triangles": 1450437,
+      "textures": 215,
+      "geometries": 723,
+      "fps": 0,
+      "heapMB": 438,
+      "deployMs": 132689
     }
   },
   "errors": [
