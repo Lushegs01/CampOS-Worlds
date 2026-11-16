@@ -20,6 +20,14 @@ the city's static art. They add **2.70 MB** to a desktop's first deployment and 
 drops the top mip level); the service-worker cache keeps them, so later visits do not download them again. The lorry
 (`truck`) is still drawn by code.
 
+Seen in the game (Metropolis, day, Medium, live room server):
+`docs/screenshots/metropolis-photoreal/vehicles-after/day-veh-{bus,van,car,pickup}-medium.jpg`. The captures found a
+pipeline defect. `blender/build.py` left each baked asset at the origin, so every later asset was baked overlapping
+the earlier ones, and their geometry crushed its ambient occlusion. Mean AO by bake order: silver saloon 120 (first,
+clean), red saloon 43, pickup 96, bus 78, box van 7.5. In game the van rendered black in shade. Assets are now baked
+alone. The four vehicles and the six earlier props were rebaked (red saloon 121, pickup 117, bus 82, box van 123);
+the bus's lower figure comes from its own overlapping window and pillar panels.
+
 Source scene: `blender/source/metropolis_props.blend` (objects `SM_<key>`). Build: [BLENDER_ASSET_PIPELINE.md](BLENDER_ASSET_PIPELINE.md).
 Box sizes are length × depth × height in metres, as in the collision map.
 

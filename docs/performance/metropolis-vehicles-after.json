@@ -36,6 +36,16 @@
       "fps": 0,
       "heapMB": 440,
       "deployMs": 132689
+    },
+    "day-veh-pickup-medium": {
+      "world": 0,
+      "calls": 257,
+      "triangles": 1199439,
+      "textures": 225,
+      "geometries": 724,
+      "fps": 1,
+      "heapMB": 443,
+      "deployMs": 132689
     }
   },
   "errors": [

@@ -39,6 +39,9 @@ Still open from the brief:
   * vehicles are static cover, with no wheel, door or suspension animation;
   * glass is baked opaque, so there are no visible interiors;
   * they add 2.70 MB (desktop) and 1.40 MB (phone) to the first deployment.
+  * In-game captures in this container lose the match session intermittently (the server drops the socket and the
+    rejoin finds the match closed); the cause is not yet identified. Each capture is checked to be of the match, not
+    the lobby.
 * **First-person body.** Verified in a live match (PASS, stills in `docs/screenshots/arena/body/`). Open: no air,
   landing or slide clips; feet hidden behind the chest when standing still; the vest texture is soft up close.
 * **Networking.** No binary or delta protocol, and no kernel-shaped (netem) browser test.
