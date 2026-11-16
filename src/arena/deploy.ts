@@ -40,6 +40,8 @@ export const useDeploy = create<DeployState>()(() => fresh());
 const get = () => useDeploy.getState(), set = (v: Partial<DeployState>) => useDeploy.setState(v);
 const now = () => performance.now();
 
+/** How long local work (decoding, shader compilation) may run with nothing downloading before preparing fails. */
+export const LOCAL_WORK_MS = 180000;
 /** Time budgets (ms): when a stage shows as slow, and when it fails. */
 export const BUDGET: Record<string, { slow: number; fail: number }> = {
   requesting: { slow: 4000, fail: 12000 },
@@ -113,7 +115,11 @@ export function watchdog() {
   const idle = s.stage === 'preparing' ? Math.min(inStage, t - Math.max(traffic.lastByteAt, s.stageAt)) : inStage;
   const slow = s.stage === 'preparing' ? inStage > b.slow && (idle > 6000 || inStage > 40000) : inStage > b.slow;
   if (slow !== s.slow) set({ slow });
-  if (idle > b.fail) onTimeout?.(s.stage);
+  // Once everything the player waits for has downloaded and nothing is in flight, what remains (decoding, compiling
+  // shaders) is the device's own work, not the network: a slow phone is given LOCAL_WORK_MS, not the network's limit,
+  // before the deployment gives up (a real hang is still caught).
+  const local = s.stage === 'preparing' && traffic.active === 0 && traffic.critical.started > 0 && traffic.critical.finished >= traffic.critical.started;
+  if (idle > (local ? LOCAL_WORK_MS : b.fail)) onTimeout?.(s.stage);
 }
 
 // ---------------------------------------------------------------- diagnostics
