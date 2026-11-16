@@ -72,11 +72,13 @@ try {
   // Walking while looking down: the legs step (the walk clip), the body keeps up with the camera.
   await page.evaluate(([y]) => window.__arena.look(y, -1.0), [YAW]);
   await page.evaluate(() => window.__arena.move(0, 1)); await page.waitForTimeout(2500);
-  b = await body(); const p = await self(); log('walking', JSON.stringify(b), JSON.stringify(p));
-  // (Set 0.17 m behind the eye, and placed once per drawn frame: at this software renderer's ~10 fps a walking player
-  // moves about half a metre between frames, so the allowance covers one frame.)
-  assert.ok(Math.hypot(b.at[0] - p.x, b.at[2] - p.z) < .17 + .6, `the body keeps up with the player while walking (${Math.hypot(b.at[0] - p.x, b.at[2] - p.z).toFixed(2)} m)`);
-  await still('4-walking-look-down');
+  { // (Body and player read in one call: the player keeps walking between two calls at this frame rate.)
+    const both = await page.evaluate(() => ({ b: window.__arenaDebug().body, p: window.__arena.self() }));
+    b = both.b; const p = both.p, gap = Math.hypot(b.at[0] - p.x, b.at[2] - p.z); log('walking', JSON.stringify(b), JSON.stringify(p), 'gap', gap.toFixed(2));
+    await still('4-walking-look-down');
+    // Set 0.17 m behind the eye, and placed once per drawn frame (about half a metre of walking at ~10 fps).
+    assert.ok(gap < .17 + .6, `the body keeps up with the player while walking (${gap.toFixed(2)} m)`);
+  }
   await page.evaluate(() => window.__arena.move(0, 0)); await page.waitForTimeout(1200);
   // Crouched.
   await page.evaluate(() => window.__arena.buttons(['CROUCH'], true)); await page.waitForTimeout(2500);

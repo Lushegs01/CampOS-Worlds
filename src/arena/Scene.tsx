@@ -311,8 +311,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const soldiers = useRef(new Map<number, { s: SoldierLike; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string; standIn: boolean; animDt?: number }>());
   const dropSoldier = (e: { s: SoldierLike; tag: THREE.Sprite | null }) => { if (e.tag) { (e.tag.material as THREE.SpriteMaterial).map?.dispose(); e.tag.material.dispose(); e.tag = null; } scene.remove(e.s.root); e.s.dispose(); };
   useEffect(() => () => { for (const e of soldiers.current.values()) dropSoldier(e); soldiers.current.clear(); }, [scene, kits]); // eslint-disable-line react-hooks/exhaustive-deps
-  /** How far below the eye the first-person body is cut off (metres): the lower chest, under the collar and shoulders. */
-  const BODY_CUT = .32;
+  /** How far below the eye the first-person body is cut off (metres): only a guard, so the neck never meets the lens. */
+  const BODY_CUT = .12;
   // The player's own body, seen when looking down: the same soldier model and camouflage everyone else sees.
   const ownBody = useRef<{ s: Soldier; key: string } | null>(null);
   useEffect(() => () => { const b = ownBody.current; if (b) { scene.remove(b.s.root); b.s.dispose(); ownBody.current = null; } }, [scene, kits]);

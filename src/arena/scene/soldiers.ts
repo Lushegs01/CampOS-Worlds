@@ -141,14 +141,16 @@ export class Soldier implements SoldierLike {
   }
   /**
    * Turn this soldier into the local player's own body, seen from inside: the head (and helmet) and both arms are
-   * collapsed to their joints, so the camera never looks out through a face and the viewmodel's arms are the only
+   * collapsed to their joints (head; upper arms), so the camera never looks out through a face and the viewmodel's arms are the only
    * arms drawn. Torso, vest, legs and boots stay, posed by the same locomotion as everyone else sees.
    */
   firstPerson(clip?: THREE.Plane) {
     const b = this.bones;
-    this.collapsed = ['Bip01_Neck', 'Bip01_L_Clavicle', 'Bip01_R_Clavicle'].map(n => b[n]).filter(Boolean);
-    // `clip` cuts the body off below the eye (the caller moves it with the camera): seen from above, the collapsed
-    // collar and shoulders would be a smear filling the view; below the cut are the belly, belt, legs and boots.
+    // Only the head (with the helmet) and the upper arms collapse, each to its own joint: collapsing the neck and
+    // collarbones dragged the whole collar and shoulders into a smear that filled the view when looking down. The
+    // shoulders and the top of the vest keep their shape, as a player sees their own chest rig. `clip` (moved with the
+    // camera by the caller) is a guard just under the eye, so the neck never reaches the lens.
+    this.collapsed = ['Bip01_Head', 'Bip01_L_UpperArm', 'Bip01_R_UpperArm'].map(n => b[n]).filter(Boolean);
     this.rig.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; if (clip) (m.material as THREE.Material).clippingPlanes = [clip]; } });
     this.flash.visible = false;
     return this.collapsed.length === 3;
