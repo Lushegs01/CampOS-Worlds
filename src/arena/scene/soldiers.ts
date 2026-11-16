@@ -105,6 +105,8 @@ const kQ = new THREE.Quaternion(), kParent = new THREE.Quaternion(), kWorld = ne
 export class Soldier implements SoldierLike {
   root = new THREE.Group(); private rig: THREE.Object3D; private mixer: THREE.AnimationMixer; private actions: Record<string, THREE.AnimationAction> = {};
   private bones: Record<string, THREE.Bone> = {}; private gun: THREE.Group; private flash: THREE.Sprite; private current = 'idle';
+  /** First-person body (the local player's own soldier): head and arms collapsed, no rifle, no aim pitch. */
+  private collapsed: THREE.Bone[] = [];
   team = -1; weapon = ''; private fall = 0; private lenUpper = .28; private lenFore = .26; private lastPos = new THREE.Vector3(); private speed = 0;
   constructor(kit: Kit, team: number, lib: Library | null, flashTexture: THREE.Texture) {
     this.rig = cloneSkinned(kit.scene);
@@ -137,6 +139,22 @@ export class Soldier implements SoldierLike {
     }
     void lib;
   }
+  /**
+   * Turn this soldier into the local player's own body, seen from inside: the head (and helmet) and both arms are
+   * collapsed to their joints (head; upper arms), so the camera never looks out through a face and the viewmodel's arms are the only
+   * arms drawn. Torso, vest, legs and boots stay, posed by the same locomotion as everyone else sees.
+   */
+  firstPerson(clip?: THREE.Plane) {
+    const b = this.bones;
+    // Only the head (with the helmet) and the upper arms collapse, each to its own joint: collapsing the neck and
+    // collarbones dragged the whole collar and shoulders into a smear that filled the view when looking down. The
+    // shoulders and the top of the vest keep their shape, as a player sees their own chest rig. `clip` (moved with the
+    // camera by the caller) is a guard just under the eye, so the neck never reaches the lens.
+    this.collapsed = ['Bip01_Head', 'Bip01_L_UpperArm', 'Bip01_R_UpperArm'].map(n => b[n]).filter(Boolean);
+    this.rig.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; if (clip) (m.material as THREE.Material).clippingPlanes = [clip]; } });
+    this.flash.visible = false;
+    return this.collapsed.length === 3;
+  }
   setWeapon(id: string) {
     if (this.weapon === id) return;
     const g = weaponThirdPerson(id); if (!g) return; // still downloading: try again next frame
@@ -158,6 +176,7 @@ export class Soldier implements SoldierLike {
     const base: Record<string, number> = { walk: 1.55, jog: 3.4, run: 5.6 };
     if (base[this.current]) this.actions[this.current].timeScale = THREE.MathUtils.clamp(this.speed / base[this.current], .6, 1.5);
     if (!dead) this.mixer.update(dt);
+    for (const bone of this.collapsed) bone.scale.setScalar(1e-3);
     // Elimination: fall backwards and settle.
     this.fall = dead ? Math.min(1, this.fall + dt * 2.4) : 0;
     this.rig.rotation.x = -this.fall * 1.45 * (1 - (1 - this.fall) * (1 - this.fall) * .3);
@@ -165,6 +184,7 @@ export class Soldier implements SoldierLike {
     this.root.updateMatrixWorld(true);
     // Upper body follows the aim pitch.
     const b = this.bones, spine = b.Bip01_Spine2, head = b.Bip01_Head;
+    if (this.collapsed.length) { this.root.updateMatrixWorld(true); return; }
     if (spine && !dead) { spine.rotateOnAxis(tmpV.set(0, 0, 1), -pitch * .5); spine.updateMatrixWorld(true); }
     if (head && !dead) { head.rotateOnAxis(tmpV.set(0, 0, 1), -pitch * .4); head.updateMatrixWorld(true); }
     // The rifle: held at the chest, pointing where the player aims.

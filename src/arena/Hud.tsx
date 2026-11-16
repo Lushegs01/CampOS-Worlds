@@ -316,6 +316,6 @@ export function Scoreboard() {
 }
 
 function Netline() {
-  const ping = useArena(s => s.hud.ping), fps = useArena(s => s.hud.fps), show = useArena(s => s.settings.showFps), status = useArena(s => s.status), auto = useArena(s => s.settings.autoFire && s.match?.autoFire !== false);
-  return <NetView ping={ping} fps={fps} showFps={show} ok={status === 'ready'} autoFire={auto} />;
+  const ping = useArena(s => s.hud.ping), grade = useArena(s => s.hud.net), fps = useArena(s => s.hud.fps), show = useArena(s => s.settings.showFps), status = useArena(s => s.status), auto = useArena(s => s.settings.autoFire && s.match?.autoFire !== false);
+  return <NetView ping={ping} fps={fps} showFps={show} ok={status === 'ready'} autoFire={auto} grade={grade} />;
 }

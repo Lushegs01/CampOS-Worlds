@@ -59,7 +59,7 @@ export const RELOADS = {
   sparrow: mag(
     [[.12, 'magRelease'], [.14, 'magOut'], [.3, 'pouch'], [.53, 'magIn'], [.64, 'magSeat'], [.84, 'settle']],
     [[.12, 'magRelease'], [.14, 'magOut'], [.36, 'magDrop'], [.38, 'pouch'], [.54, 'magIn'], [.64, 'magSeat']],
-    [[.84, 'slideDrop']], { seat: .64 }),
+    [[.84, 'slideDrop']], { out: [.12, .26], in: [.46, .64], hand: [.08, .14, .66, .74], seat: .64 }),
   // Revolver: the latch, the cylinder swung out, the ejector rod pushed (spent cases fall), a speed-loader, closed.
   thorn: (() => {
     const plan = { ...BASE, out: null, in: null, seat: null, rack: null, cyl: [.1, .8], cues: [[.03, 'grab'], [.1, 'cylOpen'], [.2, 'eject'], [.3, 'cases'], [.44, 'pouch'], [.56, 'speedload'], [.79, 'cylClose'], [.9, 'settle']] };

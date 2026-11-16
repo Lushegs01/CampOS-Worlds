@@ -33,14 +33,16 @@ export function createArena({ accounts = { enabled: false }, capacity = 400, max
 
   // ---------------------------------------------------------------- sending
   const slowSince = new WeakMap();
+  /** Send; returns 'sent', 'dropped' (a snapshot skipped because the connection is backed up) or 'closed'. */
   function sendRaw(c, raw, transient = false) {
-    const ws = c?.ws; if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const ws = c?.ws; if (!ws || ws.readyState !== WebSocket.OPEN) return 'closed';
     if (ws.bufferedAmount >= 65536) {
       const since = slowSince.get(ws) ?? Date.now(); slowSince.set(ws, since);
-      if (ws.bufferedAmount >= 262144 * (slowCloseMs / 6000) || Date.now() - since > slowCloseMs) { ws.close(1013, 'Connection too slow; reconnect'); return; }
-      if (transient) return; // a newer snapshot replaces this one; events are never dropped
+      if (ws.bufferedAmount >= 262144 * (slowCloseMs / 6000) || Date.now() - since > slowCloseMs) { ws.close(1013, 'Connection too slow; reconnect'); return 'closed'; }
+      if (transient) return 'dropped'; // a newer snapshot replaces this one; events are never dropped
     } else slowSince.delete(ws);
     ws.send(raw, { compress: raw.length >= 512 });
+    return 'sent';
   }
   const send = (c, m) => sendRaw(c, JSON.stringify(m));
   // Matches address players; players carry their current connection.

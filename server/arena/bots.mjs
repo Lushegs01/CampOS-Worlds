@@ -9,13 +9,15 @@
 
 import { createWorld, overlaps, lineOfSight } from '../../shared/arena/physics.mjs';
 import { B, EYE, wrapAngle, weaponOf } from '../../shared/arena/sim.mjs';
-import { doorInReach, doorOpen } from '../../shared/arena/doors.mjs';
+import { doorInReach, doorOpen, openLeafBoxesOf } from '../../shared/arena/doors.mjs';
 
 const navCache = new Map();
 /** Walkable cells for a map: { nodes:[{x,y,z,links:[i…]}], at(x,y,z) }. Cached per map (immutable). */
-export function navigation(map) {
-  if (navCache.has(map.id)) return navCache.get(map.id);
-  const world = createWorld(map.boxes, map.bounds);
+export function navigation(map, extra = openLeafBoxesOf(map), cache = true) {
+  if (cache && navCache.has(map.id)) return navCache.get(map.id);
+  // Planned with every door open, as a match starts: the open leaves are obstacles to walk round (a shut door on the
+  // route is opened as the bot reaches it).
+  const world = createWorld([...map.boxes, ...extra], map.bounds);
   const [x0, z0, x1, z1] = map.bounds;
   const nodes = [], columns = new Map();
   const key = (i, j) => i * 10000 + j;
@@ -73,7 +75,7 @@ export function navigation(map) {
   for (const k of stack) reach.add(k);
   while (stack.length) for (const m of nodes[stack.pop()].links) if (!reach.has(m)) { reach.add(m); stack.push(m); }
   nav.walkable = nodes.filter(n => reach.has(n.id));
-  navCache.set(map.id, nav);
+  if (cache) navCache.set(map.id, nav);
   return nav;
 }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);

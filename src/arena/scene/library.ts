@@ -20,8 +20,8 @@ export type CityPropKey = 'streetLamp' | 'aircon' | 'trashCan' | 'parkBench' | '
  * dresses. Small (≈0.1 MB each with 512² textures), so a theme loads them before deployment and the city builds them in
  * place of its code-drawn stand-ins; one that cannot be downloaded leaves the stand-in in place.
  */
-export type HeroPropKey = 'roofTank' | 'roofAC' | 'roofVent' | 'utilityCabinet' | 'wasteBin' | 'forklift';
-export const HERO_PROPS: HeroPropKey[] = ['roofTank', 'roofAC', 'roofVent', 'utilityCabinet', 'wasteBin', 'forklift'];
+export type HeroPropKey = 'roofTank' | 'roofAC' | 'roofVent' | 'utilityCabinet' | 'wasteBin' | 'forklift' | 'sedanSilver' | 'sedanRed' | 'pickup' | 'cityBus' | 'boxVan';
+export const HERO_PROPS: HeroPropKey[] = ['roofTank', 'roofAC', 'roofVent', 'utilityCabinet', 'wasteBin', 'forklift', 'sedanSilver', 'sedanRed', 'pickup', 'cityBus', 'boxVan'];
 export const CITY_PROPS: CityPropKey[] = ['streetLamp', 'aircon', 'trashCan', 'parkBench', 'manhole', 'tubeLight', 'shelves', 'plasticCrate', 'cardboard', 'cement', 'handTruck', 'officeDesk', 'planterBox', 'cafeSet', 'trashbag', 'sofa', 'camera', 'monobloc'];
 /** What a map's art needs from the pack. */
 export interface Theme { id: string; surfaces: SurfaceKey[]; decor: PropKey[]; /** Props the art is built from (before deployment; optional). */ hero: PropKey[]; /** Relief and roughness maps arrive after deployment. */ deferDetail: boolean; /** Campus textures the map borrows (grass, foliage). */ extra: string[] }

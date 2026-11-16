@@ -1,5 +1,5 @@
 // Split a moving part out of a weapon model whose source fused it into one mesh (the Wasp's and Kestrel's
-// magazines). Triangles whose centroid lies inside a side-view polygon (z back from the muzzle, y up from the bore, in
+// magazines, the Bastion's pump, the Thorn's cylinder). Triangles whose centroid lies inside a side-view polygon (z back from the muzzle, y up from the bore, in
 // the normalised model's metres) and within |x| < halfWidth move into a new node with that name, so the viewmodel can
 // drop, carry and insert it. Positions are baked to model space; the viewmodel re-pivots every part on its own top.
 // Usage: node scripts/assets/split-weapon-part.mjs [id ...]   (idempotent: skips a model that already has the part)
@@ -13,6 +13,13 @@ import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 export const SPLITS = {
   wasp: { part: 'mag', poly: [[.168, -.046], [.218, -.046], [.152, -.232], [.106, -.222]], half: .025 },
   kestrel: { part: 'mag', poly: [[.412, -.034], [.478, -.034], [.452, -.196], [.38, -.186]], half: .028 },
+  // The Bastion's ribbed pump forend under the barrel (it slides back and forward to cycle each shell).
+  bastion: { part: 'pump', poly: [[.175, -.0045], [.366, -.0045], [.366, -.043], [.175, -.043]], half: .03 },
+  // The Thorn's cylinder, between the frame's top strap and the crane (it turns one chamber per shot).
+  // The Longbow's bolt handle: it stands out to the right of the receiver (|x| from 2.8 to 7.5 cm), so it is taken by
+  // that x range rather than a half-width (found from the geometry: hidden in the side view).
+  longbow: { part: 'bolt', poly: [[.744, -.001], [.796, -.001], [.796, -.041], [.744, -.041]], x: [.028, .075] },
+  thorn: { part: 'cylinder', poly: [[.096, .0065], [.146, .0065], [.146, -.031], [.096, -.031]], half: .023 },
 };
 const inside = (poly, z, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [zi, yi] = poly[i], [zj, yj] = poly[j]; if ((yi > y) !== (yj > y) && z < (zj - zi) * (y - yi) / (yj - yi) + zi) c = !c; } return c; };
 
@@ -34,7 +41,7 @@ for (const id of ids) {
       for (let t = 0; t < idx.getCount(); t += 3) {
         const tri = [idx.getScalar(t), idx.getScalar(t + 1), idx.getScalar(t + 2)], c = [0, 0, 0];
         for (const v of tri) { const p = world(v); c[0] += p[0] / 3; c[1] += p[1] / 3; c[2] += p[2] / 3; }
-        (Math.abs(c[0]) < spec.half && inside(spec.poly, c[2], c[1]) ? take : keep).push(...tri);
+        ((spec.x ? c[0] > spec.x[0] && c[0] < spec.x[1] : Math.abs(c[0]) < spec.half) && inside(spec.poly, c[2], c[1]) ? take : keep).push(...tri);
       }
       if (!take.length) continue;
       // The part: its own copy of the referenced vertices, baked to model space.

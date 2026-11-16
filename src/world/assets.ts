@@ -5,6 +5,7 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { ASSET_BASE as BASE, assetUrl } from './assetUrl';
 import { fetchBytes, deadline, type FetchOptions } from './fetcher';
+import { decodeSlot } from './decodeQueue';
 export { assetUrl };
 
 // Runtime assets are built by scripts/assets/* into public/assets. Textures are Basis/KTX2
@@ -46,7 +47,7 @@ export function loadTexture(path: string, fetch?: FetchOptions): Promise<THREE.T
   let p = textures.get(path);
   if (!p) {
     const loader = ktx2;
-    const raw = fetch ? fetchBytes(assetUrl(path), fetch).then(b => deadline(new Promise<THREE.Texture>((resolve, reject) => loader.parse(b, resolve, reject)), 45000, `decoding ${path} took too long`)) : loader.loadAsync(assetUrl(path));
+    const raw = fetch ? fetchBytes(assetUrl(path), fetch).then(b => decodeSlot(fetch, path, () => new Promise<THREE.Texture>((resolve, reject) => loader.parse(b, resolve, reject)))) : loader.loadAsync(assetUrl(path));
     p = raw.then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; loadedTextures.set(path, t); return t; });
     textures.set(path, forgetOnFailure(textures, path, p, fetch ? 0 : 5000));
   }
@@ -58,7 +59,7 @@ export function loadModel(path: string, fetch?: FetchOptions): Promise<GLTF> {
   let p = models.get(path);
   if (!p) {
     const loader = gltf;
-    p = (fetch ? fetchBytes(assetUrl(path), fetch).then(b => deadline(loader.parseAsync(b, ''), 45000, `decoding ${path} took too long`)) : loader.loadAsync(assetUrl(path))).then(g => { loadedModels.set(path, g); return g; });
+    p = (fetch ? fetchBytes(assetUrl(path), fetch).then(b => decodeSlot(fetch, path, () => loader.parseAsync(b, ''))) : loader.loadAsync(assetUrl(path))).then(g => { loadedModels.set(path, g); return g; });
     models.set(path, forgetOnFailure(models, path, p, fetch ? 0 : 5000));
   }
   return p;

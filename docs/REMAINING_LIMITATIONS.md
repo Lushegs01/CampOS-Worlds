@@ -1,5 +1,47 @@
 # Remaining limitations
 
+## After the November 2026 "ultimate FPS" pass ([ULTIMATE_FPS_TRANSFORMATION.md](ULTIMATE_FPS_TRANSFORMATION.md))
+
+Done in this pass, so no longer open:
+
+* both hands visible with melee weapons;
+* per-weapon anchor validation with no fallback;
+* the Bastion sight fix;
+* Bastion pump and Thorn cylinder moving;
+* a first-person body;
+* a persistent asset cache and asset manager;
+* connection-quality measurement, with a HUD indicator and jitter-adaptive interpolation.
+
+Second round of this pass, also done:
+
+* open door leaves are solid;
+* three door defects fixed (two opened onto stairs);
+* accessibility audits over every map;
+* Low clarity (1.5× density, 4× filtering, a clarity floor);
+* server snapshot back-off for congested clients;
+* background model decodes no longer abandoned on slow devices.
+
+See [BUILDING_INTERIOR_ACCESSIBILITY.md](BUILDING_INTERIOR_ACCESSIBILITY.md),
+[GRAPHICS_CLARITY_AND_PERFORMANCE.md](GRAPHICS_CLARITY_AND_PERFORMANCE.md) and
+[DEVICE_VALIDATION.md](DEVICE_VALIDATION.md).
+
+Still open from the brief:
+
+* **Blender.** No Blender MCP connection, and no new Blender-authored asset in this pass. Remaining art: weapon
+  remodels, vehicles, soldier rig and clips (jump, fall, land, slide, hit reactions), interior uniqueness and lifts,
+  facades.
+* **Maps.** Audited: Foundry Yard and Sim Quad had no sealed rooms. Bots cannot path inside Okun Tower's narrow stair
+  core. Interiors still come from one generator, with no lifts.
+* **Weapons.** The Sparrow's magazine is still fused to its model. Inspection has no sound except on the M7.
+* **First-person body.** Verified in a live match (PASS, stills in `docs/screenshots/arena/body/`). Open: no air,
+  landing or slide clips; feet hidden behind the chest when standing still; the vest texture is soft up close.
+* **Networking.** No binary or delta protocol, and no kernel-shaped (netem) browser test.
+* **Offline.** No offline practice mode, and no "download everything" pack.
+* **Devices and audio.** Still no physical-device frame times and no listening tests. Nothing in this pass is a device
+  measurement.
+
+## Earlier pass
+
 Status after the November 2026 Warzone-fidelity pass ([AAA_TRANSFORMATION_REPORT.md](AAA_TRANSFORMATION_REPORT.md)).
 This pass delivered one vertical slice: a headless Blender production pipeline and six original props integrated into
 Operation: Metropolis. Everything below is **not done**. Earlier passes' open items still stand where they are not

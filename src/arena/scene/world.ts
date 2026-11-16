@@ -22,8 +22,11 @@ export interface ArenaQuality {
 /** The arena's profiles: the campus' three plus Ultra (arena only: the campus keeps its own three). */
 export type ArenaQualityId = Quality | 'ultra';
 export const ARENA_QUALITY: Record<ArenaQualityId, ArenaQuality> = {
-  // Phones: native-ish resolution, a static sun shadow, no post stack, fewer particles.
-  low: { dpr: 1, antialias: true, shadows: true, shadowSize: 1024, shadowEvery: 0, post: false, ao: false, bloom: false, effects: .5, anisotropy: 2, detail: 0, fogFar: 140, decals: 24, casings: 10, ik: true, lights: 0, mobileAssets: true, reflections: 0, skyOctaves: 3, envSize: 64 },
+  // Phones: a static sun shadow, no post stack, fewer particles, but a clear image. It starts at 1.5× pixel density
+  // (capped by the screen's own), so a 720p phone is not drawn at half its resolution and stretched; the adaptive
+  // scaler gives pixels back only down to the clarity floor (CLARITY_FLOOR in Scene.tsx). 4× anisotropic filtering
+  // keeps roads and pavements sharp at grazing angles (cheap on mobile GPUs).
+  low: { dpr: 1.5, antialias: true, shadows: true, shadowSize: 1024, shadowEvery: 0, post: false, ao: false, bloom: false, effects: .5, anisotropy: 4, detail: 0, fogFar: 140, decals: 24, casings: 10, ik: true, lights: 0, mobileAssets: true, reflections: 0, skyOctaves: 3, envSize: 64 },
   // Ordinary laptops: SMAA, restrained bloom, half-resolution ambient occlusion, a sharper shadow refreshed every other frame.
   medium: { dpr: 1.5, antialias: false, shadows: true, shadowSize: 2048, shadowEvery: 2, post: true, ao: true, bloom: true, effects: 1, anisotropy: 4, detail: 1, fogFar: 190, decals: 64, casings: 24, ik: true, lights: 2, mobileAssets: false, reflections: 0, skyOctaves: 4, envSize: 128, aoMode: 'Low' },
   // Desktop GPUs: ambient occlusion, 4K shadows, every effect. The sun's shadow map is half of High's draw calls in

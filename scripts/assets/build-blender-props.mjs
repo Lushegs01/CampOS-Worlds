@@ -20,6 +20,7 @@ const manifestFile = path.join(ARENA, 'blender.json');
 const manifest = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, 'utf8')) : { props: {} };
 for (const [key, info] of Object.entries(report)) {
   if (only.length && !only.includes(key)) continue;
+  if (info.family === 'Weapons') continue; // weapon parts are merged into weapons (scripts/assets/add-weapon-part.mjs)
   const doc = await io().read(path.join(STAGE, `${key}.glb`)), root = doc.getRoot();
   await doc.transform(dedup(), weld(), prune());
   const kinds = new Map();

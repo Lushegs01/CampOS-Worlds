@@ -14,6 +14,7 @@ import { step, spawnState, unpackState, quantize, encodeCommand, DT, B, eyeOf, w
 import { WEAPONS, WEAPON_BY_ID, STREAK_BY_ID, skinsBetween } from '../../shared/arena/weapons.mjs';
 import { MEDALS, MODE_BY_ID, XP, weaponXp, weaponLevel, levelFor, unlocksAt } from '../../shared/arena/rules.mjs';
 import { createPlayback, createTrack } from '../network/interpolation.mjs';
+import { createNetMonitor } from '../network/netQuality.mjs';
 import { accountAccess } from '../network/client';
 import { useGame } from '../state';
 import { useArena, useBanners, useFeedback, feedbackTiming, emptyHud, inputPaused, type Loadout, type MatchView, type Progress } from './store';
@@ -66,6 +67,9 @@ export function onFx(fn: (f: Fx) => void) { fxListeners.add(fn); return () => { 
 const fx = (f: Fx) => { for (const l of fxListeners) l(f); };
 const banner = useBanners.getState().push;
 
+/** Connection quality (outlives reconnections, so a flaky link stays graded as one). */
+export const netMonitor = createNetMonitor();
+let netReportAt = 0, everOpened = false, lastAck = -1;
 let socket: WebSocket | null = null, stopped = true, retry = 0, retryTimer: ReturnType<typeof setTimeout> | undefined, pingTimer: ReturnType<typeof setInterval> | undefined;
 let helloTimer: ReturnType<typeof setTimeout> | undefined, watchTimer: ReturnType<typeof setInterval> | undefined;
 /** What the client supports: the server holds it out of live combat until its scene has loaded, and takes its deployment timings. */
@@ -102,6 +106,7 @@ export function connect() {
   socket = ws;
   ws.onopen = async () => {
     if (socket !== ws) return;
+    if (everOpened) netMonitor.reconnected(); everOpened = true; lastAck = -1;
     const access = await accountAccess().catch(() => null);
     if (socket !== ws) return;
     const g = useGame.getState();
@@ -191,7 +196,7 @@ function receive(m: Record<string, any>) {
       if (m.verified) void syncFromAccount();
       if (m.verified && Array.isArray(m.loadouts) && m.loadouts.length) a.set({ loadouts: m.loadouts, loadout: m.loadout });
       else raw({ t: 'loadout', loadout: a.loadout, ref: ++ref });
-      clearInterval(pingTimer); pingTimer = setInterval(() => raw({ t: 'ping', n: performance.now() }), 2000);
+      clearInterval(pingTimer); pingTimer = setInterval(() => { const n = performance.now(); netMonitor.ping(n, n); raw({ t: 'ping', n }); }, 2000);
       // Back after a dropped connection (or a reload) during a match: take our place again.
       const back = a.match ? { match: a.match.id, key: a.you!.key } : pendingRejoin();
       if (back) {
@@ -205,7 +210,7 @@ function receive(m: Record<string, any>) {
     }
     case 'reply': { const r = replies.get(m.ref); if (r) { replies.delete(m.ref); r(m); } return; }
     case 'replaced': a.set({ status: 'replaced', error: 'Combat Arena opened in another window.' }); stopped = true; return;
-    case 'pong': live.rtt = performance.now() - m.n; return;
+    case 'pong': live.rtt = performance.now() - m.n; netMonitor.pong(m.n, performance.now()); return;
     // What the account owns changed (a purchase was confirmed, or reversed).
     case 'owned': a.set({ owned: Array.isArray(m.owned) ? m.owned : [] }); return;
     case 'loadoutReset': {
@@ -257,6 +262,11 @@ function enterMatch(view: MatchView, you: { num: number; team: number; key: stri
 function snapshot(m: Record<string, any>) {
   const now = performance.now(), a = useArena.getState();
   live.playback.receive(m.at, now);
+  netMonitor.snapshot(now);
+  // Once a second: grade the connection, and buffer remote players just enough to ride out the measured jitter
+  // (the server rewinds hits to the time we report drawing, so a longer delay stays fair).
+  let netGrade: string | null = null;
+  if (now - netReportAt > 1000) { netReportAt = now; const r = netMonitor.report(now); live.playback.setDelay(r.delayMs); netGrade = r.grade; }
   live.matchElapsed = m.st === 'playing' && a.match ? a.match.timeMs - m.tl : -1; live.elapsedAt = now;
   // ---- remote players
   const seen = new Set<number>();
@@ -287,16 +297,18 @@ function snapshot(m: Record<string, any>) {
       unpackState(me.s, live.sim); live.pending = live.pending.filter(c => c.seq > me.ack);
       live.smooth = { x: 0, y: 0, z: 0 }; live.prev = { x: live.sim.x, y: eyeOf(live.sim), z: live.sim.z };
       if (me.alive) { controls.yaw = live.sim.yaw; controls.pitch = 0; }
-    } else if (me.alive && live.alive) {
+    } else if (me.alive && live.alive && me.ack >= lastAck) {
+      // (A state that acknowledges fewer of our commands than one already applied is older: never rewind to it.)
       const bx = live.sim.x, by = live.sim.y, bz = live.sim.z;
       unpackState(me.s, live.sim);
       live.pending = live.pending.filter(c => c.seq > me.ack);
       for (const c of live.pending) step(live.sim, c, live.ctx);
       const ex = bx - live.sim.x, ey = by - live.sim.y, ez = bz - live.sim.z;
+      netMonitor.correction(Math.hypot(ex, ey, ez), now);
       if (Math.hypot(ex, ey, ez) < 2) { live.smooth.x += ex; live.smooth.y += ey; live.smooth.z += ez; } else live.smooth = { x: 0, y: 0, z: 0 };
       live.prev.x -= ex; live.prev.y -= ey; live.prev.z -= ez;
     }
-    live.alive = me.alive;
+    live.alive = me.alive; if (typeof me.ack === 'number') lastAck = Math.max(lastAck, me.ack);
     live.haveState = true;
   }
   // Deployed: the scene is ready and the server has given us our own state (spawned, or dead and waiting to respawn).
@@ -306,7 +318,7 @@ function snapshot(m: Record<string, any>) {
   const w = s ? weaponOf(s) : null;
   const next = {
     ...prev, hp: me?.hp ?? prev.hp, alive: !!me?.alive, respawnMs: me?.respawn ?? 0, timeLeft: m.tl, scores: m.sc, matchState: m.st, objectives: m.o,
-    earned: me?.earned ?? [], streakPts: me?.pts ?? 0, streak: me?.streak ?? 0, ping: Math.round(live.rtt),
+    earned: me?.earned ?? [], streakPts: me?.pts ?? 0, streak: me?.streak ?? 0, ping: Math.round(live.rtt), net: (netGrade ?? prev.net) as typeof prev.net,
     ...(s && w ? hudWeapon(s, w) : {}),
     door: (() => { if (!s || !live.alive || !live.world) return -1; const i = doorInReach(live.world, s.x, eyeOf(s), s.z, s.yaw); return i < 0 ? -1 : doorOpen(live.world, i) ? 1 : 0; })(),
   };
