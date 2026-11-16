@@ -1,0 +1,22 @@
+{
+  "label": "vehicles-after",
+  "when": "2026-11-16T19:33:10.628Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "day-veh-bus-medium": {
+      "world": 0,
+      "calls": 294,
+      "triangles": 637735,
+      "textures": 146,
+      "geometries": 712,
+      "fps": 1,
+      "heapMB": 347,
+      "deployMs": 90149
+    }
+  },
+  "errors": []
+}
