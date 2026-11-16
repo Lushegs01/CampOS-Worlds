@@ -1,6 +1,6 @@
 {
   "label": "vehicles-after",
-  "when": "2026-11-16T19:33:10.628Z",
+  "when": "2026-11-16T19:58:55.873Z",
   "viewport": [
     1280,
     720
@@ -9,14 +9,16 @@
   "views": {
     "day-veh-bus-medium": {
       "world": 0,
-      "calls": 294,
-      "triangles": 637735,
+      "calls": 286,
+      "triangles": 636463,
       "textures": 146,
       "geometries": 712,
       "fps": 1,
-      "heapMB": 347,
-      "deployMs": 90149
+      "heapMB": 405,
+      "deployMs": 132689
     }
   },
-  "errors": []
+  "errors": [
+    "day/veh-bus/medium attempt 1: the match ended during the capture"
+  ]
 }
