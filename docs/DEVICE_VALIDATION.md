@@ -26,9 +26,18 @@ phone model, browser version, profile, median and 95th-percentile frame time, an
 
 ## Found in this container that also applies to slow phones
 
-Model decoding had a fixed 45 s limit that included time queued behind other decodes. On a slow device the soldier
-models timed out repeatedly and, after four retries, were abandoned for the rest of the match: other players stayed
-stand-in figures and the first-person body never appeared.
+Model and texture decoding had no priority order: every downloaded file went straight into the shared decoder worker
+pool. A fixed 45 s limit, counted from the download rather than from the start of decoding, then decided what
+survived. On a slow device:
 
-Now only files the player is waiting for keep the 45 s limit. Background files get 5 minutes, and soldiers retry for
-the whole match (`src/world/assets.ts`, `src/arena/Scene.tsx`).
+* background soldiers and props timed out repeatedly, and soldiers were abandoned after four retries (other players
+  stayed stand-in figures, and the first-person body never appeared);
+* raising that limit alone made it worse: background decodes then held the pool and the deployment stalled.
+
+Now decodes are queued by priority like downloads (`src/world/decodeQueue.ts`, `tests/decode-queue.test.mjs`):
+
+* files the player is waiting for go first;
+* at most two decode at once;
+* the time limit (45 s for what the player waits for, 120 s for background files) counts only from when a decode
+  starts;
+* soldiers retry for the whole match.

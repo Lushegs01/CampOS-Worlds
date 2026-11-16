@@ -5,6 +5,7 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { ASSET_BASE as BASE, assetUrl } from './assetUrl';
 import { fetchBytes, deadline, type FetchOptions } from './fetcher';
+import { decodeSlot } from './decodeQueue';
 export { assetUrl };
 
 // Runtime assets are built by scripts/assets/* into public/assets. Textures are Basis/KTX2
@@ -41,18 +42,12 @@ export function initLoaders(renderer: THREE.WebGLRenderer, maxAnisotropy: number
  * download goes through the arena's prioritised, time-limited, retrying fetcher (src/arena/fetcher.ts) and the
  * transcode is time-limited too; without, three.js loads it as before (the campus).
  */
-/**
- * How long a decode may take. A file the player is waiting for (priority 1) must never hold the deployment: 45 s. A
- * background file (soldiers, props, other weapons) waits its turn behind the others on a slow phone, and giving up
- * on it wastes the work and re-downloads it, so it only has a safety limit.
- */
-const decodeLimit = (fetch: FetchOptions) => ((fetch.priority ?? 2) <= 1 ? 45000 : 300000);
 export function loadTexture(path: string, fetch?: FetchOptions): Promise<THREE.Texture> {
   if (!ktx2) throw new Error('initLoaders() must run before loading textures');
   let p = textures.get(path);
   if (!p) {
     const loader = ktx2;
-    const raw = fetch ? fetchBytes(assetUrl(path), fetch).then(b => deadline(new Promise<THREE.Texture>((resolve, reject) => loader.parse(b, resolve, reject)), decodeLimit(fetch), `decoding ${path} took too long`)) : loader.loadAsync(assetUrl(path));
+    const raw = fetch ? fetchBytes(assetUrl(path), fetch).then(b => decodeSlot(fetch, path, () => new Promise<THREE.Texture>((resolve, reject) => loader.parse(b, resolve, reject)))) : loader.loadAsync(assetUrl(path));
     p = raw.then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; loadedTextures.set(path, t); return t; });
     textures.set(path, forgetOnFailure(textures, path, p, fetch ? 0 : 5000));
   }
@@ -64,7 +59,7 @@ export function loadModel(path: string, fetch?: FetchOptions): Promise<GLTF> {
   let p = models.get(path);
   if (!p) {
     const loader = gltf;
-    p = (fetch ? fetchBytes(assetUrl(path), fetch).then(b => deadline(loader.parseAsync(b, ''), decodeLimit(fetch), `decoding ${path} took too long`)) : loader.loadAsync(assetUrl(path))).then(g => { loadedModels.set(path, g); return g; });
+    p = (fetch ? fetchBytes(assetUrl(path), fetch).then(b => decodeSlot(fetch, path, () => loader.parseAsync(b, ''))) : loader.loadAsync(assetUrl(path))).then(g => { loadedModels.set(path, g); return g; });
     models.set(path, forgetOnFailure(models, path, p, fetch ? 0 : 5000));
   }
   return p;
