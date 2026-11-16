@@ -62,11 +62,12 @@ try {
   // Down: drawn, standing on the ground under the eye, and not reaching up into the camera.
   for (const [name, pitch] of [['2-look-down', -.85], ['3-look-steeply-down', -1.35]]) {
     await page.evaluate(([y, p]) => window.__arena.look(y, p), [YAW, pitch]); await page.waitForTimeout(2500);
+    await still(name);
     b = await body(); const p = await self(); log(name, JSON.stringify(b), 'player', JSON.stringify(p));
     assert.equal(b.vis, true, `${name}: drawn`);
-    assert.ok(Math.abs(b.min[1] - p.y) < .15, `${name}: feet on the ground (body ${b.min[1]}, ground ${p.y.toFixed(2)})`);
-    assert.ok(b.max[1] < p.y + 1.62 - .05, `${name}: nothing reaches the eye (top ${b.max[1]}, eye ${(p.y + 1.62).toFixed(2)})`);
-    await still(name);
+    // (Measured on the posed skeleton: the lowest joints are the toes, a few centimetres above the sole.)
+    assert.ok(b.min[1] > p.y - .05 && b.min[1] < p.y + .2, `${name}: feet on the ground (lowest joint ${b.min[1]}, ground ${p.y.toFixed(2)})`);
+    assert.ok(b.max[1] < p.y + 1.62 - .05, `${name}: nothing reaches the eye (highest joint ${b.max[1]}, eye ${(p.y + 1.62).toFixed(2)})`);
   }
   // Walking while looking down: the legs step (the walk clip), the body keeps up with the camera.
   await page.evaluate(([y]) => window.__arena.look(y, -1.0), [YAW]);
