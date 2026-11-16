@@ -73,7 +73,9 @@ try {
   await page.evaluate(([y]) => window.__arena.look(y, -1.0), [YAW]);
   await page.evaluate(() => window.__arena.move(0, 1)); await page.waitForTimeout(2500);
   b = await body(); const p = await self(); log('walking', JSON.stringify(b), JSON.stringify(p));
-  assert.ok(Math.hypot(b.at[0] - p.x, b.at[2] - p.z) < .6, 'the body keeps up with the player while walking');
+  // (Set 0.17 m behind the eye, and placed once per drawn frame: at this software renderer's ~10 fps a walking player
+  // moves about half a metre between frames, so the allowance covers one frame.)
+  assert.ok(Math.hypot(b.at[0] - p.x, b.at[2] - p.z) < .17 + .6, `the body keeps up with the player while walking (${Math.hypot(b.at[0] - p.x, b.at[2] - p.z).toFixed(2)} m)`);
   await still('4-walking-look-down');
   await page.evaluate(() => window.__arena.move(0, 0)); await page.waitForTimeout(1200);
   // Crouched.

@@ -311,6 +311,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const soldiers = useRef(new Map<number, { s: SoldierLike; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string; standIn: boolean; animDt?: number }>());
   const dropSoldier = (e: { s: SoldierLike; tag: THREE.Sprite | null }) => { if (e.tag) { (e.tag.material as THREE.SpriteMaterial).map?.dispose(); e.tag.material.dispose(); e.tag = null; } scene.remove(e.s.root); e.s.dispose(); };
   useEffect(() => () => { for (const e of soldiers.current.values()) dropSoldier(e); soldiers.current.clear(); }, [scene, kits]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** How far below the eye the first-person body is cut off (metres): the lower chest, under the collar and shoulders. */
+  const BODY_CUT = .32;
   // The player's own body, seen when looking down: the same soldier model and camouflage everyone else sees.
   const ownBody = useRef<{ s: Soldier; key: string } | null>(null);
   useEffect(() => () => { const b = ownBody.current; if (b) { scene.remove(b.s.root); b.s.dispose(); ownBody.current = null; } }, [scene, kits]);
@@ -324,12 +326,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const s = live.sim, model = soldierModelFor(live.num), key = `${model}:${live.team}`;
     let b = ownBody.current;
     if (b && (b.key !== key || !kits)) { scene.remove(b.s.root); b.s.dispose(); ownBody.current = b = null; }
-    if (!b && kits && kits[model] && s && live.team >= 0) { const body = new Soldier(kits[model], live.team, lib, softTexture()); if (body.firstPerson()) { scene.add(body.root); ownBody.current = b = { s: body, key }; } else body.dispose(); }
+    if (!b && kits && kits[model] && s && live.team >= 0) { const body = new Soldier(kits[model], live.team, lib, softTexture()); if (body.firstPerson(bodyClip)) { gl.localClippingEnabled = true; scene.add(body.root); ownBody.current = b = { s: body, key }; } else body.dispose(); }
     if (!b) return;
     const show = !!s && live.alive && pitch < -.22;
     b.s.root.visible = show; if (!show || !s) return;
     const yaw = controls.yaw, back = s.stance === 2 ? .42 : s.stance === 1 ? .26 : .17;
     bodyPos.set(eyePos.x + Math.sin(yaw) * back, eyePos.y - EYE[s.stance], eyePos.z + Math.cos(yaw) * back);
+    bodyClip.constant = eyePos.y - BODY_CUT; // keep y ≤ eye − cut (the plane faces down)
     b.s.update(dt, bodyPos, yaw, 0, (s.stance === 1 ? 2 : 0) | (s.stance === 2 ? 4 : 0) | (s.sprint ? 8 : 0), false, false, false);
   }
 
@@ -478,6 +481,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // ---------------------------------------------------------------- the frame
   const fwd = useMemo(() => new THREE.Vector3(), []), eyePos = useMemo(() => ({ x: 0, y: 0, z: 0 }), []), sample = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
   const bodyPos = useMemo(() => new THREE.Vector3(), []);
+  /** The first-person body is drawn only below this plane: BODY_CUT metres under the eye (moved every frame). */
+  const bodyClip = useMemo(() => new THREE.Plane(new THREE.Vector3(0, -1, 0), 0), []);
   const gait = useMemo(() => createGait(), []), remoteGaits = useMemo(() => new Map<number, ReturnType<typeof createRemoteGait>>(), []), grenadeSounds = useMemo(() => new Map<number, { x: number; y: number; z: number; vy: number; at: number; moving: number; stuck: boolean; beepAt: number }>(), []), falling = useRef(false);
   const deathCam = useRef<{ x: number; y: number; z: number; at: number } | null>(null), fpsRef = useRef({ frames: 0, t: 0 }), frameNo = useRef(0), dustAt = useRef(0);
   useEffect(() => { if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaDebug = () => ({ city: { train: world?.group.getObjectByName('metropolis-train')?.visible ?? false, trainX: world?.group.getObjectByName('metropolis-train')?.position.x, broken: live.broken.size, variant }, kits: !!kits, lib: !!lib, soldiers: soldiers.current.size, body: ownBody.current ? (() => { const r = ownBody.current.s.root, min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity], p = new THREE.Vector3(); r.updateMatrixWorld(true); r.traverse(o => { if (!(o as THREE.Bone).isBone) return; o.getWorldPosition(p); p.toArray().forEach((v, i) => { min[i] = Math.min(min[i], v); max[i] = Math.max(max[i], v); }); }); /* (the posed skeleton: a skinned mesh's own bounds are its unposed geometry) */ return { vis: r.visible, at: r.position.toArray().map(n => +n.toFixed(2)), min: min.map(n => +n.toFixed(2)), max: max.map(n => +n.toFixed(2)) }; })() : null, vm: { gun: vm.gunId, holder: vm.holder.visible, arms: !!vm.arms, armsSrc: !!vm.armsSrc, pos: vm.holder.position.toArray().map(n => +n.toFixed(3)) }, bodies: [...soldiers.current.values()].map(e => { const b = new THREE.Box3().setFromObject(e.s.root); return { vis: e.s.root.visible, at: e.s.root.position.toArray().map(n => +n.toFixed(2)), min: b.min.toArray().map(n => +n.toFixed(2)), max: b.max.toArray().map(n => +n.toFixed(2)) }; }), remotes: [...live.remotes.values()].map(r => ({ num: r.num, team: r.team, flags: r.flags, seen: Math.round(performance.now() - r.seenAt), dead: r.deadAt })) }); }, [kits, lib, world, variant]);

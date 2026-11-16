@@ -144,10 +144,12 @@ export class Soldier implements SoldierLike {
    * collapsed to their joints, so the camera never looks out through a face and the viewmodel's arms are the only
    * arms drawn. Torso, vest, legs and boots stay, posed by the same locomotion as everyone else sees.
    */
-  firstPerson() {
+  firstPerson(clip?: THREE.Plane) {
     const b = this.bones;
     this.collapsed = ['Bip01_Neck', 'Bip01_L_Clavicle', 'Bip01_R_Clavicle'].map(n => b[n]).filter(Boolean);
-    this.rig.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; } });
+    // `clip` cuts the body off below the eye (the caller moves it with the camera): seen from above, the collapsed
+    // collar and shoulders would be a smear filling the view; below the cut are the belly, belt, legs and boots.
+    this.rig.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; if (clip) (m.material as THREE.Material).clippingPlanes = [clip]; } });
     this.flash.visible = false;
     return this.collapsed.length === 3;
   }
