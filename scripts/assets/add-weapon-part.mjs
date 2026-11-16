@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRTextureBasisu } from '@gltf-transform/extensions';
-import { mergeDocuments, prune, meshopt } from '@gltf-transform/functions';
+import { mergeDocuments, prune, meshopt, unpartition } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import { CACHE, ensureDir, encodeKTX2Batch } from './common.mjs';
 
@@ -58,7 +58,7 @@ for (const id of ids) {
   }
   pscene.dispose();
   if (!root.listExtensionsUsed().some(e => e.extensionName === 'KHR_texture_basisu')) doc.createExtension(KHRTextureBasisu).setRequired(true);
-  await doc.transform(prune(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  await doc.transform(unpartition(), prune(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   await io.write(file, doc);
   console.log(`${id}: added '${spec.name}' from ${spec.asset} (${(fs.statSync(file).size / 1024).toFixed(0)} KB)`);
 }

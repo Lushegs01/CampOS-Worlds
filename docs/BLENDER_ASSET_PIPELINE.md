@@ -6,7 +6,7 @@ How CampOS Worlds models, bakes and ships original 3D assets with Blender, and h
 
 | Step | Command | Output |
 |---|---|---|
-| Model, unwrap, bake, export | `python blender/build.py [key …] [--size 512]` | `blender/source/metropolis_props.blend` (procedural source), `.asset-cache/blender/<key>.glb` + PNGs + `report.json` (staging, git-ignored) |
+| Model, unwrap, bake, export | `python blender/build.py [key …] [--size 512] [--model-only]` | `blender/source/metropolis_props.blend` (procedural source), `.asset-cache/blender/<key>.glb` + PNGs + `report.json` (staging, git-ignored) |
 | Compress for the game | `node scripts/assets/build-blender-props.mjs [key …]` | `public/assets/arena/props/<key>.glb` (Basis KTX2 textures, meshopt geometry), `public/assets/arena/blender.json` |
 | Phone tier | `node scripts/assets/build-arena-mobile.mjs` | `public/assets/arena/mobile/props/<key>.glb` |
 | Review render | `python blender/preview.py out.png <key> …` | Cycles turntable-angle stills of the exported GLBs |
@@ -19,6 +19,25 @@ also runs inside a Blender install: `blender -b -P blender/build.py -- roofTank`
 **Blender MCP.** The production brief asked for a live Blender MCP connection. None was connected to the session that
 built this pipeline, so everything here was produced headlessly through the same Blender Python API (`bpy` 5.3) with
 no interactive scene. The scripts work unchanged from an MCP session or the Blender UI's text editor.
+
+## Asset modules
+
+`blender/build.py` builds each module into its own editable source scene:
+
+| Module | Source | Assets |
+|---|---|---|
+| `blender/assets/metropolis_props.py` | `blender/source/metropolis_props.blend` | roof tank, condensing unit, ventilation unit, feeder pillar, refuse container, forklift |
+| `blender/assets/metropolis_vehicles.py` | `blender/source/metropolis_vehicles.blend` | silver and red saloons, pickup, city bus, box van |
+| `blender/assets/weapon_parts.py` | `blender/source/weapon_parts.blend` | the Sparrow's magazine |
+
+* **Vehicles** have lofted bodies (`loft()`: cross-sections sampled along the length, wheel arches cut into the sides)
+  plus parts from the kit. They are baked at 1024² and have their own triangle budget (≤ 14,000) in
+  `tests/arena-blender-props.test.mjs`.
+* **Weapon parts** are not shipped as props: `node scripts/assets/add-weapon-part.mjs <weapon>` compresses the part
+  and merges it into the licensed weapon model as the moving part the animator looks for (`mag`, `bolt` …). It places
+  and tilts the part from the weapon's measurement sheet.
+* `--model-only` builds and saves the source scenes without baking: use it, with a quick Cycles render, to check
+  shape and fit before spending the bake time (about 3–4 minutes per vehicle on CPU).
 
 ## Layout
 

@@ -32,7 +32,13 @@ Still open from the brief:
   facades.
 * **Maps.** Audited: Foundry Yard and Sim Quad had no sealed rooms. Bots cannot path inside Okun Tower's narrow stair
   core. Interiors still come from one generator, with no lifts.
-* **Weapons.** The Sparrow's magazine is still fused to its model. Inspection has no sound except on the M7.
+* **Weapons.** Inspection has no sound except on the M7. The 14 licensed weapon models were not remodelled: Blender
+  was used for the part they lacked (the Sparrow's magazine), not to replace production models.
+* **Vehicles.** Five Blender vehicles replace the code-drawn cars, pickups, buses and vans. Still open:
+  * the container lorry is code-drawn;
+  * vehicles are static cover, with no wheel, door or suspension animation;
+  * glass is baked opaque, so there are no visible interiors;
+  * they add 2.70 MB (desktop) and 1.40 MB (phone) to the first deployment.
 * **First-person body.** Verified in a live match (PASS, stills in `docs/screenshots/arena/body/`). Open: no air,
   landing or slide clips; feet hidden behind the chest when standing still; the vest texture is soft up close.
 * **Networking.** No binary or delta protocol, and no kernel-shaped (netem) browser test.
