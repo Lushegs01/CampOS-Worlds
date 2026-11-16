@@ -1,0 +1,84 @@
+{
+  "label": "towers",
+  "when": "2026-11-15T23:38:38.031Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "day-lekan-floor-high": {
+      "world": 0,
+      "calls": 731,
+      "triangles": 990241,
+      "textures": 133,
+      "geometries": 744,
+      "fps": 0,
+      "heapMB": 425,
+      "deployMs": 62406
+    },
+    "day-lekan-roof-high": {
+      "world": 0,
+      "calls": 621,
+      "triangles": 1012603,
+      "textures": 193,
+      "geometries": 752,
+      "fps": 0,
+      "heapMB": 418,
+      "deployMs": 62406
+    },
+    "day-trust-office-high": {
+      "world": 0,
+      "calls": 690,
+      "triangles": 1074161,
+      "textures": 193,
+      "geometries": 752,
+      "fps": 0,
+      "heapMB": 434,
+      "deployMs": 62406
+    },
+    "day-okun-top-high": {
+      "world": 0,
+      "calls": 568,
+      "triangles": 958025,
+      "textures": 193,
+      "geometries": 752,
+      "fps": 1,
+      "heapMB": 424,
+      "deployMs": 62406
+    },
+    "day-okun-roof-high": {
+      "world": 0,
+      "calls": 610,
+      "triangles": 982061,
+      "textures": 193,
+      "geometries": 752,
+      "fps": 1,
+      "heapMB": 446,
+      "deployMs": 62406
+    },
+    "day-towers-street-high": {
+      "world": 0,
+      "calls": 235,
+      "triangles": 650183,
+      "textures": 193,
+      "geometries": 758,
+      "fps": 0,
+      "heapMB": 428,
+      "deployMs": 62406
+    },
+    "day-trust-street-high": {
+      "world": 0,
+      "calls": 447,
+      "triangles": 925045,
+      "textures": 199,
+      "geometries": 803,
+      "fps": 0,
+      "heapMB": 440,
+      "deployMs": 62406
+    }
+  },
+  "errors": [
+    "day/high deploy attempt 1: page.waitForFunction: Timeout 300000ms exceeded."
+  ]
+}

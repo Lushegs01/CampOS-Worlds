@@ -186,7 +186,9 @@ test('maps: playable bounds, clear spawns and zones, both teams’ halves are mi
     assert.equal(map.spawns.filter(s => s.team === 0).length, map.spawns.filter(s => s.team === 1).length);
     const key = b => [b.min[0], b.min[1], b.min[2], b.max[0], b.max[1], b.max[2]].map(v => v.toFixed(3)).join();
     const all = new Set(map.boxes.map(key));
-    for (const b of map.boxes) assert.ok(all.has(key({ min: [-b.max[0], b.min[1], b.min[2]], max: [-b.min[0], b.max[1], b.max[2]] })), `${map.id}: every box has a mirror across x = 0`);
+    // (A map may declare regions on its axis that both teams share and that cannot be mirror images: a single stair.)
+    const shared = b => (map.asymmetric ?? []).some(r => { const x = (b.min[0] + b.max[0]) / 2, z = (b.min[2] + b.max[2]) / 2; return x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1 && Math.abs(r.x0 + r.x1) < 1e-6; });
+    for (const b of map.boxes) if (!shared(b)) assert.ok(all.has(key({ min: [-b.max[0], b.min[1], b.min[2]], max: [-b.min[0], b.max[1], b.max[2]] })), `${map.id}: every box has a mirror across x = 0`);
     for (const t of [0, 1]) for (const sp of map.spawns.filter(s => s.team === t)) assert.ok(map.spawns.some(o => o.team === 1 - t && o.x === -sp.x && o.z === sp.z));
     assert.ok(map.boxes.some(b => b.min[1] >= 3), `${map.id} has elevated platforms`);
   }

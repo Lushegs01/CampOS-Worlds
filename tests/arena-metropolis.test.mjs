@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { MAP_BY_ID } from '../shared/arena/maps.mjs';
-import { TRAIN, trainAt, districtAt } from '../shared/arena/metropolis.mjs';
+import { TRAIN, trainAt, districtAt, CENTRAL_INTERIOR } from '../shared/arena/metropolis.mjs';
 import { createWorld, overlaps } from '../shared/arena/physics.mjs';
 import { spawnState, step, quantize, encodeCommand, B } from '../shared/arena/sim.mjs';
 import { PRESETS } from '../shared/arena/rules.mjs';
@@ -22,7 +22,9 @@ function fixture({ kind = 'private', mode = 'tdm', variant = 'night', start = tr
 }
 test('Metropolis geometry and spawns are valid, symmetric, and remain at street level under simulation', () => {
   const key = b => JSON.stringify([b.min, b.max, b.mat]); const all = new Set(map.boxes.map(key));
+  const central = b => { const c = CENTRAL_INTERIOR, x = (b.min[0] + b.max[0]) / 2, z = (b.min[2] + b.max[2]) / 2; return x > c.x0 && x < c.x1 && z > c.z0 && z < c.z1; };
   for (const b of map.boxes) {
+    if (central(b)) continue; // Okun Tower's interior: one stair for both teams (see CENTRAL_INTERIOR)
     assert.ok(b.min.every((v, i) => Number.isFinite(v) && v < b.max[i]), b.mat);
     assert.ok(all.has(key({ min: [-b.max[0], b.min[1], b.min[2]], max: [-b.min[0], b.max[1], b.max[2]], mat: b.mat })), `mirror: ${key(b)}`);
   }

@@ -9,6 +9,8 @@ const OGA = 'https://opengameart.org/sites/default/files/';
 
 /** Packs: a downloadable archive (zip or 7z) or a set of single files. */
 export const PACKS = {
+  // Already in the repository: the campus's CC0 door recordings (Kenney, RPG Audio), built by scripts/assets/build-audio.mjs.
+  campus: { title: 'RPG Audio (door recordings, as built for the campus)', author: 'Kenney (kenney.nl)', licence: 'CC0-1.0', page: 'https://kenney.nl/assets/rpg-audio', local: 'public/assets/audio' },
   ffsl: {
     title: 'The Free Firearm Sound Library — Prepared SFX Library', author: 'The Free Firearm Sound Library team (Kickstarter-funded, 2013); published on OpenGameArt by bart',
     licence: 'CC0-1.0', page: 'https://opengameart.org/content/the-free-firearm-sound-library', archive: OGA + 'Prepared%20SFX%20Library.7z', root: 'Prepared SFX Library',

@@ -69,6 +69,122 @@ function stairs(m, { x, z, dir, width, from, to, mat = 'stair', open = false, ra
   }
 }
 
+/**
+ * Window bays left as solid wall (indices from x0 / z0 along each face) because they would look onto the other team's
+ * spawns: found by scripts/qa/metropolis-sightlines.mjs and enforced by tests/arena-metropolis-towers.test.mjs.
+ */
+const LEKAN_SKIP = { s: [], e: [] }, TRUST_SKIP = { n: [], s: [], e: [], w: [] }, OKUN_SKIP = { s: [], w: [], e: [] };
+/** The enterable towers of the west half (the east ones are their mirror images). */
+export const TOWERS = [
+  { id: 'lekan', x0: -59, z0: -43, x1: -46, z1: -32, base: L },
+  { id: 'trust', x0: -44, z0: -7, x1: -28, z1: 7, base: L + 4 },
+];
+/**
+ * Inside Okun Tower, on the axis of symmetry: its one stair core is left- or right-handed like any switchback, so the
+ * interior (stairs, slabs round the stairwell, furniture, the stair head on the roof) is not its own mirror image. Both
+ * teams enter by the same lobby door and climb the same stair; the shell, windows and doors facing out are symmetric.
+ */
+export const CENTRAL_INTERIOR = { x0: -4.3, z0: -42.9, x1: 4.3, z1: -37.7 };
+/** Upper floors opened in existing buildings (checked for sightlines like the towers). */
+export const UPPER_FLOORS = [{ id: 'grill', x0: -22, z0: -43, x1: -6, z1: -32, base: L + 3.5 }, { id: 'okun', x0: -4.6, z0: -43, x1: 4.6, z1: -37.4, base: L }];
+/** Length (along +z) of a stair core whose flights climb `hh` each: bottom landing, flights, far landing, end wall. */
+const coreLength = hh => 1.5 + hh / .25 * .5 + 1.4 + .2;
+/**
+ * One storey of an enclosed switchback stair core with its corner at (sx, sz) (on half-metre coordinates, so every
+ * step edge falls on the bots' 1 m navigation grid as the city's other stairs do), 3.2 m wide (x) by coreLength (z),
+ * climbing from `ya` to `yb`: a flight up along +z (x sx…sx+1.4), a landing at the far end, a flight back along −z
+ * (x sx+1.6…sx+3) arriving beside the bottom landing on the floor above. The shaft is walled on its room side and far
+ * end; the bottom landing (z sz…sz+1.4) opens onto the room on the +x side.
+ */
+function stairCore(m, sx, sz, ya, yb) {
+  const hh = (yb - ya) / 2, run = hh / .25 * .5, far = sz + 1.5 + run;
+  stairs(m, { x: sx + .7, z: sz + 1.5, dir: '+z', width: 1.4, from: ya, to: ya + hh, mat: 'stair-concrete' });
+  m.boxes.push(S(sx, far, sx + 3.2, far + 1.4, ya + hh - .3, ya + hh, 'stair-concrete'));
+  stairs(m, { x: sx + 2.3, z: far, dir: '-z', width: 1.4, from: ya + hh, to: yb, mat: 'stair-concrete' });
+  m.boxes.push(S(sx + 1.4, sz + 1.5, sx + 1.6, far, ya, yb, 'partition-wall'));
+  m.boxes.push(S(sx + 3, sz + 1.5, sx + 3.2, far + 1.6, ya, yb, 'partition-wall'), S(sx, far + 1.4, sx + 3.2, far + 1.6, ya, yb, 'partition-wall'));
+  return [sx, sz + 1.5, sx + 3.2, far + 1.4];
+}
+
+/** The same core running along +x (corner (sx, sz), coreLength along x, 3.2 m deep in z; the landing opens on +z). */
+function stairCoreX(m, sx, sz, ya, yb) {
+  const hh = (yb - ya) / 2, run = hh / .25 * .5, far = sx + 1.5 + run;
+  stairs(m, { x: sx + 1.5, z: sz + .7, dir: '+x', width: 1.4, from: ya, to: ya + hh, mat: 'stair-concrete' });
+  m.boxes.push(S(far, sz, far + 1.4, sz + 3.2, ya + hh - .3, ya + hh, 'stair-concrete'));
+  stairs(m, { x: far, z: sz + 2.3, dir: '-x', width: 1.4, from: ya + hh, to: yb, mat: 'stair-concrete' });
+  m.boxes.push(S(sx + 1.5, sz + 1.4, far, sz + 1.6, ya, yb, 'partition-wall'));
+  m.boxes.push(S(sx + 1.5, sz + 3, far + 1.6, sz + 3.2, ya, yb, 'partition-wall'), S(far + 1.4, sz, far + 1.6, sz + 3.2, ya, yb, 'partition-wall'));
+  return [sx + 1.5, sz, far + 1.4, sz + 3.2];
+}
+
+/**
+ * An enterable building of `storeys` 3.5 m storeys over (x0, z0)–(x1, z1), its first floor at `base`: exterior walls
+ * per storey with window bays on the faces that have them (breakable glass, like every window in the city), floor
+ * slabs, an enclosed stair core at (sx, sz) from `from` (the floor below the first storey, when the building stands on
+ * a hall) to a stair head on the roof, offices on every floor, and a roof with parapets and plant.
+ *
+ * `windows`: per face ('n' z0, 's' z1, 'w' x0, 'e' x1), the storeys that have windows (a predicate on the storey
+ * index), and `skip` bay indices (counted from x0 or z0) left as solid wall. Window placement is checked so that no
+ * window looks onto the other team's spawns (tests/arena-metropolis-towers.test.mjs). `doors`: extra openings in the
+ * ground storey's walls, as [face, from, to] along the face. `wallsFrom`: the first storey with exterior walls of its
+ * own (a storey below it is walled by a neighbour or a hall).
+ */
+function tower(m, { x0, z0, x1, z1, base, storeys, mat, core: [sx, sz], coreAxis = 'z', from = base, windows = {}, doors = [], wallsFrom = 0, furnish = true, seed = 0 }) {
+  const H = 3.5, top = base + storeys * H, t = .4, faces = {
+    n: { a0: x0, a1: x1, at: z0 + t / 2, alongZ: false }, s: { a0: x0, a1: x1, at: z1 - t / 2, alongZ: false },
+    w: { a0: z0 + t, a1: z1 - t, at: x0 + t / 2, alongZ: true }, e: { a0: z0 + t, a1: z1 - t, at: x1 - t / 2, alongZ: true } };
+  const along = coreAxis === 'x', core = along ? stairCoreX : stairCore;
+  const coreRect = along ? [sx, sz, sx + coreLength(H / 2), sz + 3.2] : [sx, sz, sx + 3.2, sz + coreLength(H / 2)];
+  // Stairs from the hall below to the first floor (its own flight height), then storey by storey to the roof.
+  let hole = null;
+  if (from < base) hole = core(m, sx, sz, from, base);
+  for (let k = 0; k < storeys; k++) {
+    const y = base + k * H;
+    if (k > 0 || from < base) slab(m, x0 + t, z0 + t, x1 - t, z1 - t, y - .3, y, 'floor-timber', hole ? [hole] : []);
+    if (k >= wallsFrom) for (const [id, f] of Object.entries(faces)) {
+      const spec = windows[id], bays = [];
+      if (spec && spec.storeys(k)) {
+        const len = f.a1 - f.a0, n = Math.max(1, Math.floor((len - .6) / 2.6)), pitch = len / n;
+        // A skip entry is a bay index (every storey) or [storey, bay].
+        for (let i = 0; i < n; i++) if (!(spec.skip ?? []).some(v => Array.isArray(v) ? v[0] === k && v[1] === i : v === i)) { const c = f.a0 + (i + .5) * pitch; bays.push([c - .7, c + .7, .9, 2.5]); }
+      }
+      if (k === 0) for (const [face, a, b] of doors) if (face === id) bays.push([a, b, 0, 2.4, 'door']);
+      wall(m, { ...f, y, h: H, mat, gaps: bays });
+    }
+    hole = core(m, sx, sz, y, y + H);
+    if (!furnish) continue;
+    // Offices: desks along the windows, a filing wall, a meeting table, a sofa: in the room, clear of the stair core
+    // and of a 1.2 m aisle from the core's landing.
+    const rx0 = x0 + t + .3, rz0 = z0 + t + .3, rx1 = x1 - t - .3, rz1 = z1 - t - .3, clear = (cx, cz, w, d) =>
+      cx - w / 2 > coreRect[2] + 1.2 || cz - d / 2 > coreRect[3] + .4 || cx + w / 2 < coreRect[0] - .3 || cz + d / 2 < coreRect[1] - .3;
+    const r = (i) => { const v = Math.sin((seed + k * 13 + i) * 91.7) * 4375.85; return v - Math.floor(v); };
+    const items = [
+      [rx1 - 1.2, rz1 - .6, 1.7, .85, .78, 'desk'], [rx1 - 1.2, (rz0 + rz1) / 2, 1.7, .85, .78, 'desk'], [(rx0 + rx1) / 2, rz1 - .6, 1.7, .85, .78, 'desk'],
+      [(rx0 + rx1) / 2 + (r(1) - .5) * 2, (rz0 + rz1) / 2 + (r(2) - .5) * 2, 1.2, 1.2, .76, 'table'],
+      [rx1 - .3, rz0 + 1.6, .5, 2.4, 1.9, 'cabinet'], [rx0 + 4.6, rz1 - .45, 2, .8, .8, 'sofa'], [rx1 - .35, rz1 - 1.2, .5, 1.6, 1.9, 'cabinet'],
+    ];
+    // (…and clear of every doorway on this storey: 1.8 m in front of it.)
+    const doorways = k === 0 ? doors.map(([face, a, b]) => { const f = faces[face], c = (a + b) / 2; return f.alongZ ? [f.at, c] : [c, f.at]; }) : [];
+    const free = (cx, cz, w, d) => doorways.every(([dx, dz]) => Math.max(Math.abs(cx - dx) - w / 2, Math.abs(cz - dz) - d / 2) > 1.8);
+    for (const [cx, cz, w, d, h, kind] of items) if (clear(cx, cz, w, d) && free(cx, cz, w, d) && cx - w / 2 > rx0 && cx + w / 2 < rx1 && cz - d / 2 > rz0 && cz + d / 2 < rz1) m.boxes.push(B(cx, cz, w, d, h, y, kind));
+  }
+  // The roof: deck with the stairwell, a stair head with a doorway onto the roof, parapets, plant.
+  slab(m, x0, z0, x1, z1, top - .3, top, 'roof-deck', [hole]);
+  const [hx0, hz0, hx1, hz1] = [coreRect[0] - .2, coreRect[1] - .2, coreRect[2] + .2, coreRect[3] + .2];
+  if (along) {
+    // Walls on three sides, the doorway onto the roof on +z beside the landing.
+    m.boxes.push(S(hx0, hz0, hx1, hz0 + .2, top, top + 2.6, mat), S(hx0, hz0, hx0 + .2, hz1, top, top + 2.6, mat), S(hx1 - .2, hz0, hx1, hz1, top, top + 2.6, mat));
+    wall(m, { a0: hx0 + .2, a1: hx1 - .2, at: hz1 - .1, y: top, h: 2.6, t: .2, mat, gaps: [[sx + .1, sx + 1.4, 0, 2.2, 'door']] });
+  } else {
+    m.boxes.push(S(hx0, hz0, hx1, hz0 + .2, top, top + 2.6, mat), S(hx0, hz0, hx0 + .2, hz1, top, top + 2.6, mat), S(hx0, hz1 - .2, hx1, hz1, top, top + 2.6, mat));
+    wall(m, { a0: hz0 + .2, a1: hz1 - .2, at: hx1 - .1, alongZ: true, y: top, h: 2.6, t: .2, mat, gaps: [[sz + .1, sz + 1.4, 0, 2.2, 'door']] });
+  }
+  m.boxes.push(S(hx0, hz0, hx1, hz1, top + 2.6, top + 2.8, 'roof-deck'));
+  for (const [a, b, c, d] of [[x0, z0, x1, z0 + .4], [x0, z1 - .4, x1, z1], [x0, z0, x0 + .4, z1], [x1 - .4, z0, x1, z1]]) m.boxes.push(S(a, b, c, d, top, top + 1.1, 'parapet'));
+  m.boxes.push(B(x1 - 2, z1 - 2, 1.4, 1, 1.15, top, 'ac'), B(x1 - 2, (z0 + z1) / 2, 1.7, 1.7, 2.5, top, 'tank'));
+  return top;
+}
+
 /** A floor slab over a rectangle with rectangular holes (stairwells). */
 function slab(m, x0, z0, x1, z1, y0, y1, mat, holes = []) {
   const xs = [...new Set([x0, x1, ...holes.flatMap(h => [h[0], h[2]])])].filter(v => v >= x0 && v <= x1).sort((a, b) => a - b);
@@ -155,7 +271,11 @@ function westHalf() {
 
   // ---------------------------------------------------------------- edges of the site
   add(S(-60, -44, -59, 44, L, L + 12, 'bld-back'));                         // the street wall behind the west deployment
-  add(S(-59, -43, -46, -32, L, L + 24, 'bld-tower'));                       // north-west corner block (Lekan Court)
+  // Lekan Court, the north-west corner tower: seven storeys of flats over the Interchange, entered from Marina House's
+  // shop, its stair running to the roof. Windows over the avenue (above the Interchange roof) and over Marina House's
+  // roof; the faces on the edge of the site are blind.
+  tower(m, { x0: -59, z0: -43, x1: -46, z1: -32, base: L, storeys: 7, mat: 'bld-render', core: [-58.5, -42.5], seed: 11,
+    windows: { s: { storeys: k => k >= 1, skip: LEKAN_SKIP.s }, e: { storeys: k => k >= 2, skip: LEKAN_SKIP.e } }, doors: [['e', -41.2, -39.6]] });
   add(S(-59, 43, 0, 44, L, L + 1.1, 'quay'));                               // the quay wall: the sea is beyond it
 
   // ---------------------------------------------------------------- DOWNTOWN: the north block
@@ -184,12 +304,19 @@ function westHalf() {
   add(S(-26, -33.5, -22, -32, roof - .25, roof, 'grate'), S(-26, -32.1, -22, -32, roof, roof + 1, 'rail', { thin: true }));
   add(B(-23.1, -41.9, 1.2, 1, 1.3, L, 'bin'), B(-24.6, -42.2, 1, .8, 1.2, L, 'bin'));
 
-  // The Atlantic Grill (x −22…−6): a restaurant below; the floor above is closed.
+  // The Atlantic Grill (x −22…−6): a restaurant below, its private dining room above (entered from the alley's fire
+  // escape landing), the roof over both.
   wall(m, { a0: -22, a1: -6, at: -32.2, h: 3.5, mat: 'bld-brick', gaps: [[-20.5, -16.5, .8, 2.8, 'shop'], [-15, -13], [-11.5, -7.5, .8, 2.8, 'shop']] });
   wall(m, { a0: -43, a1: -32, at: -21.8, alongZ: true, h: 3.5, mat: 'bld-brick', gaps: [[-37.5, -35.8]] });
   wall(m, { a0: -43, a1: -38, at: -6.2, alongZ: true, h: 3.5, mat: 'bld-brick' });
   wall(m, { a0: -38, a1: -32, at: -6.2, alongZ: true, h: 3.5, mat: 'bld-brick', gaps: [[-36.5, -34.6]] });
-  add(S(-22, -43, -6, -32, y1 - .3, roof, 'bld-brick-upper'));
+  slab(m, -21.6, -42.6, -6.4, -32.4, y1 - .3, y1, 'floor-timber');
+  wall(m, { a0: -22, a1: -6, at: -32.2, y: y1, h: 3.5, mat: 'bld-brick', gaps: [[-20.5, -18.5, .9, 2.5], [-16, -14, .9, 2.5], [-11.5, -9.5, .9, 2.5]] });
+  wall(m, { a0: -43, a1: -32.4, at: -21.8, alongZ: true, y: y1, h: 3.5, mat: 'bld-brick', gaps: [[-42.4, -40.8, 0, 2.4, 'door'], [-37, -35, .9, 2.5]] });
+  wall(m, { a0: -43, a1: -32.4, at: -6.2, alongZ: true, y: y1, h: 3.5, mat: 'bld-brick' });
+  wall(m, { a0: -22, a1: -6, at: -42.8, y: y1, h: 3.5, mat: 'bld-brick' });
+  slab(m, -22, -43, -6, -32, roof - .3, roof, 'roof-deck');
+  add(B(-15, -36, 1.2, 1.2, .76, y1, 'table'), B(-11, -38.5, 1.2, 1.2, .76, y1, 'table'), B(-17.5, -39.5, 1.2, 1.2, .76, y1, 'table'), B(-8, -35.5, 2, .8, .8, y1, 'sofa'), B(-7, -41, .5, 2.4, 1.9, y1, 'cabinet'));
   add(S(-20.6, -32.4, -6, -32, roof, roof + 1.1, 'parapet'), S(-22, -43, -21.6, -34.6, roof, roof + 1.1, 'parapet'), S(-22, -32.1, -20.6, -32, roof, roof + 1, 'rail', { thin: true }));
   wall(m, { a0: -22, a1: -6, at: -39.2, h: 3.2, t: .25, mat: 'partition-wall', gaps: [[-12, -10.4, 0, 2.3]] });
   add(B(-18.5, -37, .8, 3, 1.1, L, 'counter'), B(-15, -35.3, 1.2, 1.2, .76, L, 'table'), B(-11, -36.6, 1.2, 1.2, .76, L, 'table'), B(-9.5, -33.8, 1.2, 1.2, .76, L, 'table'), B(-17, -41.2, 3, 1, .95, L, 'counter'), B(-8.4, -41.4, 1.6, .9, 1.9, L, 'cabinet'));
@@ -232,8 +359,10 @@ function westHalf() {
   wall(m, { a0: -7, a1: 7, at: -28.2, alongZ: true, h: 4, mat: 'bld-stone', gaps: [[-4.8, -2.8, 0, 2.8], [1.6, 4.6, .6, 3.2, 'shop']] });
   wall(m, { a0: -44, a1: -28, at: -6.8, h: 4, mat: 'bld-stone', gaps: [[-35, -33, 0, 2.8], [-41.5, -38, .9, 2.8]] });
   wall(m, { a0: -44, a1: -28, at: 6.8, h: 4, mat: 'bld-stone', gaps: [[-40.5, -37, .9, 2.8], [-33.5, -30.5, .9, 2.8]] });
-  add(S(-44, -7, -28, 7, L + 4, L + 18, 'bld-glass-tower'));
-  add(S(-36.4, -5.4, -35.6, 2.6, L, L + 1.15, 'counter'), S(-41.5, 2.4, -41.2, 6.2, L, L + 4, 'partition-wall'), B(-39, -2.4, .7, .7, 4, L, 'column'), B(-32, 1.6, .7, .7, 4, L, 'column'), B(-31, -.8, 2, .8, .8, L, 'sofa'), B(-42.9, -5.6, 1, .8, 1.9, L, 'atm'));
+  // Okun Trust's office floors over its banking hall: four storeys, a stair from the hall's north-west corner.
+  tower(m, { x0: -44, z0: -7, x1: -28, z1: 7, base: L + 4, from: L, storeys: 4, mat: 'bld-panel', core: [-43.5, -6.5], seed: 23,
+    windows: { n: { storeys: () => true, skip: TRUST_SKIP.n }, s: { storeys: () => true, skip: TRUST_SKIP.s }, e: { storeys: () => true, skip: TRUST_SKIP.e }, w: { storeys: () => true, skip: TRUST_SKIP.w } } });
+  add(S(-36.4, -5.4, -35.6, 2.6, L, L + 1.15, 'counter'), S(-41.5, 2.4, -41.2, 6.2, L, L + 4, 'partition-wall'), B(-39, -2.4, .7, .7, 4, L, 'column'), B(-32, 1.6, .7, .7, 4, L, 'column'), B(-31, -.8, 2, .8, .8, L, 'sofa'), B(-35, 6.1, 1, .8, 1.9, L, 'atm'));
 
   // ---------------------------------------------------------------- CENTRAL PLAZA
   // Station entrance: guard walls on three sides, steps down to the east.
@@ -329,7 +458,12 @@ function centre() {
   const add = (...b) => m.boxes.push(...b);
   add(S(-60, -44, 60, -43, L, L + 14, 'bld-back'));                         // the north street wall (rear of the block)
   // Okun Tower: an arcade under the podium, the shaft above (the landmark of the avenue).
-  add(S(-6, -43, 6, -38, L, L + 7, 'bld-tower-base'), S(-6, -38, 6, -32, L + 4, L + 7, 'bld-tower-base'), S(-4.6, -43, 4.6, -37.4, L + 7, L + 46, 'bld-tower-shaft'));
+  // The podium's wings and the canopy over the arcade stay solid; the tower is open from its lobby on the arcade to the
+  // roof: thirteen storeys round a stair core along its north wall, offices along the south facade. Its side faces have
+  // windows only on the low floors: higher up they would look along the avenue onto the teams' spawns.
+  add(S(-6, -43, -4.6, -37.4, L, L + 7, 'bld-tower-base'), S(4.6, -43, 6, -37.4, L, L + 7, 'bld-tower-base'), S(-6, -37.4, 6, -32, L + 4, L + 7, 'bld-tower-base'));
+  tower(m, { x0: -4.6, z0: -43, x1: 4.6, z1: -37.4, base: L, storeys: 13, mat: 'bld-panel', core: [-4, -42.6], coreAxis: 'x', seed: 37,
+    windows: { s: { storeys: k => k >= 2, skip: OKUN_SKIP.s }, w: { storeys: k => k >= 2 && k < 4, skip: OKUN_SKIP.w }, e: { storeys: k => k >= 2 && k < 4, skip: OKUN_SKIP.e } }, doors: [['s', -.8, .8]] });
   for (const x of [-5.5, 5.5]) add(B(x, -32.5, .9, .9, 4, L, 'column'));
   add(B(0, -32.5, .9, .9, 4, L, 'column'), S(-6, -32.4, 6, -32, L + 7, L + 8.1, 'parapet'));
   add(B(0, -36.15, 3, 2.5, 2.6, L + 7, 'plant'), B(-5, -33.85, 1.6, 2.9, 2.6, L + 7, 'plant'), B(5, -33.85, 1.6, 2.9, 2.6, L + 7, 'plant'));
@@ -355,9 +489,11 @@ function centre() {
  */
 const BUILDINGS = [
   { id: 'marina', name: 'Marina House', x0: -46, z0: -43, x1: -26, z1: -32, y0: L, y1: L + 7, enter: true, fill: '#ffe9cf' },
-  { id: 'grill', name: 'The Atlantic Grill', x0: -22, z0: -43, x1: -6, z1: -32, y0: L, y1: L + 3.2, enter: true, fill: '#ffd9a8' },
+  { id: 'grill', name: 'The Atlantic Grill', x0: -22, z0: -43, x1: -6, z1: -32, y0: L, y1: L + 7, enter: true, fill: '#ffd9a8' },
   { id: 'arcade', name: 'Balogun Arcade', x0: -39, z0: -18, x1: 0, z1: -11, y0: L, y1: L + 7, enter: true, fill: '#fff1dc' },
-  { id: 'trust', name: 'Okun Trust', x0: -44, z0: -7, x1: -28, z1: 7, y0: L, y1: L + 4, enter: true, fill: '#f4efe4' },
+  { id: 'trust', name: 'Okun Trust', x0: -44, z0: -7, x1: -28, z1: 7, y0: L, y1: L + 18, enter: true, fill: '#f4efe4' },
+  { id: 'okun', name: 'Okun Tower', x0: -4.6, z0: -43, x1: 4.6, z1: -37.4, y0: L, y1: L + 45.5, enter: true, fill: '#e3e8ee' },
+  { id: 'lekan', name: 'Lekan Court', x0: -59, z0: -43, x1: -46, z1: -32, y0: L, y1: L + 24.5, enter: true, fill: '#efe4d6' },
   { id: 'warehouse', name: 'Warehouse 4', x0: -42, z0: 21, x1: -14, z1: 39, y0: L, y1: L + 7, enter: true, fill: '#dfe6ea' },
   { id: 'substation', name: 'Substation', x0: -59, z0: 35, x1: -51, z1: 43, y0: L, y1: L + 3.2, enter: true, fill: '#e8e2d2' },
   { id: 'terminal', name: 'Marina Interchange', x0: -59, z0: -32, x1: -44.5, z1: -18.2, y0: L, y1: L + 3.5, enter: true, fill: '#e6ecef' },
@@ -428,6 +564,8 @@ export function metropolis() {
     id: 'metropolis', name: 'Operation: Metropolis', short: 'Metropolis', flagship: true,
     blurb: 'Okun Bay: Marina Avenue and its rooftops, Plaza Station beneath the Okun Spire, and the port. Five districts, three lanes, 6 v 6.',
     city: 'Okun Bay', ambience: 'foundry', bounds: [-X, -Z, X, Z], boxes, deco, glass,
+    // Regions exempt from the mirror-image rule: Okun Tower's interior, one stair shared by both teams (CENTRAL_INTERIOR).
+    asymmetric: [CENTRAL_INTERIOR],
     street: STREET, districts: DISTRICTS, variants: METROPOLIS_VARIANTS, train: TRAIN,
     station: { spaces: [...STATION_SPACES, ...STATION_SPACES.filter(r => r[2] <= 0).map(r => [-r[2], r[1], -r[0], r[3], r[4], r[5], r[6]])] },
     buildings: [...BUILDINGS, ...BUILDINGS.filter(b => b.x1 <= 0).map(b => ({ ...b, id: b.id + '-e', x0: -b.x1, x1: -b.x0, east: true }))],

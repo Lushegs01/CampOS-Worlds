@@ -243,11 +243,8 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
             b.add(g2, [m.red, m.green, m.orange, m.blue][idx % 4], 1, Mx); g2.dispose();
           }
         } else if (d.kind === 'door') {
-          // A door leaf standing open against the wall, and a small canopy.
+          // A small canopy over the door (the leaves themselves open and close: scene/doorLeaves.ts).
           const [c0, c1] = out(0, .7); f.box(-.15, y1 + .1, w + .15, y1 + .16, c0, c1, m.frame, 1);
-          const leaf = new THREE.BoxGeometry(Math.min(1, w * .5), y1 - y0 - .1, .045), lw = Math.min(1, w * .5);
-          const Mx = f.matrix().clone().multiply(T(.05, (y0 + y1) / 2, side * (t + .03))).multiply(RY(side * 1.45)).multiply(T(lw / 2, 0, 0));
-          b.add(leaf, m.darkWood, 1, Mx); leaf.dispose();
         }
       } else if (d.kind === 'roller') {
         // The shutter rolled up into its housing.
@@ -328,6 +325,18 @@ export function buildStructure(b: CityBuilder, m: CityMats, map: CityMap, detail
       } else { b.box(x0, top, z0, x1, top + .9, z1, m.frame, 2); const uv = signs.text('OKUN TRUST', '#0f3d33', '#f2e6c8', 512, 96); const east = x0 > 0; signPanel(b, signMat, uv, 7, 1.3, T(east ? x0 - .13 : x1 + .13, y0 + 1.6, 0).multiply(RY(east ? -Math.PI / 2 : Math.PI / 2))); }
       b.force = null;
     } else if (box.mat === 'bld-block' && Math.min(x1 - x0, z1 - z0) > .8) { b.force = 'out'; b.box(x0, y0, z0, x1, y1, z1, m.blockwork, 1.6); b.force = null; }
+  }
+  // Okun Tower, now enterable to its roof: the landmark's mast and aviation light stand on the parapet's north-east
+  // corner (off the walkable roof), and its name is lettered high on the south face, over the plaza.
+  const okun = map.buildings.find(g => g.id === 'okun');
+  if (okun) {
+    const top = okun.y1, mx = okun.x1 - .2, mz = okun.z0 + .2;
+    b.force = 'out';
+    b.post(mx, mz, top + 1.1, top + 12, .14, m.stainless, 8, .05); b.box(mx - .14, top + 12, mz - .14, mx + .14, top + 12.3, mz + .14, m.beacon, 1);
+    // A stainless band capping the parapet (outside it only: the roof itself stays clear).
+    for (const [a0, c0, a1, c1] of [[okun.x0 - .06, okun.z0 - .06, okun.x1 + .06, okun.z0], [okun.x0 - .06, okun.z1, okun.x1 + .06, okun.z1 + .06], [okun.x0 - .06, okun.z0, okun.x0, okun.z1], [okun.x1, okun.z0, okun.x1 + .06, okun.z1]]) b.box(a0, top - .3, c0, a1, top + 1.15, c1, m.stainless, 1);
+    b.force = null;
+    const uv = signs.text('OKUN TOWER', '#0d1b2a', '#f2e6c8', 512, 96); signPanel(b, signMat, uv, 7.4, 1.4, T((okun.x0 + okun.x1) / 2, top - 2.2, okun.z1 + .12));
   }
   // The street walls behind the site: a row of different buildings, taller than their collision.
   for (const box of map.boxes) {

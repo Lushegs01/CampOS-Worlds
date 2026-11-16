@@ -154,6 +154,7 @@ The server checks each use: earned, alive, match running, and a per-team cooldow
 | Shift sprint · C/Ctrl crouch (slide while sprinting) · Space jump | L3 sprint toggle · B crouch/slide · A | push the stick to the top edge to sprint · crouch toggle (tap while sprinting to slide) · jump |
 | R reload · 1/2/wheel/X switch · V melee · G lethal · Q tactical | X · Y · R3 · RB · LB | Reload · Switch · Melee · Lethal · Tactical |
 | 3/4/5 rewards · Tab scoreboard · Esc menu | d-pad · Back · Start | reward buttons appear when earned · scoreboard · menu |
+| E open or close a door in reach | X (opens a door in reach; otherwise reloads) | tap the Open door / Close door prompt |
 
 Settings: auto-fire, HUD customization, mouse, aiming, touch and gamepad sensitivity, invert vertical look,
 field of view, sprint by stick, fixed or floating movement stick, graphics quality (with a recommendation for

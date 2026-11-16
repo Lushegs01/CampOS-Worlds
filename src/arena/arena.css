@@ -716,3 +716,8 @@ li.active .ar-step-icon{border-color:rgba(228,180,95,.6);color:var(--ar-gold)}li
 .ar-hud.cinematic .ar-scope i{background:linear-gradient(rgba(0,0,0,.85),rgba(0,0,0,.85)) center/100% 1.5px no-repeat,linear-gradient(rgba(0,0,0,.85),rgba(0,0,0,.85)) center/1.5px 100% no-repeat}
 /* QA captures under software rendering: feedback stays until its (lengthened) timers remove it. */
 html.ar-qa-hold .ar-elimcard,html.ar-qa-hold .ar-pop,html.ar-qa-hold .ar-kcount,html.ar-qa-hold .ar-lead,html.ar-qa-hold .ar-unlockt-item{animation-name:none!important}
+
+/* Use prompt (doors): just under the crosshair; a real button on touch screens. */
+.ar-use{position:absolute;left:50%;top:calc(50% + 46px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid rgba(255,255,255,.22);border-radius:6px;background:rgba(12,14,16,.62);color:#f2f0ea;font:600 13px/1 var(--ar-font, 'Manrope Variable', sans-serif);letter-spacing:.04em;text-transform:uppercase;pointer-events:none;backdrop-filter:blur(4px)}
+.ar-use kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:4px;background:#f2f0ea;color:#111;font:700 12px/1 inherit}
+.ar-use-touch{pointer-events:auto;top:auto;bottom:calc(32% + env(safe-area-inset-bottom));padding:12px 18px;font-size:14px;touch-action:none}

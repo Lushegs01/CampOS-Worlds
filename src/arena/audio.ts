@@ -15,6 +15,7 @@ import { createReactions, voiceFor, bodyPart } from './sound/reactions.mjs';
 import { mapSurfaces } from './sound/surfaces.mjs';
 import { WEAPON_BY_ID } from '../../shared/arena/weapons.mjs';
 import { QA_HOOKS } from '../qa';
+import { doorsOf } from '../../shared/arena/doors.mjs';
 
 export type V = [number, number, number];
 export type StepSurface = 'concrete' | 'asphalt' | 'gravel' | 'dirt' | 'grass' | 'sand' | 'metal' | 'container' | 'wood' | 'stone';
@@ -42,6 +43,7 @@ export function prepareMatch(mapId: string, map: { boxes: { mat: string }[]; amb
   const body = ownVoice === 'fA' ? 'breath.f' : 'breath.m';
   engine.pin([...guns.map(id => 'w.' + id), 'voice.' + ownVoice, 'steps.concrete', ...ground, body]);
   void engine.want(['ui', ...guns.slice(0, 1).map(id => 'w.' + id), 'steps.concrete', 'movement', 'handling', 'impacts'], 1);
+  if (doorsOf(map as Parameters<typeof doorsOf>[0]).length) void engine.want(['doors'], 2);
   void engine.want([...guns.slice(1).map(id => 'w.' + id), ...ground, 'voice.' + ownVoice, body, 'explosives', 'vo'], 2);
   void engine.want(['amb.' + (map.ambience ?? mapId)], 3);
 }
@@ -258,6 +260,11 @@ export const sfx = {
     lastSwing = { kind, at: performance.now() };
     const sound = kind === 'knife' ? 'handling/swingKnife' : kind === 'axe' ? 'handling/swingHeavy' : 'handling/swingRifle';
     if (at) fire(sound, 'mechRemote', { at, gain: .9 }); else fire(sound, 'handlingOwn', { gain: 1.2 });
+  },
+  /** A door opening or shutting (server-confirmed), heard from its doorway; a shut door latches. */
+  door(open: boolean, at: V) {
+    if (open) fire('doors/open', 'door', { at });
+    else { fire('doors/close', 'door', { at }); fire('doors/latch', 'door', { at, delay: .18, gain: .6 }); }
   },
   /** A round (or a blade) striking a surface, heard from where it struck. */
   impact(surface: ImpactSurface, at: V) {

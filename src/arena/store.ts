@@ -9,7 +9,7 @@ import { recommendQuality } from './device';
 
 export type Loadout = { name: string; primary: string; secondary: string; lethal: string; tactical: string; perks: string[]; skins?: Record<string, string> };
 export type RosterEntry = { num: number; name: string; team: number; verified: boolean; handle: string | null; bot: boolean; connected: boolean; level: number; emblem: string };
-export type MatchView = { variant?: string; broken?: number[]; elapsed?: number; id: string; mode: string; map: string; kind: 'quick' | 'private' | 'training'; code: string | null; state: string; autoFire?: boolean; maxPerTeam: number; scoreLimit: number; timeMs: number; seed: number; scores: number[]; players: RosterEntry[]; objectives: { id: string; x: number; z: number; r: number }[] };
+export type MatchView = { variant?: string; broken?: number[]; closed?: number[]; elapsed?: number; id: string; mode: string; map: string; kind: 'quick' | 'private' | 'training'; code: string | null; state: string; autoFire?: boolean; maxPerTeam: number; scoreLimit: number; timeMs: number; seed: number; scores: number[]; players: RosterEntry[]; objectives: { id: string; x: number; z: number; r: number }[] };
 export type FeedEntry = { id: number; killer: number | null; victim: number; weapon: string | null; head: boolean; at: number };
 export type ResultRow = { num: number; name: string; team: number; bot: boolean; account: string | null; result: 'win' | 'loss' | 'draw'; completed: boolean; kills: number; deaths: number; assists: number; headshots: number; captures: number; neutralizes: number; defends: number; score: number; damage: number; bestStreak: number; xp: number };
 export type MatchResult = { id: string; mode: string; map: string; kind: string; winner: number | null; outcome: string; scores: number[]; startedAt: number; endedAt: number; players: ResultRow[] };
@@ -48,7 +48,7 @@ export function saveDeviceLoadouts(list: Loadout[]) { writeJson(LOADOUT_KEY, lis
 export interface Hud {
   hp: number; alive: boolean; respawnMs: number; weapon: string; slot: number; mag: number; reserve: number; magSize: number; phase: string; reloadProgress: number; fireMode: string;
   ads: number; lethal: number; tactical: number; spread: number; earned: string[]; streakPts: number; streak: number; sprint: boolean; stance: number;
-  timeLeft: number; scores: number[]; matchState: string; objectives: [number, number, number, number][]; ping: number; fps: number;
+  timeLeft: number; scores: number[]; matchState: string; /** A door in reach: −1 none, 0 closed, 1 open. */ door: number; objectives: [number, number, number, number][]; ping: number; fps: number;
 }
 interface Arena {
   open: boolean; phase: Phase; status: 'idle' | 'connecting' | 'ready' | 'offline' | 'replaced'; error: string;
@@ -73,7 +73,7 @@ interface Arena {
   setSettings: (v: Partial<ArenaSettings>) => void;
 }
 export const emptyHud = (): Hud => ({ hp: 100, alive: false, respawnMs: 0, weapon: 'vanguard', slot: 0, mag: 0, reserve: 0, magSize: 0, phase: 'ready', fireMode: 'auto', reloadProgress: 0, ads: 0, lethal: 0, tactical: 0, spread: 0,
-  earned: [], streakPts: 0, streak: 0, sprint: false, stance: 0, timeLeft: 0, scores: [0, 0], matchState: 'waiting', objectives: [], ping: 0, fps: 0 });
+  earned: [], streakPts: 0, streak: 0, sprint: false, stance: 0, timeLeft: 0, scores: [0, 0], matchState: 'waiting', objectives: [], ping: 0, fps: 0, door: -1 });
 export const useArena = create<Arena>()((set, get) => ({
   open: false, phase: 'lobby', status: 'idle', error: '', notice: '', me: null, owned: [], loadout: { ...PRESETS[0] }, loadouts: deviceLoadouts(), online: 0,
   match: null, you: null, feed: [], board: {}, result: null, progress: null, record: null,
