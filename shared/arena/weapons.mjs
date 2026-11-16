@@ -116,6 +116,10 @@ const ARMORY={
  hammer:{access:'earned',armory:'Melee',role:'Longer reach than the knife.',tradeoff:'Slower swing; earned at level 7.'},
 };
 for(const w of WEAPONS)Object.assign(w,ARMORY[w.id]??{access:'premium',armory:CATEGORIES_FALLBACK,role:'',tradeoff:''});
+// Inspection (I, or the touch button): every weapon can be turned over in the hands. Cosmetic: any combat input
+// cancels it at once (shared/arena/sim.mjs), so it never costs a fight. Lengths per class; the M7 keeps its own.
+const INSPECT = {ar:2.4,battle:2.4,smg:2.2,shotgun:2.6,sniper:2.8,lmg:2.8,pistol:2,melee:1.9};
+for (const w of WEAPONS) w.inspect ??= s(INSPECT[w.category] ?? 2.4);
 export const WEAPON_BY_ID = new Map(WEAPONS.map(w=>[w.id,w]));
 /** Small stable index of every weapon (snapshots name a weapon by index). */
 export const WEAPON_INDEX = new Map(WEAPONS.map((w,i)=>[w.id,i]));

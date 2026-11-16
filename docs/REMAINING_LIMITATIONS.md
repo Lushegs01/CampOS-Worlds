@@ -32,7 +32,7 @@ Still open from the brief:
   facades.
 * **Maps.** Audited: Foundry Yard and Sim Quad had no sealed rooms. Bots cannot path inside Okun Tower's narrow stair
   core. Interiors still come from one generator, with no lifts.
-* **Weapons.** Longbow bolt and Sparrow magazine are still fused to their models. No inspection animation.
+* **Weapons.** Longbow bolt and Sparrow magazine are still fused to their models. Inspection has no sound except on the M7.
 * **First-person body.** No air, landing or slide clips. It is the third-person mesh with bones collapsed.
 * **First-person body validation.** The live-match capture (`scripts/qa/arena-body.mjs`) waits for the soldier models
   to stream in (priority 2). In this container's software WebGL they had not arrived within 5 minutes on the first

@@ -75,7 +75,18 @@ not fit a handle that short.
 Stills (QA renderer `node scripts/qa/arena-weapons.mjs fp knife,hammer hip,sprint,melee`, which runs the same animator
 and arm solver as the game): `docs/screenshots/arena/melee/before-*.jpg` and `after-*.jpg`.
 
+## Inspection for every weapon
+
+Before, only the SIG M7 could be inspected. Now every weapon can (key **I**, or the inspect touch button, which is now
+shown for all weapons). Durations are set per class in `shared/arena/weapons.mjs`: 1.9 s for blades up to 2.8 s for
+sniper rifles and LMGs. Any combat input cancels inspection at once, as the M7's rule already did, so it never costs a
+fight (`tests/arena-m7.test.mjs`).
+
+The animator brings the weapon up and in, turns it to show the ejection side, rolls it over to show the left and the
+top, and returns it. The knife is flipped once in the hand. The M7 keeps its own choreography and sound; other weapons
+have no inspect sound yet. Sequences: `docs/screenshots/arena/visual/motion/{vanguard,knife,sparrow}-inspect.mp4`,
+contact sheet `docs/screenshots/arena/visual/inspect-vanguard-knife-sparrow.png`.
+
 ## Not validated by automation
 
-Per-pose clipping (hand through receiver) across every state is checked by eye on the QA renders, not measured. No weapon
-inspection animation exists in the game.
+Per-pose clipping (hand through receiver) across every state is checked by eye on the QA renders, not measured.

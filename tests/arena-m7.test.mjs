@@ -40,7 +40,7 @@ test('inspection cancels immediately for firing; reload transfers ammunition onl
   run(s,10);run(s,1,B.RELOAD);assert.equal(s.pt,w.reload);const mag=s.wpn[0].mag;
   run(s,w.reload-1);assert.equal(s.wpn[0].mag,mag);run(s,1);assert.equal(s.wpn[0].mag,20);assert.equal(s.wpn[0].reserve,79);
   s.wpn[0].mag=0;run(s,1,B.RELOAD);assert.equal(s.pt,w.reloadEmpty);run(s,30);run(s,1,B.SLOT2);run(s,w.reloadEmpty);assert.equal(s.wpn[0].mag,0);
-  const noSelector=spawnState({x:0,z:0},PRESETS[0]);run(noSelector,60);run(noSelector,1,B.MODE|B.INSPECT);assert.equal(noSelector.phase,'ready');assert.equal(fireModeOf(noSelector),'auto');
+  const noSelector=spawnState({x:0,z:0},PRESETS[0]);run(noSelector,60);run(noSelector,1,B.MODE|B.INSPECT);assert.equal(noSelector.phase,'inspect','every weapon can be inspected');assert.equal(fireModeOf(noSelector),'auto','but only the M7 has a fire selector');run(noSelector,1,B.FIRE);assert.equal(noSelector.phase,'ready','and firing cancels it');
 });
 test('auto-fire releases the trigger between semi shots; prediction replay is deterministic',()=>{
   const s=ready();run(s,1,B.MODE);run(s,1);run(s,1,B.FIRE);

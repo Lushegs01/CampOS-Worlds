@@ -227,6 +227,14 @@ export class ViewmodelAnimator {
     if (s.phase === 'inspect' && w.id === 'm7') {
       const k = 1 - s.pt / (w.inspect ?? 144), blend = Math.sin(Math.PI * k) ** 2;
       x -= .045 * blend; y += .075 * blend; z -= .06 * blend; rz -= .85 * blend; ry += .55 * blend; rx += .12 * blend;
+    } else if (s.phase === 'inspect') {
+      // Every other weapon: brought up and in, turned to show its right side (the ejection port), then rolled over to
+      // show the left and the top, and back to the hip. A knife is flipped once in the hand at the turn.
+      const k = 1 - s.pt / Math.max(1, w.inspect ?? 144), lift = Math.sin(Math.PI * k) ** 2;
+      const a = ease(k, .08, .42), b = ease(k, .5, .82), back = ease(k, .82, 1);
+      x -= .05 * lift; y += (sidearm ? .03 : .06) * lift; z -= .05 * lift;
+      if (melee) { rz -= .5 * lift; ry += .7 * a * (1 - back); rz += Math.PI * 2 * ease(k, .45, .62) * (w.id === 'knife' ? 1 : 0); rx += .25 * b * (1 - back); }
+      else { rz -= .95 * a * (1 - b); ry += .6 * a * (1 - b); rz += .7 * b * (1 - back); rx -= .35 * b * (1 - back); ry -= .2 * b * (1 - back); }
     }
     if (s.phase === 'switch') { const k = s.pt / Math.max(1, w.swap), e = k * k; y -= e * .42; rx -= e * 1.0; rz += e * .3; }
     if (s.phase === 'melee') { const total = melee ? w.swing ?? 30 : 30, k = 1 - s.pt / total, sw = Math.sin(Math.min(1, k * 1.25) * Math.PI); if (melee) { x -= sw * .16; z -= sw * .18; ry += sw * .9; rz += sw * .5; } else { z -= sw * .2; ry += sw * .75; rx += sw * .25; x -= sw * .08; } }

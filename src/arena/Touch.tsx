@@ -52,7 +52,7 @@ export default function TouchControls() {
     {btn('lethal', () => press(B.LETHAL))}
     {btn('tactical', () => press(B.TACTICAL))}
     {m7 && btn('firemode', () => press(B.MODE), semi)}
-    {m7 && btn('inspect', () => press(B.INSPECT))}
+    {btn('inspect', () => press(B.INSPECT))}
     {btn('autofire', toggleAutoFire, autoFire && allowed, !allowed)}
     <Slot id="menu" {...p} interactive><MenuButtonsView onScoreboard={open => useArena.getState().set({ scoreboard: open })} onMenu={() => useArena.getState().set({ menu: true })} /></Slot>
     {!alive && <div className="ar-tdead" />}
