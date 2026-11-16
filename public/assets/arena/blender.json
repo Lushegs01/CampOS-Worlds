@@ -124,7 +124,7 @@
         1.45
       ],
       "textureSize": 1024,
-      "bytes": 562640,
+      "bytes": 548568,
       "author": "CampOS Worlds (original, modelled and baked with blender/build.py)",
       "license": "Project-original; no third-party content"
     },
@@ -140,7 +140,7 @@
         1.9
       ],
       "textureSize": 1024,
-      "bytes": 607684,
+      "bytes": 611480,
       "author": "CampOS Worlds (original, modelled and baked with blender/build.py)",
       "license": "Project-original; no third-party content"
     },
@@ -156,7 +156,7 @@
         3.1
       ],
       "textureSize": 1024,
-      "bytes": 467424,
+      "bytes": 467492,
       "author": "CampOS Worlds (original, modelled and baked with blender/build.py)",
       "license": "Project-original; no third-party content"
     },
@@ -172,7 +172,7 @@
         2.9
       ],
       "textureSize": 1024,
-      "bytes": 516444,
+      "bytes": 537092,
       "author": "CampOS Worlds (original, modelled and baked with blender/build.py)",
       "license": "Project-original; no third-party content"
     }
