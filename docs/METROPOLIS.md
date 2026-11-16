@@ -264,9 +264,22 @@ reach; touch: the on-screen prompt) works the door in front of you within about 
 * **Presentation.** Single or double leaves (glazed upper halves on tall shop doors) swing on their hinges
   (`src/arena/scene/doorLeaves.ts`, three instanced draw calls for all of them); open and close sounds with a latch,
   from the doorway (`doors` sound bank, Kenney CC0).
+* **Open leaves are solid** (added in the ultimate-FPS pass). An open leaf is a box in the same collision world, on
+  only while its door is open, exactly where it is drawn: the renderer and the collision both come from
+  `doorLeafPlan()`. Players walk round it, and penetrating rounds go through it.
+  * How a door opens is chosen from the map's own geometry. It opens square on the side away from the centre line.
+    If the arc or a 1.2 m strip beyond the tip is not clear, it opens square on the other side. If neither is clear,
+    it folds back flat against the wall.
+  * Of 89 leaves: 71 open square on the preferred side, 10 on the other side, and 8 fold flat.
+  * An open leaf never narrows its own doorway (it is clamped to the jamb).
+  * The server will not swing a door open into a player.
+  * Bots plan routes round the open leaves.
+  * Checked: no walkable area becomes unreachable on any map, from either team's spawns (bot navigation graph, with
+    and without the leaves); mirrored doors open in mirror; no leaf opens onto a spawn
+    (`tests/arena-door-leaves.test.mjs`).
 * Wider openings are not doors: Foundry Yard's warehouse bays and Sim Quad's arcades stay open.
 
-Tests: `tests/arena-doors.test.mjs`; live: `node scripts/qa/arena-doors.mjs` (stills in `docs/screenshots/arena/doors/`).
+Tests: `tests/arena-doors.test.mjs`, `tests/arena-door-leaves.test.mjs`; live: `node scripts/qa/arena-doors.mjs` (stills in `docs/screenshots/arena/doors/`).
 Not built yet: enterable upper floors and towers (see [REMAINING_LIMITATIONS.md](REMAINING_LIMITATIONS.md)).
 
 ## Enterable towers and upper floors (November 2026)

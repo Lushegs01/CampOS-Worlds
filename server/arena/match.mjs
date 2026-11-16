@@ -332,7 +332,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     const s = p.sim, i = doorInReach(world, s.x, eyeOf(s), s.z, s.yaw);
     if (i < 0 || now - (doorMoved.get(i) ?? -1e9) < DOOR_SWING_MS) return;
     const open = !doorOpen(world, i);
-    if (!open && doorBlocked(world, i, players.filter(o => o.alive && o.sim).map(o => o.sim))) return;
+    // Never move a door onto a player: not shut on someone in the doorway, not swung open into someone beside it.
+    if (doorBlocked(world, i, players.filter(o => o.alive && o.sim).map(o => o.sim), open)) return;
     setDoor(world, i, open); doorMoved.set(i, now);
     emitAll({ k: 'door', i, open: open ? 1 : 0, num: p.num });
     record({ type: 'door', door: i, open, player: p.num });
@@ -713,6 +714,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
   }
 
   // ---------------------------------------------------------------- snapshots
+  /** The fewest snapshots a congested connection is sent: one in this many (20 Hz → about 6.7 Hz). */
+  const SNAP_DIV_MAX = 3;
   function flags(p, now) {
     const s = p.sim; if (!s) return 0;
     return (p.alive ? FLAG.alive : 0) | (s.stance === 1 ? FLAG.crouch : 0) | (s.stance === 2 ? FLAG.slide : 0) | (s.sprint ? FLAG.sprint : 0) | (s.ads > .5 ? FLAG.ads : 0) |
@@ -741,6 +744,8 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
     const entries = new Map(players.filter(p => p.sim).map(p => [p, [p.num, cm(p.sim.x), cm(p.sim.y), cm(p.sim.z), mr(p.sim.yaw), mr(p.sim.pitch + p.sim.rp), flags(p, now), WEAPON_INDEX.get(p.sim.wpn[p.sim.slot].id), Math.round(p.hp)]]));
     for (const r of players) {
       if (r.bot || !r.connected) continue;
+      // (A player backing off sends one snapshot in `snapDiv`; the latest state always goes in the one that is sent.)
+      r.snapN = (r.snapN ?? 0) + 1; if ((r.snapDiv ?? 1) > 1 && r.snapN % r.snapDiv !== 0) continue;
       const list = [], radar = [];
       for (const [o, e] of entries) {
         if (o === r) continue;
@@ -751,7 +756,11 @@ export function createMatch({ id, mode: modeId, map, kind = 'quick', code = null
       if (reveals[r.team] > now) for (const [o] of entries) if (o.team !== r.team && o.alive && !o.perks.has('ghost') && !radar.some(x => x[0] === o.num)) radar.push([o.num, cm(o.sim.x), cm(o.sim.z)]);
       const me = r.sim ? { ack: r.lastSeq, life: r.life, s: packState(r.sim), hp: Math.round(r.hp), alive: r.alive, respawn: r.alive ? 0 : Math.max(0, r.respawnAt === Infinity ? 0 : r.respawnAt - now), earned: [...r.earned], pts: r.streakPts, streak: r.streak } : null;
       const msg = { t: 's', at: now, st: state, tl: timeLeft, sc: scores, me, p: list, o: obj, g: grenades, r: radar };
-      sendRaw(r, JSON.stringify(msg), true);
+      const res = sendRaw(r, JSON.stringify(msg), true);
+      // A backed-up connection: send it fewer snapshots (each halves its rate, to one in three), and give them back
+      // one step for every three congestion-free seconds. The simulation, hit registration and events are untouched.
+      if (res === 'dropped') { r.snapDiv = Math.min(SNAP_DIV_MAX, (r.snapDiv ?? 1) * 2); r.snapCalmAt = now + 3000; }
+      else if (res === 'sent' && (r.snapDiv ?? 1) > 1 && now >= (r.snapCalmAt ?? 0)) { r.snapDiv--; r.snapCalmAt = now + 3000; }
     }
   }
 

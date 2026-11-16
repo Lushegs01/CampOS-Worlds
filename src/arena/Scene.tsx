@@ -161,7 +161,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     soundEngine.configure({ voices: q.mobileAssets ? 20 : 32, hrtf: !q.mobileAssets, phone: q.mobileAssets });
     prepareMatch(mapId, map, [primary, ...(secondary ? [secondary] : [])], live.num, soldierModelFor(live.num));
     // Soldiers: stand-ins until they arrive; a failure is retried quietly in the background.
-    const soldiers = (n: number): void => { loadSoldiers(q.mobileAssets, ctrl.signal).then(k => { if (on) setKits(k); }).catch(e => { if (!on || (e as Error).name === 'AbortError') return; console.warn('Arena soldiers deferred:', what(e)); if (n < 4) setTimeout(() => on && soldiers(n + 1), 8000 * (n + 1)); }); };
+    const soldiers = (n: number): void => { loadSoldiers(q.mobileAssets, ctrl.signal).then(k => { if (on) setKits(k); }).catch(e => { if (!on || (e as Error).name === 'AbortError') return; console.warn('Arena soldiers deferred:', what(e)); setTimeout(() => on && soldiers(n + 1), Math.min(60000, 8000 * (n + 1))); }); }; // (never given up while in the match: until then other players are stand-ins)
     soldiers(0);
     startAmbience(mapId, ambientEmitters(map));
     return () => { on = false; ctrl.abort(); stopArenaAmbience(); stopMatchSounds(); setIndoor(0); };
@@ -422,11 +422,14 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const touchDevice = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
   const renderScale = useArena(s => s.settings.renderScale);
   const baseDpr = useMemo(() => Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale, [q, renderScale]);
-  const adaptive = useMemo(() => createAdaptive({ target: frameTarget(touchDevice), min: Math.max(.5, .6 / Math.max(1, baseDpr)) }), [q, baseDpr, touchDevice]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Clarity floor: however hard the frame rate is pressed, never fewer than 0.85 drawn pixels per CSS pixel on a phone
+  // (0.75 elsewhere): below that the image turns to mush, which the profile's cheaper effects are there to prevent.
+  const CLARITY_FLOOR = touchDevice ? .85 : .75;
+  const adaptive = useMemo(() => createAdaptive({ target: frameTarget(touchDevice), min: Math.min(1, Math.max(.5, CLARITY_FLOOR / Math.max(.01, baseDpr))) }), [q, baseDpr, touchDevice]); // eslint-disable-line react-hooks/exhaustive-deps
   const adaptFps = (fps: number) => {
     const st = useArena.getState().settings; if (!st.adaptive || QA_HOOKS && new URLSearchParams(location.search).has('qa-scale')) return;
     const r = adaptive.sample(fps);
-    if (r.changed) setDpr(Math.max(.5, baseDpr * r.scale));
+    if (r.changed) setDpr(Math.max(Math.min(baseDpr, CLARITY_FLOOR), baseDpr * r.scale));
     if (r.stepDown && st.quality !== 'low') {
       const lower = st.quality === 'ultra' ? 'high' : st.quality === 'high' ? 'medium' : 'low';
       useArena.getState().setSettings({ quality: lower, qualityChosen: false });

@@ -223,6 +223,7 @@ const STATION_SPACES = [
   [-34, 9, -30, 21.5, U, 'ug-concrete', false],  // south corridor (to the port road)
   [-48, 10, -34, 22, U, 'ug-concrete', false],   // car park
   [-30, -14.5, -14, -12.5, U, 'ug-concrete', false], [-16, -12.5, -14, -9, U, 'ug-concrete', false], // service corridor
+  [-14, -11, -10.5, -9, U, 'ug-concrete', false], // …and its east end, to a door at the foot of the plaza entrance stairs
   [-30, -20.7, -22, -18.3, U, 'ug-tile', true],  // avenue entrance
   [-30, 17, -22, 19.4, U, 'ug-tile', true],      // port road entrance
   [-20, -8.6, -12, -6.2, U, 'ug-tile', true],    // plaza entrance
@@ -283,7 +284,9 @@ function westHalf() {
   const y1 = L + 3.5, roof = L + 7;
   wall(m, { a0: -46, a1: -26, at: -32.2, h: 3.5, mat: 'bld-render', gaps: [[-44.5, -42, .8, 2.8, 'shop'], [-41, -39], [-37.5, -33.5, .8, 2.8, 'shop'], [-31.5, -28, .8, 2.8, 'shop']] });
   wall(m, { a0: -46, a1: -26, at: -32.2, y: y1, h: 3.5, mat: 'bld-render', gaps: [[-44, -42, .9, 2.4], [-39.5, -36.5, .9, 2.4], [-34, -31, .9, 2.4], [-29.5, -27.5, .9, 2.4]] });
-  wall(m, { a0: -43, a1: -32, at: -26.2, alongZ: true, h: 3.5, mat: 'bld-render', gaps: [[-37.5, -35.8]] });
+  // (The alley door is under the fire escape's landing: further along, the escape climbs past this wall and a door
+  // there would open under its steps.)
+  wall(m, { a0: -43, a1: -32, at: -26.2, alongZ: true, h: 3.5, mat: 'bld-render', gaps: [[-42.5, -40.8]] });
   wall(m, { a0: -43, a1: -32, at: -26.2, alongZ: true, y: y1, h: 3.5, mat: 'bld-render', gaps: [[-39, -37, .9, 2.4]] });
   slab(m, -46, -43, -26.4, -32.4, y1 - .3, y1, 'floor-timber', [[-43, -43, -36, -41.2]]);
   stairs(m, { x: -36, z: -42, dir: '-x', width: 1.6, from: L, to: y1, mat: 'stair-concrete', rail: 'right' });
@@ -302,7 +305,7 @@ function westHalf() {
   add(S(-26, -42.6, -22, -40.5, y1 - .25, y1, 'grate'), S(-26, -42.7, -22, -42.6, y1, y1 + 1, 'rail', { thin: true }));
   stairs(m, { x: -22.7, z: -40.5, dir: '+z', width: 1.4, from: y1, to: roof, mat: 'stair-steel', open: true, rail: 'left' });
   add(S(-26, -33.5, -22, -32, roof - .25, roof, 'grate'), S(-26, -32.1, -22, -32, roof, roof + 1, 'rail', { thin: true }));
-  add(B(-23.1, -41.9, 1.2, 1, 1.3, L, 'bin'), B(-24.6, -42.2, 1, .8, 1.2, L, 'bin'));
+  add(B(-23.1, -41.9, 1.2, 1, 1.3, L, 'bin'), B(-22.6, -38.5, 1, .8, 1.2, L, 'bin'));
 
   // The Atlantic Grill (x −22…−6): a restaurant below, its private dining room above (entered from the alley's fire
   // escape landing), the roof over both.
@@ -442,8 +445,12 @@ function westHalf() {
   add(S(-38.4, 1.5, -38, 5.5, 0, ceil, 'void'));
   // Service corridor: a door at each end.
   wall(m, { a0: -14.5, a1: -12.5, at: -29.8, alongZ: true, y: U, h: ceil - U, t: .3, mat: 'ug-wall', gaps: [[-14.2, -12.8, 0, 2.2]] });
-  wall(m, { a0: -16, a1: -14, at: -9.2, y: U, h: ceil - U, t: .3, mat: 'ug-wall', gaps: [[-15.7, -14.3, 0, 2.2]] });
-  add(B(-22, -13.1, 1.6, .8, 1.2, U, 'crate'));
+  // (The north door opens onto the concourse at the foot of the plaza entrance stairs: the stairs climb west from
+  // x = −12, so a door beside them would open onto their side.)
+  wall(m, { a0: -16, a1: -10.5, at: -9.2, y: U, h: ceil - U, t: .3, mat: 'ug-wall', gaps: [[-11.9, -10.7, 0, 2.2]] });
+  wall(m, { a0: -11, a1: -9.05, at: -10.5, alongZ: true, y: U, h: ceil - U, t: .3, mat: 'ug-wall' });
+  // A crate against the north wall: cover, with the corridor's 1.4 m clear beside it.
+  add(B(-22, -12.85, 1.6, .6, 1.2, U, 'crate'));
   // Corridors and the car park.
   add(B(-33.2, -14, .9, 1.1, 1.95, U, 'vending'), B(-30.8, 13.5, .8, 2, 1.2, U, 'crate'));
   for (const [x, z] of [[-41, 13.5], [-41, 18.5]]) add(B(x, z, .7, .7, ceil - U, U, 'ug-column'));

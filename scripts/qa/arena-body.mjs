@@ -25,7 +25,9 @@ let ok = false;
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); page.setDefaultTimeout(+process.env.TIMEOUT || 300000);
   page.on('pageerror', e => { errors.push(e.message); console.error('pageerror', e.message); });
-  page.on('console', m => { if (m.type() === 'error' && !/404|Failed to load/.test(m.text())) console.error('console', m.text().slice(0, 200)); });
+  page.on('console', m => { if ((m.type() === 'error' || m.type() === 'warning') && !/Failed to load resource/.test(m.text())) console.error('console', m.type(), m.text().slice(0, 300)); });
+  page.on('requestfailed', r => console.error('requestfailed', r.url().replace(/^.*\/assets\//, ''), r.failure()?.errorText));
+  page.on('response', r => { if (r.status() >= 400 && /\/assets\//.test(r.url())) console.error('http', r.status(), r.url().replace(/^.*\/assets\//, '')); });
   await page.addInitScript(q => { localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: 'Capture', reducedMotion: true }, version: 1 })); localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: q, qualityChosen: true, adaptive: false, showFps: true, fov: 78 })); }, process.env.QUALITY || 'medium');
   await page.goto(`http://127.0.0.1:${WEB_PORT}/?qa-scale=${process.env.SCALE || .6}&qa-static-shadows`);
   await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; });
@@ -43,7 +45,10 @@ try {
   await page.waitForFunction(() => document.querySelector('.ar-scene-loading') === null && window.__arenaStats?.calls > 0);
   log('scene loaded', JSON.stringify(await page.evaluate(() => { const d = window.__arenaDebug?.(); return d && { kits: d.kits, lib: d.lib }; })));
   // The body is the soldier model: wait for the soldiers to stream in (priority 2).
-  await page.waitForFunction(() => window.__arenaDebug?.().kits === true, null, { timeout: 300000 });
+  // (Software WebGL draws on every core and starves the decoder threads: drawing is paused while they decode.)
+  await page.evaluate(() => window.__arenaFreeze?.(true));
+  await page.waitForFunction(() => window.__arenaDebug?.().kits === true, null, { timeout: 1200000, polling: 2000 });
+  await page.evaluate(() => window.__arenaFreeze?.(false)); log('soldiers loaded');
   await page.addStyleTag({ content: '.ar-clickhint{display:none!important}' });
   const still = async name => { await page.waitForTimeout(800); await page.evaluate(() => window.__arenaFreeze?.(true)); await page.waitForTimeout(1500); try { await page.screenshot({ path: `${OUT}${name}.jpg`, type: 'jpeg', quality: 86, timeout: 300000 }); } finally { await page.evaluate(() => window.__arenaFreeze?.(false)); } log('still', name); };
   const body = () => page.evaluate(() => window.__arenaDebug().body);

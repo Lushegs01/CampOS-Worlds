@@ -12,14 +12,26 @@ Done in this pass, so no longer open:
 * a persistent asset cache and asset manager;
 * connection-quality measurement, with a HUD indicator and jitter-adaptive interpolation.
 
+Second round of this pass, also done:
+
+* open door leaves are solid;
+* three door defects fixed (two opened onto stairs);
+* accessibility audits over every map;
+* Low clarity (1.5× density, 4× filtering, a clarity floor);
+* server snapshot back-off for congested clients;
+* background model decodes no longer abandoned on slow devices.
+
+See [BUILDING_INTERIOR_ACCESSIBILITY.md](BUILDING_INTERIOR_ACCESSIBILITY.md),
+[GRAPHICS_CLARITY_AND_PERFORMANCE.md](GRAPHICS_CLARITY_AND_PERFORMANCE.md) and
+[DEVICE_VALIDATION.md](DEVICE_VALIDATION.md).
+
 Still open from the brief:
 
 * **Blender.** No Blender MCP connection, and no new Blender-authored asset in this pass. Remaining art: weapon
   remodels, vehicles, soldier rig and clips (jump, fall, land, slide, hit reactions), interior uniqueness and lifts,
   facades.
-* **Maps.** Foundry Yard and Sim Quad buildings are not made enterable. Their warehouse bays and arcades are open
-  structures, and their interiors were not audited room by room in this pass. Open door leaves still have no
-  collision.
+* **Maps.** Audited: Foundry Yard and Sim Quad had no sealed rooms. Bots cannot path inside Okun Tower's narrow stair
+  core. Interiors still come from one generator, with no lifts.
 * **Weapons.** Longbow bolt and Sparrow magazine are still fused to their models. No inspection animation.
 * **First-person body.** No air, landing or slide clips. It is the third-person mesh with bones collapsed.
 * **First-person body validation.** The live-match capture (`scripts/qa/arena-body.mjs`) waits for the soldier models
@@ -27,8 +39,7 @@ Still open from the brief:
   run, so the in-game body assertions and stills were **not obtained in this pass**. The script is committed for
   rerunning on a machine with a GPU. The body code is type-checked and builds, but its in-game appearance is
   unverified here.
-* **Networking.** No server-side per-client snapshot adaptation, no binary or delta protocol, and no shaped-network
-  (netem) end-to-end test.
+* **Networking.** No binary or delta protocol, and no kernel-shaped (netem) browser test.
 * **Offline.** No offline practice mode, and no "download everything" pack.
 * **Devices and audio.** Still no physical-device frame times and no listening tests. Nothing in this pass is a device
   measurement.

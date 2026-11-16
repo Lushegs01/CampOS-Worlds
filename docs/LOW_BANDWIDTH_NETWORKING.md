@@ -67,9 +67,26 @@ Nothing in graphics settings or adaptive rendering reads connection quality, and
 * repeated corrections → degraded;
 * the delay eases rather than jumps.
 
-## Not done in this pass
+## Server-side back-off for a congested client
 
-* No server-side adaptation: snapshot rate and content per client are unchanged.
+The server already dropped a stale snapshot when a client's socket had more than 64 KB queued; events are never
+dropped. Now it also backs off (`server/arena/match.mjs`, `SNAP_DIV_MAX`):
+
+* each dropped snapshot halves that client's snapshot rate, down to one in three (20 Hz → about 6.7 Hz);
+* every three congestion-free seconds it steps back up;
+* every other client keeps the full rate;
+* the 60 Hz simulation, the positions hit registration rewinds against (recorded every snapshot, whoever it is sent
+  to) and all events are unchanged.
+
+On the client, the longer snapshot spacing raises the interpolation delay automatically (above). `sendRaw` in
+`server/arena/service.mjs` now reports `sent`, `dropped` or `closed`.
+
+`tests/net-backoff.test.mjs`: a two-player match where one client is congested. That client is sent about a third of
+the snapshots while the other keeps all of them, and both are back to full rate after the congestion clears. The
+existing end-to-end test over a real socket (`tests/arena-match.test.mjs`) covers 250 ms latency, up to 120 ms jitter
+and one lost command batch in five, with exact reconciliation.
+
+## Not done in this pass
 * No binary or delta snapshot protocol.
-* No end-to-end test under shaped network conditions (tc/netem latency, loss and bandwidth) with real clients.
+* No kernel-level shaped network (tc/netem) test with browser clients: the container does not allow it.
 * No bandwidth measurement in bytes per second.

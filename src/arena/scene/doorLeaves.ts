@@ -3,12 +3,11 @@
 // about their hinges toward what the shared world says (the server's state), over the same time the server lets a door
 // take to move. Three instanced meshes for all of them (bodies, glass, handles): three draw calls per map.
 import * as THREE from 'three';
-import { DOOR_SWING_MS, doorOpen } from '../../../shared/arena/doors.mjs';
+import { DOOR_SWING_MS, doorLeafPlan, doorOpen } from '../../../shared/arena/doors.mjs';
 
-interface Door { i: number; min: number[]; max: number[]; alongZ: boolean; w: number; h: number }
-interface Leaf { door: number; hinge: number; dir: 1 | -1; w: number; h: number; y0: number; glazed: boolean; basis: THREE.Matrix4; swing: number }
+interface Door { i: number; min: number[]; max: number[]; alongZ: boolean; w: number; h: number; leaves?: { hinge: number; dir: number; w: number; h: number; y0: number; swing: number; angle: number }[] }
+interface Leaf { door: number; hinge: number; dir: 1 | -1; w: number; h: number; y0: number; glazed: boolean; basis: THREE.Matrix4; swing: number; angle: number }
 
-const OPEN = 1.62; // radians: the leaf stands just past square to the wall
 const THICK = .05;
 const PAINT = ['#3b2a1f', '#2d3a31', '#3a3f45', '#1f2c3d', '#5b4632', '#6d6a63'];
 const _m = new THREE.Matrix4(), _r = new THREE.Matrix4(), _t = new THREE.Matrix4(), _s = new THREE.Matrix4(), _c = new THREE.Color();
@@ -20,12 +19,9 @@ export function createDoorLeaves(doors: Door[], shadows: boolean) {
     const basis = new THREE.Matrix4();
     if (d.alongZ) basis.makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)).setPosition((d.min[0] + d.max[0]) / 2, 0, 0);
     else basis.makeBasis(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)).setPosition(0, 0, (d.min[2] + d.max[2]) / 2);
-    const a0 = d.alongZ ? d.min[2] : d.min[0], a1 = d.alongZ ? d.max[2] : d.max[0], c = (a0 + a1) / 2;
-    // Doors open away from the map's centre line (mirrored doors mirror their swing: the map stays symmetric).
-    const centre = d.alongZ ? (d.min[0] + d.max[0]) / 2 : (d.min[2] + d.max[2]) / 2, swing = (centre >= 0 ? 1 : -1) * (d.alongZ ? -1 : 1);
-    const pair = d.w > 1.3, lw = pair ? d.w / 2 - .01 : d.w - .02, h = d.h - .02, glazed = d.h > 2.6;
-    if (pair) { leaves.push({ door: d.i, hinge: a0 + .01, dir: 1, w: lw, h, y0: d.min[1] + .01, glazed, basis, swing }, { door: d.i, hinge: a1 - .01, dir: -1, w: lw, h, y0: d.min[1] + .01, glazed, basis, swing }); }
-    else leaves.push({ door: d.i, hinge: (c > 0 ? a1 - .01 : a0 + .01), dir: c > 0 ? -1 : 1, w: lw, h, y0: d.min[1] + .01, glazed, basis, swing });
+    // The same leaves the collision world places (shared/arena/doors.mjs), so what is drawn is what blocks.
+    const glazed = d.h > 2.6;
+    for (const l of d.leaves ?? doorLeafPlan(d)) leaves.push({ door: d.i, hinge: l.hinge, dir: l.dir as 1 | -1, w: l.w, h: l.h, y0: l.y0, glazed, basis, swing: l.swing, angle: l.angle });
   }
   const box = new THREE.BoxGeometry(1, 1, 1);
   const bodyMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .58, metalness: .05 });
@@ -41,7 +37,7 @@ export function createDoorLeaves(doors: Door[], shadows: boolean) {
 
   /** Place leaf k at openness t (0 shut … 1 open). */
   const pose = (l: Leaf, k: number, gi: number, t: number) => {
-    const e = t * t * (3 - 2 * t), ang = -l.swing * l.dir * OPEN * e;
+    const e = t * t * (3 - 2 * t), ang = -l.swing * l.dir * l.angle * e;
     // hinge frame: basis · T(hinge, y0, 0) · RY(ang)
     const H = _m.copy(l.basis).multiply(_t.makeTranslation(l.hinge, l.y0, 0)).multiply(_r.makeRotationY(ang));
     const part = (x: number, y: number, z: number, sx: number, sy: number, sz: number) => H.clone().multiply(_t.makeTranslation(l.dir * x, y, z)).multiply(_s.makeScale(sx, sy, sz));
