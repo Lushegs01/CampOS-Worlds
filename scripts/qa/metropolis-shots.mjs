@@ -50,7 +50,7 @@ const VIEWS = [
   // The Blender-authored vehicles (blender/assets/metropolis_vehicles.py).
   { id: 'veh-bus', at: [-24, 5, -24.5], yaw: 1.17, pitch: -.04 },                      // the city bus at its stop on Marina Avenue
   { id: 'veh-van', at: [-11, 5, -19.5], yaw: 1.12, pitch: -.05 },                      // the box van unloading
-  { id: 'veh-car', at: [-6, 5, -24.5], yaw: .88, pitch: -.12 },                        // a saloon parked on the avenue
+  { id: 'veh-car', at: [-13, 5, -24], yaw: -.8, pitch: -.12 },                        // a saloon parked on the avenue
   { id: 'veh-pickup', at: [-33, 5, 13], yaw: 2.01, pitch: -.08 },                      // the pickup on Harbour Road
 ];
 const ROOM_PORT = Number(process.env.ROOM_PORT || 3216), WEB_PORT = Number(process.env.WEB_PORT || 5182);
