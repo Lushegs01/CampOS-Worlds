@@ -67,7 +67,10 @@ try {
     assert.equal(b.vis, true, `${name}: drawn`);
     // (Measured on the posed skeleton: the lowest joints are the toes, a few centimetres above the sole.)
     assert.ok(b.min[1] > p.y - .05 && b.min[1] < p.y + .2, `${name}: feet on the ground (lowest joint ${b.min[1]}, ground ${p.y.toFixed(2)})`);
-    assert.ok(b.max[1] < p.y + 1.62 - .05, `${name}: nothing reaches the eye (highest joint ${b.max[1]}, eye ${(p.y + 1.62).toFixed(2)})`);
+    // Nothing is drawn above the guard plane, which must stay clear of the eye (the collapsed head joint sits just under
+    // it, behind the camera, and is cut away).
+    assert.ok(b.clipY <= p.y + 1.62 - .1, `${name}: the body is cut off below the eye (plane ${b.clipY}, eye ${(p.y + 1.62).toFixed(2)})`);
+    assert.ok(b.max[1] < p.y + 1.62, `${name}: no joint above the eye (highest ${b.max[1]})`);
   }
   // Walking while looking down: the legs step (the walk clip), the body keeps up with the camera.
   await page.evaluate(([y]) => window.__arena.look(y, -1.0), [YAW]);
@@ -82,9 +85,9 @@ try {
   await page.evaluate(() => window.__arena.move(0, 0)); await page.waitForTimeout(1200);
   // Crouched.
   await page.evaluate(() => window.__arena.buttons(['CROUCH'], true)); await page.waitForTimeout(2500);
-  b = await body(); log('crouched', JSON.stringify(b));
-  assert.ok(b.max[1] < (await self()).y + 1.07, 'crouched: the body stays below the crouched eye');
   await still('5-crouched-look-down');
+  b = await body(); log('crouched', JSON.stringify(b));
+  assert.ok(b.clipY <= (await self()).y + 1.07 - .1, `crouched: cut off below the crouched eye (plane ${b.clipY})`);
   await page.evaluate(() => window.__arena.buttons(['CROUCH'], false));
   clearInterval(keep);
   ok = errors.length === 0;
