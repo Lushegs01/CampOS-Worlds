@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeSlot, decodeState } from '../src/world/decodeQueue.ts';
+import { traffic } from '../src/world/fetcher.ts';
 
 const later = ms => new Promise(r => setTimeout(r, ms));
 test('priority 1 overtakes queued background decodes; two at a time', async () => {
@@ -26,4 +27,10 @@ test('a decode that throws frees its place, and the queue carries on', async () 
   await assert.rejects(decodeSlot({ priority: 1 }, 'bad', () => { throw new Error('corrupt file'); }), /corrupt/);
   assert.equal(await decodeSlot({ priority: 1 }, 'good', async () => 'ok'), 'ok');
   assert.deepEqual(decodeState(), { running: 0, background: 0, queued: 0 });
+});
+
+test('each finished decode counts as progress for the deployment watchdog (no false "connection dropped")', async () => {
+  traffic.lastByteAt = 0;
+  await decodeSlot({ priority: 1 }, 'model', async () => 'ok');
+  assert.ok(traffic.lastByteAt > 0, 'progress recorded');
 });

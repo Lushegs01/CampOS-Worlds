@@ -24,6 +24,11 @@ const listeners = new Set<() => void>();
 export function onTraffic(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; }
 let notifyQueued = false;
 function notify() { if (notifyQueued) return; notifyQueued = true; queueMicrotask(() => { notifyQueued = false; listeners.forEach(l => l()); }); }
+/**
+ * Work other than downloading moved the deployment on (a model or texture finished decoding): the deployment
+ * watchdog judges "preparing" by the time since the last progress, and decoding queued behind downloads is progress.
+ */
+export function markProgress() { traffic.lastByteAt = performance.now(); notify(); }
 /** Reset the counters at the start of a deployment (requests already in flight keep counting). */
 export function resetTraffic() { Object.assign(traffic, { started: 0, finished: 0, failed: 0, retries: 0, bytes: 0, expected: 0, lastByteAt: performance.now(), failures: [], critical: { started: 0, finished: 0, bytes: 0 } }); notify(); }
 
