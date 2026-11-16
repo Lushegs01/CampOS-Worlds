@@ -33,12 +33,8 @@ Still open from the brief:
 * **Maps.** Audited: Foundry Yard and Sim Quad had no sealed rooms. Bots cannot path inside Okun Tower's narrow stair
   core. Interiors still come from one generator, with no lifts.
 * **Weapons.** The Sparrow's magazine is still fused to its model. Inspection has no sound except on the M7.
-* **First-person body.** No air, landing or slide clips. It is the third-person mesh with bones collapsed.
-* **First-person body validation.** The live-match capture (`scripts/qa/arena-body.mjs`) waits for the soldier models
-  to stream in (priority 2). In this container's software WebGL they had not arrived within 5 minutes on the first
-  run, so the in-game body assertions and stills were **not obtained in this pass**. The script is committed for
-  rerunning on a machine with a GPU. The body code is type-checked and builds, but its in-game appearance is
-  unverified here.
+* **First-person body.** Verified in a live match (PASS, stills in `docs/screenshots/arena/body/`). Open: no air,
+  landing or slide clips; feet hidden behind the chest when standing still; the vest texture is soft up close.
 * **Networking.** No binary or delta protocol, and no kernel-shaped (netem) browser test.
 * **Offline.** No offline practice mode, and no "download everything" pack.
 * **Devices and audio.** Still no physical-device frame times and no listening tests. Nothing in this pass is a device
