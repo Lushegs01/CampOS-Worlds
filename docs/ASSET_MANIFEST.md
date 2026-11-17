@@ -15,6 +15,19 @@ This page adds the Blender-authored set; it does not repeat the ledgers above.
 
 ## Blender-authored props (November 2026)
 
+The vehicles (added in the ultimate-FPS pass) load before deployment like the other props, because they are built into
+the city's static art. They add **2.70 MB** to a desktop's first deployment and **1.40 MB** to a phone's (the phone tier
+drops the top mip level); the service-worker cache keeps them, so later visits do not download them again. The lorry
+(`truck`) is still drawn by code.
+
+Seen in the game (Metropolis, day, Medium, live room server):
+`docs/screenshots/metropolis-photoreal/vehicles-after/day-veh-{bus,van,car,pickup}-medium.jpg`. The captures found a
+pipeline defect. `blender/build.py` left each baked asset at the origin, so every later asset was baked overlapping
+the earlier ones, and their geometry crushed its ambient occlusion. Mean AO by bake order: silver saloon 120 (first,
+clean), red saloon 43, pickup 96, bus 78, box van 7.5. In game the van rendered black in shade. Assets are now baked
+alone. The four vehicles and the six earlier props were rebaked (red saloon 121, pickup 117, bus 82, box van 123);
+the bus's lower figure comes from its own overlapping window and pillar panels.
+
 Source scene: `blender/source/metropolis_props.blend` (objects `SM_<key>`). Build: [BLENDER_ASSET_PIPELINE.md](BLENDER_ASSET_PIPELINE.md).
 Box sizes are length × depth × height in metres, as in the collision map.
 
@@ -26,7 +39,14 @@ Box sizes are length × depth × height in metres, as in the collision map.
 | `props/utilityCabinet.glb` | Street | 1.1 × 0.9 × 1.25 | 1,620 | 512² | 133 KB | `utility` × 6: feeder pillar on a concrete plinth, double doors, hinges, louvres, T-handle and lock, warning and asset plates |
 | `props/wasteBin.glb` | Street | 1.2 × 1 × 1.3 | 3,032 | 512² | 182 KB | `bin` × 8: four-wheel galvanised refuse container, castors, tapered ribbed body, lifting comb, trunnions, split plastic lid |
 | `props/forklift.glb` | Industrial | 2.5 × 1.3 × 2.1 | 6,988 | 512² | 250 KB | `forklift` × 2: LPG counterbalance forklift: mast, chains, lift and tilt cylinders, carriage, backrest, forks, overhead guard, seat, controls, lamps, beacon |
+| `props/sedanSilver.glb` | Vehicles | 4.3 × 1.8 × 1.45 | 9,896 | 1024² | 545 KB (phone 285 KB) | `car` (alternating with the red one): lofted saloon body with wheel arches, alloy wheels, glazing with A/B/C pillars, lamps, grille, bumpers, mirrors, handles, door seams, wipers, exhaust |
+| `props/sedanRed.glb` | Vehicles | 4.3 × 1.8 × 1.45 | 9,896 | 1024² | 563 KB (phone 289 KB) | `car`: the same saloon in red |
+| `props/pickup.glb` | Vehicles | 5.2 × 1.95 × 1.9 | 12,554 | 1024² | 608 KB (phone 332 KB) | `pickup` × 2: double-cab utility, covered load bed with rails and tie-downs, roll bar, bull-bar, steel wheels, arch flares, step bars, tow bar |
+| `props/cityBus.glb` | Vehicles | 9.4 × 2.55 × 3.1 | 7,280 | 1024² | 467 KB (phone 237 KB) | `bus` × 2: low-floor city bus, navy skirt, glazed band, kerb-side doors, louvred engine bay, roof air-conditioning pod (route sign and lit board drawn by the game) |
+| `props/boxVan.glb` | Vehicles | 6.4 × 2.3 × 2.9 | 8,320 | 1024² | 516 KB (phone 257 KB) | `van` × 2: box truck, lofted cab, ribbed box with rails and posts, rear portal with doors, hinges and locking bars (livery drawn by the game) |
 
-Totals: 26,044 triangles across six models (one material each), 1.12 MB for the full tier. The phone tier is the
-same size, because the textures are already 512². Licence: project-original. No third-party mesh, texture or scan
-is used in these files.
+## Blender-authored weapon parts
+
+| Part | Merged into | Triangles | Textures | What |
+|---|---|---|---|---|
+| `sparrowMag` (`blender/source/weapon_parts.blend`) | `weapons/sparrow.glb` as `mag` (+59 KB) | 1,140 | 256² | Single-stack 9 mm magazine sized to the grip (1.85 × 2.7 × 8.3 cm): steel body, spine, witness holes, feed lips with the top round, polymer baseplate. The licensed model fused the magazine inside its grip; merged by `scripts/assets/add-weapon-part.mjs`. |

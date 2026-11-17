@@ -1,5 +1,5 @@
 // Decoding queue (used by src/world/assets.ts for every arena model and texture that goes through the fetcher).
-import { deadline, type FetchOptions } from './fetcher.ts';
+import { deadline, markProgress, type FetchOptions } from './fetcher.ts';
 
 /**
  * Decoding (glTF parse, meshopt, KTX2 transcoding in the worker pool) is queued by priority, like downloads: what the
@@ -25,7 +25,7 @@ function pumpDecodes() {
 export function decodeSlot<T>(fetch: FetchOptions, what: string, task: () => Promise<T>): Promise<T> {
   const priority = fetch.priority ?? 2, limit = priority <= 1 ? 45000 : 120000;
   return new Promise<T>((resolve, reject) => {
-    decodeQueue.push({ priority, seq: decodeSeq++, run: () => { const done = () => { decoding--; if (priority > 1) background--; pumpDecodes(); }; deadline(Promise.resolve().then(task), limit, `decoding ${what} took too long`).then(v => { done(); resolve(v); }, e => { done(); reject(e); }); } });
+    decodeQueue.push({ priority, seq: decodeSeq++, run: () => { const done = () => { decoding--; if (priority > 1) background--; markProgress(); pumpDecodes(); }; deadline(Promise.resolve().then(task), limit, `decoding ${what} took too long`).then(v => { done(); resolve(v); }, e => { done(); reject(e); }); } });
     pumpDecodes();
   });
 }

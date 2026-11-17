@@ -56,7 +56,15 @@ Triangle counts and texture formats are unchanged; the files grew by 5 KB each.
   The Longbow fires in `bolt` mode, so the animator works the handle after each shot with the firing hand. At the hip,
   the receiver is outside the frame, so the motion has not been seen on screen.
 
-Still missing, measured from the files: the Sparrow P9's magazine is fused to its frame. Their
+* **Sparrow P9 magazine** (Blender, `blender/assets/weapon_parts.py`). The licensed model fused the magazine inside
+  its grip, so it could not be split out. A magazine sized to the grip was modelled and baked in Blender, and merged
+  in as `mag` (`scripts/assets/add-weapon-part.mjs`). The Sparrow's reload plan now has the magazine's out and in
+  timing.
+  * The first version was 11 cm tall and showed through the grip panels on the measurement sheet. It was shortened
+    to 8.3 cm and now sits entirely inside, with the baseplate flush.
+  * At the hip the grip is at the frame's edge, so the drop itself has not been seen on screen.
+
+Every detachable-magazine weapon, pump, bolt and cylinder in the catalogue now has its moving part. Their
 reloads animate the hand and weapon but not those parts. The models are the existing licensed assets (`docs/ASSETS.md`);
 none was remodelled in this pass.
 

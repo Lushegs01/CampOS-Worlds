@@ -1,0 +1,54 @@
+{
+  "label": "vehicles-after",
+  "when": "2026-11-16T19:58:55.873Z",
+  "viewport": [
+    1280,
+    720
+  ],
+  "renderer": "SwiftShader (software WebGL, no GPU): FPS is NOT representative of real devices; draw calls, triangles and resident GPU objects are exact",
+  "views": {
+    "day-veh-bus-medium": {
+      "world": 0,
+      "calls": 286,
+      "triangles": 636463,
+      "textures": 146,
+      "geometries": 712,
+      "fps": 1,
+      "heapMB": 405,
+      "deployMs": 132689
+    },
+    "day-veh-van-medium": {
+      "world": 0,
+      "calls": 414,
+      "triangles": 1450437,
+      "textures": 215,
+      "geometries": 723,
+      "fps": 0,
+      "heapMB": 438,
+      "deployMs": 132689
+    },
+    "day-veh-car-medium": {
+      "world": 0,
+      "calls": 409,
+      "triangles": 1438933,
+      "textures": 215,
+      "geometries": 723,
+      "fps": 0,
+      "heapMB": 440,
+      "deployMs": 132689
+    },
+    "day-veh-pickup-medium": {
+      "world": 0,
+      "calls": 257,
+      "triangles": 1199439,
+      "textures": 225,
+      "geometries": 724,
+      "fps": 1,
+      "heapMB": 443,
+      "deployMs": 132689
+    }
+  },
+  "errors": [
+    "day/veh-bus/medium attempt 1: the match ended during the capture"
+  ]
+}

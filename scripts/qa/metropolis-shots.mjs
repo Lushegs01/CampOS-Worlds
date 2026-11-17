@@ -47,6 +47,11 @@ const VIEWS = [
   { id: 'roofac', at: [-31, 12, -37.6], yaw: Math.PI, pitch: -.2 },                   // two condensing units on the north-block roof
   { id: 'kerb', at: [-24, 5, -37.6], yaw: .05, pitch: -.14 },                          // refuse containers behind the north block
   { id: 'forklift', at: [-18.5, 5, 27], yaw: Math.PI, pitch: -.12 },                    // the forklift in the port yard
+  // The Blender-authored vehicles (blender/assets/metropolis_vehicles.py).
+  { id: 'veh-bus', at: [-24, 5, -24.5], yaw: 1.17, pitch: -.04 },                      // the city bus at its stop on Marina Avenue
+  { id: 'veh-van', at: [-11, 5, -19.5], yaw: 1.12, pitch: -.05 },                      // the box van unloading
+  { id: 'veh-car', at: [-13, 5, -24], yaw: -.8, pitch: -.12 },                        // a saloon parked on the avenue
+  { id: 'veh-pickup', at: [-33, 5, 13], yaw: 2.01, pitch: -.08 },                      // the pickup on Harbour Road
 ];
 const ROOM_PORT = Number(process.env.ROOM_PORT || 3216), WEB_PORT = Number(process.env.WEB_PORT || 5182);
 const room = createRoom({ port: ROOM_PORT, origins: [`http://127.0.0.1:${WEB_PORT}`], heartbeatMs: 90000, arena: { heartbeatMs: 90000, slowCloseMs: 600000, rules: { countdownMs: 100, spawnProtectMs: 0, reconnectMs: 900000, mode: { timeMs: 3600000, scoreLimit: 9999 } } } });

@@ -65,10 +65,20 @@ for mod, assets in MODULES.items():
     for key in wanted:
         ob, box = built[key]
         t = time.time()
+        # Bake each asset alone: the others are hidden from the bake (and put back after), so none of them occludes it.
+        # (Each baked asset is left at the origin for export; without this, every later asset baked overlapping the
+        # earlier ones and their geometry darkened its ambient occlusion.)
+        others = [o for o in bpy.context.scene.objects if o is not ob and not o.hide_render]
+        for o in others:
+            o.hide_render = True
+        home = ob.location.copy()
         ob.location = (0, 0, 0)
         campos.unwrap(ob)
         campos.bake_asset(ob, STAGE, size)
         campos.export_glb(ob, os.path.join(STAGE, f'{key}.glb'))
+        ob.location = home
+        for o in others:
+            o.hide_render = False
         report[key] = {'family': ob.users_collection[0].name, 'triangles': campos.triangles(ob),
                        'dimensions': [round(d, 3) for d in ob.dimensions], 'collisionBox': box, 'textureSize': size,
                        'blendSource': os.path.relpath(blend, ROOT), 'object': ob.name}

@@ -26,16 +26,16 @@ def mats(*names):
 
 
 def sparrow_mag(coll):
-    """A single-stack 9 mm pistol magazine (2.1 × 3.0 × 10.2 cm): folded steel body with a spine, witness holes on
+    """A single-stack 9 mm pistol magazine (1.85 × 2.7 × 8.3 cm, sized to the grip it sits in): folded steel body with a spine, witness holes on
     both sides, feed lips with the top round showing, and a polymer baseplate with a finger lip at the front."""
     k = Kit('sparrowMag', mats('mag_steel', 'mag_base', 'follower', 'brass'))
-    W, D, H = .021, .03, .095  # body width (x), depth (y, front toward the muzzle at +y), height
+    W, D, H = .0185, .027, .07  # body width (x), depth (y, front toward the muzzle at +y), height (fits the grip)
     k.box((0, 0, .008 + H / 2), (W, D, H), 'mag_steel', .0025, 2)
     k.box((0, -D / 2 - .0008, .008 + H / 2), (W * .45, .002, H * .96), 'mag_steel', .0006)  # rear spine
     # Witness holes (round, numbered by position): small dark pits on each side.
     for s in (-1, 1):
         for i in range(5):
-            z = .025 + i * .015
+            z = .02 + i * .011
             k.cyl((s * (W / 2 + .0001), -.006, z), .0018, .0012, 'follower', 10, axis='X')
     # Feed lips folded in at the top, and the top round between them.
     for s in (-1, 1):
@@ -46,7 +46,7 @@ def sparrow_mag(coll):
     k.box((0, 0, .004), (W + .004, D + .006, .008), 'mag_base', .002, 2)
     k.box((0, D / 2 + .004, .0065), (W + .002, .006, .005), 'mag_base', .0015)
     k.cyl((0, -.005, -.0001), .0025, .0012, 'follower', 10)
-    return k.finish(coll), (.025, .036, .108)
+    return k.finish(coll), (.023, .033, .083)
 
 
 ASSETS = {
