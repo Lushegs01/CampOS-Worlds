@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { useGame } from '../state';
 
 /** The post-processing stack while one is active (High): the frame is drawn through it (./PostFX). */
+export const campusBudget = { level: 0 };
 export const postStack: { composer: { render(dt: number): void } | null } = { composer: null };
 
 // On a touch screen an open menu covers the view, so the world behind it is drawn ten times a second

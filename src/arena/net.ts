@@ -1,3 +1,5 @@
+import { constrainCorrection } from './reconciliation.mjs';
+import { canPredict, MAX_BUFFERED_BYTES, createSnapshotOrder } from '../network/flow.mjs';
 // Combat Arena connection: the /arena WebSocket, local prediction with server reconciliation, remote
 // player interpolation and match events.
 //
@@ -69,6 +71,8 @@ const banner = useBanners.getState().push;
 
 /** Connection quality (outlives reconnections, so a flaky link stays graded as one). */
 export const netMonitor = createNetMonitor();
+const snapshotOrder = createSnapshotOrder();
+let lastSnapshotAt = 0;
 let netReportAt = 0, everOpened = false, lastAck = -1;
 let socket: WebSocket | null = null, stopped = true, retry = 0, retryTimer: ReturnType<typeof setTimeout> | undefined, pingTimer: ReturnType<typeof setInterval> | undefined;
 let helloTimer: ReturnType<typeof setTimeout> | undefined, watchTimer: ReturnType<typeof setInterval> | undefined;
@@ -85,7 +89,7 @@ function url() {
   if (ws) return ws.replace(/\/ws$/, '/arena');
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/arena`;
 }
-function raw(data: unknown) { if (socket?.readyState === WebSocket.OPEN) { socket.send(JSON.stringify(data)); return true; } return false; }
+function raw(data: unknown) { if (socket?.readyState === WebSocket.OPEN && socket.bufferedAmount <= MAX_BUFFERED_BYTES) { socket.send(JSON.stringify(data)); return true; } return false; }
 /** Send a request and wait for its reply. */
 export function request(data: Record<string, unknown>, timeout = 8000): Promise<Record<string, unknown>> {
   const id = ++ref;
@@ -96,9 +100,22 @@ export function request(data: Record<string, unknown>, timeout = 8000): Promise<
   });
 }
 
+/** Keep the connection indicator live even when no snapshots arrive. */
+function watchConnection() {
+  deploy.watchdog();
+  const a = useArena.getState();
+  if (a.phase !== 'match' || !live.haveState || document.hidden) return;
+  const grade = netMonitor.report(performance.now()).grade as typeof a.hud.net;
+  if (a.hud.net !== grade) a.set({ hud: { ...a.hud, net: grade } });
+  if (socket?.readyState === WebSocket.OPEN && performance.now() - lastSnapshotAt > 8000) {
+    // A blackholed TCP close handshake may never finish: retire this handler now.
+    const stale = socket; stale.close(); stale.onclose?.(new CloseEvent('close', { code: 1006 }));
+  }
+}
+
 export function connect() {
   stopped = false; clearTimeout(retryTimer);
-  clearInterval(watchTimer); watchTimer = setInterval(deploy.watchdog, 1000);
+  clearInterval(watchTimer); watchTimer = setInterval(watchConnection, 1000);
   if (socket && socket.readyState < 2) return;
   const a = useArena.getState(); a.set({ status: 'connecting', error: '' });
   let ws: WebSocket;
@@ -106,7 +123,7 @@ export function connect() {
   socket = ws;
   ws.onopen = async () => {
     if (socket !== ws) return;
-    if (everOpened) netMonitor.reconnected(); everOpened = true; lastAck = -1;
+    if (everOpened) netMonitor.reconnected(); everOpened = true; lastAck = -1; snapshotOrder.reset(); lastSnapshotAt = performance.now();
     const access = await accountAccess().catch(() => null);
     if (socket !== ws) return;
     const g = useGame.getState();
@@ -240,6 +257,7 @@ function receive(m: Record<string, any>) {
 function enterMatch(view: MatchView, you: { num: number; team: number; key: string }, loadout: Loadout, rejoined: boolean) {
   const a = useArena.getState();
   const same = rejoined && a.match?.id === view.id;
+  snapshotOrder.reset(); lastAck = -1; lastSnapshotAt = performance.now();
   if (!same) { resetMatch(); a.set({ result: null, progress: null, record: null }); }
   // Deployment: assigned to a match. After a reconnect to the same match, carry on from where it stood.
   if (same && deploy.useDeploy.getState().stage === 'recovering') deploy.resumed(); else if (!same || deploy.useDeploy.getState().stage !== 'deployed') deploy.assigned();
@@ -260,7 +278,9 @@ function enterMatch(view: MatchView, you: { num: number; team: number; key: stri
 }
 
 function snapshot(m: Record<string, any>) {
+  if (!snapshotOrder.accept(m.at) || m.me && m.me.life < live.life) return;
   const now = performance.now(), a = useArena.getState();
+  lastSnapshotAt = now;
   live.playback.receive(m.at, now);
   netMonitor.snapshot(now);
   // Once a second: grade the connection, and buffer remote players just enough to ride out the measured jitter
@@ -291,6 +311,7 @@ function snapshot(m: Record<string, any>) {
   for (const id of live.grenades.keys()) if (!g.has(id)) live.grenades.delete(id);
   // ---- our own state: reconcile
   const me = m.me;
+  if (me && Number.isSafeInteger(me.ack)) live.seq = Math.max(live.seq, me.ack);
   if (me && live.loadout && live.ctx) {
     if (!live.sim || me.life !== live.life) {
       live.sim = spawnState({ x: 0, z: 0, yaw: 0 }, live.loadout, live.perks); live.life = me.life;
@@ -305,7 +326,8 @@ function snapshot(m: Record<string, any>) {
       for (const c of live.pending) step(live.sim, c, live.ctx);
       const ex = bx - live.sim.x, ey = by - live.sim.y, ez = bz - live.sim.z;
       netMonitor.correction(Math.hypot(ex, ey, ez), now);
-      if (Math.hypot(ex, ey, ez) < 2) { live.smooth.x += ex; live.smooth.y += ey; live.smooth.z += ez; } else live.smooth = { x: 0, y: 0, z: 0 };
+      live.smooth.x += ex; live.smooth.y += ey; live.smooth.z += ez;
+      constrainCorrection(live.world, live.sim, live.smooth);
       live.prev.x -= ex; live.prev.y -= ey; live.prev.z -= ez;
     }
     live.alive = me.alive; if (typeof me.ack === 'number') lastAck = Math.max(lastAck, me.ack);
@@ -547,10 +569,13 @@ function event(ev: Record<string, any>) {
 export function tickInput(dt: number) {
   const a = useArena.getState();
   if (!live.sim || !live.ctx || a.phase !== 'match' || socket?.readyState !== WebSocket.OPEN) { live.acc = 0; return; }
-  live.acc = Math.min(live.acc + dt, .25);
+  // Stop speculative simulation rather than discarding commands still needed for replay.
+  // View/aim and the HUD keep updating; the watchdog reconnects a silent server.
+  if (!canPredict(live.pending.length, socket.bufferedAmount) || live.outgoing.length >= 24) live.acc = 0;
+  else live.acc = Math.min(live.acc + dt, .25);
   const paused = inputPaused(a) || document.hidden;
   const auto = a.settings.autoFire && a.match?.autoFire !== false;
-  while (live.acc >= DT) {
+  while (live.acc >= DT && canPredict(live.pending.length, socket.bufferedAmount) && live.outgoing.length < 24) {
     live.acc -= DT;
     const { mx, mz } = paused ? { mx: 0, mz: 0 } : axes();
     let b = paused ? 0 : buttons();
@@ -567,7 +592,6 @@ export function tickInput(dt: number) {
     if (live.alive) {
       live.prev.x = live.sim.x; live.prev.y = eyeOf(live.sim); live.prev.z = live.sim.z;
       live.pending.push(cmd);
-      if (live.pending.length > 240) live.pending.shift();
       const adsBefore = live.sim.ads;
       const events = step(live.sim, cmd, live.ctx);
       for (const ev of events) local(ev);
@@ -579,8 +603,7 @@ export function tickInput(dt: number) {
   const now = performance.now();
   if (live.outgoing.length && (now - live.lastSend >= 30 || live.outgoing.length >= 4)) {
     const rt = live.playback.time(now);
-    raw({ t: 'c', rt: rt == null ? null : Math.round(rt), c: live.outgoing.splice(0, 12) });
-    live.lastSend = now;
+    if (raw({ t: 'c', rt: rt == null ? null : Math.round(rt), c: live.outgoing.slice(0, 12) })) { live.outgoing.splice(0, 12); live.lastSend = now; }
   }
 }
 /** Our own predicted events: immediate muzzle flash, tracer, impact and sound. Hits are confirmed by the server. */

@@ -1,3 +1,4 @@
+import { portraitBlocked } from '../mobile/orientation';
 // Combat Arena interface state. High-frequency values (positions, view angles, ammunition as it
 // changes every shot) live outside React in src/arena/net.ts; this store holds what the interface
 // shows and is updated only when those values change, at most ~15 times a second.
@@ -20,7 +21,7 @@ export interface ArenaSettings {
   mouse: number; ads: number; touch: number; pad: number; invertY: boolean; fov: number; quality: Quality | 'ultra'; showFps: boolean; autoSprint: boolean;
   /** Auto-fire (off by default): the trigger is pressed while the player's own aim is on a visible enemy. */
   autoFire: boolean;
-  /** Lower the resolution (then the graphics profile) automatically when the frame rate cannot be held. */
+  /** Reduce optional effects, then try render resolution automatically when the frame rate cannot be held. */
   adaptive: boolean; renderScale: number; qualityChosen: boolean;
   /** Touch: the movement stick stays where the layout puts it instead of following the thumb. */
   fixedStick: boolean;
@@ -90,7 +91,7 @@ const settingsListeners = new Set<(s: ArenaSettings) => void>();
 /** Called after every settings change (account synchronisation listens). */
 export function onSettingsChange(fn: (s: ArenaSettings) => void) { settingsListeners.add(fn); return () => { settingsListeners.delete(fn); }; }
 /** Paused for input: menus, the loadout editor, settings, the HUD editor or the Armory are open. */
-export const inputPaused = (a: { menu: boolean; editor: boolean; settingsOpen: boolean; hudEditor: boolean; armory: string | null }) => a.menu || a.editor || a.settingsOpen || a.hudEditor || a.armory !== null;
+export const inputPaused = (a: { menu: boolean; editor: boolean; settingsOpen: boolean; hudEditor: boolean; armory: string | null }) => portraitBlocked() || a.menu || a.editor || a.settingsOpen || a.hudEditor || a.armory !== null;
 
 /** Transient centre-screen messages (announcements and medals), outside React state churn. */
 export type Banner = { id: number; text: string; sub?: string; tone: 'info' | 'good' | 'bad' | 'medal' | 'big'; at: number; ms: number };

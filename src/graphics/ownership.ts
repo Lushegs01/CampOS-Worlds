@@ -10,6 +10,12 @@ export async function acquireRenderer(): Promise<(failure?: string) => void> {
 }
 
 /** Cap pixels as well as DPR: a Retina/4K laptop must not allocate unbounded post buffers. */
-export function pixelRatio(width: number, height: number, requested: number, maxSize = Infinity): number {
-  return Math.min(requested, Math.sqrt(3840 * 2160 / Math.max(1, width * height)), maxSize / Math.max(1, width, height));
+export function drawingBufferBudget(memory: number | undefined, profile: string): number {
+  // A half-float post stack owns several full-size targets. Bound those before allocating them.
+  if (memory !== undefined && memory <= 2) return 1920 * 1080;
+  if (memory !== undefined && memory <= 4 || profile === 'low' || profile === 'medium') return 2560 * 1440;
+  return 3840 * 2160;
+}
+export function pixelRatio(width: number, height: number, requested: number, maxSize = Infinity, maxPixels = 3840 * 2160): number {
+  return Math.min(requested, Math.sqrt(maxPixels / Math.max(1, width * height)), maxSize / Math.max(1, width, height));
 }

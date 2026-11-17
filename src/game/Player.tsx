@@ -1,3 +1,4 @@
+import { portraitBlocked } from '../mobile/orientation';
 import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked, vehicleLift } from '../vehicles/client';
 import { dormLayout } from '../dorm/client';
 import { furnitureAllows, inDormRoom, DORM_ROOM } from '../../shared/dorm.mjs';
@@ -91,7 +92,7 @@ export default function Player() {
       // Combat Arena handles its own keys (including Escape for its menus) while it is open.
       if (s.panel === 'arena') return;
       if (e.code === 'Escape') { cancelCharge(); if (s.panel) s.set({ panel: null }); else if (s.phase === 'playing') s.set({ panel: 'settings' }); document.exitPointerLock?.(); keys.clear(); return; }
-      if (s.phase !== 'playing' || s.panel) return;
+      if (s.phase !== 'playing' || s.panel || portraitBlocked()) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); keys.add(e.code);
       const act = activity();
       if(useVehicle.getState().id&&['Space','KeyQ',...MOVE_KEYS].includes(e.code))return;
@@ -106,8 +107,8 @@ export default function Player() {
       if (['Digit1', 'Digit2', 'Digit3'].includes(e.code) && act === 'free') { const emote = ['wave', 'dance', 'cheer'][Number(e.code.slice(-1)) - 1]; player.emote = emote; player.emoteUntil = Date.now() + 3000; send({ type: 'emote', emote }); }
     };
     const keyup = (e: KeyboardEvent) => { keys.delete(e.code); if (e.code === 'Space') releaseShot(e.timeStamp / 1000); };
-    const clear = () => { keys.clear(); input.jump = false; input.x = input.z = 0; input.dragging = false; cancelCharge(); };
-    const mouse = (e: MouseEvent) => { const s = useGame.getState(); if (s.phase !== 'playing' || s.panel) return; if (document.pointerLockElement === gl.domElement || input.dragging) { input.yaw -= e.movementX * .0032; input.pitch = THREE.MathUtils.clamp(input.pitch + e.movementY * .0022, -.25, .95); } };
+    const clear = () => { keys.clear(); input.jump = false; input.x = input.z = 0; input.dragging = false; cancelCharge(); cancelApproach(); };
+    const mouse = (e: MouseEvent) => { const s = useGame.getState(); if (s.phase !== 'playing' || s.panel || portraitBlocked()) return; if (document.pointerLockElement === gl.domElement || input.dragging) { input.yaw -= e.movementX * .0032; input.pitch = THREE.MathUtils.clamp(input.pitch + e.movementY * .0022, -.25, .95); } };
     const down = (e: PointerEvent) => { if (e.pointerType === 'touch') return; if (useGame.getState().phase === 'playing' && !useGame.getState().panel) input.dragging = true; };
     const up = () => { input.dragging = false; };
     const wheel = (e: WheelEvent) => { if (useGame.getState().phase !== 'playing' || useGame.getState().panel) return; cam.current.zoom = THREE.MathUtils.clamp(cam.current.zoom + Math.sign(e.deltaY) * .6, 2.8, 9); };
@@ -121,8 +122,8 @@ export default function Player() {
       state: () => ({ prediction: { active: prediction.active, pending: prediction.pending }, activity: activity(), chargeStart: chargeStartedAt(), x: player.x, z: player.z, room: { ...roomSelf }, y: player.y, yaw: player.yaw, sit: player.sit && { ...player.sit }, holding: player.holding, charge: player.charge, ui: { ...useInteraction.getState(), set: undefined }, world: world.snapshot() }),
       face: (yaw: number) => { player.yaw = yaw; input.yaw = yaw + Math.PI; cam.current.yaw = input.yaw; },
     };
-    window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); document.addEventListener('visibilitychange', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
-    return () => { clear(); send({ type: 'input', dx: 0, dz: 0, yaw: player.yaw, sprint: false, jump: false }); if (QA_HOOKS) delete (window as unknown as Record<string, unknown>).__campusDebug; window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
+    window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); window.addEventListener('gameinputreset', clear); document.addEventListener('visibilitychange', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
+    return () => { clear(); send({ type: 'input', dx: 0, dz: 0, yaw: player.yaw, sprint: false, jump: false }); if (QA_HOOKS) delete (window as unknown as Record<string, unknown>).__campusDebug; window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); window.removeEventListener('gameinputreset', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
   }, [gl]);
 
   useEffect(() => { prediction.collision(footAllowed); }, []);
@@ -138,7 +139,7 @@ export default function Player() {
     }
     if (c.wasWelcome) { c.wasWelcome = false; c.intro = s.reducedMotion ? 1 : 0; posFrom.copy(camera.position); lookFrom.set(-3, 2, -10); }
     root.current.visible = true;
-    const enabled = !s.panel && !document.hidden;
+    const enabled = !s.panel && !document.hidden && !portraitBlocked();
     tickInteractions(dt);
     const vehicle=currentVehicle(),occupancy=useVehicle.getState();
     if(vehicle){

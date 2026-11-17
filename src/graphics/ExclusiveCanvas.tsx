@@ -3,12 +3,18 @@ import { Canvas, type CanvasProps } from '@react-three/fiber';
 import * as THREE from 'three';
 import { rememberGraphicsCapabilities } from './capabilities';
 import { installCompilation } from './compile';
-import { acquireRenderer, pixelRatio } from './ownership';
+import { acquireRenderer, pixelRatio, drawingBufferBudget } from './ownership';
 import { trackDisposeListeners } from './gpuListeners';
 import { QA_HOOKS } from '../qa';
 
 type Owner = 'campus' | 'arena';
 type Diagnostic = Record<string, unknown>;
+/** Adapt from the attainable drawing density, so a capped buffer does not hide every resolution trial. */
+export function scenePixelRatio(renderer: THREE.WebGLRenderer, width: number, height: number, requested: number, profile: string) {
+  const gl = renderer.getContext();
+  const limit = Math.min(renderer.capabilities.maxTextureSize, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
+  return pixelRatio(width, height, requested, limit, drawingBufferBudget((navigator as Navigator & { deviceMemory?: number }).deviceMemory, profile));
+}
 const events: Diagnostic[] = [];
 let serial = 0;
 let lastContextLoss: Diagnostic | null = null;
@@ -93,11 +99,12 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
       const setPixelRatio = renderer.setPixelRatio.bind(renderer), setSize = renderer.setSize.bind(renderer);
       let requested = 1, width = 1, height = 1, resizing = false;
       const limit = Math.min(renderer.capabilities.maxTextureSize, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
-      renderer.setPixelRatio = value => { requested = value; setPixelRatio(pixelRatio(width, height, requested, limit)); };
+      const budget = () => drawingBufferBudget((navigator as Navigator & { deviceMemory?: number }).deviceMemory, current.current.profile);
+      renderer.setPixelRatio = value => { requested = value; setPixelRatio(pixelRatio(width, height, requested, limit, budget())); };
       renderer.setSize = (w, h, updateStyle) => {
         if (resizing) { setSize(w, h, updateStyle); return; }
         width = w; height = h; resizing = true;
-        try { setPixelRatio(pixelRatio(w, h, requested, limit)); setSize(w, h, updateStyle); }
+        try { setPixelRatio(pixelRatio(w, h, requested, limit, budget())); setSize(w, h, updateStyle); }
         finally { resizing = false; }
       };
       const cancelCompilation = installCompilation(renderer, (name, detail) => record(snapshot(name, detail)));

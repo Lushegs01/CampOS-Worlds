@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeSlot, decodeState } from '../src/world/decodeQueue.ts';
-import { traffic } from '../src/world/fetcher.ts';
+import { traffic, endSession } from '../src/world/fetcher.ts';
 
 const later = ms => new Promise(r => setTimeout(r, ms));
 test('priority 1 overtakes queued background decodes; two at a time', async () => {
@@ -33,4 +33,31 @@ test('each finished decode counts as progress for the deployment watchdog (no fa
   traffic.lastByteAt = 0;
   await decodeSlot({ priority: 1 }, 'model', async () => 'ok');
   assert.ok(traffic.lastByteAt > 0, 'progress recorded');
+});
+
+test('leaving the Arena cancels queued decodes without starting them or losing running slots', async () => {
+  let finish;
+  const running = decodeSlot({ priority: 2 }, 'running', () => new Promise(r => { finish = r; }));
+  await Promise.resolve();
+  let started = false;
+  const queued = decodeSlot({ priority: 3 }, 'not-needed', async () => { started = true; });
+  const rejected = assert.rejects(queued, { name: 'AbortError' });
+  endSession(); await rejected;
+  assert.equal(started, false);
+  assert.deepEqual(decodeState(), { running: 1, background: 1, queued: 0 });
+  finish(); await running;
+  assert.deepEqual(decodeState(), { running: 0, background: 0, queued: 0 });
+  assert.equal(await decodeSlot({ priority: 1 }, 'next-match', async () => 'ready'), 'ready');
+});
+
+test('an individually aborted queued decode never runs', async () => {
+  let finish;
+  const running = decodeSlot({ priority: 2 }, 'running', () => new Promise(r => { finish = r; }));
+  await Promise.resolve();
+  const ctrl = new AbortController();
+  const queued = decodeSlot({ priority: 3, signal: ctrl.signal }, 'cancelled', () => { throw Error('must not run'); });
+  const rejected = assert.rejects(queued, { name: 'AbortError' });
+  ctrl.abort(); await rejected; finish(); await running;
+  const aborted = new AbortController(); aborted.abort();
+  await assert.rejects(decodeSlot({ signal: aborted.signal }, 'already-cancelled', async () => 1), { name: 'AbortError' });
 });

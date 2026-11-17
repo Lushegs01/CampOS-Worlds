@@ -1,4 +1,6 @@
-import { ExclusiveCanvas } from '../graphics/ExclusiveCanvas';
+import { createPerformanceBudget } from '../../shared/arena/performance.mjs';
+import { portraitBlocked } from '../mobile/orientation';
+import { ExclusiveCanvas, scenePixelRatio } from '../graphics/ExclusiveCanvas';
 import { occupiedAnchor, vehicleLift } from '../vehicles/client';
 import { DormFurniture } from './Dorm';
 import { mySpace } from '../dorm/client';
@@ -24,7 +26,7 @@ import { ACHIEVEMENT_BY_ID } from '../../shared/achievements.mjs';
 import { LOCATIONS, TOKENS } from '../../shared/campus.mjs';
 import { cached, initLoaders, suspend } from './assets';
 import { QUALITY, type QualityProfile } from './quality';
-import { createResolution, STALL } from './resolution.mjs';
+import { STALL } from './resolution.mjs';
 import { loadSurfaces, createMaterials, type Materials } from './materials';
 import { SkyDome, Lighting, LIGHTING, loadSkyInfo } from './Sky';
 import { Ground } from './Ground';
@@ -33,7 +35,7 @@ import { Vegetation, setSunDirection } from './Vegetation';
 import { signFontsReady } from './architecture/signage';
 import { surfaceHeight } from './layout';
 import { registerMovingCaster } from './shadows';
-import { behindMenu, MENU_FRAME, postStack } from './rendering';
+import { behindMenu, MENU_FRAME, postStack, campusBudget } from './rendering';
 import { setListener } from '../audio/mixer';
 import { stopAmbience, tickAmbience } from '../audio/ambience';
 const PostFX = lazy(() => import('./PostFX'));
@@ -122,12 +124,24 @@ function Waypoint() {
   </group> : null;
 }
 
-/** Lowers the render scale when frames run long and restores it when there is headroom (policy: ./resolution.mjs). */
-function AdaptiveResolution({ max, min }: { max: number; min: number }) {
-  const setDpr = useThree(s => s.setDpr), control = useMemo(() => createResolution(max, min), [max, min]);
-  useEffect(() => { setDpr(max); }, [control, max, setDpr]);
-  // Behind a menu on a touch screen frames are skipped on purpose (./rendering): not a measure of the device.
-  useFrame((_, dt) => { const next = control.frame(behindMenu() ? Infinity : dt); if (next != null) setDpr(next); });
+/** Reduces optional work before testing render scale; restores detail after sustained headroom. */
+function AdaptiveResolution({ max: requested, min: floor }: { max: number; min: number }) {
+  const setDpr = useThree(s => s.setDpr), profile = useGame(s => s.quality);
+  const { gl, size } = useThree();
+  const max = useMemo(() => scenePixelRatio(gl, size.width, size.height, requested, profile), [gl, size.width, size.height, requested, profile]);
+  const min = Math.min(max, floor);
+  const control = useMemo(() => createPerformanceBudget({ target: matchMedia('(pointer: coarse)').matches ? 30 : 55, min: min / max }), [max, min, profile]);
+  const sample = useRef({ frames: 0, time: 0 });
+  useEffect(() => { setDpr(max); campusBudget.level = 0; sample.current = { frames: 0, time: 0 }; return () => { campusBudget.level = 0; }; }, [control, max, setDpr]);
+  useFrame((_, dt) => {
+    const s = sample.current;
+    if (QA_SCALE || useGame.getState().phase !== 'playing' || behindMenu() || portraitBlocked() || document.hidden || dt > STALL) { s.frames = s.time = 0; return; }
+    s.frames++; s.time += dt;
+    if (s.time < 1) return;
+    const next = control.sample(s.frames / s.time); s.frames = s.time = 0;
+    campusBudget.level = next.level;
+    if (next.changed) setDpr(max * next.scale);
+  });
   return null;
 }
 
@@ -138,8 +152,9 @@ function AdaptiveResolution({ max, min }: { max: number; min: number }) {
 function Render() {
   const skipped = useRef(0);
   useFrame(({ gl, scene, camera }, dt) => {
+    if (QA_NO_RENDER) return;
     skipped.current += dt;
-    if (behindMenu() && skipped.current < MENU_FRAME) return;
+    if ((behindMenu() || portraitBlocked() || document.hidden) && skipped.current < MENU_FRAME) return;
     const elapsed = skipped.current; skipped.current = 0;
     if (postStack.composer) postStack.composer.render(elapsed); else gl.render(scene, camera);
   }, 1);
@@ -158,12 +173,12 @@ function Soundscape() {
 }
 
 function Telemetry() {
-  const { gl, scene, camera } = useThree(), frames = useRef(0), elapsed = useRef(0), sample = useRef({ calls: 0, triangles: 0 });
+  const { gl, scene, camera, setDpr } = useThree(), frames = useRef(0), elapsed = useRef(0), sample = useRef({ calls: 0, triangles: 0 });
   // The post stack renders several passes per frame; accumulate them all and sample per frame.
   useEffect(() => { gl.info.autoReset = false; return () => { gl.info.autoReset = true; }; }, [gl]);
   useFrame(() => { if (gl.info.render.calls) sample.current = { calls: gl.info.render.calls, triangles: gl.info.render.triangles }; gl.info.reset(); }, -100);
   useEffect(() => {
-    if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene, __campusCamera: camera });
+    if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene, __campusCamera: camera, __campusSetDpr: setDpr });
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusHide = (prefix: string, hide = true) => { let n = 0; scene.traverse(o => { if (o.name.startsWith(prefix)) { o.visible = !hide; n++; } }); return n; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusStats = () => {
       const by: Record<string, number> = {};
@@ -171,7 +186,7 @@ function Telemetry() {
       return Object.entries(by).sort((x, y) => y[1] - x[1]).slice(0, 30);
     };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusInspect = () => { const s = useGame.getState(); return { position: { x: player.x, y: player.y, z: player.z }, yaw: input.yaw, panel: s.panel, nearby: s.nearby, status: s.status, discovered: s.discovered, tourStep: s.tourStep, tokens: s.tokens, bestScore: s.bestScore, peers: s.peers.map(p => ({ ...p, ...livePeers.get(p.id) })), avatar: s.avatar, quality: s.quality }; };
-    return () => { if (QA_HOOKS) for (const key of ['__campusGL', '__campusScene', '__campusCamera', '__campusInspect', '__campusHide', '__campusStats', '__campus']) delete (window as unknown as Record<string, unknown>)[key]; };
+    return () => { if (QA_HOOKS) for (const key of ['__campusGL', '__campusScene', '__campusCamera', '__campusSetDpr', '__campusInspect', '__campusHide', '__campusStats', '__campus']) delete (window as unknown as Record<string, unknown>)[key]; };
   }, [gl, scene]);
   useFrame((_, dt) => {
     // Behind a menu the frame rate is held down on purpose: keep showing the one measured while playing.
@@ -237,6 +252,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
 // QA builds only: `?qa-scale=0.25` renders the 3D view at a fixed low resolution, so browser tests
 // on machines without a GPU (software WebGL) stay responsive. Interface and gameplay are unchanged.
 const QA_SCALE = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale')) || 0)) : 0;
+const QA_NO_RENDER = QA_HOOKS && new URLSearchParams(location.search).has('qa-norender');
 // Memoised: the interface around the canvas re-renders on its own state; that must not reconcile the scene.
 export default memo(function World() {
   const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey], ceiling = QA_SCALE || Math.min(quality.dpr, window.devicePixelRatio || 1);
@@ -250,7 +266,7 @@ export default memo(function World() {
       <Campus quality={quality} />
       {quality.post && <Suspense fallback={null}><PostFX quality={quality} /></Suspense>}
     </Suspense>
-    <AdaptiveResolution max={ceiling} min={QA_SCALE || (qualityKey === 'high' ? .75 : .6)} />
+    <AdaptiveResolution max={ceiling} min={QA_SCALE || Math.min(ceiling, .85)} />
     <Telemetry />
     <Soundscape />
     <Render />

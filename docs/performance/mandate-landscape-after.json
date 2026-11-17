@@ -1,0 +1,369 @@
+{
+  "date": "2026-11-17T13:46:15.123Z",
+  "label": "mandate-landscape-after",
+  "url": "http://localhost:5173",
+  "browser": "156.0.8078.79",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "hardwareGpu": false,
+  "viewport": {
+    "width": 844,
+    "height": 390,
+    "deviceScaleFactor": 3
+  },
+  "bots": 0,
+  "secondsPerSample": 4,
+  "environment": "Linux container without a GPU: Chromium with SwiftShader (software WebGL), mobile viewport and touch emulation. Frame times measure a CPU rasterizer; not a phone measurement.",
+  "query": "?qa-scale=0.2",
+  "readyMs": 17851,
+  "resources": {
+    "requests": 250,
+    "transferredBytes": 28527722,
+    "decodedBytes": 28452722,
+    "characterModels": [
+      "tunde.glb",
+      "emeka.glb",
+      "seun.glb",
+      "ibrahim.glb",
+      "anim-m.glb",
+      "zainab.glb",
+      "ada.glb",
+      "anim-f.glb"
+    ],
+    "characterBytes": 10305260
+  },
+  "samples": [
+    {
+      "name": "entry",
+      "frames": 9,
+      "fps": 2,
+      "p50Ms": 549.9,
+      "p95Ms": 650,
+      "p99Ms": 650,
+      "maxMs": 650,
+      "longFrames": 8,
+      "longFrameMs": 4533,
+      "telemetry": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 36
+        },
+        "fps": 2,
+        "drawCalls": 155,
+        "triangles": 221341,
+        "textures": 114,
+        "geometries": 191,
+        "quality": "low",
+        "peers": [],
+        "tokens": []
+      },
+      "dpr": 0.2,
+      "heapMB": 180.6,
+      "mainThread": {
+        "scriptMsPerSec": 44.4,
+        "taskMsPerSec": 998.3,
+        "layoutsPerSec": 0,
+        "recalcStylesPerSec": 0
+      }
+    },
+    {
+      "name": "walk-and-turn",
+      "frames": 6,
+      "fps": 1.3,
+      "p50Ms": 816.6,
+      "p95Ms": 1333.3,
+      "p99Ms": 1333.3,
+      "maxMs": 1333.3,
+      "longFrames": 5,
+      "longFrameMs": 4617,
+      "telemetry": {
+        "position": {
+          "x": 0.4782166518973131,
+          "y": 0,
+          "z": 25.225524298099977
+        },
+        "fps": 1,
+        "drawCalls": 183,
+        "triangles": 349956,
+        "textures": 128,
+        "geometries": 245,
+        "quality": "low",
+        "peers": [],
+        "tokens": []
+      },
+      "dpr": 0.2,
+      "heapMB": 189.1,
+      "mainThread": {
+        "scriptMsPerSec": 20.3,
+        "taskMsPerSec": 998.5,
+        "layoutsPerSec": 0,
+        "recalcStylesPerSec": 0
+      }
+    },
+    {
+      "name": "after-walk",
+      "frames": 7,
+      "fps": 1.6,
+      "p50Ms": 733.3,
+      "p95Ms": 783.2,
+      "p99Ms": 783.2,
+      "maxMs": 783.2,
+      "longFrames": 6,
+      "longFrameMs": 4433,
+      "telemetry": {
+        "position": {
+          "x": 1.5382476612530374,
+          "y": 0,
+          "z": 19.930262722675632
+        },
+        "fps": 1,
+        "drawCalls": 192,
+        "triangles": 357588,
+        "textures": 131,
+        "geometries": 268,
+        "quality": "low",
+        "peers": [],
+        "tokens": []
+      },
+      "dpr": 0.2,
+      "heapMB": 184.4,
+      "mainThread": {
+        "scriptMsPerSec": 29.6,
+        "taskMsPerSec": 998.8,
+        "layoutsPerSec": 0,
+        "recalcStylesPerSec": 0.2
+      }
+    },
+    {
+      "name": "library",
+      "frames": 5,
+      "fps": 1.2,
+      "p50Ms": 916.7,
+      "p95Ms": 1383.3,
+      "p99Ms": 1383.3,
+      "maxMs": 1383.3,
+      "longFrames": 4,
+      "longFrameMs": 4150,
+      "telemetry": {
+        "position": {
+          "x": -30,
+          "y": 0,
+          "z": -14
+        },
+        "fps": 1,
+        "drawCalls": 88,
+        "triangles": 238380,
+        "textures": 112,
+        "geometries": 182,
+        "quality": "low",
+        "peers": [],
+        "tokens": [
+          "t2"
+        ]
+      },
+      "dpr": 0.2,
+      "heapMB": 192.4,
+      "mainThread": {
+        "scriptMsPerSec": 63.8,
+        "taskMsPerSec": 997.4,
+        "layoutsPerSec": 0.1,
+        "recalcStylesPerSec": 0.1
+      }
+    },
+    {
+      "name": "cafe",
+      "frames": 7,
+      "fps": 1.7,
+      "p50Ms": 583.3,
+      "p95Ms": 1033.3,
+      "p99Ms": 1033.3,
+      "maxMs": 1033.3,
+      "longFrames": 6,
+      "longFrameMs": 4017,
+      "telemetry": {
+        "position": {
+          "x": 30,
+          "y": 0,
+          "z": -8
+        },
+        "fps": 1,
+        "drawCalls": 150,
+        "triangles": 322978,
+        "textures": 146,
+        "geometries": 231,
+        "quality": "low",
+        "peers": [],
+        "tokens": [
+          "t2"
+        ]
+      },
+      "dpr": 0.2,
+      "heapMB": 198.9,
+      "mainThread": {
+        "scriptMsPerSec": 68.7,
+        "taskMsPerSec": 998.5,
+        "layoutsPerSec": 0,
+        "recalcStylesPerSec": 0
+      }
+    },
+    {
+      "name": "court",
+      "frames": 6,
+      "fps": 1.4,
+      "p50Ms": 816.7,
+      "p95Ms": 983.3,
+      "p99Ms": 983.3,
+      "maxMs": 983.3,
+      "longFrames": 5,
+      "longFrameMs": 4217,
+      "telemetry": {
+        "position": {
+          "x": 44,
+          "y": 0,
+          "z": 20
+        },
+        "fps": 1,
+        "drawCalls": 199,
+        "triangles": 361480,
+        "textures": 170,
+        "geometries": 266,
+        "quality": "low",
+        "peers": [],
+        "tokens": [
+          "t2"
+        ]
+      },
+      "dpr": 0.2,
+      "heapMB": 200.3,
+      "mainThread": {
+        "scriptMsPerSec": 14,
+        "taskMsPerSec": 999.1,
+        "layoutsPerSec": 0,
+        "recalcStylesPerSec": 0
+      }
+    }
+  ],
+  "scene": [
+    [
+      "Mesh",
+      323016
+    ],
+    [
+      "trees:road",
+      282128
+    ],
+    [
+      "chairs:schoolChair",
+      127800
+    ],
+    [
+      "trees:wood",
+      45280
+    ],
+    [
+      "books",
+      38520
+    ],
+    [
+      "chairs:monobloc",
+      34200
+    ],
+    [
+      "campus:stucco",
+      29400
+    ],
+    [
+      "street-lights",
+      17512
+    ],
+    [
+      "campus:bronze",
+      16780
+    ],
+    [
+      "campus:aluminium",
+      15156
+    ],
+    [
+      "trees:leaves",
+      14860
+    ],
+    [
+      "prop:pottedPlant",
+      14256
+    ],
+    [
+      "campus-roads:lineWhite",
+      12180
+    ],
+    [
+      "ground",
+      8192
+    ],
+    [
+      "campus:darkMetal",
+      7572
+    ],
+    [
+      "m007_hipoly_81_bones_1",
+      7388
+    ],
+    [
+      "campus:stuccoCream",
+      7188
+    ],
+    [
+      "m007_hipoly_81_bones_2",
+      6056
+    ],
+    [
+      "campus:steel",
+      5672
+    ],
+    [
+      "campus-roads:brushed",
+      5436
+    ],
+    [
+      "campus:paintDark",
+      5396
+    ],
+    [
+      "m300_hipoly_81_bones_opacity_1",
+      4988
+    ],
+    [
+      "campus:paintTerracotta",
+      4876
+    ],
+    [
+      "prop:picnic",
+      4713
+    ],
+    [
+      "prop:hydrant",
+      4708
+    ],
+    [
+      "campus:paintGreen",
+      4612
+    ],
+    [
+      "campus:paintWhite",
+      4408
+    ],
+    [
+      "m016_hipoly_81_bones_1",
+      4182
+    ],
+    [
+      "campus:brushed",
+      4060
+    ],
+    [
+      "m022_hipoly_81_bones_1",
+      3880
+    ]
+  ],
+  "errors": []
+}

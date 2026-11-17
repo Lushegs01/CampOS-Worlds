@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
    manifest:{
     id:'/',name:'CampOS Worlds',short_name:'CampOS Worlds',lang:'en',
     description:'Explore a shared 3D university campus, meet friends and join campus activities.',
-    start_url:'/',scope:'/',display:'standalone',background_color:'#19382f',theme_color:'#19382f',
+    start_url:'/',scope:'/',orientation:'landscape',display:'standalone',background_color:'#19382f',theme_color:'#19382f',
     categories:['games','social','education'],
     icons:[
      {src:'/icons/icon-192.png',sizes:'192x192',type:'image/png',purpose:'any'},

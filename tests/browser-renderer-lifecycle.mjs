@@ -1,10 +1,11 @@
 // Independent context accounting, including WEBGL_lose_context. Run against a QA production build:
-// VITE_QA=1 npm run build && node tests/browser-renderer-lifecycle.mjs
+// VITE_QA=1 npx vite build --outDir dist-qa && ROOT=dist-qa node tests/browser-renderer-lifecycle.mjs
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { launch } from './support/browser.mjs';
 import { startProduction } from './support/production.mjs';
-const host = process.env.URL ? { url: process.env.URL, stop: async () => {} } : await startProduction();
+const host = process.env.URL ? { url: process.env.URL, stop: async () => {} } : await startProduction({ root: process.env.ROOT || (existsSync('dist-qa/index.html') ? 'dist-qa' : 'dist') });
 const browser = await launch();
 const report = { renderer: 'Software WebGL; physical laptop validation outstanding', checks: [], samples: [] };
 try {
@@ -36,7 +37,19 @@ try {
   };
   const ready = async owner => {
     await page.waitForFunction(owner => window.__graphics?.().active?.owner === owner, owner);
-    if (owner === 'campus') await page.waitForFunction(() => !!window.__campusDebug && !!window.__campusInspect && window.__campusGL?.info.memory.geometries > 100);
+    if (owner === 'campus') {
+      await page.waitForFunction(() => !!window.__campusDebug && !!window.__campusInspect && window.__campusGL?.info.memory.geometries > 100);
+      // Optional vegetation compiles separately from the critical campus. Comparing an early
+      // pre-vegetation sample with a warm visit incorrectly reported its first upload as a leak.
+      await page.waitForFunction(() => window.__campusScene?.getObjectByName('trees:wood')?.parent?.visible);
+      let previous = '', stable = 0;
+      for (let i = 0; i < 45 && stable < 3; i++) {
+        await page.waitForTimeout(1000);
+        const key = await page.evaluate(() => JSON.stringify(window.__campusGL.info.memory));
+        stable = key === previous ? stable + 1 : 0; previous = key;
+      }
+      assert.ok(stable >= 3, 'campus GPU resource uploads settle before comparing visits');
+    }
     else await page.waitForFunction(() => window.__arenaDeploy?.().stage === 'deployed' && window.__arena?.state().sceneReady && window.__arenaGL?.info.memory.geometries > 20);
     assert.equal((await sample(owner)).live, 1);
   };

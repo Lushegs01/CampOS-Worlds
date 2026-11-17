@@ -1,3 +1,4 @@
+import { campusBudget } from './rendering';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -100,7 +101,7 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
       if (inside) fit([-78, 78, -72, 66]);
       else { const cx = Math.round(player.x / step) * step, cz = Math.round(player.z / step) * step; fit([cx - 70, cx + 70, cz - 70, cz + 70]); }
     }
-    if (quality.shadowMode === 'every-2nd-frame') { const s = sun.current.shadow; s.autoUpdate = false; s.needsUpdate = s.needsUpdate || (frame.current++ & 1) === 0; }
+    if (quality.shadowMode !== 'static') { const s = sun.current.shadow, interval = (quality.shadowMode === 'every-2nd-frame' ? 2 : 1) * (campusBudget.level >= 2 ? 3 : 1); s.autoUpdate = false; s.needsUpdate = s.needsUpdate || frame.current++ % interval === 0; }
   });
   return <directionalLight ref={sun} color={color} intensity={info.sunIrradiance * LIGHTING.sunScale} castShadow />;
 }
