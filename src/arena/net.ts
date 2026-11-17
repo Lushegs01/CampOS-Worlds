@@ -692,7 +692,7 @@ export { direction, B };
 // QA builds only: read-only inspection for the browser suite (tests/browser-arena.mjs).
 if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arenaDeploy = () => { const d = deploy.useDeploy.getState(); return { stage: d.stage, marks: d.marks, files: d.files, bytes: d.bytes, retries: d.retries, slow: d.slow, failure: d.failure, pending: d.pending }; };
 if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__arena = {
-  state: () => { const a = useArena.getState(); return { phase: a.phase, status: a.status, match: a.match && { id: a.match.id, kind: a.match.kind, code: a.match.code, state: a.match.state, players: a.match.players.length }, you: a.you, hud: a.hud }; },
+  state: () => { const a = useArena.getState(); return { phase: a.phase, status: a.status, sceneReady: a.sceneReady, match: a.match && { id: a.match.id, kind: a.match.kind, code: a.match.code, state: a.match.state, players: a.match.players.length }, you: a.you, hud: a.hud }; },
   remotes: () => [...live.remotes.values()].filter(r => (r.flags & 1) && r.seenAt).map(r => ({ num: r.num, team: r.team, x: r.pos.x, z: r.pos.z })),
   /** Re-read what the account owns (as the Armory does after a purchase). */
   refreshOwned: async () => { const r = await request({ t: 'owned' }); if (Array.isArray(r.owned)) useArena.getState().set({ owned: r.owned as string[] }); return r.owned; },

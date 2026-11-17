@@ -8,8 +8,8 @@
 //
 // Everything in the frame loop is imperative and pooled: the environment is a few merged meshes and
 // instanced props, soldiers are created once per player, and effects come from fixed particle pools.
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, RenderPass, EffectPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode, BloomEffect, VignetteEffect, BrightnessContrastEffect, HueSaturationEffect } from 'postprocessing';
 import { N8AOPostPass } from 'n8ao';
@@ -22,7 +22,7 @@ import { useArena, useBanners } from './store';
 import { live, onFx, tickInput, eye, useStreak, matOf, toggleAutoFire, sceneLoaded, onRetryAssets, type Fx } from './net';
 import * as deploy from './deploy';
 import { deadline } from '../world/fetcher';
-import { controls, pollGamepad, attachDesktop } from './input';
+import { controls, releaseAll, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, loadDecor, loadSurfaceDetail, themeOf, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
 import { buildMetropolis, CITY_DECOR, type CityVariant } from './scene/metropolis';
@@ -36,7 +36,7 @@ import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
 import { forgetAssets, cachedAssets } from '../world/assets';
-import { trackDisposeListeners } from './scene/gpuListeners';
+import { ExclusiveCanvas } from '../graphics/ExclusiveCanvas';
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
 import { Effects, Casings, setEffectsGround } from './scene/fx';
@@ -73,6 +73,7 @@ function releaseGpu(...roots: THREE.Object3D[]) {
     const m = o as THREE.Mesh;
     if (m.geometry) geometries.add(m.geometry);
     if (m.material) for (const x of Array.isArray(m.material) ? m.material : [m.material]) { materials.add(x); texturesOf(x); }
+    if ((o as THREE.DirectionalLight).shadow) (o as THREE.DirectionalLight).shadow.dispose();
     if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
     if ((o as THREE.SkinnedMesh).isSkinnedMesh) (o as THREE.SkinnedMesh).skeleton?.dispose();
   });
@@ -109,19 +110,17 @@ function tierFor(matchId: string, mobile: boolean) { if (matchTier.id !== matchI
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   const quality = useArena(s => s.settings.quality), matchId = useArena(s => s.match?.id ?? '');
   const q = useMemo(() => { const base = ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId]);
-  // Old renderers must not stay reachable through three.js's shared objects (see scene/gpuListeners.ts).
-  useLayoutEffect(() => trackDisposeListeners(), []);
   // Resolution scale (Settings) multiplies the profile's pixel density; adaptive performance works below it.
   const renderScale = useArena(s => s.settings.renderScale);
   const dpr = Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale;
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
   // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
   const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale') ?? (() => { try { return localStorage.getItem('campos-arena-qa-scale'); } catch { return null; } })()) || 0)) : 0;
-  return <Canvas key={quality} className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
-    gl={{ antialias: !q.post, powerPreference: 'high-performance', stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
+  return <ExclusiveCanvas owner="arena" profile={quality} sceneName={mapId} onInterrupted={() => { useArena.getState().set({ sceneReady: false }); sceneLoaded(false); deploy.graphicsInterrupted(); releaseAll(); }} className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
+    options={{ antialias: true, stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
     camera={{ fov: 78, near: .06, far: 1200, position: [0, 2, 0] }}>
     <World mapId={mapId} q={q} />
-  </Canvas>;
+  </ExclusiveCanvas>;
 });
 
 function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
@@ -165,7 +164,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     soldiers(0);
     startAmbience(mapId, ambientEmitters(map));
     return () => { on = false; ctrl.abort(); stopArenaAmbience(); stopMatchSounds(); setIndoor(0); };
-  }, [gl, q, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gl, mapId, q.mobileAssets, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { deploy.pending([...(lib ? [] : ['environment']), ...(gunReady ? [] : ['weapon']), ...(kits ? [] : ['soldiers'])]); }, [lib, gunReady, kits]);
 
   // ---------------------------------------------------------------- environment, sky and lighting
@@ -203,8 +202,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!world || !lib) return;
     // Metropolis: the image-based light is baked from the variant's own sky, so reflections and shade match it.
     const cityEnv = atmo ? bakeEnvironment(gl, world.sky, q.envSize) : null;
-    scene.add(world.group); scene.environment = cityEnv ?? lib.env; scene.environmentIntensity = atmo?.env ?? 1.5;
-    vm.vmScene.environment = cityEnv ?? lib.env;
+    scene.add(world.group); scene.environment = cityEnv?.texture ?? lib.env; scene.environmentIntensity = atmo?.env ?? 1.5;
+    vm.vmScene.environment = cityEnv?.texture ?? lib.env;
     const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
     setHeightFog(atmo);
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
@@ -217,20 +216,25 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     waitPlayable();
     return () => {
       on = false; ctrl.abort();
-      // Release everything this renderer uploaded, shared cached assets included: three.js keeps a 'dispose' listener
-      // on every texture, geometry and material a renderer has used, and those listeners would keep this renderer
-      // (and its WebGL context) alive for as long as the cached assets live. Cached objects stay usable: the next
-      // match's renderer uploads them again.
-      const shared = cachedAssets('arena/'), weapons = weaponResources();
-      releaseGpu(scene, vm.vmScene, world.group, ...shared.scenes, ...weapons.scenes, ...Object.values(lib.props).map(p => p!.scene));
-      for (const t of [lib.env, lib.sky, lib.hdr, softTexture(), ...shared.textures]) t.dispose();
+      releaseGpu(world.group);
       cityEnv?.dispose(); setHeightFog(null);
-      for (const r of standInResources()) { r.geometry.dispose(); r.material.dispose(); }
-      for (const m of weapons.materials) m.dispose();
       scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null;
       clearMaterialCache();
     };
   }, [scene, world, lib, q]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Library environments are GPU render targets: keep them across quality changes, but never
+  // reuse them with another context. loadLibrary caches by renderer, while source assets stay CPU-side.
+  useEffect(() => () => {
+    if (!lib) return;
+    const shared = cachedAssets('arena/'), weapons = weaponResources();
+    releaseGpu(scene, vm.vmScene, ...shared.scenes, ...weapons.scenes, ...Object.values(lib.props).map(p => p!.scene));
+    lib.envTarget.dispose();
+    for (const t of [lib.sky, lib.hdr, softTexture(), ...shared.textures]) t.dispose();
+    for (const r of standInResources()) { r.geometry.dispose(); r.material.dispose(); }
+    for (const m of weapons.materials) m.dispose();
+    clearMaterialCache();
+  }, [gl, lib]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------- sound levels and the acoustic probe
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { ExclusiveCanvas } from '../graphics/ExclusiveCanvas';
 import { occupiedAnchor, vehicleLift } from '../vehicles/client';
 import { DormFurniture } from './Dorm';
 import { mySpace } from '../dorm/client';
@@ -6,7 +7,7 @@ import Npcs from '../npc/Npcs';
 import Vehicles from './Vehicles';
 import { QA_HOOKS } from '../qa';
 import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Player from '../game/Player';
 import Avatar, { type AvatarMotion } from '../avatar/Avatar';
@@ -170,8 +171,7 @@ function Telemetry() {
       return Object.entries(by).sort((x, y) => y[1] - x[1]).slice(0, 30);
     };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusInspect = () => { const s = useGame.getState(); return { position: { x: player.x, y: player.y, z: player.z }, yaw: input.yaw, panel: s.panel, nearby: s.nearby, status: s.status, discovered: s.discovered, tourStep: s.tourStep, tokens: s.tokens, bestScore: s.bestScore, peers: s.peers.map(p => ({ ...p, ...livePeers.get(p.id) })), avatar: s.avatar, quality: s.quality }; };
-    const lost = (e: Event) => { e.preventDefault(); useGame.getState().set({ panel: 'recovery' }); };
-    gl.domElement.addEventListener('webglcontextlost', lost); return () => gl.domElement.removeEventListener('webglcontextlost', lost);
+    return () => { if (QA_HOOKS) for (const key of ['__campusGL', '__campusScene', '__campusCamera', '__campusInspect', '__campusHide', '__campusStats', '__campus']) delete (window as unknown as Record<string, unknown>)[key]; };
   }, [gl, scene]);
   useFrame((_, dt) => {
     // Behind a menu the frame rate is held down on purpose: keep showing the one measured while playing.
@@ -240,10 +240,8 @@ const QA_SCALE = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(l
 // Memoised: the interface around the canvas re-renders on its own state; that must not reconcile the scene.
 export default memo(function World() {
   const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey], ceiling = QA_SCALE || Math.min(quality.dpr, window.devicePixelRatio || 1);
-  // While Combat Arena is open the campus stays loaded but stops rendering (no GPU or CPU per frame).
-  const paused = useGame(s => s.panel === 'arena');
-  return <Canvas frameloop={paused ? 'never' : 'always'} shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
-    gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.AgXToneMapping, toneMappingExposure: LIGHTING.exposure, stencil: false }}
+  return <ExclusiveCanvas owner="campus" profile={qualityKey} sceneName="campus" onInterrupted={() => useGame.getState().set({ ready: false })} shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
+    options={{ antialias: true, toneMapping: THREE.AgXToneMapping, toneMappingExposure: LIGHTING.exposure, stencil: false }}
     // The scene root never moves: without this every object's world matrix was recomputed every frame.
     onCreated={({ gl, scene }) => { gl.setClearColor('#b9c8d4'); scene.matrixAutoUpdate = false; }}>
     <Suspense fallback={null}>
@@ -256,5 +254,5 @@ export default memo(function World() {
     <Telemetry />
     <Soundscape />
     <Render />
-  </Canvas>;
+  </ExclusiveCanvas>;
 });

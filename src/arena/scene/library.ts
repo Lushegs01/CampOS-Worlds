@@ -44,7 +44,7 @@ export interface Library {
   surfaces: Record<SurfaceKey, SurfaceSet>;
   /** Cover props always; decorative props once loadDecor() has added them. */
   props: Partial<Record<PropKey, { scene: THREE.Group; size: THREE.Vector3 }>> & Record<'jersey' | 'milCrate' | 'oldCrate' | 'crate', { scene: THREE.Group; size: THREE.Vector3 }>;
-  env: THREE.Texture; sky: THREE.Texture; hdr: THREE.Texture; skyScale: number; skyCoverage: number; horizon: THREE.Color;
+  envTarget: THREE.WebGLRenderTarget; env: THREE.Texture; sky: THREE.Texture; hdr: THREE.Texture; skyScale: number; skyCoverage: number; horizon: THREE.Color;
   sun: { dir: THREE.Vector3; color: THREE.Color; irradiance: number };
   mobile: boolean;
 }
@@ -101,8 +101,9 @@ export function loadLibrary(gl: THREE.WebGLRenderer, q: ArenaQuality, theme: The
   // The campus has usually decoded the sky already (same cache key as src/world/Sky.tsx).
   const hdrP = cached('sky:hdr', () => loadHDR('sky/environment.hdr', P1));
   const env = hdrP.then(hdr => {
+    if (gl.getContext().isContextLost()) throw new DOMException('Renderer retired', 'AbortError');
     const pmrem = new THREE.PMREMGenerator(gl); const rt = pmrem.fromEquirectangular(hdr); pmrem.dispose();
-    return rt.texture;
+    return rt;
   });
   const sky = loadImage(q.detail ? 'sky/sky.jpg' : 'sky/sky-low.jpg', P1).then(t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return t; });
   const extra = Promise.all(theme.extra.map(async path => [path, await loadTexture(path, P1)] as const));
@@ -110,7 +111,7 @@ export function loadLibrary(gl: THREE.WebGLRenderer, q: ArenaQuality, theme: The
     hdr, theme, extra: Object.fromEntries(ex),
     surfaces: Object.fromEntries(s) as Record<SurfaceKey, SurfaceSet>,
     props: Object.fromEntries([...pr, ...he.filter(h => h !== null)]) as Library['props'],
-    env: e, sky: sk, skyScale: i?.skyScale ?? 4, skyCoverage: i?.skyCoverage ?? .544, horizon: new THREE.Color().setRGB(...((i?.horizon ?? [.43, .46, .56]) as [number, number, number]), THREE.LinearSRGBColorSpace),
+    envTarget: e, env: e.texture, sky: sk, skyScale: i?.skyScale ?? 4, skyCoverage: i?.skyCoverage ?? .544, horizon: new THREE.Color().setRGB(...((i?.horizon ?? [.43, .46, .56]) as [number, number, number]), THREE.LinearSRGBColorSpace),
     sun: { dir: new THREE.Vector3(...((i?.sunDirection ?? [.55, .74, .38]) as [number, number, number])).normalize(), color: new THREE.Color().setRGB(...((i?.sunColor ?? [1, .98, .9]) as [number, number, number]), THREE.LinearSRGBColorSpace), irradiance: i?.sunIrradiance ?? 4 },
     mobile,
   }));
