@@ -8,7 +8,7 @@
 //
 // Everything in the frame loop is imperative and pooled: the environment is a few merged meshes and
 // instanced props, soldiers are created once per player, and effects come from fixed particle pools.
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Component, type ReactNode, memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, RenderPass, EffectPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode, BloomEffect, VignetteEffect, BrightnessContrastEffect, HueSaturationEffect } from 'postprocessing';
@@ -22,9 +22,9 @@ import { useArena, useBanners } from './store';
 import { live, onFx, tickInput, eye, useStreak, matOf, toggleAutoFire, sceneLoaded, onRetryAssets, type Fx } from './net';
 import * as deploy from './deploy';
 import { deadline } from '../world/fetcher';
-import { controls, pollGamepad, attachDesktop } from './input';
+import { controls, pollGamepad, attachDesktop, releaseAll } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
-import { loadLibrary, loadDecor, loadSurfaceDetail, themeOf, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
+import { loadLibrary, resetLibrary, loadDecor, loadSurfaceDetail, themeOf, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
 import { buildMetropolis, CITY_DECOR, type CityVariant } from './scene/metropolis';
 import { atmosphereOf, createSky, bakeEnvironment, installHeightFog, setHeightFog, createAdaptation } from './scene/city/atmosphere';
 import { createStreetReflection, REFLECTED } from './scene/city/reflection';
@@ -37,6 +37,8 @@ import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
 import { forgetAssets, cachedAssets } from '../world/assets';
 import { trackDisposeListeners } from './scene/gpuListeners';
+import { createGraphicsLifecycle } from './scene/graphicsLifecycle.mjs';
+type GraphicsLifecycle = ReturnType<typeof createGraphicsLifecycle>;
 import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
 
 import { Effects, Casings, setEffectsGround } from './scene/fx';
@@ -106,9 +108,30 @@ const matchTier = { id: '', mobile: false };
 const qaStaticShadows = QA_HOOKS && typeof location !== 'undefined' && new URLSearchParams(location.search).has('qa-static-shadows');
 function tierFor(matchId: string, mobile: boolean) { if (matchTier.id !== matchId) { matchTier.id = matchId; matchTier.mobile = mobile; } return matchTier.mobile; }
 
+class GraphicsBoundary extends Component<{ graphics: GraphicsLifecycle; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error) {
+    const { graphics } = this.props;
+    graphics.transition(graphics.getSnapshot().state === 'DISPOSED' ? graphics.begin() : graphics.getSnapshot().generation, 'RECOVERY_FAILED', `Arena graphics could not initialize: ${error.message.slice(0, 160)}`);
+    useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
+  }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   const quality = useArena(s => s.settings.quality), matchId = useArena(s => s.match?.id ?? '');
   const q = useMemo(() => { const base = ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId]);
+  const graphics = useMemo(() => createGraphicsLifecycle(), []);
+  const health = useSyncExternalStore(graphics.subscribe, graphics.getSnapshot);
+  const [rebuild, setRebuild] = useState(0);
+  const renderer = useRef<THREE.WebGLRenderer | null>(null);
+  const rebuildGraphics = () => {
+    if (!graphics.retry()) return;
+    // Retire the failed context before allocating its replacement. Network/session state stays intact.
+    renderer.current?.dispose(); renderer.current?.forceContextLoss(); renderer.current = null;
+    setRebuild(n => n + 1);
+  };
   // Old renderers must not stay reachable through three.js's shared objects (see scene/gpuListeners.ts).
   useLayoutEffect(() => trackDisposeListeners(), []);
   // Resolution scale (Settings) multiplies the profile's pixel density; adaptive performance works below it.
@@ -117,14 +140,64 @@ export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
   // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
   const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale') ?? (() => { try { return localStorage.getItem('campos-arena-qa-scale'); } catch { return null; } })()) || 0)) : 0;
-  return <Canvas key={quality} className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
+  return <><GraphicsBoundary key={`${quality}:${rebuild}`} graphics={graphics}><Canvas onCreated={({ gl }) => { renderer.current = gl; }} className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
     gl={{ antialias: !q.post, powerPreference: 'high-performance', stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
     camera={{ fov: 78, near: .06, far: 1200, position: [0, 2, 0] }}>
-    <World mapId={mapId} q={q} />
-  </Canvas>;
+    <RendererLifecycle key={`${matchId}:${mapId}`} mapId={mapId} q={q} graphics={graphics} />
+  </Canvas></GraphicsBoundary>
+    {['CONTEXT_LOST', 'RECOVERING', 'RECOVERY_FAILED'].includes(health.state) && <div className="ar-modal ar-graphics-recovery" role="alertdialog" aria-modal="true" aria-labelledby="ar-graphics-title" data-graphics-state={health.state}>
+      <div className="ar-sheet small"><h2 id="ar-graphics-title">{health.state === 'RECOVERING' ? 'Rebuilding arena graphics…' : 'Arena graphics were interrupted.'}</h2>
+        <p>{health.error || 'Your session is preserved. Rebuild graphics to continue.'}</p>
+        <button className="ar-primary" disabled={health.state === 'RECOVERING'} onClick={rebuildGraphics}>Rebuild arena graphics</button>
+      </div>
+    </div>}
+  </>;
 });
 
-function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
+/** Keep restoration listeners alive while the lost World's GPU resources are torn down. */
+function RendererLifecycle({ mapId, q, graphics }: { mapId: string; q: ArenaQuality; graphics: GraphicsLifecycle }) {
+  const gl = useThree(s => s.gl);
+  const [generation, setGeneration] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    let id = graphics.begin();
+    setGeneration(id);
+    useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
+    const fail = (message: string) => {
+      if (!graphics.transition(id, 'RECOVERY_FAILED', message)) return;
+      useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
+    };
+    const lost = (event: Event) => {
+      event.preventDefault();
+      if (!graphics.transition(id, 'CONTEXT_LOST')) return;
+      useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
+      document.exitPointerLock?.();
+      // Delete invalid resources while the context is lost. Deleting their old GL handles
+      // after restoration would produce INVALID_OPERATION in the new context.
+      setGeneration(null);
+    };
+    const restored = () => {
+      if (!graphics.restore(id)) return;
+      resetLibrary(gl);
+      id = graphics.begin();
+      setGeneration(id);
+    };
+    const shaderError = gl.debug.onShaderError;
+    gl.debug.onShaderError = () => fail('Arena shaders could not compile. Try rebuilding graphics.');
+    gl.domElement.addEventListener('webglcontextlost', lost);
+    gl.domElement.addEventListener('webglcontextrestored', restored);
+    // A context may already have been lost between Canvas creation and listener installation.
+    if (gl.getContext().isContextLost()) lost(new Event('webglcontextlost', { cancelable: true }));
+    return () => {
+      gl.domElement.removeEventListener('webglcontextlost', lost);
+      gl.domElement.removeEventListener('webglcontextrestored', restored);
+      gl.debug.onShaderError = shaderError;
+      graphics.retire(id);
+    };
+  }, [gl, graphics]);
+  return generation === null ? null : <World key={generation} mapId={mapId} q={q} graphics={graphics} generation={generation} />;
+}
+
+function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQuality; graphics: GraphicsLifecycle; generation: number }) {
   const { scene, camera, gl, size } = useThree(), setDpr = useThree(s => s.setDpr), dprNow = useThree(s => s.viewport.dpr);
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
@@ -151,10 +224,14 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     useArena.getState().set({ sceneReady: false }); sceneLoaded(false); setCompiled(false);
     deploy.enter('preparing'); deploy.setTier(q.mobileAssets ? 'mobile' : 'full');
     const what = (e: unknown) => String((e as Error)?.message ?? e).replace(/^.*\/assets\//, '').slice(0, 160);
+    const assetFailure = (message: string, e: unknown) => {
+      deploy.fail(message, 'assets', what(e));
+      if (graphics.getSnapshot().state === 'RECOVERING') graphics.transition(generation, 'RECOVERY_FAILED', `${message} ${what(e)}`);
+    };
     const primary = live.loadout?.primary ?? 'vanguard', secondary = live.loadout?.secondary;
     // The player's own weapon is queued first: it is one file with a dozen textures to transcode.
-    preloadWeapon(primary, false, P1).then(() => { if (on) setGunReady(true); }).catch(e => { console.error('Arena weapon could not load.', e); if (on) deploy.fail('Your weapon could not be downloaded.', 'assets', what(e)); });
-    loadLibrary(gl, q, themeOf(mapId)).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) deploy.fail('The map could not be downloaded.', 'assets', what(e)); });
+    preloadWeapon(primary, false, P1).then(() => { if (on) setGunReady(true); }).catch(e => { console.error('Arena weapon could not load.', e); if (on) assetFailure('Your weapon could not be downloaded.', e); });
+    loadLibrary(gl, q, themeOf(mapId)).then(l => { if (on) setLib(l); }).catch(e => { console.error('Arena assets could not load.', e); if (on) assetFailure('The map could not be prepared.', e); });
     if (secondary && secondary !== primary) void preloadWeapon(secondary, false, P2).catch(() => null);
     // Sound: phones get fewer voices, plain panning and a rumble filter; the sound banks the player needs first (their
     // weapons, the map's surfaces) are queued now, behind nothing the deployment waits for.
@@ -209,7 +286,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     setHeightFog(atmo);
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
     let on = true;
-    deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').catch(() => null).then(() => { if (on) setCompiled(true); });
+    deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').then(() => { if (on && !gl.getContext().isContextLost()) setCompiled(true); }).catch(e => { if (on) graphics.transition(generation, 'RECOVERY_FAILED', `Arena shaders could not initialize: ${String(e).slice(0, 160)}`); });
     // Set dressing streams in once the match is playable (priority 2); a static sun shadow is redrawn once for it.
     const ctrl = new AbortController();
     const decorate = () => loadDecor(lib, ctrl.signal, mapId === 'metropolis' ? CITY_DECOR : undefined).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
@@ -441,12 +518,16 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   };
 
   // ---------------------------------------------------------------- input
-  useEffect(() => attachDesktop(gl.domElement, {
+  const graphicsReady = useArena(s => s.sceneReady);
+  useEffect(() => {
+    if (!graphicsReady) return;
+    return attachDesktop(gl.domElement, {
     streak: id => useStreak(id),
     scoreboard: open => useArena.getState().set({ scoreboard: open }),
     menu: () => { const a = useArena.getState(); a.set({ menu: !a.menu }); },
     autoFire: () => toggleAutoFire(),
-  }, () => ({ ads: live.sim?.ads ?? 0, zoom: zoomOf() })), [gl]);
+  }, () => ({ ads: live.sim?.ads ?? 0, zoom: zoomOf() }));
+  }, [gl, graphicsReady]);
   const zoomOf = () => { const s = live.sim; if (!s) return 1; const w = weaponOf(s); return w.zoom ?? (w.category === 'melee' ? 1 : 1.3); };
 
   // ---------------------------------------------------------------- events from the network layer
@@ -490,12 +571,12 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // QA builds: the inspection hooks hold this match's renderer, scene and assets; drop them with the scene.
   useEffect(() => () => { if (QA_HOOKS) for (const k of ['__arenaGL', '__arenaDebug', '__arenaBreakdown', '__arenaStats', '__arenaGround']) delete (window as unknown as Record<string, unknown>)[k]; }, []);
   useFrame((_, dtRaw) => {
+    if (graphics.getSnapshot().generation !== generation || ['CONTEXT_LOST', 'RECOVERY_FAILED', 'DISPOSED'].includes(graphics.getSnapshot().state)) return;
     const dt = Math.min(dtRaw, .1), now = performance.now(), a = useArena.getState(), cam = camera as THREE.PerspectiveCamera;
     world?.update?.(live.matchElapsed < 0 ? -1 : live.matchElapsed + now - live.elapsedAt, live.broken, camera.position, !!vm.indoor, dt);
     if (world?.city) { world.city.setPixel(2 * Math.tan((camera as THREE.PerspectiveCamera).fov * Math.PI / 360) / Math.max(1, gl.domElement.height || size.height)); /* per drawn pixel, after resolution scale */ const su = (world.sky.material as THREE.ShaderMaterial).uniforms.uTime; if (su) su.value += dt; }
     frameNo.current++;
-    pollGamepad(dt, live.sim?.ads ?? 0, zoomOf());
-    tickInput(dt);
+    if (a.sceneReady) { pollGamepad(dt, live.sim?.ads ?? 0, zoomOf()); tickInput(dt); }
     const s = live.sim;
     // ---- camera
     const decay = Math.exp(-dt * 14); live.smooth.x *= decay; live.smooth.y *= decay; live.smooth.z *= decay;
@@ -619,13 +700,6 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       });
     } else objectives.g.visible = false;
     updateViewmodel(dt, now);
-    // Playable once the world is built and its shaders compiled and the player's own weapon is here. Then the server
-    // is told (it brings a held player into the match), and the remaining weapons stream in idle time.
-    if (!a.sceneReady && world && compiled && gunReady) {
-      a.set({ sceneReady: true }); sceneLoaded(true);
-      const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
-      prefetchRemainingWeapons(q.detail > 0 && !saveData);
-    } else if (a.sceneReady && a.match && live.loadedSent !== a.match.id) sceneLoaded(true);
     const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); if (a.sceneReady && !document.hidden) adaptFps(fps); }
   }, -1);
 
@@ -721,7 +795,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
 
   const passes = useMemo(() => ({ world: 0 }), []);
   // The world, then the weapon over a cleared depth buffer (through the post stack when it is on).
-  // QA builds only: `?qa-norender` keeps the frame loop (simulation, animation, sound) but draws nothing, so timing
+  // QA builds only: `?qa-norender` validates one frame, then keeps simulation, animation and sound without drawing. Timing
   // checks run at a realistic frame rate on machines that render in software.
   const noRender = QA_HOOKS && new URLSearchParams(location.search).has('qa-norender');
   // QA builds: `__arenaFreeze(true)` stops drawing (the canvas keeps its last frame) so a software-rendered capture can
@@ -729,16 +803,35 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const frozen = useRef(false);
   useEffect(() => { if (!QA_HOOKS) return; const w = window as unknown as Record<string, unknown>; w.__arenaFreeze = (on: boolean) => { frozen.current = on; }; return () => { delete w.__arenaFreeze; }; }, []);
   useFrame(({ gl: r }, dt) => {
-    if (noRender || frozen.current) return;
-    r.info.reset();
-    // Exposure follows the eye: opening up indoors and in the station, closing again outside.
-    // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
-    r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
-    // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
-    // frames the sun's shadow is not redrawn, so the two passes never land together.)
-    if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
-    if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
-    else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
+    if ((noRender && graphics.getSnapshot().state === 'READY') || frozen.current || !world || !compiled || !gunReady) return;
+    const health = graphics.getSnapshot();
+    if (health.generation !== generation || !['INITIALIZING', 'RECOVERING', 'READY'].includes(health.state)) return;
+    if (r.getContext().isContextLost()) return;
+    try {
+      r.info.reset();
+      // Exposure follows the eye: opening up indoors and in the station, closing again outside.
+      // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
+      r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
+      // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
+      // frames the sun's shadow is not redrawn, so the two passes never land together.)
+      if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
+      if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
+      else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
+      if (!r.getContext().isContextLost() && graphics.getSnapshot().state !== 'RECOVERY_FAILED') {
+        if (health.state !== 'READY') {
+          if (r.getContext().getError() !== r.getContext().NO_ERROR) throw new Error('WebGL rejected the validation frame.');
+          if (graphics.transition(generation, 'READY')) {
+            useArena.getState().set({ sceneReady: true }); sceneLoaded(true);
+            const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
+            prefetchRemainingWeapons(q.detail > 0 && !saveData);
+          }
+        } else if (useArena.getState().match && live.loadedSent !== useArena.getState().match?.id) sceneLoaded(true);
+      }
+    } catch (error) {
+      graphics.transition(generation, 'RECOVERY_FAILED', `Arena could not render: ${String(error).slice(0, 160)}`);
+      useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
+      return;
+    }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaStats = { world: passes.world, calls: r.info.render.calls, triangles: r.info.render.triangles, textures: r.info.memory.textures, geometries: r.info.memory.geometries };
   }, 1);

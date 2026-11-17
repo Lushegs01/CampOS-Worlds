@@ -100,7 +100,8 @@ export function pollGamepad(dt: number, ads: number, zoom: number) {
 /** Attach desktop input to the canvas. Returns a detach function. */
 export function attachDesktop(canvas: HTMLCanvasElement, h: Hooks, zoomOf: () => { ads: number; zoom: number }) {
   hooks = h;
-  const playing = () => { const a = useArena.getState(); return a.open && a.phase === 'match' && !inputPaused(a); };
+  controls.locked = document.pointerLockElement === canvas;
+  const playing = () => { const a = useArena.getState(); return a.open && a.phase === 'match' && a.sceneReady && !inputPaused(a); };
   const down = (e: KeyboardEvent) => {
     if (!playing() || (e.target as HTMLElement)?.tagName === 'INPUT') return;
     if (e.code === 'Tab') { e.preventDefault(); h.scoreboard(true); return; }
@@ -141,7 +142,7 @@ export function attachDesktop(canvas: HTMLCanvasElement, h: Hooks, zoomOf: () =>
     canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', menu);
     document.removeEventListener('pointerlockchange', lock);
     if (document.pointerLockElement === canvas) document.exitPointerLock?.();
-    clear(); hooks = null;
+    clear(); controls.locked = false; hooks = null;
   };
 }
 export function releaseAll() { keys.clear(); mouseButtons = 0; Object.assign(controls, { held: 0, latched: 0, touchMx: 0, touchMz: 0, touchSprint: false, touchSprintLock: false, touchCrouch: false, touchAds: false, mx: 0, mz: 0 }); }
