@@ -1,0 +1,4533 @@
+{
+  "environment": "Linux Chromium, SwiftShader software WebGL, emulated touch. Context loss/restoration uses WEBGL_lose_context; constructor/draw failures are injected.",
+  "checks": [
+    "failed shader startup stops rendering; compatibility rebuild validates a frame with simpler materials",
+    "native context restoration rebuilds resources and automatically removes the recovery overlay",
+    "manual rebuild is single-flight and captured retired-renderer callbacks cannot restore the overlay",
+    "a failed draw suspends readiness and a successful validated retry clears its error",
+    "failed automatic restoration stays actionable without a page reload; retry creates one valid renderer",
+    "renderer constructor failure releases the native context before a successful retry",
+    "keyboard and touch input resume with the same match, player and team",
+    "exit during rebuilding and re-entry leave no orphaned renderer or overlay"
+  ],
+  "samples": [
+    {
+      "name": "shader failure",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 2
+        },
+        "lastContextLoss": null,
+        "current": {
+          "event": "sample",
+          "id": 2,
+          "owner": "arena",
+          "generation": 1,
+          "lifecycle": {
+            "phase": "RECOVERY_FAILED",
+            "generation": 1,
+            "rendererId": 2,
+            "resourcesReady": false,
+            "error": "A graphics shader could not be compiled."
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": false,
+          "elapsedMs": 846.3000000007451,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 1,
+            "textures": 1
+          },
+          "programs": 1,
+          "calls": 0,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": false,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "waiting",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "switch",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 0,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "waiting",
+          "objectives": [],
+          "ping": 0,
+          "fps": 0,
+          "net": "good",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 1
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 3
+        },
+        "lastContextLoss": null,
+        "current": {
+          "event": "sample",
+          "id": 3,
+          "owner": "arena",
+          "generation": 2,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 2,
+            "rendererId": 3,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 8514.900000002235,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 23,
+          "calls": 47,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "switch",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 599801,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 259,
+          "fps": 0,
+          "net": "poor",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 4
+        },
+        "lastContextLoss": {
+          "at": 34731,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 3,
+          "owner": "arena",
+          "generation": 2,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 2,
+            "rendererId": 3,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 9333.300000000745,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 23,
+          "calls": 47,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 4,
+          "owner": "arena",
+          "generation": 3,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 3,
+            "rendererId": 4,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 7927.39999999851,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 589512,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 18,
+          "fps": 9,
+          "net": "poor",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 5
+        },
+        "lastContextLoss": {
+          "at": 44558.300000000745,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 4,
+          "owner": "arena",
+          "generation": 3,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 3,
+            "rendererId": 4,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 8290,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 5,
+          "owner": "arena",
+          "generation": 4,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 4,
+            "rendererId": 5,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 7330.5,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 581667,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 15,
+          "fps": 9,
+          "net": "poor",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 5
+        },
+        "lastContextLoss": {
+          "at": 44558.300000000745,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 4,
+          "owner": "arena",
+          "generation": 3,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 3,
+            "rendererId": 4,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 8290,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 5,
+          "owner": "arena",
+          "generation": 4,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 4,
+            "rendererId": 5,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 8257.199999999255,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 55,
+            "textures": 26
+          },
+          "programs": 26,
+          "calls": 63,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 580767,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 15,
+          "fps": 9,
+          "net": "poor",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 6
+        },
+        "lastContextLoss": {
+          "at": 44558.300000000745,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 4,
+          "owner": "arena",
+          "generation": 3,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 3,
+            "rendererId": 4,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 8290,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 6,
+          "owner": "arena",
+          "generation": 5,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 5,
+            "rendererId": 6,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 7375.199999999255,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 573095,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 111,
+          "fps": 9,
+          "net": "fair",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "failed creation",
+      "graphics": {
+        "active": null,
+        "lastContextLoss": {
+          "at": 60921.300000000745,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 6,
+          "owner": "arena",
+          "generation": 5,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 5,
+            "rendererId": 6,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 7681.5,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        },
+        "current": null
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": false,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 572367,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 111,
+          "fps": 9,
+          "net": "fair",
+          "door": -1
+        }
+      },
+      "live": 0,
+      "max": 1,
+      "overlays": 1
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 8
+        },
+        "lastContextLoss": {
+          "at": 60921.300000000745,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 6,
+          "owner": "arena",
+          "generation": 5,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 5,
+            "rendererId": 6,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 7681.5,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 8,
+          "owner": "arena",
+          "generation": 7,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 7,
+            "rendererId": 8,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 7918.300000000745,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 564335,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 88,
+          "fps": 9,
+          "net": "fair",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 10
+        },
+        "lastContextLoss": {
+          "at": 69658.30000000075,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 8,
+          "owner": "arena",
+          "generation": 7,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 7,
+            "rendererId": 8,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 8192.900000002235,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 10,
+          "owner": "arena",
+          "generation": 9,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 9,
+            "rendererId": 10,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 9618.60000000149,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 24,
+          "calls": 47,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "6e164b44-af84-4a06-8d4a-3299b573ce3e",
+          "kind": "training",
+          "code": null,
+          "state": "playing",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 553999,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "playing",
+          "objectives": [],
+          "ping": 19,
+          "fps": 9,
+          "net": "fair",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "rapid exit",
+      "graphics": {
+        "active": {
+          "owner": "campus",
+          "id": 11
+        },
+        "lastContextLoss": {
+          "at": 86391,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 10,
+          "owner": "arena",
+          "generation": 9,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 9,
+            "rendererId": 10,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 16317.60000000149,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 55,
+            "textures": 26
+          },
+          "programs": 26,
+          "calls": 63,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 11,
+          "owner": "campus",
+          "generation": 1,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 1,
+            "rendererId": 11,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "campus",
+          "scene": "campus",
+          "profile": "low",
+          "compatibility": false,
+          "elapsedMs": 12089.199999999255,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 134,
+            "textures": 72
+          },
+          "programs": 33,
+          "calls": 139,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "lobby",
+        "status": "idle",
+        "sceneReady": false,
+        "match": null,
+        "you": null,
+        "hud": {
+          "hp": 100,
+          "alive": false,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 0,
+          "reserve": 0,
+          "magSize": 0,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 0,
+          "tactical": 0,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 0,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "waiting",
+          "objectives": [],
+          "ping": 0,
+          "fps": 0,
+          "net": "good",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    },
+    {
+      "name": "ready",
+      "graphics": {
+        "active": {
+          "owner": "arena",
+          "id": 12
+        },
+        "lastContextLoss": {
+          "at": 86391,
+          "event": "webglcontextlost",
+          "detail": "",
+          "id": 10,
+          "owner": "arena",
+          "generation": 9,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 9,
+            "rendererId": 10,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 16317.60000000149,
+          "devicePixelRatio": 1,
+          "width": 0,
+          "height": 0,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 55,
+            "textures": 26
+          },
+          "programs": 26,
+          "calls": 63,
+          "pendingCompilations": 0
+        },
+        "current": {
+          "event": "sample",
+          "id": 12,
+          "owner": "arena",
+          "generation": 1,
+          "lifecycle": {
+            "phase": "READY",
+            "generation": 1,
+            "rendererId": 12,
+            "resourcesReady": true,
+            "error": ""
+          },
+          "intentional": false,
+          "activeOwner": "arena",
+          "scene": "foundry",
+          "profile": "low",
+          "compatibility": true,
+          "elapsedMs": 8278,
+          "devicePixelRatio": 1,
+          "width": 101,
+          "height": 46,
+          "dpr": 0.12,
+          "memory": {
+            "geometries": 40,
+            "textures": 23
+          },
+          "programs": 22,
+          "calls": 47,
+          "pendingCompilations": 0
+        }
+      },
+      "arena": {
+        "phase": "match",
+        "status": "ready",
+        "sceneReady": true,
+        "match": {
+          "id": "90aef993-f4d5-4497-9327-1409e26871f0",
+          "kind": "training",
+          "code": null,
+          "state": "countdown",
+          "players": 1
+        },
+        "you": {
+          "num": 1,
+          "team": 0
+        },
+        "hud": {
+          "hp": 100,
+          "alive": true,
+          "respawnMs": 0,
+          "weapon": "vanguard",
+          "slot": 0,
+          "mag": 30,
+          "reserve": 120,
+          "magSize": 30,
+          "phase": "ready",
+          "fireMode": "auto",
+          "reloadProgress": 0,
+          "ads": 0,
+          "lethal": 1,
+          "tactical": 2,
+          "spread": 0,
+          "earned": [],
+          "streakPts": 0,
+          "streak": 0,
+          "sprint": false,
+          "stance": 0,
+          "timeLeft": 333,
+          "scores": [
+            0,
+            0
+          ],
+          "matchState": "countdown",
+          "objectives": [],
+          "ping": 94,
+          "fps": 0,
+          "net": "poor",
+          "door": -1
+        }
+      },
+      "live": 1,
+      "max": 1,
+      "overlays": 0
+    }
+  ],
+  "passed": true,
+  "errors": [],
+  "diagnostics": {
+    "active": {
+      "owner": "arena",
+      "id": 12
+    },
+    "lastContextLoss": {
+      "at": 86391,
+      "event": "webglcontextlost",
+      "detail": "",
+      "id": 10,
+      "owner": "arena",
+      "generation": 9,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 9,
+        "rendererId": 10,
+        "resourcesReady": true,
+        "error": ""
+      },
+      "intentional": false,
+      "activeOwner": "arena",
+      "scene": "foundry",
+      "profile": "low",
+      "compatibility": true,
+      "elapsedMs": 16317.60000000149,
+      "devicePixelRatio": 1,
+      "width": 0,
+      "height": 0,
+      "dpr": 0.12,
+      "memory": {
+        "geometries": 55,
+        "textures": 26
+      },
+      "programs": 26,
+      "calls": 63,
+      "pendingCompilations": 0
+    },
+    "current": {
+      "event": "sample",
+      "id": 12,
+      "owner": "arena",
+      "generation": 1,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 1,
+        "rendererId": 12,
+        "resourcesReady": true,
+        "error": ""
+      },
+      "intentional": false,
+      "activeOwner": "arena",
+      "scene": "foundry",
+      "profile": "low",
+      "compatibility": true,
+      "elapsedMs": 8435.60000000149,
+      "devicePixelRatio": 1,
+      "width": 101,
+      "height": 46,
+      "dpr": 0.12,
+      "memory": {
+        "geometries": 40,
+        "textures": 23
+      },
+      "programs": 22,
+      "calls": 47,
+      "pendingCompilations": 0
+    },
+    "events": [
+      {
+        "at": 93610.19999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.30000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.60000000149,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.60000000149,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.60000000149,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.60000000149,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.69999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.69999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.69999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.80000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93610.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93611,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93683.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93683.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 93683.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97087.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97088.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97089.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97089.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97089.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97089.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97089.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97089.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97089.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97090.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.19999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.19999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.19999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.30000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.30000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.30000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.69999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.80000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97092.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093.19999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093.19999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093.30000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093.30000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97093.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97095.69999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97095.80000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97095.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97095.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096.19999999925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096.30000000075,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096.60000000149,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096.60000000149,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97096.60000000149,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97098.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97098.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97098.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97098.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97098.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97098.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97151.80000000075,
+        "event": "lifecycle",
+        "owner": "campus",
+        "generation": 1,
+        "from": "INITIALIZING",
+        "phase": "READY",
+        "rendererId": 11,
+        "error": ""
+      },
+      {
+        "at": 97640.5,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97640.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.5,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.5,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.5,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97641.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 97642,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.5,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.5,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.5,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98120.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.30000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98121.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98126.60000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98126.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98126.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98126.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98127,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98127,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98127,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.69999999925,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.80000000075,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98136.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 98137.10000000149,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 99115.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 100749,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 106615.10000000149,
+        "event": "dispose",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": true,
+        "lifecycle": {
+          "phase": "DISPOSED",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 106702.80000000075,
+        "event": "released",
+        "owner": "campus",
+        "id": 11,
+        "generation": 1,
+        "intentional": true,
+        "lifecycle": {
+          "phase": "DISPOSED",
+          "generation": 1,
+          "rendererId": 11,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": false
+      },
+      {
+        "at": 107352.60000000149,
+        "event": "context-request",
+        "owner": "arena",
+        "id": 12,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": null,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": true
+      },
+      {
+        "at": 107358.89999999851,
+        "event": "created",
+        "owner": "arena",
+        "id": 12,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 12,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "capabilities": {
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "vendor": "Google Inc. (Google)",
+          "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+          "maxTextureSize": 8192,
+          "maxRenderbufferSize": 8192,
+          "maxSamples": 4
+        },
+        "compatibility": true
+      },
+      {
+        "at": 114113.39999999851,
+        "event": "compile-start",
+        "owner": "arena",
+        "id": 12,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 12,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": true
+      },
+      {
+        "at": 115050.39999999851,
+        "event": "compile-end",
+        "owner": "arena",
+        "id": 12,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 12,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": true
+      },
+      {
+        "at": 115136.39999999851,
+        "event": "compile-start",
+        "owner": "arena",
+        "id": 12,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 12,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": true
+      },
+      {
+        "at": 115280.69999999925,
+        "event": "compile-end",
+        "owner": "arena",
+        "id": 12,
+        "generation": 1,
+        "intentional": false,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 12,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "compatibility": true
+      },
+      {
+        "at": 115312.10000000149,
+        "event": "lifecycle",
+        "owner": "arena",
+        "generation": 1,
+        "from": "INITIALIZING",
+        "phase": "READY",
+        "rendererId": 12,
+        "error": ""
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 // Real WebGL lifecycle regression, with controlled creation/draw failures and native lose/restore.
 // VITE_QA=1 npx vite build --outDir dist-recovery-qa && node tests/browser-graphics-recovery.mjs
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { launch } from './support/browser.mjs';
 import { startProduction } from './support/production.mjs';
 import { graphicsEvidence } from './support/graphics-evidence.mjs';
@@ -19,6 +19,7 @@ try {
     localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: 'low', qualityChosen: true, adaptive: false }));
     const get = HTMLCanvasElement.prototype.getContext, add = HTMLCanvasElement.prototype.addEventListener;
     const failed = new WeakSet();
+    window.__rejectShader = true; window.__shaderRejections = 0;
     window.__contexts = []; window.__oldCallbacks = []; window.__injectCreationNotice = true;
     HTMLCanvasElement.prototype.addEventListener = function (type, fn, options) {
       if (this.dataset.graphicsOwner === 'arena' && /^webglcontext/.test(type) && !window.__oldCallbacks.some(c => c.canvas === this && c.type === type)) window.__oldCallbacks.push({ canvas: this, type, fn });
@@ -33,6 +34,16 @@ try {
       const gl = get.call(this, type, ...args);
       if (/^webgl2?$/.test(type) && gl && !window.__contexts.includes(gl)) {
         window.__contexts.push(gl);
+        if (arena) {
+          const source = gl.shaderSource.bind(gl);
+          gl.shaderSource = (shader, code) => {
+            if (window.__rejectShader && gl.getShaderParameter(shader, gl.SHADER_TYPE) === gl.FRAGMENT_SHADER) {
+              window.__rejectShader = false; window.__shaderRejections++;
+              return source(shader, '#version 300 es\nprecision highp float;\nout vec4 color;\nvoid main() { color = deliberately_invalid_shader; }');
+            }
+            return source(shader, code);
+          };
+        }
         if (arena && window.__failRendererSetup) {
           window.__failRendererSetup = false;
           const attributes = gl.getContextAttributes.bind(gl);
@@ -93,6 +104,20 @@ try {
   await page.getByRole('button', { name: /Combat Arena:/ }).click();
   await page.getByRole('tab', { name: 'Training' }).click();
   await page.getByRole('button', { name: 'Open the firing range' }).click();
+  await page.waitForFunction(() => document.querySelector('[data-graphics-phase="RECOVERY_FAILED"]'));
+  assert.equal(await page.evaluate(() => window.__shaderRejections), 1);
+  assert.equal(await page.evaluate(() => window.__arena.state().sceneReady), false);
+  assert.equal(await page.evaluate(() => window.__graphics().current.compatibility), false);
+  assert.match(await overlay.innerText(), /compatibility graphics/);
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save graphics report', exact: true }).click();
+  const download = await downloadPromise;
+  assert.equal(download.suggestedFilename(), 'campos-graphics.json');
+  const savedReport = JSON.parse(await readFile(await download.path(), 'utf8'));
+  assert.equal(savedReport.current.lifecycle.phase, 'RECOVERY_FAILED');
+  assert.ok(savedReport.events.some(e => /compile-error|shader-error/.test(e.event)));
+  await snapshot('shader failure');
+  await page.getByRole('button', { name: 'Rebuild arena graphics', exact: true }).click();
   // This assertion reproduces the pre-fix startup bug promptly rather than waiting for a loading timeout.
   await page.waitForFunction(() => window.__arenaDeploy?.().stage === 'deployed' || document.body.innerText.includes('Arena graphics were interrupted.'));
   assert.equal(await page.evaluate(() => !!window.__healthyCreationContext), true);
@@ -100,7 +125,10 @@ try {
   let id = await ready();
   assert.ok(await page.evaluate(() => window.__rejectedArenaMSAA > 0));
   assert.equal(await page.evaluate(() => window.__arenaGL.getContext().getContextAttributes().antialias), false);
-  pass('campus-to-Arena falls back from rejected MSAA allocation on the same canvas and validates the first frame');
+  assert.equal(await page.evaluate(() => window.__graphics().current.compatibility), true);
+  assert.equal(await page.evaluate(() => window.__arenaGL.shadowMap.enabled), false);
+  assert.ok(await page.evaluate(() => window.__arenaGL.info.programs.some(p => p.type === 'MeshLambertMaterial')));
+  pass('failed shader startup stops rendering; compatibility rebuild validates a frame with simpler materials');
   const match = await page.evaluate(() => ({ id: window.__arena.state().match.id, you: window.__arena.state().you }));
 
   await lose(); await page.waitForTimeout(1200);
