@@ -171,10 +171,13 @@ try {
   await shooter.evaluate(() => { const a = window.__arena; a.state(); });
   await shooter.keyboard.press('KeyF');
   await shooter.waitForFunction(() => JSON.parse(localStorage.getItem('campos-arena-settings')).autoFire === true, null, { timeout: 5000 });
+  // Judged on the server, where nothing is missed: from the moment auto-fire is on, the bot loses health, dies, or has
+  // already died and respawned (on a slow runner the client's brief "firing" state can come and go between two
+  // polls, and a quick elimination respawns the bot at full health elsewhere).
+  const life0 = bot.life, hp0 = bot.hp, hit = () => bot.life !== life0 || !bot.alive || bot.hp < hp0;
   await aimAtBot();
-  await shooter.waitForFunction(() => window.__arena.self()?.autoFiring || window.__arena.self()?.autoReason === 'enemy under the crosshair', null, { timeout: 15000 });
-  for (let i = 0; i < 60 && bot.hp >= 100 && bot.alive; i++) await shooter.waitForTimeout(250);
-  assert.ok(bot.hp < 100 || !bot.alive, `auto-fire hit the bot through the server (hp ${Math.round(bot.hp)})`);
+  for (let i = 0; i < 60 && !hit(); i++) await shooter.waitForTimeout(250);
+  assert.ok(hit(), `auto-fire hit the bot through the server (hp ${Math.round(bot.hp)}, life ${life0} → ${bot.life}, reason "${(await shooter.evaluate(() => window.__arena.self()))?.autoReason}")`);
   check('auto-fire on: fires at the enemy under the player’s aim, damage decided by the server', `bot hp ${Math.round(bot.hp)}`);
   // Aim away: it stops.
   await aimAtBot(.7); await shooter.waitForTimeout(800);
