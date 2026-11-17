@@ -28,9 +28,16 @@ try {
       const arena = this.dataset.graphicsOwner === 'arena' && /^webgl2?$/.test(type);
       if (arena && window.__failNextArenaCreation) { window.__failNextArenaCreation = false; failed.add(this); }
       if (arena && failed.has(this)) return null;
+      // Model a driver that runs campus successfully but refuses Arena MSAA allocation.
+      if (arena && args[0]?.antialias) { window.__rejectedArenaMSAA = (window.__rejectedArenaMSAA || 0) + 1; return null; }
       const gl = get.call(this, type, ...args);
       if (/^webgl2?$/.test(type) && gl && !window.__contexts.includes(gl)) {
         window.__contexts.push(gl);
+        if (arena && window.__failRendererSetup) {
+          window.__failRendererSetup = false;
+          const attributes = gl.getContextAttributes.bind(gl);
+          gl.getContextAttributes = () => { gl.getContextAttributes = attributes; throw Error('Injected renderer setup failure'); };
+        }
         window.__maxContexts = Math.max(window.__maxContexts || 0, window.__contexts.filter(c => !c.isContextLost()).length);
         // A creation event from an unsuccessful attempt is not proof the returned context failed.
         if (arena && window.__injectCreationNotice) {
@@ -91,7 +98,9 @@ try {
   assert.equal(await page.evaluate(() => !!window.__healthyCreationContext), true);
   assert.equal(await page.getByRole('button', { name: 'Rebuild arena graphics', exact: true }).count(), 0, 'a usable constructor result must not retain a stale interruption screen');
   let id = await ready();
-  pass('normal campus-to-Arena startup rejects an obsolete creation notice and validates the first frame');
+  assert.ok(await page.evaluate(() => window.__rejectedArenaMSAA > 0));
+  assert.equal(await page.evaluate(() => window.__arenaGL.getContext().getContextAttributes().antialias), false);
+  pass('campus-to-Arena falls back from rejected MSAA allocation on the same canvas and validates the first frame');
   const match = await page.evaluate(() => ({ id: window.__arena.state().match.id, you: window.__arena.state().you }));
 
   await lose(); await page.waitForTimeout(1200);
@@ -126,9 +135,18 @@ try {
   await page.waitForFunction(() => document.querySelector('[data-graphics-phase="RECOVERY_FAILED"]'));
   assert.equal(await overlay.count(), 1);
   assert.equal(await page.evaluate(() => window.__arena.state().sceneReady), false);
+  assert.match(await overlay.innerText(), /even with antialiasing disabled/);
   await snapshot('failed creation');
   await page.getByRole('button', { name: 'Rebuild arena graphics', exact: true }).click(); await ready();
   pass('failed automatic restoration stays actionable without a page reload; retry creates one valid renderer');
+
+  await lose();
+  await page.evaluate(() => { window.__failRendererSetup = true; });
+  await page.getByRole('button', { name: 'Rebuild arena graphics', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[data-graphics-phase="RECOVERY_FAILED"]'));
+  assert.equal(await page.evaluate(() => window.__contexts.filter(c => !c.isContextLost()).length), 0, 'failed constructor releases its native context');
+  await page.getByRole('button', { name: 'Rebuild arena graphics', exact: true }).click(); await ready();
+  pass('renderer constructor failure releases the native context before a successful retry');
 
   let start = await page.evaluate(() => window.__arena.self());
   let moved = false;

@@ -8,6 +8,7 @@ import { installCompilation } from './compile';
 import { acquireRenderer, pixelRatio, drawingBufferBudget } from './ownership';
 import { trackDisposeListeners } from './gpuListeners';
 import { QA_HOOKS } from '../qa';
+import { createContext, releaseContext } from './context';
 
 type Owner = 'campus' | 'arena';
 type Diagnostic = Record<string, unknown>;
@@ -76,6 +77,7 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
     if (!lifecycle.current(generation)) { release(); throw new DOMException('Graphics attempt retired', 'AbortError'); }
     const canvas = defaults.canvas as HTMLCanvasElement;
     const id = ++serial, started = performance.now();
+    let nativeContext: WebGL2RenderingContext | undefined;
     let renderer: THREE.WebGLRenderer | undefined, retiring = false, pendingCompilations = () => 0;
     const owns = () => !retiring && active?.id === id && lifecycle.current(generation, id);
     const snapshot = (event: string, detail?: string): Diagnostic => ({
@@ -114,7 +116,17 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
       stopTracking();
     };
     try {
-      renderer = new THREE.WebGLRenderer({ ...defaults, ...current.current.options, powerPreference: 'default' });
+      const parameters = { ...defaults, ...current.current.options, powerPreference: 'default' as const };
+      // Keep the initial allocation tiny; the budgeted setSize below owns the real viewport.
+      canvas.width = canvas.height = 1;
+      nativeContext = await createContext(canvas, {
+        alpha: true, depth: parameters.depth ?? true, stencil: parameters.stencil ?? false,
+        antialias: parameters.antialias ?? false, premultipliedAlpha: parameters.premultipliedAlpha ?? true,
+        preserveDrawingBuffer: parameters.preserveDrawingBuffer ?? false, powerPreference: 'default',
+        failIfMajorPerformanceCaveat: false,
+      }, () => lifecycle.current(generation), (event, detail) => record({ ...snapshot(event), ...detail }));
+      if (!lifecycle.current(generation)) throw new DOMException('Graphics attempt retired', 'AbortError');
+      renderer = new THREE.WebGLRenderer({ ...parameters, context: nativeContext });
       if (current.current.options.toneMapping !== undefined) renderer.toneMapping = current.current.options.toneMapping;
       if (current.current.options.toneMappingExposure !== undefined) renderer.toneMappingExposure = current.current.options.toneMappingExposure;
       const gl = renderer.getContext();
@@ -166,9 +178,12 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
       return renderer;
     } catch (error) {
       record(snapshot('creation-error', String(error)));
-      if (renderer) { renderer.dispose(); renderer.forceContextLoss(); }
+      retiring = true;
+      try { renderer?.dispose(); } catch (disposeError) { record(snapshot('dispose-error', String(disposeError))); }
+      // The constructor can fail before assigning renderer, but the native allocation is ours.
+      const released = !nativeContext || releaseContext(nativeContext);
       detach();
-      if (renderer && !renderer.getContext().isContextLost()) release('Renderer setup failed and context release could not be confirmed. Reload graphics.');
+      if (!released) release('Renderer setup failed and context release could not be confirmed. Reload graphics.');
       else { if (active?.id === id) { active = null; inspect = null; } release(); }
       lifecycle.fail(generation, String(error instanceof Error ? error.message : error));
       throw error;
