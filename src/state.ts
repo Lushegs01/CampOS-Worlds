@@ -40,7 +40,7 @@ export const roomPlayback = createPlayback();
 export const useGame = create<Game>()(persist((set,get)=>({
  phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,volume:DEFAULT_VOLUME,ambience:1,steering:STEERING.default,
  discovered:[],tokens:[],tour:false,tourStep:0,bestScore:0,nearby:null,toast:'',destination:null,
- status:'offline',count:1,peers:[],messages:[],muted:[],invite:'',fps:0,
+ status:'offline',connectionLagging:false,count:1,peers:[],messages:[],muted:[],invite:'',fps:0,
  set:(value)=>set(value),
  notify:(toast)=>{const sequence=++toastSequence;set({toast});setTimeout(()=>{if(sequence===toastSequence)set({toast:''});},4500);},
  discover:(id)=>{const s=get();if(!s.discovered.includes(id))set({discovered:[...s.discovered,id]});if(s.tour&&TOUR[s.tourStep]===id){const next=s.tourStep+1;set({tourStep:next,destination:TOUR[next]??null});s.notify(next===TOUR.length?'Campus compass badge earned. You belong here!':`Stop ${next} complete. Next: ${LOCATIONS.find(l=>l.id===TOUR[next])?.name}`);}},
@@ -51,10 +51,10 @@ export const useGame = create<Game>()(persist((set,get)=>({
  version:1,migrate:(saved,version)=>{const s=(saved&&typeof saved==='object'?{...saved}:{}) as Partial<Game>;if(version<1&&!s.volume)s.volume=DEFAULT_VOLUME;return s as Game;},
  partialize:s=>({name:s.name,avatar:s.avatar,quality:s.quality,reducedMotion:s.reducedMotion,volume:s.volume,ambience:s.ambience,steering:s.steering,discovered:s.discovered,tokens:s.tokens,tour:s.tour,tourStep:s.tourStep,bestScore:s.bestScore,muted:s.muted}),merge:(saved,current)=>({...current,...preferences(saved,current),phase:'welcome',panel:null})}));
 interface Game {
- phase:'welcome'|'playing'; panel:Panel;ready:boolean;name:string;avatar:AvatarConfig;quality:'low'|'medium'|'high';reducedMotion:boolean;volume:number;
+ phase:'welcome'|'playing'; panel:Panel;ready:boolean;name:string;avatar:AvatarConfig;quality:'low'|'medium'|'high'|'ultra';reducedMotion:boolean;volume:number;
  /** Environment sound level (birdsong, breeze, fountain), under the master volume. */ambience:number;
  /** Steering sensitivity for driving, 0.2–1 (src/vehicles/steering.mjs). */steering:number;
  discovered:string[];tokens:string[];tour:boolean;tourStep:number;bestScore:number;nearby:string|null;toast:string;destination:string|null;
- status:string;count:number;peers:Peer[];messages:ChatMessage[];muted:string[];invite:string;fps:number;
+ status:string;connectionLagging:boolean;count:number;peers:Peer[];messages:ChatMessage[];muted:string[];invite:string;fps:number;
  set:(value:Partial<Game>)=>void; notify:(toast:string)=>void;discover:(id:string)=>void;collect:(id:string)=>void;
 }

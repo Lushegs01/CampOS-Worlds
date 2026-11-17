@@ -1,5 +1,5 @@
 // Decoding queue (used by src/world/assets.ts for every arena model and texture that goes through the fetcher).
-import { deadline, markProgress, type FetchOptions } from './fetcher.ts';
+import { deadline, markProgress, assetSessionSignal, type FetchOptions } from './fetcher.ts';
 
 /**
  * Decoding (glTF parse, meshopt, KTX2 transcoding in the worker pool) is queued by priority, like downloads: what the
@@ -24,9 +24,18 @@ function pumpDecodes() {
 }
 export function decodeSlot<T>(fetch: FetchOptions, what: string, task: () => Promise<T>): Promise<T> {
   const priority = fetch.priority ?? 2, limit = priority <= 1 ? 45000 : 120000;
+  const signals = [assetSessionSignal(), fetch.signal].filter((s): s is AbortSignal => !!s);
   return new Promise<T>((resolve, reject) => {
-    decodeQueue.push({ priority, seq: decodeSeq++, run: () => { const done = () => { decoding--; if (priority > 1) background--; markProgress(); pumpDecodes(); }; deadline(Promise.resolve().then(task), limit, `decoding ${what} took too long`).then(v => { done(); resolve(v); }, e => { done(); reject(e); }); } });
-    pumpDecodes();
+    const detach = () => signals.forEach(s => s.removeEventListener('abort', cancel));
+    const cancel = () => {
+      const i = decodeQueue.indexOf(job);
+      if (i < 0) return; // A running parser cannot be interrupted; keep its slot until it settles.
+      decodeQueue.splice(i, 1); detach(); reject(new DOMException('Aborted', 'AbortError')); pumpDecodes();
+    };
+    const job = { priority, seq: decodeSeq++, run: () => { detach(); const done = () => { decoding--; if (priority > 1) background--; markProgress(); pumpDecodes(); }; deadline(Promise.resolve().then(task), limit, `decoding ${what} took too long`).then(v => { done(); resolve(v); }, e => { done(); reject(e); }); } };
+    if (signals.some(s => s.aborted)) { reject(new DOMException('Aborted', 'AbortError')); return; }
+    signals.forEach(s => s.addEventListener('abort', cancel, { once: true }));
+    decodeQueue.push(job); pumpDecodes();
   });
 }
 /** For tests and diagnostics: decodes running and waiting. */

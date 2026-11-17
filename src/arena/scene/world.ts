@@ -19,7 +19,7 @@ export interface ArenaQuality {
   /** N8AO quality preset when ambient occlusion is on. */
   aoMode?: 'Low' | 'Medium' | 'High';
 }
-/** The arena's profiles: the campus' three plus Ultra (arena only: the campus keeps its own three). */
+/** Four visual profiles; simulation and server authority are identical at every level. */
 export type ArenaQualityId = Quality | 'ultra';
 export const ARENA_QUALITY: Record<ArenaQualityId, ArenaQuality> = {
   // Phones: a static sun shadow, no post stack, fewer particles, but a clear image. It starts at 1.5× pixel density

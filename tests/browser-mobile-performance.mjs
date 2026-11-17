@@ -16,8 +16,9 @@ import { launch, gpu } from './support/browser.mjs';
 const label = process.env.PERF_LABEL || 'after', base = process.env.TEST_URL || 'http://localhost:5173';
 const seconds = Number(process.env.PERF_SECONDS) || 8, botCount = Number(process.env.PERF_BOTS) || 0;
 const out = process.env.PERF_OUT || `docs/mobile-performance-${label}.json`, query = process.env.PERF_QUERY || '';
+const viewport = { width: Number(process.env.PERF_WIDTH) || 844, height: Number(process.env.PERF_HEIGHT) || 390 };
 const browser = await launch();
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
+const context = await browser.newContext({ viewport, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
 // A fresh profile on a phone starts on Low; make that explicit so runs are comparable.
 await context.addInitScript(() => { if (!localStorage.getItem('campos-worlds-v1')) localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: 'Benchmark' }, version: 0 })); });
 const page = await context.newPage(), errors = [];
@@ -111,7 +112,7 @@ try {
       samples.push(await sampleOn(offline, cdpOffline, name));
     }
   }
-  const report = { date: new Date().toISOString(), label, url: base, browser: browser.version(), renderer, hardwareGpu: gpu, viewport: { width: 390, height: 844, deviceScaleFactor: 3 }, bots: botCount, secondsPerSample: seconds,
+  const report = { date: new Date().toISOString(), label, url: base, browser: browser.version(), renderer, hardwareGpu: gpu, viewport: { ...viewport, deviceScaleFactor: 3 }, bots: botCount, secondsPerSample: seconds,
     environment: gpu ? 'Desktop Chrome, mobile viewport and touch emulation; no CPU or network throttling. Not a phone measurement.' : 'Linux container without a GPU: Chromium with SwiftShader (software WebGL), mobile viewport and touch emulation. Frame times measure a CPU rasterizer; not a phone measurement.',
     query, readyMs: Math.round(readyMs), resources, samples, scene, errors };
   await mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true });

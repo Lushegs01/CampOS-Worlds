@@ -34,6 +34,7 @@ export function resetTraffic() { Object.assign(traffic, { started: 0, finished: 
 
 // Everything the arena downloads belongs to the arena session: leaving the arena cancels what is still queued or running.
 let session = new AbortController();
+export const assetSessionSignal = () => session.signal;
 export function endSession() { session.abort(); session = new AbortController(); queue.length = 0; }
 function combined(signal?: AbortSignal) {
   if (!signal) return session.signal;

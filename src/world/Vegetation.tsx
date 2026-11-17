@@ -1,3 +1,4 @@
+import { campusBudget } from './rendering';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -205,7 +206,12 @@ function Grass({ count, radius }: { count: number; radius: number }) {
     const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.receiveShadow = true; m.name = 'grass';
     return { m, uniforms };
   }, [count, radius]);
-  useFrame(({ camera }) => { mesh.uniforms.uCam.value.set(camera.position.x, camera.position.z); });
+  useFrame(({ camera }, dt) => {
+    mesh.uniforms.uCam.value.set(camera.position.x, camera.position.z);
+    // Change the existing instance count gradually: no geometry rebuild or density pop.
+    const g = mesh.m.geometry as THREE.InstancedBufferGeometry, target = count * (campusBudget.level >= 2 ? .35 : 1);
+    g.instanceCount = Math.round(THREE.MathUtils.damp(g.instanceCount, target, 2, Math.min(dt, .1)));
+  });
   useEffect(() => () => { mesh.m.geometry.dispose(); (mesh.m.material as THREE.Material).dispose(); }, [mesh]);
   return <primitive object={mesh.m} />;
 }

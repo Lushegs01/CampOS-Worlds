@@ -12,7 +12,7 @@ export function preferences(saved, current) {
   return {
     name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 32) : current.name,
     avatar: sanitizeAvatar(s.avatar ?? {}),
-    quality: ['low', 'medium', 'high'].includes(s.quality) ? s.quality : current.quality,
+    quality: ['low', 'medium', 'high', 'ultra'].includes(s.quality) ? s.quality : current.quality,
     volume: finite(s.volume, current.volume, 0, 1),
     ambience: finite(s.ambience, current.ambience, 0, 1),
     steering: finite(s.steering, current.steering, STEERING.min, STEERING.max),

@@ -48,7 +48,7 @@ export function loadTexture(path: string, fetch?: FetchOptions): Promise<THREE.T
   if (!p) {
     const loader = ktx2;
     const raw = fetch ? fetchBytes(assetUrl(path), fetch).then(b => decodeSlot(fetch, path, () => new Promise<THREE.Texture>((resolve, reject) => loader.parse(b, resolve, reject)))) : loader.loadAsync(assetUrl(path));
-    p = raw.then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; loadedTextures.set(path, t); return t; });
+    p = raw.then(t => { if (textures.get(path) !== p) { t.dispose(); throw new DOMException('Asset session ended', 'AbortError'); } t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = anisotropy; t.needsUpdate = true; loadedTextures.set(path, t); return t; });
     textures.set(path, forgetOnFailure(textures, path, p, fetch ? 0 : 5000));
   }
   return p;
@@ -59,10 +59,24 @@ export function loadModel(path: string, fetch?: FetchOptions): Promise<GLTF> {
   let p = models.get(path);
   if (!p) {
     const loader = gltf;
-    p = (fetch ? fetchBytes(assetUrl(path), fetch).then(b => decodeSlot(fetch, path, () => loader.parseAsync(b, ''))) : loader.loadAsync(assetUrl(path))).then(g => { loadedModels.set(path, g); return g; });
+    p = (fetch ? fetchBytes(assetUrl(path), fetch).then(b => decodeSlot(fetch, path, () => loader.parseAsync(b, ''))) : loader.loadAsync(assetUrl(path))).then(g => { if (models.get(path) !== p) { disposeModel(g); throw new DOMException('Asset session ended', 'AbortError'); } loadedModels.set(path, g); return g; });
     models.set(path, forgetOnFailure(models, path, p, fetch ? 0 : 5000));
   }
   return p;
+}
+
+/** A parse that finished after its cache was invalidated no longer has a scene owner. */
+function disposeModel(gltf: GLTF) {
+  const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), maps = new Set<THREE.Texture>();
+  gltf.scene.traverse(o => {
+    const mesh = o as THREE.Mesh;
+    if (mesh.geometry) geometries.add(mesh.geometry);
+    if (mesh.material) for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      materials.add(m); for (const value of Object.values(m)) if (value?.isTexture) maps.add(value);
+    }
+    if ((o as THREE.SkinnedMesh).isSkinnedMesh) (o as THREE.SkinnedMesh).skeleton?.dispose();
+  });
+  geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); maps.forEach(t => t.dispose());
 }
 
 /**

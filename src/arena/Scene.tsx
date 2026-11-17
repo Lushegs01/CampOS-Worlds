@@ -18,7 +18,7 @@ import { WEAPONS, EQUIPMENT_BY_ID } from '../../shared/arena/weapons.mjs';
 import { weaponOf, eyeOf, EYE } from '../../shared/arena/sim.mjs';
 import { raycast } from '../../shared/arena/physics.mjs';
 import { setListener } from '../audio/mixer';
-import { useArena, useBanners } from './store';
+import { useArena, useBanners, inputPaused } from './store';
 import { live, onFx, tickInput, eye, useStreak, matOf, toggleAutoFire, sceneLoaded, onRetryAssets, type Fx } from './net';
 import * as deploy from './deploy';
 import { deadline } from '../world/fetcher';
@@ -36,8 +36,10 @@ import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
 import { forgetAssets, cachedAssets } from '../world/assets';
-import { ExclusiveCanvas } from '../graphics/ExclusiveCanvas';
-import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
+import { ExclusiveCanvas, scenePixelRatio } from '../graphics/ExclusiveCanvas';
+import { frameTarget } from '../../shared/arena/adaptive.mjs';
+import { createPerformanceBudget } from '../../shared/arena/performance.mjs';
+import { portraitBlocked } from '../mobile/orientation';
 
 import { Effects, Casings, setEffectsGround } from './scene/fx';
 import { ViewmodelAnimator } from './scene/viewmodel';
@@ -312,6 +314,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => { if (!lib) return; for (const g of fx.crates) { g.clear(); const c = lib.props.milCrate.scene.clone(); c.scale.setScalar(.8); g.add(c); } }, [lib, fx]);
 
   // ---------------------------------------------------------------- players
+  const seenNums = useMemo(() => new Set<number>(), []);
   const soldiers = useRef(new Map<number, { s: SoldierLike; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string; standIn: boolean; animDt?: number }>());
   const dropSoldier = (e: { s: SoldierLike; tag: THREE.Sprite | null }) => { if (e.tag) { (e.tag.material as THREE.SpriteMaterial).map?.dispose(); e.tag.material.dispose(); e.tag = null; } scene.remove(e.s.root); e.s.dispose(); };
   useEffect(() => () => { for (const e of soldiers.current.values()) dropSoldier(e); soldiers.current.clear(); }, [scene, kits]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -377,8 +380,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // Light shafts read the world's depth, so they run before anything else replaces it (see scene/shafts.ts).
     const shafts = atmo && citySun && atmo.shafts > 0 ? new ShaftsPass(camera as THREE.PerspectiveCamera, citySun.dir, atmo.shafts) : null;
     if (shafts) c.addPass(shafts);
+    let ao: N8AOPostPass | null = null;
     if (q.ao) {
-      const ao = new N8AOPostPass(scene, camera, size.width, size.height);
+      ao = new N8AOPostPass(scene, camera, size.width, size.height);
       Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: !q.aoHigh, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
       ao.setQualityMode(q.aoMode ?? (q.aoHigh ? 'High' : 'Medium')); c.addPass(ao);
     }
@@ -393,7 +397,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     c.addPass(new EffectPass(camera, ...fxs));
     c.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
     if (fin) c.addPass(new EffectPass(camera, new SharpenEffect(fin.sharpen)));
-    return { c, weapon, shafts };
+    return { c, weapon, shafts, ao };
   }, [gl, scene, camera, q, vm, atmo, fin]); // eslint-disable-line react-hooks/exhaustive-deps
   // The street's reflection in the rain (High, Ultra), drawn before the frame.
   const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
@@ -424,24 +428,19 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     return () => { delete hooks.__arenaRenderScale; };
   }, [setDpr]);
   // ---------------------------------------------------------------- adaptive performance
-  // Hold the frame rate (30 on touch devices, 55 elsewhere): fewer pixels first, then a lighter profile.
-  // The simulation, input and network run at fixed rates whatever the frame rate.
+  // Live effect budgets never mutate the saved profile or recreate the map/viewmodel.
   const touchDevice = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
   const renderScale = useArena(s => s.settings.renderScale);
-  const baseDpr = useMemo(() => Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale, [q, renderScale]);
-  // Clarity floor: however hard the frame rate is pressed, never fewer than 0.85 drawn pixels per CSS pixel on a phone
-  // (0.75 elsewhere): below that the image turns to mush, which the profile's cheaper effects are there to prevent.
-  const CLARITY_FLOOR = touchDevice ? .85 : .75;
-  const adaptive = useMemo(() => createAdaptive({ target: frameTarget(touchDevice), min: Math.min(1, Math.max(.5, CLARITY_FLOOR / Math.max(.01, baseDpr))) }), [q, baseDpr, touchDevice]); // eslint-disable-line react-hooks/exhaustive-deps
+  const baseDpr = useMemo(() => scenePixelRatio(gl, size.width, size.height, Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale, settings.quality), [gl, size.width, size.height, q, renderScale, settings.quality]);
+  const CLARITY_FLOOR = touchDevice ? .85 : .85;
+  const adaptive = useMemo(() => createPerformanceBudget({ target: frameTarget(touchDevice), min: Math.min(1, CLARITY_FLOOR / Math.max(.01, baseDpr)) }), [baseDpr, touchDevice, settings.adaptive, q]);
+  // Restore the user's resolution when they turn adaptation off or change their profile.
+  useEffect(() => { if (!(QA_HOOKS && new URLSearchParams(location.search).has('qa-scale'))) setDpr(baseDpr); }, [adaptive, baseDpr, setDpr]);
+  const budget = () => settings.adaptive ? adaptive.level : 0;
   const adaptFps = (fps: number) => {
-    const st = useArena.getState().settings; if (!st.adaptive || QA_HOOKS && new URLSearchParams(location.search).has('qa-scale')) return;
+    if (!settings.adaptive || QA_HOOKS && new URLSearchParams(location.search).has('qa-scale')) return;
     const r = adaptive.sample(fps);
     if (r.changed) setDpr(Math.max(Math.min(baseDpr, CLARITY_FLOOR), baseDpr * r.scale));
-    if (r.stepDown && st.quality !== 'low') {
-      const lower = st.quality === 'ultra' ? 'high' : st.quality === 'high' ? 'medium' : 'low';
-      useArena.getState().setSettings({ quality: lower, qualityChosen: false });
-      useBanners.getState().push({ text: 'Graphics lowered to keep the game smooth', sub: `Now ${lower[0].toUpperCase() + lower.slice(1)} · change it in Settings`, tone: 'info', ms: 3600 });
-    }
   };
 
   // ---------------------------------------------------------------- input
@@ -557,9 +556,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     }
     // ---- shadows: static on phones, refreshed at the profile's rate otherwise
     // (QA builds: `?qa-static-shadows` draws the sun's shadow once, so software-rendered captures of a still scene finish.)
-    if (world && q.shadows && q.shadowEvery && frameNo.current % q.shadowEvery === 0 && !qaStaticShadows) world.sun.shadow.needsUpdate = true;
+    if (world && q.shadows && q.shadowEvery && frameNo.current % (q.shadowEvery * (budget() >= 2 ? 3 : 1)) === 0 && !qaStaticShadows) world.sun.shadow.needsUpdate = true;
     // ---- players
-    const t = live.playback.time(now), seenNums = new Set<number>();
+    const t = live.playback.time(now); seenNums.clear();
     // Soldiers are skinned meshes with culling off (their bones move them outside their bounds), so cull them here:
     // a sphere around each soldier against the view frustum (wider when sun shadows are drawn live, so a shadow cast
     // into view from just outside it stays).
@@ -602,7 +601,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     fx.effects.update(dt); vm.casings.update(dt);
     if (world && world.leaves.update(dt, live.world) && world.sun.castShadow) world.sun.shadow.needsUpdate = true;
     if (fx.muzzleLight.intensity > 0) fx.muzzleLight.intensity = Math.max(0, fx.muzzleLight.intensity - dt * 600);
-    if (q.detail && s && now - dustAt.current > 260) { dustAt.current = now; fx.effects.mote(v1.set(cam.position.x + (Math.random() - .5) * 14, .2 + Math.random() * 2.2, cam.position.z + (Math.random() - .5) * 14)); }
+    if (!budget() && q.detail && s && now - dustAt.current > 260) { dustAt.current = now; fx.effects.mote(v1.set(cam.position.x + (Math.random() - .5) * 14, .2 + Math.random() * 2.2, cam.position.z + (Math.random() - .5) * 14)); }
     let gi = 0; for (const gr of live.grenades.values()) { const m = fx.grenades[gi++]; if (!m) break; m.visible = true; m.position.set(gr.x, gr.y, gr.z); (m.material as THREE.MeshStandardMaterial).color.set(EQUIP_IDS[gr.kind] === 'flash' ? '#b9bcc0' : EQUIP_IDS[gr.kind] === 'smoke' ? '#5f6c78' : '#3f4a34'); }
     for (; gi < fx.grenades.length; gi++) fx.grenades[gi].visible = false;
     grenadeAudio(now);
@@ -630,7 +629,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
       prefetchRemainingWeapons(q.detail > 0 && !saveData);
     } else if (a.sceneReady && a.match && live.loadedSent !== a.match.id) sceneLoaded(true);
-    const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); if (a.sceneReady && !document.hidden) adaptFps(fps); }
+    const f = fpsRef.current;
+    // Loading, background gaps and deliberately throttled menus are not GPU measurements.
+    if (!a.sceneReady || inputPaused(a) || document.hidden || dtRaw > 3) { f.frames = 0; f.t = now; }
+    else { if (!f.t) f.t = now; f.frames++; if (now - f.t >= 1000) { const fps = f.frames * 1000 / (now - f.t); f.frames = 0; f.t = now; if (a.hud.fps !== Math.round(fps)) a.set({ hud: { ...useArena.getState().hud, fps: Math.round(fps) } }); adaptFps(fps); } }
   }, -1);
 
   /** What a boot lands on: the box underfoot (its material; a stair riser), or the ground as it is painted. */
@@ -730,17 +732,22 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const noRender = QA_HOOKS && new URLSearchParams(location.search).has('qa-norender');
   // QA builds: `__arenaFreeze(true)` stops drawing (the canvas keeps its last frame) so a software-rendered capture can
   // take its screenshot while the GPU process is idle; the frame loop, simulation and HUD keep running.
-  const frozen = useRef(false);
+  const frozen = useRef(false), renderElapsed = useRef(0);
   useEffect(() => { if (!QA_HOOKS) return; const w = window as unknown as Record<string, unknown>; w.__arenaFreeze = (on: boolean) => { frozen.current = on; }; return () => { delete w.__arenaFreeze; }; }, []);
   useFrame(({ gl: r }, dt) => {
     if (noRender || frozen.current) return;
+    renderElapsed.current += dt;
+    if ((inputPaused(useArena.getState()) || portraitBlocked() || document.hidden) && renderElapsed.current < .1) return;
+    dt = Math.min(renderElapsed.current, .5); renderElapsed.current = 0;
+    if (composer?.ao) composer.ao.enabled = budget() === 0;
+    if (reflection) cityWeather.uReflect.value = budget() === 0 ? 1 : 0;
     r.info.reset();
     // Exposure follows the eye: opening up indoors and in the station, closing again outside.
     // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
     r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
     // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
     // frames the sun's shadow is not redrawn, so the two passes never land together.)
-    if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
+    if (!budget() && reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
     if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
     else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };

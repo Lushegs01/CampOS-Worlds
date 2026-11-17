@@ -3,8 +3,10 @@
 import { stepFrame, WALK_SPEED, SPRINT_SPEED, JUMP_SPEED, MAX_STEP } from './movement.mjs';
 
 export const MOTION_VERSION = 1;
+export const MAX_PREDICTION_SECONDS = 4;
 const FIELDS = ['x', 'y', 'z', 'vx', 'vy', 'vz'];
-const copy = w => Object.fromEntries(FIELDS.map(k => [k, w[k]]));
+// This runs for every authoritative command: avoid seven temporary arrays per copy.
+const copy = w => ({ x: w.x, y: w.y, z: w.z, vx: w.vx, vy: w.vy, vz: w.vz });
 const MAX_FRAME = MAX_STEP + 1, BUDGET = 4;
 
 // Compact tuples keep high-refresh-rate input batches within the room's message size limit.
@@ -58,18 +60,19 @@ export function createMotionAuthority(w, now = 0) {
 
 /** Client prediction; deliberately has no transport, React, or clock dependencies. */
 export function createPrediction(w) {
-  let epoch = 0, seq = 0, acknowledged = 0, sent = 0, pending = [], allow, first = true;
+  let epoch = 0, seq = 0, acknowledged = 0, sent = 0, pending = [], pendingSeconds = 0, allow, first = true;
   return {
     get active() { return epoch !== 0; },
     get pending() { return pending.length; },
     collision(fn) { allow = fn; },
-    stop() { epoch = seq = acknowledged = sent = 0; pending = []; w.vx = w.vz = w.vy = 0; },
+    stop() { epoch = seq = acknowledged = sent = 0; pending = []; pendingSeconds = 0; w.vx = w.vz = w.vy = 0; },
     receive(s) {
       if (!s || s.version !== MOTION_VERSION || !Number.isSafeInteger(s.epoch) || s.epoch < epoch ||
           !Number.isSafeInteger(s.seq) || !FIELDS.every(k => Number.isFinite(s[k]))) return false;
       if (s.epoch === epoch && s.seq <= acknowledged) return false;
       if (s.epoch !== epoch) { epoch = s.epoch; seq = s.seq; pending = []; sent = s.seq; first = true; }
       else pending = pending.filter(c => c[0] > s.seq);
+      pendingSeconds = pending.reduce((sum, c) => sum + c[1], 0);
       acknowledged = s.seq; Object.assign(w, copy(s));
       for (const c of pending) applyCommand(w, c, allow);
       return true;
@@ -78,19 +81,23 @@ export function createPrediction(w) {
       // The elapsed render frame can predate a welcome or teleport received between frames.
       if (first) { first = false; return 0; }
       // Bound history during a silent connection loss. Reconnection supplies a fresh generation.
-      if (!epoch || pending.length >= 1024 || !Number.isFinite(dt) || dt <= 0) return 0;
-      const c = [++seq, Math.min(dt, MAX_FRAME), dx, dz, Number(!!sprint), Number(!!jump), yaw];
+      if (!epoch || pending.length >= 1024 || pendingSeconds >= MAX_PREDICTION_SECONDS - 1e-6 || !Number.isFinite(dt) || dt <= 0) return 0;
+      const c = [++seq, Math.min(dt, MAX_FRAME, MAX_PREDICTION_SECONDS - pendingSeconds), dx, dz, Number(!!sprint), Number(!!jump), yaw];
       if (!validCommand(c)) { seq--; return 0; }
-      pending.push(c); applyCommand(w, c, allow); return c[1];
+      pending.push(c); pendingSeconds += c[1]; applyCommand(w, c, allow); return c[1];
     },
     hop() {
       // A jump shot can be released between render frames. Sequence its impulse before the shot
       // action, so a pre-release snapshot cannot erase the jump or apply it twice during replay.
-      if (!epoch || w.y !== 0 || pending.length >= 1024) return false;
+      if (!epoch || w.y !== 0 || pending.length >= 1024 || pendingSeconds >= MAX_PREDICTION_SECONDS - 1e-6) return false;
       const c = [++seq, 1e-6, 0, 0, 0, 2, w.yaw];
-      pending.push(c); applyCommand(w, c, allow); return true;
+      pending.push(c); pendingSeconds += c[1]; applyCommand(w, c, allow); return true;
     },
-    batch() { return { type: 'move', epoch, commands: pending.filter(c => c[0] > sent).slice(0, 16) }; },
+    batch() {
+      const commands = [];
+      for (const c of pending) { if (c[0] > sent) commands.push(c); if (commands.length === 16) break; }
+      return { type: 'move', epoch, commands };
+    },
     didSend(batch) { if (batch.epoch === epoch && batch.commands.length) sent = batch.commands.at(-1)[0]; },
   };
 }

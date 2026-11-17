@@ -18,9 +18,9 @@ export default function TouchControls() {
   const releaseLook = (e: React.PointerEvent) => { if (lookPointer.current === e.pointerId) lookPointer.current = null; };
   useEffect(() => {
     const reset = () => { held.current.clear(); release(); input.jump = false; lookPointer.current = null; };
-    window.addEventListener('blur', reset); document.addEventListener('visibilitychange', reset);
+    window.addEventListener('blur', reset); window.addEventListener('gameinputreset', reset); document.addEventListener('visibilitychange', reset);
     reset();
-    return () => { reset(); window.removeEventListener('blur', reset); document.removeEventListener('visibilitychange', reset); };
+    return () => { reset(); window.removeEventListener('blur', reset); window.removeEventListener('gameinputreset', reset); document.removeEventListener('visibilitychange', reset); };
   }, [phase, panel, vehicle]);
   if (phase !== 'playing' || panel) return null;
   return <div className="touch-controls">
