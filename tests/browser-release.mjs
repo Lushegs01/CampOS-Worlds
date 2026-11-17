@@ -137,11 +137,16 @@ try {
 
   await page.evaluate(async()=>{await fetch('/health');});
   const cached = await page.evaluate(async()=>{
-    const urls=[];for(const name of await caches.keys())for(const request of await (await caches.open(name)).keys())urls.push(request.url);return urls;
+    const out=[];for(const name of await caches.keys())for(const request of await (await caches.open(name)).keys())out.push({name,url:request.url});return out;
   });
-  assert.ok(cached.some(url=>url.includes('/offline.html')));
-  assert.ok(cached.every(url=>!/(?:\/health|\/auth\/|\/rest\/|\/shop\/|\.(?:glb|ktx2|hdr|ogg|wav)(?:\?|$))/.test(url)));
-  pass('cache contains the launch shell, with no world models, textures, audio, API or account responses');
+  const urls=cached.map(c=>c.url), world=/\.(?:glb|ktx2|hdr|ogg|wav)(?:\?|$)/;
+  assert.ok(urls.some(url=>url.includes('/offline.html')));
+  // No API, account, health or shop response in any cache.
+  assert.ok(urls.every(url=>!/(?:\/health|\/auth\/|\/rest\/|\/shop\/)/.test(url)), 'no private or live responses cached');
+  // World models, textures and audio: never in the precache (the launch shell); kept only by the runtime static-asset
+  // cache (src/world/assetCache.ts), and only at a content revision (?v=…), so a new build replaces them.
+  assert.ok(cached.every(({name,url})=>!world.test(url)||(name==='campos-worlds-static-assets'&&/[?&]v=[\w-]{4,64}$/.test(url))), 'world assets only in the revisioned runtime cache');
+  pass('caches hold the launch shell and revisioned static assets only: no API, account or live responses');
   // Network failures below are deliberate and kept separate from the normal-flow console audit.
   page.removeAllListeners('requestfailed'); page.removeAllListeners('console');
   host.setUnavailable(true);await ctx.setOffline(true); await page.reload({waitUntil:'domcontentloaded'});
@@ -171,10 +176,12 @@ try {
   pass('production phone viewport supports real joystick movement, portrait/landscape and no horizontal overflow');
   await phoneCtx.close();
   const failureCtx = await context({viewport:{width:900,height:600}}), recovery = await failureCtx.newPage();
-  await recovery.route('**/textures/grass/color.ktx2*',route=>route.abort());
+  // (Blocked for the whole context: revisioned textures are fetched through the service worker's runtime cache, and a
+  // page-level route does not see a service worker's requests.)
+  await failureCtx.route('**/textures/grass/color.ktx2*',route=>route.abort());
   await recovery.goto(host.url,{waitUntil:'domcontentloaded'});
   await recovery.getByRole('heading',{name:'The campus couldn’t open.'}).waitFor({timeout:60000});
-  await recovery.unroute('**/textures/grass/color.ktx2*');
+  await failureCtx.unroute('**/textures/grass/color.ktx2*');
   await recovery.getByRole('button',{name:'Reload campus on low quality'}).click();await ready(recovery);
   pass('a failed essential texture offers recovery; retry downloads it and opens the campus');
   await recovery.evaluate(()=>document.querySelector('.world canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
