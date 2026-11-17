@@ -1,0 +1,3798 @@
+{
+  "renderer": "Software WebGL; physical laptop validation outstanding",
+  "checks": [
+    "campus starts with one context",
+    "all four quality profiles keep the same context",
+    "injected Arena loss attributed and recovered without leaving match",
+    "cycle 1: exclusive teardown, return and campus state preserved",
+    "cycle 2: exclusive teardown, return and campus state preserved",
+    "renderer resource counts remain bounded across repeated transitions",
+    "injected campus loss attributed and recovered"
+  ],
+  "samples": [
+    {
+      "name": "campus",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "campus",
+        "id": 1
+      },
+      "current": {
+        "event": "sample",
+        "id": 1,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 1,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 72592.19999999925,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 246,
+          "textures": 132
+        },
+        "programs": 42,
+        "calls": 209,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 39674.199999999255,
+        "event": "compile-end",
+        "id": 1,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 1,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 38712.300000000745,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 230,
+          "textures": 108
+        },
+        "programs": 41,
+        "calls": 199,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "arena lobby",
+      "live": 0,
+      "max": 1,
+      "canvases": 0,
+      "active": null,
+      "current": null,
+      "lastEvent": {
+        "at": 82528.39999999851,
+        "event": "released",
+        "id": 1,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "DISPOSED",
+          "generation": 1,
+          "rendererId": 1,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": true,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 81566.5,
+        "devicePixelRatio": 1,
+        "width": 0,
+        "height": 0,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 191,
+          "textures": 116
+        },
+        "programs": 38,
+        "calls": 206,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "arena",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "arena",
+        "id": 2
+      },
+      "current": {
+        "event": "sample",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "low",
+        "elapsedMs": 18528.699999999255,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 41,
+          "textures": 69
+        },
+        "programs": 27,
+        "calls": 48,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 99060.5,
+        "event": "lifecycle",
+        "owner": "arena",
+        "from": "INITIALIZING",
+        "phase": "READY",
+        "generation": 1,
+        "rendererId": 2,
+        "error": ""
+      }
+    },
+    {
+      "name": "quality medium",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "arena",
+        "id": 2
+      },
+      "current": {
+        "event": "sample",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "medium",
+        "elapsedMs": 26275.39999999851,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 49,
+          "textures": 111
+        },
+        "programs": 72,
+        "calls": 86,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 109637.09999999776,
+        "event": "compile-end",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "medium",
+        "elapsedMs": 26208.599999997765,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 49,
+          "textures": 111
+        },
+        "programs": 72,
+        "calls": 86,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "quality high",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "arena",
+        "id": 2
+      },
+      "current": {
+        "event": "sample",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "high",
+        "elapsedMs": 33142.39999999851,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 54,
+          "textures": 117
+        },
+        "programs": 83,
+        "calls": 86,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 116037.5,
+        "event": "compile-end",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "high",
+        "elapsedMs": 32609,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 54,
+          "textures": 117
+        },
+        "programs": 83,
+        "calls": 123,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "quality ultra",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "arena",
+        "id": 2
+      },
+      "current": {
+        "event": "sample",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "ultra",
+        "elapsedMs": 40455.099999997765,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 59,
+          "textures": 121
+        },
+        "programs": 93,
+        "calls": 122,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 123329.69999999925,
+        "event": "lifecycle",
+        "owner": "arena",
+        "from": "INITIALIZING",
+        "phase": "READY",
+        "generation": 1,
+        "rendererId": 2,
+        "error": ""
+      }
+    },
+    {
+      "name": "quality low",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "arena",
+        "id": 2
+      },
+      "current": {
+        "event": "sample",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "low",
+        "elapsedMs": 45258.79999999702,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 62,
+          "textures": 91
+        },
+        "programs": 91,
+        "calls": 48,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 128637,
+        "event": "compile-end",
+        "id": 2,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "INITIALIZING",
+          "generation": 1,
+          "rendererId": 2,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "low",
+        "elapsedMs": 45208.5,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 62,
+          "textures": 91
+        },
+        "programs": 91,
+        "calls": 48,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "arena",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "arena",
+        "id": 3
+      },
+      "current": {
+        "event": "sample",
+        "id": 3,
+        "owner": "arena",
+        "generation": 2,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 2,
+          "rendererId": 3,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "low",
+        "elapsedMs": 13865,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 41,
+          "textures": 69
+        },
+        "programs": 32,
+        "calls": 48,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 142129.09999999776,
+        "event": "lifecycle",
+        "owner": "arena",
+        "from": "RECOVERING",
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 3,
+        "error": ""
+      }
+    },
+    {
+      "name": "campus",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "campus",
+        "id": 4
+      },
+      "current": {
+        "event": "sample",
+        "id": 4,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 4,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 23224.199999999255,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 207,
+          "textures": 97
+        },
+        "programs": 44,
+        "calls": 197,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 167564.79999999702,
+        "event": "compile-end",
+        "id": 4,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 4,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 15326.79999999702,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 205,
+          "textures": 91
+        },
+        "programs": 44,
+        "calls": 198,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "arena lobby",
+      "live": 0,
+      "max": 1,
+      "canvases": 0,
+      "active": null,
+      "current": null,
+      "lastEvent": {
+        "at": 185247.29999999702,
+        "event": "released",
+        "id": 4,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "DISPOSED",
+          "generation": 1,
+          "rendererId": 4,
+          "resourcesReady": false,
+          "error": ""
+        },
+        "intentional": true,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 33009.199999999255,
+        "devicePixelRatio": 1,
+        "width": 0,
+        "height": 0,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 165,
+          "textures": 84
+        },
+        "programs": 38,
+        "calls": 199,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "arena",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "arena",
+        "id": 5
+      },
+      "current": {
+        "event": "sample",
+        "id": 5,
+        "owner": "arena",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 5,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "arena",
+        "scene": "foundry",
+        "profile": "low",
+        "elapsedMs": 18649.300000000745,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 41,
+          "textures": 69
+        },
+        "programs": 29,
+        "calls": 48,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 202099.69999999925,
+        "event": "lifecycle",
+        "owner": "arena",
+        "from": "INITIALIZING",
+        "phase": "READY",
+        "generation": 1,
+        "rendererId": 5,
+        "error": ""
+      }
+    },
+    {
+      "name": "campus",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "campus",
+        "id": 6
+      },
+      "current": {
+        "event": "sample",
+        "id": 6,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 6,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 23084.300000000745,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 207,
+          "textures": 97
+        },
+        "programs": 44,
+        "calls": 197,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 226989.3999999985,
+        "event": "compile-end",
+        "id": 6,
+        "owner": "campus",
+        "generation": 1,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 1,
+          "rendererId": 6,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 14698.199999999255,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 205,
+          "textures": 91
+        },
+        "programs": 44,
+        "calls": 197,
+        "pendingCompilations": 0
+      }
+    },
+    {
+      "name": "campus",
+      "live": 1,
+      "max": 1,
+      "canvases": 1,
+      "active": {
+        "owner": "campus",
+        "id": 7
+      },
+      "current": {
+        "event": "sample",
+        "id": 7,
+        "owner": "campus",
+        "generation": 2,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 2,
+          "rendererId": 7,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 24998.699999999255,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 207,
+          "textures": 97
+        },
+        "programs": 44,
+        "calls": 200,
+        "pendingCompilations": 0
+      },
+      "lastEvent": {
+        "at": 252765.79999999702,
+        "event": "compile-end",
+        "id": 7,
+        "owner": "campus",
+        "generation": 2,
+        "lifecycle": {
+          "phase": "READY",
+          "generation": 2,
+          "rendererId": 7,
+          "resourcesReady": true,
+          "error": ""
+        },
+        "intentional": false,
+        "activeOwner": "campus",
+        "scene": "campus",
+        "profile": "low",
+        "elapsedMs": 14586.699999999255,
+        "devicePixelRatio": 1,
+        "width": 192,
+        "height": 108,
+        "dpr": 0.15,
+        "memory": {
+          "geometries": 202,
+          "textures": 91
+        },
+        "programs": 44,
+        "calls": 197,
+        "pendingCompilations": 0
+      }
+    }
+  ],
+  "events": [
+    {
+      "at": 243806,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243806.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 243830.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.29999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249501.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249502.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249502.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249502.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249502.79999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249503.5,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249503.79999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249503.8999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249503.8999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249503.8999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.5,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.59999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.69999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.69999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.69999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249504.8999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249507.69999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249507.8999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249508,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249508.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249508.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249508.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249508.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249508.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249508.69999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249509.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249513.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249514,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249515,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249516.3999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249517.29999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249518.5,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249518.79999999702,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249518.8999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249519,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249519,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249519,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249519.09999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": false,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.8999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249520.8999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "RECOVERING",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 249540.79999999702,
+      "event": "lifecycle",
+      "owner": "campus",
+      "generation": 2,
+      "from": "RECOVERING",
+      "phase": "READY",
+      "rendererId": 7,
+      "error": ""
+    },
+    {
+      "at": 250297.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250297.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250298.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.5,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250299.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250300.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250300.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250300.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250300.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.8999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250331.8999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250332.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250332.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250332.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250332.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250332.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 250332.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.69999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.8999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.8999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251985.8999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.09999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.19999999925,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.29999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.29999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251986.3999999985,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251987,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251987.8999999985,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251988.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251988.19999999925,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251988.5,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 251988.59999999776,
+      "event": "compile-start",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 252763.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 252763.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 252763.59999999776,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 252765.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 252765.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    },
+    {
+      "at": 252765.79999999702,
+      "event": "compile-end",
+      "owner": "campus",
+      "id": 7,
+      "generation": 2,
+      "intentional": false,
+      "lifecycle": {
+        "phase": "READY",
+        "generation": 2,
+        "rendererId": 7,
+        "resourcesReady": true,
+        "error": ""
+      }
+    }
+  ],
+  "lastContextLoss": {
+    "at": 238030.8999999985,
+    "event": "webglcontextlost",
+    "detail": "",
+    "id": 6,
+    "owner": "campus",
+    "generation": 1,
+    "lifecycle": {
+      "phase": "READY",
+      "generation": 1,
+      "rendererId": 6,
+      "resourcesReady": true,
+      "error": ""
+    },
+    "intentional": false,
+    "activeOwner": "campus",
+    "scene": "campus",
+    "profile": "low",
+    "elapsedMs": 25739.599999997765,
+    "devicePixelRatio": 1,
+    "width": 0,
+    "height": 0,
+    "dpr": 0.15,
+    "memory": {
+      "geometries": 207,
+      "textures": 97
+    },
+    "programs": 44,
+    "calls": 0,
+    "pendingCompilations": 0
+  },
+  "passed": true
+}

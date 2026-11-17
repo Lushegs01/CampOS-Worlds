@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { Component, useInsertionEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createGraphicsLifecycle, type GraphicsLifecycle } from './lifecycle';
+import { GraphicsSession, rendererSessions } from './session';
 import { Canvas, type CanvasProps } from '@react-three/fiber';
 import * as THREE from 'three';
 import { rememberGraphicsCapabilities } from './capabilities';
@@ -36,40 +38,69 @@ type Props = Omit<CanvasProps, 'gl'> & {
   sceneName: string;
   options: THREE.WebGLRendererParameters & { toneMapping?: THREE.ToneMapping; toneMappingExposure?: number };
   onInterrupted?: () => void;
+  onReady?: () => void;
+  onRecovering?: () => void;
+  onExit?: () => void;
 };
 
-/** R3F owns the factory renderer. Its forceContextLoss runs AFTER scene/effect and renderer disposal. */
-export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrupted, onCreated, ...props }: Props) {
-  const [generation, setGeneration] = useState(0), [failure, setFailure] = useState('');
-  const current = useRef({ profile, sceneName, onInterrupted });
-  current.current = { profile, sceneName, onInterrupted };
-  // Immutable context attributes are chosen once. All profiles can use native AA on the default
-  // framebuffer; profiles with post-processing use their own SMAA render targets.
-  const [factory] = useState(() => async (defaults: THREE.WebGLRendererParameters) => {
+/** Factory/configuration failures belong to this graphics attempt, not the Arena asset boundary. */
+class GraphicsBoundary extends Component<{ lifecycle: GraphicsLifecycle; generation: number; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error) { this.props.lifecycle.fail(this.props.generation, error.message); }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+/** R3F owns each factory renderer; the lease extends through its complete teardown. */
+export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrupted, onReady, onRecovering, onExit, onCreated, children, ...props }: Props) {
+  const current = useRef({ profile, sceneName, options, onInterrupted, onReady, onRecovering });
+  current.current = { profile, sceneName, options, onInterrupted, onReady, onRecovering };
+  const [lifecycle] = useState(() => createGraphicsLifecycle((before, next) => {
+    if (before.phase === next.phase) return;
+    record({ event: 'lifecycle', owner, from: before.phase, phase: next.phase, generation: next.generation, rendererId: next.rendererId, error: next.error });
+    if (next.phase === 'READY') current.current.onReady?.();
+    if (next.phase === 'RECOVERING') current.current.onRecovering?.();
+    if (next.phase === 'CONTEXT_LOST' || next.phase === 'RECOVERY_FAILED') {
+      current.current.onInterrupted?.();
+      window.dispatchEvent(new Event('gameinputreset'));
+    }
+  }));
+  const state = useSyncExternalStore(lifecycle.subscribe, lifecycle.getSnapshot, lifecycle.getSnapshot);
+  const generation = state.generation;
+  // Like R3F, invalidate only on final removal, not StrictMode effect replay or Activity hiding.
+  useInsertionEffect(() => () => lifecycle.dispose(), [lifecycle]);
+  const session = useMemo(() => ({ lifecycle, generation }), [lifecycle, generation]);
+  // Each factory closes over its attempt. It must never borrow the newer generation from a ref.
+  const factory = useMemo(() => async (defaults: THREE.WebGLRendererParameters) => {
     const release = await acquireRenderer();
+    if (!lifecycle.current(generation)) { release(); throw new DOMException('Graphics attempt retired', 'AbortError'); }
     const canvas = defaults.canvas as HTMLCanvasElement;
     const id = ++serial, started = performance.now();
-    let renderer: THREE.WebGLRenderer | undefined, retiring = false;
+    let renderer: THREE.WebGLRenderer | undefined, retiring = false, pendingCompilations = () => 0;
+    const owns = () => !retiring && active?.id === id && lifecycle.current(generation, id);
     const snapshot = (event: string, detail?: string): Diagnostic => ({
-      event, detail, id, owner, intentional: retiring, activeOwner: active?.owner ?? null,
+      event, detail, id, owner, generation, lifecycle: { ...lifecycle.getSnapshot() }, intentional: retiring || !lifecycle.current(generation), activeOwner: active?.owner ?? null,
       scene: current.current.sceneName, profile: current.current.profile,
       elapsedMs: performance.now() - started, devicePixelRatio: window.devicePixelRatio,
       width: renderer?.getContext().drawingBufferWidth ?? canvas.width,
       height: renderer?.getContext().drawingBufferHeight ?? canvas.height,
       dpr: renderer?.getPixelRatio(), memory: renderer ? { ...renderer.info.memory } : null,
       programs: renderer?.info.programs?.length, calls: renderer?.info.render.calls,
+      pendingCompilations: pendingCompilations(),
     });
     const interrupted = (event: Event) => {
       event.preventDefault();
       record(snapshot(event.type, (event as WebGLContextEvent).statusMessage));
-      if (retiring) return;
-      current.current.onInterrupted?.();
-      setFailure(`${owner === 'campus' ? 'Campus' : 'Arena'} graphics were interrupted.`);
+      // A creation attempt can fail before Three successfully obtains a usable context. The
+      // constructor result, not this early event, decides whether initialization failed.
+      if (!owns() || !renderer?.getContext().isContextLost()) return;
+      lifecycle.lost(generation, id, `${owner === 'campus' ? 'Campus' : 'Arena'} graphics were interrupted.`);
     };
     const restored = () => {
       record(snapshot('webglcontextrestored'));
-      // Reconstruct all targets, shader gates and environments through a fresh renderer.
-      if (!retiring) { setFailure(''); setGeneration(n => n + 1); }
+      // Keep the lost canvas/listeners mounted until this event or a manual retry. Rebuild all
+      // renderer-dependent resources through a fresh, exclusive attempt, then require a frame.
+      if (owns() && !renderer?.getContext().isContextLost()) lifecycle.recover(generation);
     };
     canvas.dataset.graphicsOwner = owner;
     canvas.addEventListener('webglcontextcreationerror', interrupted);
@@ -83,12 +114,16 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
       stopTracking();
     };
     try {
-      renderer = new THREE.WebGLRenderer({ ...defaults, ...options, powerPreference: 'default' });
-      if (options.toneMapping !== undefined) renderer.toneMapping = options.toneMapping;
-      if (options.toneMappingExposure !== undefined) renderer.toneMappingExposure = options.toneMappingExposure;
-      const gl = renderer.getContext(), debug = gl.getExtension('WEBGL_debug_renderer_info');
+      renderer = new THREE.WebGLRenderer({ ...defaults, ...current.current.options, powerPreference: 'default' });
+      if (current.current.options.toneMapping !== undefined) renderer.toneMapping = current.current.options.toneMapping;
+      if (current.current.options.toneMappingExposure !== undefined) renderer.toneMappingExposure = current.current.options.toneMappingExposure;
+      const gl = renderer.getContext();
+      if (gl.isContextLost()) throw new Error('The new WebGL context is unavailable.');
+      const debug = gl.getExtension('WEBGL_debug_renderer_info');
       rememberGraphicsCapabilities({ gpu: String(debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)), maxTexture: renderer.capabilities.maxTextureSize });
+      if (!lifecycle.attach(generation, id)) throw new DOMException('Graphics attempt retired', 'AbortError');
       active = { owner, id }; inspect = () => snapshot('sample');
+      rendererSessions.set(renderer, { id, owns });
       record({ ...snapshot('created'), capabilities: {
         version: gl.getParameter(gl.VERSION), vendor: debug ? gl.getParameter(debug.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR),
         renderer: debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
@@ -108,16 +143,18 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
         finally { resizing = false; }
       };
       const cancelCompilation = installCompilation(renderer, (name, detail) => record(snapshot(name, detail)));
+      pendingCompilations = cancelCompilation.pending;
       const shaderError = renderer.debug.onShaderError;
       renderer.debug.onShaderError = (context, program, vertex, fragment) => {
-        record(snapshot('shader-error', [context.getProgramInfoLog(program), context.getShaderInfoLog(vertex), context.getShaderInfoLog(fragment)].join('\n')));
+        const detail = [context.getProgramInfoLog(program), context.getShaderInfoLog(vertex), context.getShaderInfoLog(fragment)].join('\n');
+        record(snapshot('shader-error', detail));
+        if (owns()) lifecycle.fail(generation, 'A graphics shader could not be compiled.', id);
         shaderError?.(context, program, vertex, fragment);
       };
       const dispose = renderer.dispose.bind(renderer), lose = renderer.forceContextLoss.bind(renderer);
       renderer.dispose = () => { retiring = true; record(snapshot('dispose')); cancelCompilation(); dispose(); };
       renderer.forceContextLoss = () => {
         retiring = true; lose();
-        // Fail closed if the browser cannot confirm release. Never start a competing context.
         if (!gl.isContextLost()) {
           record(snapshot('teardown-failed', 'WebGL context release could not be confirmed.'));
           detach(); release('The previous WebGL context could not be released. Reload to rebuild graphics.'); return;
@@ -133,11 +170,23 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
       detach();
       if (renderer && !renderer.getContext().isContextLost()) release('Renderer setup failed and context release could not be confirmed. Reload graphics.');
       else { if (active?.id === id) { active = null; inspect = null; } release(); }
+      lifecycle.fail(generation, String(error instanceof Error ? error.message : error));
       throw error;
     }
-  });
+  }, [lifecycle, generation, owner]);
+  const recovering = state.phase === 'RECOVERING';
+  const interrupted = state.phase === 'CONTEXT_LOST' || state.phase === 'RECOVERY_FAILED';
   return <>
-    {!failure && <Canvas {...props} key={generation} gl={factory} onCreated={state => { onCreated?.(state); }} />}
-    {failure && <div className="graphics-error" style={{ position: 'fixed', zIndex: 200 }} role="alert"><h2>{failure}</h2><p>Your session is preserved. Rebuild graphics to continue.</p><button className="primary" onClick={() => { setGeneration(n => n + 1); setFailure(''); }}>Rebuild {owner} graphics</button></div>}
+    <GraphicsBoundary key={generation} lifecycle={lifecycle} generation={generation}>
+      <Canvas {...props} gl={factory} onCreated={onCreated}>
+        <GraphicsSession.Provider value={session}>{children}</GraphicsSession.Provider>
+      </Canvas>
+    </GraphicsBoundary>
+    {(interrupted || recovering) && <div className="graphics-error" data-graphics-recovery={owner} data-graphics-phase={state.phase} style={{ position: 'fixed', zIndex: 200 }} role="alert">
+      <h2>{recovering ? `Rebuilding ${owner} graphics…` : state.phase === 'CONTEXT_LOST' ? state.error : `${owner === 'campus' ? 'Campus' : 'Arena'} graphics recovery failed.`}</h2>
+      <p>{recovering ? 'Preparing resources and validating the first frame. Your session is preserved.' : state.phase === 'RECOVERY_FAILED' ? state.error : 'Your session is preserved. Rebuild graphics to continue.'}</p>
+      <button className="primary" disabled={recovering} onClick={() => lifecycle.recover(generation)}>{recovering ? 'Rebuilding graphics…' : `Rebuild ${owner} graphics`}</button>
+      {onExit && <button className="secondary" onClick={onExit}>Return to campus</button>}
+    </div>}
   </>;
 }

@@ -11,9 +11,12 @@ function renderer() {
   return { material, ready: () => { ready = true; }, compile: () => new Set([material]), properties: { get: () => ({ currentProgram: { isReady: () => ready } }) }, getContext: () => ({ isContextLost: () => false }) };
 }
 test('shader compilation waits for readiness and detaches listeners', async () => {
-  const gl = renderer(), events = []; installCompilation(gl, e => events.push(e));
+  const gl = renderer(), events = []; const cancel = installCompilation(gl, e => events.push(e));
+  assert.equal(cancel.pending(), 0);
   const compiled = gl.compileAsync(new Scene(), new PerspectiveCamera());
+  assert.equal(cancel.pending(), 1);
   gl.ready(); await compiled;
+  assert.equal(cancel.pending(), 0);
   assert.deepEqual(events, ['compile-start', 'compile-end']);
   assert.equal(gl.material._listeners.dispose.length, 0);
 });

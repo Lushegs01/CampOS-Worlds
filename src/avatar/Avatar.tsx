@@ -452,6 +452,7 @@ function avatarLod(root: THREE.Object3D, camera: THREE.Camera, frame: number) {
  * phone, just as a newcomer came into view. They are uploaded when the character arrives, one per frame.
  */
 const pendingUploads: THREE.Texture[] = [], queuedUploads = new WeakSet<THREE.Texture>();
+export const pendingAvatarUploads = () => pendingUploads.length;
 let uploadAt = -1;
 function queueUploads(root: THREE.Object3D) {
   root.traverse(o => {

@@ -91,7 +91,7 @@ const settingsListeners = new Set<(s: ArenaSettings) => void>();
 /** Called after every settings change (account synchronisation listens). */
 export function onSettingsChange(fn: (s: ArenaSettings) => void) { settingsListeners.add(fn); return () => { settingsListeners.delete(fn); }; }
 /** Paused for input: menus, the loadout editor, settings, the HUD editor or the Armory are open. */
-export const inputPaused = (a: { menu: boolean; editor: boolean; settingsOpen: boolean; hudEditor: boolean; armory: string | null }) => portraitBlocked() || a.menu || a.editor || a.settingsOpen || a.hudEditor || a.armory !== null;
+export const inputPaused = (a: { sceneReady?: boolean; menu: boolean; editor: boolean; settingsOpen: boolean; hudEditor: boolean; armory: string | null }) => a.sceneReady === false || portraitBlocked() || a.menu || a.editor || a.settingsOpen || a.hudEditor || a.armory !== null;
 
 /** Transient centre-screen messages (announcements and medals), outside React state churn. */
 export type Banner = { id: number; text: string; sub?: string; tone: 'info' | 'good' | 'bad' | 'medal' | 'big'; at: number; ms: number };

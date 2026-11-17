@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { launch } from './support/browser.mjs';
 import { startProduction } from './support/production.mjs';
+import { compactGraphicsEvent } from './support/graphics-evidence.mjs';
 const host = process.env.URL ? { url: process.env.URL, stop: async () => {} } : await startProduction({ root: process.env.ROOT || (existsSync('dist-qa/index.html') ? 'dist-qa' : 'dist') });
 const browser = await launch();
 const report = { renderer: 'Software WebGL; physical laptop validation outstanding', checks: [], samples: [] };
@@ -36,7 +37,7 @@ try {
     report.samples.push({ name, live: data.live, max: data.max, canvases: data.canvases, active: data.diagnostics.active, current: data.diagnostics.current, lastEvent: data.diagnostics.events.at(-1) }); return data;
   };
   const ready = async owner => {
-    await page.waitForFunction(owner => window.__graphics?.().active?.owner === owner, owner);
+    await page.waitForFunction(owner => window.__graphics?.().active?.owner === owner && window.__graphics().current?.lifecycle?.phase === 'READY', owner);
     if (owner === 'campus') {
       await page.waitForFunction(() => !!window.__campusDebug && !!window.__campusInspect && window.__campusGL?.info.memory.geometries > 100);
       // Optional vegetation compiles separately from the critical campus. Comparing an early
@@ -45,19 +46,22 @@ try {
       let previous = '', stable = 0;
       for (let i = 0; i < 45 && stable < 3; i++) {
         await page.waitForTimeout(1000);
-        const key = await page.evaluate(() => JSON.stringify(window.__campusGL.info.memory));
-        stable = key === previous ? stable + 1 : 0; previous = key;
+        const sample = await page.evaluate(() => ({ key: JSON.stringify(window.__campusGL.info.memory), pending: window.__campusLoads() + window.__graphics().current.pendingCompilations }));
+        stable = sample.pending === 0 && sample.key === previous ? stable + 1 : 0; previous = sample.key;
       }
       assert.ok(stable >= 3, 'campus GPU resource uploads settle before comparing visits');
     }
     else await page.waitForFunction(() => window.__arenaDeploy?.().stage === 'deployed' && window.__arena?.state().sceneReady && window.__arenaGL?.info.memory.geometries > 20);
     assert.equal((await sample(owner)).live, 1);
+    assert.equal(await page.locator('[data-graphics-recovery]').count(), 0, 'a validated renderer has no recovery overlay');
   };
   await page.goto(host.url + '/?qa-scale=0.15');
   await page.waitForFunction(() => document.querySelector('.enter-button') && !document.querySelector('.enter-button').disabled);
-  await page.getByRole('button', { name: 'Enter campus', exact: true }).click(); await ready('campus');
-  check('campus starts with one context');
-  await page.evaluate(() => window.__campusDebug.teleport(10, 12, 1.2, .2, 7));
+  await page.getByRole('button', { name: 'Enter campus', exact: true }).click();
+  await page.waitForFunction(() => !!window.__campusDebug && window.__campusInspect?.().status === 'connected');
+  // Change only the view: a real authoritative room must not reconcile an illegal QA position.
+  await page.evaluate(() => { const p = window.__campusInspect().position; window.__campusDebug.teleport(p.x, p.z, 1.2, .2, 7); });
+  await ready('campus'); check('campus starts with one context');
   const state = await page.evaluate(() => window.__campusInspect());
   for (let cycle = 0; cycle < Number(process.env.CYCLES || 3); cycle++) {
     await page.getByRole('button', { name: /Combat Arena/ }).click();
@@ -65,7 +69,9 @@ try {
     await page.evaluate(() => window.__arena.settings({ quality: 'low', adaptive: false }));
     await page.waitForFunction(() => window.__graphics().active === null);
     await sample('arena lobby');
-    await page.getByRole('button', { name: 'Start training' }).click(); await ready('arena');
+    // Keep the match deterministic while software rendering compiles four profiles: bots can
+    // finish a match and replace its pause controls while the lifecycle checks are still running.
+    await page.getByRole('button', { name: 'Open the firing range' }).click(); await ready('arena');
     if (!cycle) {
       const initial = await page.evaluate(() => window.__graphics().active.id);
       for (const quality of ['medium', 'high', 'ultra', 'low']) {
@@ -94,8 +100,9 @@ try {
   }
   for (const owner of ['campus', 'arena']) {
     const memories = report.samples.filter(s => s.name === owner).map(s => s.current.memory);
-    // Compare warmed cycles: campus streams detail after entry, and Arena streams soldiers/decor.
-    const baseline = memories.at(-2) ?? memories[0];
+    // A fixed warmed baseline detects cumulative growth, rather than permitting another +32
+    // on every cycle. Campus is sampled at the same pose after loads/uploads/compiles settle.
+    const baseline = memories[0];
     assert.ok(memories.at(-1).textures <= baseline.textures + 32, `${owner}: textures bounded across transitions`);
     assert.ok(memories.at(-1).geometries <= baseline.geometries + 32, `${owner}: geometries bounded across transitions`);
   }
@@ -109,11 +116,11 @@ try {
   assert.ok(Math.abs(recovered.position.x - state.position.x) < .1 && Math.abs(recovered.position.z - state.position.z) < .1);
   check('injected campus loss attributed and recovered');
   assert.deepEqual(errors, []);
-  report.events = diag.events;
+  report.events = diag.events.map(compactGraphicsEvent);
   report.lastContextLoss = diag.lastContextLoss;
   report.passed = true;
 } catch (error) { report.passed = false; report.error = error.stack; process.exitCode = 1; console.error(error); }
 finally {
-  await writeFile('docs/performance/renderer-lifecycle.json', JSON.stringify(report, null, 2));
+  await writeFile(process.env.REPORT || 'docs/performance/renderer-lifecycle.json', JSON.stringify(report, null, 2));
   await browser.close(); await host.stop();
 }

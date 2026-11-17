@@ -1,0 +1,1117 @@
+{
+  "environment": "Linux Chromium, SwiftShader software WebGL, emulated touch. Context loss/restoration uses WEBGL_lose_context; constructor/draw failures are injected.",
+  "checks": [],
+  "samples": [],
+  "passed": false,
+  "error": "AssertionError [ERR_ASSERTION]: a usable constructor result must not retain a stale interruption screen\n\n1 !== 0\n\n    at file:///workspace/CampOS-Worlds/tests/browser-graphics-recovery.mjs:86:10",
+  "errors": [],
+  "diagnostics": {
+    "active": null,
+    "lastContextLoss": null,
+    "current": null,
+    "events": [
+      {
+        "at": 1462.0999999977648,
+        "event": "created",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false,
+        "capabilities": {
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "vendor": "Google Inc. (Google)",
+          "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+          "maxTextureSize": 8192,
+          "maxRenderbufferSize": 8192,
+          "maxSamples": 4
+        }
+      },
+      {
+        "at": 5471.599999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 11310,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27195.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27199.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27199.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27199.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.599999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.599999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.699999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.699999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27200.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.199999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.5,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 27201.599999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28009.29999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28009.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28009.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28009.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28009.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28010,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28010,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28010.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28010.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28010.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28010.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28010.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28011.29999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28011.29999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28011.29999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28014.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28015,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28049.699999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28049.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28049.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 28049.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 29642.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 29642.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 29642.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 29645.199999999255,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31923.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31923.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.39999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.599999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.599999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.699999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.699999999255,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31924.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.29999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.79999999702,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31925.89999999851,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31926,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 31926.099999997765,
+        "event": "compile-start",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32707.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.099999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.199999999255,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.199999999255,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.199999999255,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.199999999255,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.599999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.599999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32708.599999997765,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32713.699999999255,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32713.699999999255,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32713.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32713.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32713.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32713.79999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32714.29999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32714.29999999702,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32714.39999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32714.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32715,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32715,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32715.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32715.89999999851,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 32716,
+        "event": "compile-end",
+        "owner": "campus",
+        "id": 1,
+        "intentional": false
+      },
+      {
+        "at": 37338.099999997765,
+        "event": "dispose",
+        "owner": "campus",
+        "id": 1,
+        "intentional": true
+      },
+      {
+        "at": 37555.699999999255,
+        "event": "released",
+        "owner": "campus",
+        "id": 1,
+        "intentional": true
+      },
+      {
+        "at": 39128,
+        "event": "webglcontextcreationerror",
+        "owner": "arena",
+        "id": 2,
+        "intentional": false,
+        "detail": "Injected earlier creation-attempt notice"
+      },
+      {
+        "at": 39138.29999999702,
+        "event": "created",
+        "owner": "arena",
+        "id": 2,
+        "intentional": false,
+        "capabilities": {
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "vendor": "Google Inc. (Google)",
+          "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+          "maxTextureSize": 8192,
+          "maxRenderbufferSize": 8192,
+          "maxSamples": 4
+        }
+      },
+      {
+        "at": 39159.89999999851,
+        "event": "dispose",
+        "owner": "arena",
+        "id": 2,
+        "intentional": true
+      },
+      {
+        "at": 39167.79999999702,
+        "event": "released",
+        "owner": "arena",
+        "id": 2,
+        "intentional": true
+      }
+    ]
+  }
+}

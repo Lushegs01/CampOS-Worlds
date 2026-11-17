@@ -1,3 +1,4 @@
+import { useGraphicsSession } from '../graphics/session';
 import { portraitBlocked } from '../mobile/orientation';
 import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked, vehicleLift } from '../vehicles/client';
 import { dormLayout } from '../dorm/client';
@@ -83,6 +84,7 @@ const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3)
 const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false };
 
 export default function Player() {
+  const graphics = useGraphicsSession();
   const avatar = useGame(s => s.avatar), root = useRef<THREE.Group>(null!), { gl } = useThree();
   const idle = useRef({ t: 0, sent: 0 }), lastSend = useRef(0), sentStill = useRef(false), lastSense = useRef(0), collectSent = useRef<Record<string, number>>({});
   const cam = useRef(campusCamera);
@@ -139,7 +141,7 @@ export default function Player() {
     }
     if (c.wasWelcome) { c.wasWelcome = false; c.intro = s.reducedMotion ? 1 : 0; posFrom.copy(camera.position); lookFrom.set(-3, 2, -10); }
     root.current.visible = true;
-    const enabled = !s.panel && !document.hidden && !portraitBlocked();
+    const enabled = graphics.isReady() && !s.panel && !document.hidden && !portraitBlocked();
     tickInteractions(dt);
     const vehicle=currentVehicle(),occupancy=useVehicle.getState();
     if(vehicle){
