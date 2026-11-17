@@ -14,6 +14,13 @@ let ktx2: KTX2Loader | null = null, gltf: GLTFLoader | null = null, anisotropy =
 const textures = new Map<string, Promise<THREE.Texture>>(), models = new Map<string, Promise<GLTF>>();
 /** What has finished loading (for releasing GPU resources: see cachedAssets). */
 const loadedTextures = new Map<string, THREE.Texture>(), loadedModels = new Map<string, GLTF>();
+/** Read-only diagnostics for waiting on existing work; never starts optional downloads. */
+export function pendingAssetLoads() {
+  let pending = 0;
+  for (const key of textures.keys()) if (!loadedTextures.has(key)) pending++;
+  for (const key of models.keys()) if (!loadedModels.has(key)) pending++;
+  return pending;
+}
 
 /**
  * A failed download (a dropped mobile connection) is forgotten after a few seconds, so a later attempt

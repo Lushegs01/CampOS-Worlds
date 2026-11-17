@@ -38,5 +38,5 @@ export function installCompilation(renderer: THREE.WebGLRenderer, event: (name: 
       timer = setTimeout(check, 10);
     });
   };
-  return () => { for (const cancel of [...pending]) cancel(); };
+  return Object.assign(() => { for (const cancel of [...pending]) cancel(); }, { pending: () => pending.size });
 }

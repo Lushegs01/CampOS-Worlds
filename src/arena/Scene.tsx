@@ -1,3 +1,5 @@
+import { useGame } from '../state';
+import { useGraphicsSession } from '../graphics/session';
 // Combat Arena 3D view.
 //
 // Rendering: physically based materials lit by the HDR sky (image-based lighting) and a shadow-casting
@@ -118,7 +120,15 @@ export default memo(function ArenaScene({ mapId }: { mapId: string }) {
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
   // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
   const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale') ?? (() => { try { return localStorage.getItem('campos-arena-qa-scale'); } catch { return null; } })()) || 0)) : 0;
-  return <ExclusiveCanvas owner="arena" profile={quality} sceneName={mapId} onInterrupted={() => { useArena.getState().set({ sceneReady: false }); sceneLoaded(false); deploy.graphicsInterrupted(); releaseAll(); }} className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
+  return <ExclusiveCanvas owner="arena" profile={quality} sceneName={mapId}
+    onExit={() => useGame.getState().set({ panel: null })}
+    onInterrupted={() => {
+      useArena.getState().set({ sceneReady: false }); sceneLoaded(false);
+      deploy.graphicsInterrupted(); releaseAll(); document.exitPointerLock?.();
+    }}
+    onRecovering={() => deploy.graphicsInterrupted()}
+    onReady={() => { useArena.getState().set({ sceneReady: true }); sceneLoaded(true); }}
+    className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
     options={{ antialias: true, stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
     camera={{ fov: 78, near: .06, far: 1200, position: [0, 2, 0] }}>
     <World mapId={mapId} q={q} />
@@ -126,6 +136,8 @@ export default memo(function ArenaScene({ mapId }: { mapId: string }) {
 });
 
 function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
+  const graphics = useGraphicsSession(), prefetched = useRef(false);
+  const weaponCompile = useRef<{ gun: THREE.Group; ready: boolean } | null>(null);
   const { scene, camera, gl, size } = useThree(), setDpr = useThree(s => s.setDpr), dprNow = useThree(s => s.viewport.dpr);
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
@@ -208,9 +220,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     vm.vmScene.environment = cityEnv?.texture ?? lib.env;
     const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
     setHeightFog(atmo);
+    graphics.preparing(); setCompiled(false); useArena.getState().set({ sceneReady: false }); sceneLoaded(false);
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
     let on = true;
-    deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').catch(() => null).then(() => { if (on) setCompiled(true); });
+    deadline(gl.compileAsync(scene, camera), 45000, 'shader compile').then(() => { if (on) setCompiled(true); }).catch(error => { if (on) graphics.fail(error); });
     // Set dressing streams in once the match is playable (priority 2); a static sun shadow is redrawn once for it.
     const ctrl = new AbortController();
     const decorate = () => loadDecor(lib, ctrl.signal, mapId === 'metropolis' ? CITY_DECOR : undefined).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
@@ -223,7 +236,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null;
       clearMaterialCache();
     };
-  }, [scene, world, lib, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene, world, lib, q, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Library environments are GPU render targets: keep them across quality changes, but never
   // reuse them with another context. loadLibrary caches by renderer, while source assets stay CPU-side.
@@ -622,13 +635,24 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       });
     } else objectives.g.visible = false;
     updateViewmodel(dt, now);
-    // Playable once the world is built and its shaders compiled and the player's own weapon is here. Then the server
-    // is told (it brings a held player into the match), and the remaining weapons stream in idle time.
-    if (!a.sceneReady && world && compiled && gunReady) {
-      a.set({ sceneReady: true }); sceneLoaded(true);
+    // Asset/shader readiness permits a validation frame. Only its successful completion
+    // transitions this renderer to READY and sends the server's loaded handshake.
+    if (world && compiled && gunReady && vm.gun) {
+      if (weaponCompile.current?.gun !== vm.gun) {
+        const job = { gun: vm.gun, ready: false }; weaponCompile.current = job;
+        const visible = vm.holder.visible; vm.holder.visible = true;
+        const compilation = gl.compileAsync(vm.vmScene, vm.vmCam);
+        vm.holder.visible = visible;
+        deadline(compilation, 45000, 'weapon shader compile').then(() => { if (weaponCompile.current === job) job.ready = true; }).catch(error => { if (weaponCompile.current === job) graphics.fail(error); });
+      }
+      if (weaponCompile.current.ready) graphics.resourcesReady();
+    }
+    if (a.sceneReady && !prefetched.current) {
+      prefetched.current = true;
       const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
       prefetchRemainingWeapons(q.detail > 0 && !saveData);
-    } else if (a.sceneReady && a.match && live.loadedSent !== a.match.id) sceneLoaded(true);
+    }
+    if (a.sceneReady && a.match && live.loadedSent !== a.match.id) sceneLoaded(true);
     const f = fpsRef.current;
     // Loading, background gaps and deliberately throttled menus are not GPU measurements.
     if (!a.sceneReady || inputPaused(a) || document.hidden || dtRaw > 3) { f.frames = 0; f.t = now; }
@@ -690,8 +714,11 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const s = live.sim, scoped = !!s && weaponOf(s).category === 'sniper' && s.ads > .85;
     const show = !!s && live.alive && !scoped && !!lib;
     vm.holder.visible = show; if (vm.arms) vm.arms.visible = show;
-    if (!s || !lib) return;
-    const w = weaponOf(s), skin = live.loadout?.skins?.[w.id] ?? 'standard';
+    if (!lib) return;
+    // Prepare the starting weapon before the server spawns a load-gated player.
+    const w = s ? weaponOf(s) : WEAPONS.find(w => w.id === live.loadout?.primary);
+    if (!w) return;
+    const skin = live.loadout?.skins?.[w.id] ?? 'standard';
     if (vm.gunId !== w.id || vm.skin !== skin) {
       // The model streams in on first use; until then nothing is drawn (the weapon is still raising).
       const next = weaponModel(w.id, skin);
@@ -700,6 +727,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     }
     if (vm.armsSrc && (vm.armsTeam !== live.team || !vm.arms)) { if (vm.arms) { vm.vmScene.remove(vm.arms.root); vm.arms.dispose(); } vm.arms = new FirstPersonArms(vm.armsSrc, live.team); vm.arms.root.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = !!vm.sun.castShadow; }); vm.vmScene.add(vm.arms.root); vm.armsTeam = live.team; }
     if (!vm.gun) { vm.holder.visible = false; if (vm.arms) vm.arms.visible = false; return; }
+    if (!s) return;
     const gun = vm.gun, melee = w.fire === 'melee';
     // The weapon's whole motion (hip/sights, sway, recoil, reload choreography, actions) from the simulation's state.
     const dyaw = controls.yaw - vm.lastYaw, dpitch = controls.pitch - vm.lastPitch; vm.lastYaw = controls.yaw; vm.lastPitch = controls.pitch;
@@ -735,21 +763,25 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const frozen = useRef(false), renderElapsed = useRef(0);
   useEffect(() => { if (!QA_HOOKS) return; const w = window as unknown as Record<string, unknown>; w.__arenaFreeze = (on: boolean) => { frozen.current = on; }; return () => { delete w.__arenaFreeze; }; }, []);
   useFrame(({ gl: r }, dt) => {
-    if (noRender || frozen.current) return;
-    renderElapsed.current += dt;
-    if ((inputPaused(useArena.getState()) || portraitBlocked() || document.hidden) && renderElapsed.current < .1) return;
-    dt = Math.min(renderElapsed.current, .5); renderElapsed.current = 0;
-    if (composer?.ao) composer.ao.enabled = budget() === 0;
-    if (reflection) cityWeather.uReflect.value = budget() === 0 ? 1 : 0;
-    r.info.reset();
-    // Exposure follows the eye: opening up indoors and in the station, closing again outside.
-    // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
-    r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
-    // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
-    // frames the sun's shadow is not redrawn, so the two passes never land together.)
-    if (!budget() && reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
-    if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
-    else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
+    if (!graphics.canRender() || frozen.current || noRender && graphics.isReady()) return;
+    try {
+      renderElapsed.current += dt;
+      if ((inputPaused(useArena.getState()) || portraitBlocked() || document.hidden) && renderElapsed.current < .1) return;
+      dt = Math.min(renderElapsed.current, .5); renderElapsed.current = 0;
+      if (composer?.ao) composer.ao.enabled = budget() === 0;
+      if (reflection) cityWeather.uReflect.value = budget() === 0 ? 1 : 0;
+      if (!graphics.beginFrame()) return;
+      r.info.reset();
+      // Exposure follows the eye: opening up indoors and in the station, closing again outside.
+      // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
+      r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
+      // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
+      // frames the sun's shadow is not redrawn, so the two passes never land together.)
+      if (!budget() && reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
+      if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
+      else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
+      graphics.frameRendered();
+    } catch (error) { graphics.fail(error); return; }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaStats = { world: passes.world, calls: r.info.render.calls, triangles: r.info.render.triangles, textures: r.info.memory.textures, geometries: r.info.memory.geometries };
   }, 1);

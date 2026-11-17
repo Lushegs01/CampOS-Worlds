@@ -1,3 +1,4 @@
+import { useGraphicsSession } from '../graphics/session';
 import { createPerformanceBudget } from '../../shared/arena/performance.mjs';
 import { portraitBlocked } from '../mobile/orientation';
 import { ExclusiveCanvas, scenePixelRatio } from '../graphics/ExclusiveCanvas';
@@ -12,7 +13,7 @@ import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState, type ReactN
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Player from '../game/Player';
-import Avatar, { type AvatarMotion } from '../avatar/Avatar';
+import Avatar, { pendingAvatarUploads, type AvatarMotion } from '../avatar/Avatar';
 import { AvatarBoundary } from '../avatar/AvatarBoundary';
 import { input, livePeers, peerTracks, roomPlayback, player, useGame, type Peer, type SitState } from '../state';
 import { SEAT_BY_ID } from '../../shared/interactions.mjs';
@@ -24,7 +25,7 @@ import { useSocial, bond } from '../social/store';
 import { parsePoint } from '../social/places';
 import { ACHIEVEMENT_BY_ID } from '../../shared/achievements.mjs';
 import { LOCATIONS, TOKENS } from '../../shared/campus.mjs';
-import { cached, initLoaders, suspend } from './assets';
+import { cached, initLoaders, suspend, pendingAssetLoads } from './assets';
 import { QUALITY, type QualityProfile } from './quality';
 import { STALL } from './resolution.mjs';
 import { loadSurfaces, createMaterials, type Materials } from './materials';
@@ -150,13 +151,18 @@ function AdaptiveResolution({ max: requested, min: floor }: { max: number; min: 
  * drawn ten times a second; everything else (players, the ball, the room) still runs every frame.
  */
 function Render() {
+  const graphics = useGraphicsSession();
   const skipped = useRef(0);
   useFrame(({ gl, scene, camera }, dt) => {
-    if (QA_NO_RENDER) return;
+    if (!graphics.canRender() || QA_NO_RENDER && graphics.isReady()) return;
     skipped.current += dt;
     if ((behindMenu() || portraitBlocked() || document.hidden) && skipped.current < MENU_FRAME) return;
     const elapsed = skipped.current; skipped.current = 0;
-    if (postStack.composer) postStack.composer.render(elapsed); else gl.render(scene, camera);
+    try {
+      if (!graphics.beginFrame()) return;
+      if (postStack.composer) postStack.composer.render(elapsed); else gl.render(scene, camera);
+      graphics.frameRendered();
+    } catch (error) { graphics.fail(error); }
   }, 1);
   return null;
 }
@@ -179,6 +185,7 @@ function Telemetry() {
   useFrame(() => { if (gl.info.render.calls) sample.current = { calls: gl.info.render.calls, triangles: gl.info.render.triangles }; gl.info.reset(); }, -100);
   useEffect(() => {
     if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene, __campusCamera: camera, __campusSetDpr: setDpr });
+    if (QA_HOOKS) Object.assign(window, { __campusLoads: () => pendingAssetLoads() + pendingAvatarUploads() });
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusHide = (prefix: string, hide = true) => { let n = 0; scene.traverse(o => { if (o.name.startsWith(prefix)) { o.visible = !hide; n++; } }); return n; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusStats = () => {
       const by: Record<string, number> = {};
@@ -186,7 +193,7 @@ function Telemetry() {
       return Object.entries(by).sort((x, y) => y[1] - x[1]).slice(0, 30);
     };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusInspect = () => { const s = useGame.getState(); return { position: { x: player.x, y: player.y, z: player.z }, yaw: input.yaw, panel: s.panel, nearby: s.nearby, status: s.status, discovered: s.discovered, tourStep: s.tourStep, tokens: s.tokens, bestScore: s.bestScore, peers: s.peers.map(p => ({ ...p, ...livePeers.get(p.id) })), avatar: s.avatar, quality: s.quality }; };
-    return () => { if (QA_HOOKS) for (const key of ['__campusGL', '__campusScene', '__campusCamera', '__campusSetDpr', '__campusInspect', '__campusHide', '__campusStats', '__campus']) delete (window as unknown as Record<string, unknown>)[key]; };
+    return () => { if (QA_HOOKS) for (const key of ['__campusGL', '__campusScene', '__campusCamera', '__campusSetDpr', '__campusLoads', '__campusInspect', '__campusHide', '__campusStats', '__campus']) delete (window as unknown as Record<string, unknown>)[key]; };
   }, [gl, scene]);
   useFrame((_, dt) => {
     // Behind a menu the frame rate is held down on purpose: keep showing the one measured while playing.
@@ -207,6 +214,7 @@ function Telemetry() {
  * the same output target type the post stack renders into, so the first frame reuses them.
  */
 function CompileGate({ children, post, onReady }: { children: ReactNode; post: boolean; onReady?: () => void }) {
+  const graphics = useGraphicsSession();
   const group = useRef<THREE.Group>(null!), [shown, setShown] = useState(false), { gl, camera, scene } = useThree();
   useEffect(() => {
     let alive = true;
@@ -214,14 +222,16 @@ function CompileGate({ children, post, onReady }: { children: ReactNode; post: b
     gl.setRenderTarget(target);
     const pending = gl.compileAsync(group.current, camera, scene);
     gl.setRenderTarget(previous);
-    pending.then(() => { target?.dispose(); if (!alive) return; gl.shadowMap.needsUpdate = true; scene.traverse(o => { if ((o as THREE.DirectionalLight).isDirectionalLight) (o as THREE.DirectionalLight).shadow.needsUpdate = true; }); if (QA_HOOKS) console.info(`shaders compiled in ${Math.round(performance.now() - t)} ms`); setShown(true); onReady?.(); }).catch(() => { target?.dispose(); if (alive) useGame.getState().set({ panel: 'recovery' }); });
+    pending.then(() => { target?.dispose(); if (!alive) return; gl.shadowMap.needsUpdate = true; scene.traverse(o => { if ((o as THREE.DirectionalLight).isDirectionalLight) (o as THREE.DirectionalLight).shadow.needsUpdate = true; }); if (QA_HOOKS) console.info(`shaders compiled in ${Math.round(performance.now() - t)} ms`); setShown(true); }).catch(error => { target?.dispose(); if (alive) graphics.fail(error); });
     return () => { alive = false; };
   }, [gl, camera, scene, post, onReady]);
+  useEffect(() => { if (shown) onReady?.(); }, [shown, onReady]);
   return <group ref={group} visible={shown} matrixAutoUpdate={false}>{children}</group>;
 }
 
 /** Everything that depends on loaded textures. Suspends until the material library is ready. */
 function Campus({ quality }: { quality: QualityProfile }) {
+  const graphics = useGraphicsSession();
   const { gl } = useThree();
   initLoaders(gl, quality.anisotropy);
   const reduced = useGame(s => s.reducedMotion);
@@ -233,7 +243,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
   const campus = suspend(cached(`campus:${quality.materialDetail}`, async () => { const t = performance.now(); const c = buildCampus(lib); if (QA_HOOKS) console.info(`campus built in ${Math.round(performance.now() - t)} ms (at ${Math.round(performance.now())} ms)`); return c; }));
   useEffect(() => { setSunDirection(new THREE.Vector3(...info.sunDirection)); }, [info]);
   // The welcome screen's "Enter campus" waits for the textured campus, not just a canvas.
-  const reveal = useMemo(() => () => { useGame.getState().set({ ready: true }); if (QA_HOOKS) console.info(`campus ready at ${Math.round(performance.now())} ms`); }, []);
+  const reveal = useMemo(() => () => { graphics.resourcesReady(); if (QA_HOOKS) console.info(`campus resources ready at ${Math.round(performance.now())} ms`); }, [graphics]);
   return <>
     <CompileGate post={quality.post} onReady={reveal}>
     <Ground surfaces={surfaces} quality={quality} />
@@ -256,7 +266,7 @@ const QA_NO_RENDER = QA_HOOKS && new URLSearchParams(location.search).has('qa-no
 // Memoised: the interface around the canvas re-renders on its own state; that must not reconcile the scene.
 export default memo(function World() {
   const qualityKey = useGame(s => s.quality), quality = QUALITY[qualityKey], ceiling = QA_SCALE || Math.min(quality.dpr, window.devicePixelRatio || 1);
-  return <ExclusiveCanvas owner="campus" profile={qualityKey} sceneName="campus" onInterrupted={() => useGame.getState().set({ ready: false })} shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
+  return <ExclusiveCanvas owner="campus" profile={qualityKey} sceneName="campus" onInterrupted={() => useGame.getState().set({ ready: false })} onRecovering={() => useGame.getState().set({ ready: false })} onReady={() => useGame.getState().set({ ready: true })} shadows={{ type: THREE.PCFShadowMap }} dpr={QA_SCALE || [1, ceiling]} camera={{ position: [46, 30, 62], fov: 52, near: .25, far: 2400 }}
     options={{ antialias: true, toneMapping: THREE.AgXToneMapping, toneMappingExposure: LIGHTING.exposure, stencil: false }}
     // The scene root never moves: without this every object's world matrix was recomputed every frame.
     onCreated={({ gl, scene }) => { gl.setClearColor('#b9c8d4'); scene.matrixAutoUpdate = false; }}>
