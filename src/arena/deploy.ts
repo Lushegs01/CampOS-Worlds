@@ -94,6 +94,12 @@ export function fail(message: string, retry: DeployFailure['retry'], detail?: st
 }
 /** The connection dropped while deploying: remember where we were. */
 export function lost() { const s = get(); if (s.stage === 'idle' || s.stage === 'deployed' || s.stage === 'failed' || s.stage === 'recovering') return; set({ resumeStage: s.stage }); enter('recovering'); }
+/** Graphics have stopped independently of the socket. Wait for a fresh scene to prepare, even
+ * after deployment had completed; network reconnection alone must not mark graphics ready. */
+export function graphicsInterrupted() {
+  const s = get(); if (s.stage === 'idle') return;
+  set({ stage: 'recovering', resumeStage: 'preparing', stageAt: now(), slow: false, failure: null });
+}
 /** Reconnected and back in the match: continue where we left off. */
 export function resumed() { const s = get(); if (s.stage !== 'recovering') return; enter(s.resumeStage && s.resumeStage !== 'requesting' ? s.resumeStage : 'preparing', { resumeStage: null }); }
 /** Abandon (left the match, closed the arena). */

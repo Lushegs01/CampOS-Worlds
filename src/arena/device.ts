@@ -3,6 +3,7 @@
 // texture it accepts, memory and processor hints, touch input and screen size. It is only a starting point:
 // the player can choose any profile, and the adaptive renderer (shared/arena/adaptive.mjs) lowers the
 // resolution, then the profile, if the frame rate still cannot be held.
+import { graphicsCapabilities } from '../graphics/capabilities';
 import type { Quality } from '../world/quality';
 
 export interface DeviceReport { quality: Quality; gpu: string; tier: 'low' | 'mid' | 'high' | 'unknown'; reasons: string[]; maxTexture: number; memory: number; cores: number; touch: boolean }
@@ -18,16 +19,9 @@ export function recommendQuality(): DeviceReport {
   if (typeof window === 'undefined') return { quality: 'medium', gpu: '', tier: 'unknown', reasons: ['no window'], maxTexture: 0, memory: 0, cores: 0, touch: false };
   const touch = matchMedia('(pointer: coarse)').matches, memory = (navigator as { deviceMemory?: number }).deviceMemory ?? 0, cores = navigator.hardwareConcurrency ?? 0;
   const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
-  let gpu = '', maxTexture = 0;
-  try {
-    const canvas = document.createElement('canvas'), gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    if (gl) {
-      const info = gl.getExtension('WEBGL_debug_renderer_info');
-      gpu = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) ?? '');
-      maxTexture = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || 0;
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
-    } else reasons.push('no WebGL');
-  } catch { reasons.push('GPU not readable'); }
+  const observed = graphicsCapabilities();
+  const gpu = observed?.gpu ?? '', maxTexture = observed?.maxTexture ?? 0;
+  if (!observed) reasons.push('GPU not yet observed');
   const tier: DeviceReport['tier'] = !gpu ? 'unknown' : LOW_GPU.test(gpu) ? 'low' : HIGH_GPU.test(gpu) ? 'high' : 'mid';
   let score = tier === 'high' ? 2 : tier === 'mid' ? 1 : tier === 'low' ? 0 : touch ? 0 : 1;
   if (tier !== 'unknown') reasons.push(`GPU ${tier}`);

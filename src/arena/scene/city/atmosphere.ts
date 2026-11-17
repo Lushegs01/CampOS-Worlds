@@ -279,7 +279,7 @@ export function createSky(a: Atmosphere, lib: Library, octaves = 5) {
 
 /**
  * The image-based light: the sky (and ground) rendered into a cube map once and prefiltered for every roughness.
- * Returns the PMREM texture (dispose it with the match).
+ * Returns the PMREM target (dispose its framebuffer and texture with the scene).
  */
 export function bakeEnvironment(gl: THREE.WebGLRenderer, sky: THREE.Mesh, size = 128) {
   const scene = new THREE.Scene(), dome = sky.clone(); dome.scale.setScalar(50); scene.add(dome);
@@ -290,7 +290,7 @@ export function bakeEnvironment(gl: THREE.WebGLRenderer, sky: THREE.Mesh, size =
   gl.toneMapping = before;
   const pmrem = new THREE.PMREMGenerator(gl); const rt = pmrem.fromCubemap(target.texture); pmrem.dispose();
   target.dispose();
-  return rt.texture;
+  return rt;
 }
 
 /**

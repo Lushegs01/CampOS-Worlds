@@ -47,12 +47,12 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     hdr.mapping = THREE.EquirectangularReflectionMapping;
-    const env = pmrem.fromEquirectangular(hdr).texture;
+    const environmentTarget = pmrem.fromEquirectangular(hdr), env = environmentTarget.texture;
     scene.environment = env; scene.environmentIntensity = LIGHTING.envIntensity;
     const fogColor = new THREE.Color().setRGB(...info.horizon, THREE.LinearSRGBColorSpace).multiplyScalar(1.05);
     scene.fog = new THREE.Fog(fogColor, LIGHTING.fogNear, LIGHTING.fogFar);
     pmrem.dispose();
-    return () => { scene.environment = null; scene.fog = null; env.dispose(); };
+    return () => { scene.environment = null; scene.fog = null; environmentTarget.dispose(); };
   }, [gl, scene, hdr, info]);
 
   const dir = useMemo(() => new THREE.Vector3(...info.sunDirection).normalize(), [info]);

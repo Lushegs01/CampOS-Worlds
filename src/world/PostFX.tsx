@@ -27,7 +27,7 @@ export default function PostFX({ quality }: { quality: QualityProfile }) {
     // World's renderer draws each frame through it (World.tsx, Render).
     composer.current = c; postStack.composer = c;
     if (QA_HOOKS) Object.assign(window, { __campusComposer: c });
-    return () => { composer.current = null; if (postStack.composer === c) postStack.composer = null; c.dispose(); gl.toneMapping = previous; };
+    return () => { composer.current = null; if (QA_HOOKS) delete (window as unknown as Record<string, unknown>).__campusComposer; if (postStack.composer === c) postStack.composer = null; c.dispose(); gl.toneMapping = previous; };
   }, [gl, scene, camera, quality]);
   useEffect(() => { composer.current?.setSize(size.width, size.height); }, [size, quality]);
   return null;

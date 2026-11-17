@@ -78,10 +78,13 @@ function armFraction(from: THREE.Vector3, to: THREE.Vector3) {
 
 const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
+// Camera orbit is session state, independent of a disposable Canvas.
+const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false };
+
 export default function Player() {
   const avatar = useGame(s => s.avatar), root = useRef<THREE.Group>(null!), { gl } = useThree();
   const idle = useRef({ t: 0, sent: 0 }), lastSend = useRef(0), sentStill = useRef(false), lastSense = useRef(0), collectSent = useRef<Record<string, number>>({});
-  const cam = useRef({ yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false });
+  const cam = useRef(campusCamera);
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches('input,textarea,select')) return; const s = useGame.getState();
@@ -119,7 +122,7 @@ export default function Player() {
       face: (yaw: number) => { player.yaw = yaw; input.yaw = yaw + Math.PI; cam.current.yaw = input.yaw; },
     };
     window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); document.addEventListener('visibilitychange', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
-    return () => { window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
+    return () => { clear(); send({ type: 'input', dx: 0, dz: 0, yaw: player.yaw, sprint: false, jump: false }); if (QA_HOOKS) delete (window as unknown as Record<string, unknown>).__campusDebug; window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
   }, [gl]);
 
   useEffect(() => { prediction.collision(footAllowed); }, []);
