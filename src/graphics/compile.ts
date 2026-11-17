@@ -27,9 +27,16 @@ export function installCompilation(renderer: THREE.WebGLRenderer, event: (name: 
         if (renderer.getContext().isContextLost()) { cancel(); return; }
         try {
           for (const material of materials) {
-            const program = (renderer.properties.get(material) as { currentProgram?: { isReady: () => boolean } }).currentProgram;
+            const program = (renderer.properties.get(material) as { currentProgram?: { isReady: () => boolean; program?: WebGLProgram; name?: string } }).currentProgram;
             // Another scene or quality update can have retired the material between polls.
-            if (!program || program.isReady()) materials.delete(material);
+            if (!program || program.isReady()) {
+              // Completion means the compiler finished, not that the program linked successfully.
+              const context = renderer.getContext();
+              if (program?.program && !context.getProgramParameter(program.program, context.LINK_STATUS)) {
+                throw new Error(`A graphics shader could not be linked (${program.name || material.name || material.type}): ${context.getProgramInfoLog(program.program) || 'No driver details'}`);
+              }
+              materials.delete(material);
+            }
           }
           if (!materials.size) { clean(); resolve(scene); }
           else timer = setTimeout(check, 10);

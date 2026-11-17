@@ -9,6 +9,7 @@ import { acquireRenderer, pixelRatio, drawingBufferBudget } from './ownership';
 import { trackDisposeListeners } from './gpuListeners';
 import { QA_HOOKS } from '../qa';
 import { createContext, releaseContext } from './context';
+import { installCompatibilityMaterials } from './compatibility';
 
 type Owner = 'campus' | 'arena';
 type Diagnostic = Record<string, unknown>;
@@ -36,6 +37,7 @@ function record(event: Diagnostic) {
 type Props = Omit<CanvasProps, 'gl'> & {
   owner: Owner;
   profile: string;
+  compatibility?: boolean;
   sceneName: string;
   options: THREE.WebGLRendererParameters & { toneMapping?: THREE.ToneMapping; toneMappingExposure?: number };
   onInterrupted?: () => void;
@@ -53,9 +55,9 @@ class GraphicsBoundary extends Component<{ lifecycle: GraphicsLifecycle; generat
 }
 
 /** R3F owns each factory renderer; the lease extends through its complete teardown. */
-export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrupted, onReady, onRecovering, onExit, onCreated, children, ...props }: Props) {
-  const current = useRef({ profile, sceneName, options, onInterrupted, onReady, onRecovering });
-  current.current = { profile, sceneName, options, onInterrupted, onReady, onRecovering };
+export function ExclusiveCanvas({ owner, profile, compatibility = false, sceneName, options, onInterrupted, onReady, onRecovering, onExit, onCreated, children, ...props }: Props) {
+  const current = useRef({ profile, compatibility, sceneName, options, onInterrupted, onReady, onRecovering });
+  current.current = { profile, compatibility, sceneName, options, onInterrupted, onReady, onRecovering };
   const [lifecycle] = useState(() => createGraphicsLifecycle((before, next) => {
     if (before.phase === next.phase) return;
     record({ event: 'lifecycle', owner, from: before.phase, phase: next.phase, generation: next.generation, rendererId: next.rendererId, error: next.error });
@@ -82,7 +84,7 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
     const owns = () => !retiring && active?.id === id && lifecycle.current(generation, id);
     const snapshot = (event: string, detail?: string): Diagnostic => ({
       event, detail, id, owner, generation, lifecycle: { ...lifecycle.getSnapshot() }, intentional: retiring || !lifecycle.current(generation), activeOwner: active?.owner ?? null,
-      scene: current.current.sceneName, profile: current.current.profile,
+      scene: current.current.sceneName, profile: current.current.profile, compatibility: current.current.compatibility,
       elapsedMs: performance.now() - started, devicePixelRatio: window.devicePixelRatio,
       width: renderer?.getContext().drawingBufferWidth ?? canvas.width,
       height: renderer?.getContext().drawingBufferHeight ?? canvas.height,
@@ -154,17 +156,21 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
         try { setPixelRatio(pixelRatio(w, h, requested, limit, budget())); setSize(w, h, updateStyle); }
         finally { resizing = false; }
       };
+      const clearCompatibility = current.current.compatibility ? installCompatibilityMaterials(renderer) : () => {};
       const cancelCompilation = installCompilation(renderer, (name, detail) => record(snapshot(name, detail)));
       pendingCompilations = cancelCompilation.pending;
       const shaderError = renderer.debug.onShaderError;
       renderer.debug.onShaderError = (context, program, vertex, fragment) => {
         const detail = [context.getProgramInfoLog(program), context.getShaderInfoLog(vertex), context.getShaderInfoLog(fragment)].join('\n');
-        record(snapshot('shader-error', detail));
-        if (owns()) lifecycle.fail(generation, 'A graphics shader could not be compiled.', id);
+        record({ ...snapshot('shader-error', detail), vertexShader: context.getShaderSource(vertex)?.slice(0, 32768), fragmentShader: context.getShaderSource(fragment)?.slice(0, 65536) });
+        const error = new Error('A graphics shader could not be compiled.');
+        if (owns()) lifecycle.fail(generation, error.message, id);
         shaderError?.(context, program, vertex, fragment);
+        // Three otherwise continues to use the rejected program for the rest of this pass.
+        throw error;
       };
       const dispose = renderer.dispose.bind(renderer), lose = renderer.forceContextLoss.bind(renderer);
-      renderer.dispose = () => { retiring = true; record(snapshot('dispose')); cancelCompilation(); dispose(); };
+      renderer.dispose = () => { retiring = true; record(snapshot('dispose')); cancelCompilation(); clearCompatibility(); dispose(); };
       renderer.forceContextLoss = () => {
         retiring = true; lose();
         if (!gl.isContextLost()) {
@@ -189,6 +195,11 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
       throw error;
     }
   }, [lifecycle, generation, owner]);
+  const saveReport = () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ browser: navigator.userAgent, ...graphicsDiagnostics() }, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'campos-graphics.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const recovering = state.phase === 'RECOVERING';
   const interrupted = state.phase === 'CONTEXT_LOST' || state.phase === 'RECOVERY_FAILED';
   return <>
@@ -200,7 +211,9 @@ export function ExclusiveCanvas({ owner, profile, sceneName, options, onInterrup
     {(interrupted || recovering) && <div className="graphics-error" data-graphics-recovery={owner} data-graphics-phase={state.phase} style={{ position: 'fixed', zIndex: 200 }} role="alert">
       <h2>{recovering ? `Rebuilding ${owner} graphics…` : state.phase === 'CONTEXT_LOST' ? state.error : `${owner === 'campus' ? 'Campus' : 'Arena'} graphics recovery failed.`}</h2>
       <p>{recovering ? 'Preparing resources and validating the first frame. Your session is preserved.' : state.phase === 'RECOVERY_FAILED' ? state.error : 'Your session is preserved. Rebuild graphics to continue.'}</p>
+      {owner === 'arena' && !recovering && <p>The next rebuild uses compatibility graphics with simpler materials and effects.</p>}
       <button className="primary" disabled={recovering} onClick={() => lifecycle.recover(generation)}>{recovering ? 'Rebuilding graphics…' : `Rebuild ${owner} graphics`}</button>
+      <button className="secondary" onClick={saveReport}>Save graphics report</button>
       {onExit && <button className="secondary" onClick={onExit}>Return to campus</button>}
     </div>}
   </>;

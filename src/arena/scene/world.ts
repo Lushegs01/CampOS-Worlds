@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import type { Quality } from '../../world/quality';
 
 export interface ArenaQuality {
+  /** Recovery for drivers that reject the normal shader pipeline. */
+  compatibility?: boolean;
   dpr: number; antialias: boolean; shadows: boolean; shadowSize: number; shadowEvery: number; post: boolean; ao: boolean; bloom: boolean;
   effects: number; anisotropy: number; detail: number; fogFar: number; decals: number; casings: number; ik: boolean; lights: number;
   /** Load the 512² texture tier (public/assets/arena/mobile): same art, a third of the download. */

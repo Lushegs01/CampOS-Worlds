@@ -106,30 +106,33 @@ function fitShadow(sun: THREE.DirectionalLight, bounds: number[], y0: number, y1
   cam.near = Math.max(.5, -box.max.z - 4); cam.far = -box.min.z + 4; cam.updateProjectionMatrix();
 }
 
+// Keep a working recovery pipeline across Arena re-entry until the page is reloaded.
+let compatibilityRequired = false;
 /** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
 const matchTier = { id: '', mobile: false };
 const qaStaticShadows = QA_HOOKS && typeof location !== 'undefined' && new URLSearchParams(location.search).has('qa-static-shadows');
 function tierFor(matchId: string, mobile: boolean) { if (matchTier.id !== matchId) { matchTier.id = matchId; matchTier.mobile = mobile; } return matchTier.mobile; }
 
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
+  const [compatibility, setCompatibility] = useState(() => compatibilityRequired);
   const quality = useArena(s => s.settings.quality), matchId = useArena(s => s.match?.id ?? '');
-  const q = useMemo(() => { const base = ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId]);
+  const q = useMemo(() => { const base = compatibility ? { ...ARENA_QUALITY.low, compatibility: true, dpr: 1, antialias: false, shadows: false, post: false, ao: false, bloom: false, lights: 0, reflections: 0 } : ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId, compatibility]);
   // Resolution scale (Settings) multiplies the profile's pixel density; adaptive performance works below it.
   const renderScale = useArena(s => s.settings.renderScale);
   const dpr = Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale;
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
   // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
   const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale') ?? (() => { try { return localStorage.getItem('campos-arena-qa-scale'); } catch { return null; } })()) || 0)) : 0;
-  return <ExclusiveCanvas owner="arena" profile={quality} sceneName={mapId}
+  return <ExclusiveCanvas owner="arena" profile={compatibility ? 'low' : quality} compatibility={compatibility} sceneName={mapId}
     onExit={() => useGame.getState().set({ panel: null })}
     onInterrupted={() => {
       useArena.getState().set({ sceneReady: false }); sceneLoaded(false);
       deploy.graphicsInterrupted(); releaseAll(); document.exitPointerLock?.();
     }}
-    onRecovering={() => deploy.graphicsInterrupted()}
+    onRecovering={() => { compatibilityRequired = true; setCompatibility(true); deploy.graphicsInterrupted(); }}
     onReady={() => { useArena.getState().set({ sceneReady: true }); sceneLoaded(true); }}
     className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
-    options={{ antialias: true, stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
+    options={{ antialias: q.antialias, stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
     camera={{ fov: 78, near: .06, far: 1200, position: [0, 2, 0] }}>
     <World mapId={mapId} q={q} />
   </ExclusiveCanvas>;
@@ -148,7 +151,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // Metropolis: the cinematic finish over its weather's grade and exposure (scene/cinematic.ts).
   const fin = useMemo(() => (atmo ? cinematicFinish(atmo) : null), [atmo]);
   // Low (no post stack): the same grade, folded into the tone mapper (scene/grade.ts). Set before anything compiles.
-  const toneGraded = useMemo(() => { const on = !q.post && !!fin; installToneGrade(on ? fin : null); return on; }, [q.post, fin]);
+  const toneGraded = useMemo(() => { const on = !q.compatibility && !q.post && !!fin; installToneGrade(on ? fin : null); return on; }, [q.post, q.compatibility, fin]);
   const citySun = useMemo(() => atmo ? { dir: new THREE.Vector3(...atmo.sunDir).normalize(), color: new THREE.Color(...atmo.sunColor) } : null, [atmo]);
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
@@ -215,11 +218,12 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => {
     if (!world || !lib) return;
     // Metropolis: the image-based light is baked from the variant's own sky, so reflections and shade match it.
-    const cityEnv = atmo ? bakeEnvironment(gl, world.sky, q.envSize) : null;
+    const cityEnv = atmo && !q.compatibility ? bakeEnvironment(gl, world.sky, q.envSize) : null;
     scene.add(world.group); scene.environment = cityEnv?.texture ?? lib.env; scene.environmentIntensity = atmo?.env ?? 1.5;
     vm.vmScene.environment = cityEnv?.texture ?? lib.env;
-    const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
-    setHeightFog(atmo);
+    const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = q.compatibility ? null : new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
+    setHeightFog(q.compatibility ? null : atmo);
+    if (q.compatibility) world.sky.visible = false;
     graphics.preparing(); setCompiled(false); useArena.getState().set({ sceneReady: false }); sceneLoaded(false);
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
     let on = true;

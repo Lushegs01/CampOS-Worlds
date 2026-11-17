@@ -34,3 +34,15 @@ test('renderer teardown rejects pending shaders and cancels polling', async () =
   cancel(); await rejected;
   assert.equal(gl.material._listeners.dispose.length, 0);
 });
+
+test('a completed but failed shader link rejects compilation before drawing', async () => {
+  const gl = renderer(), events = [];
+  gl.ready();
+  gl.properties.get = () => ({ currentProgram: { isReady: () => true, program: {}, name: 'rejected shader' } });
+  gl.getContext = () => ({ isContextLost: () => false, LINK_STATUS: 35714, getProgramParameter: () => false, getProgramInfoLog: () => 'D3D11 compiler failure' });
+  const cancel = installCompilation(gl, (event, detail) => events.push({ event, detail }));
+  await assert.rejects(gl.compileAsync(new Scene(), new PerspectiveCamera()), /could not be linked.*D3D11 compiler failure/);
+  assert.equal(cancel.pending(), 0);
+  assert.equal(gl.material._listeners.dispose.length, 0);
+  assert.equal(events.filter(e => e.event === 'compile-error').length, 1);
+});
