@@ -82,5 +82,6 @@ Browser evidence is Linux Chromium/SwiftShader with emulated touch, not physical
 - `src/arena/store.ts`: pause input while graphics readiness is false.
 - `src/world/World.tsx`, `src/game/Player.tsx`: preserve the shared campus renderer/readiness and input contract.
 - `tests/graphics-lifecycle.test.mjs`, `tests/browser-graphics-recovery.mjs`, `tests/browser-renderer-lifecycle.mjs`, `tests/renderer-compilation.test.mjs`: behavioral regressions and validation of absent recovery overlays after transitions.
+- `tests/support/graphics-evidence.mjs`: compact lifecycle evidence while keeping per-sample GPU counters and errors.
 - `.gitignore`: exclude the dedicated generated QA build.
 - This report and the before/after browser evidence under `docs/reliability` and `docs/screenshots/reliability`.

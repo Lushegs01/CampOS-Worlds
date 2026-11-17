@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { launch } from './support/browser.mjs';
 import { startProduction } from './support/production.mjs';
+import { compactGraphicsEvent } from './support/graphics-evidence.mjs';
 const host = process.env.URL ? { url: process.env.URL, stop: async () => {} } : await startProduction({ root: process.env.ROOT || (existsSync('dist-qa/index.html') ? 'dist-qa' : 'dist') });
 const browser = await launch();
 const report = { renderer: 'Software WebGL; physical laptop validation outstanding', checks: [], samples: [] };
@@ -115,7 +116,7 @@ try {
   assert.ok(Math.abs(recovered.position.x - state.position.x) < .1 && Math.abs(recovered.position.z - state.position.z) < .1);
   check('injected campus loss attributed and recovered');
   assert.deepEqual(errors, []);
-  report.events = diag.events;
+  report.events = diag.events.map(compactGraphicsEvent);
   report.lastContextLoss = diag.lastContextLoss;
   report.passed = true;
 } catch (error) { report.passed = false; report.error = error.stack; process.exitCode = 1; console.error(error); }

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { launch } from './support/browser.mjs';
 import { startProduction } from './support/production.mjs';
+import { graphicsEvidence } from './support/graphics-evidence.mjs';
 
 const host = await startProduction({ root: process.env.ROOT || 'dist-recovery-qa', arena: { rules: { countdownMs: 500 } } });
 const browser = await launch();
@@ -53,6 +54,7 @@ try {
         overlays: document.querySelectorAll('[data-graphics-recovery="arena"]').length };
     });
     assert.ok(value.live <= 1); assert.equal(value.max, 1, 'one live context throughout recovery');
+    value.graphics = graphicsEvidence(value.graphics);
     report.samples.push({ name, ...value }); return value;
   };
   const ready = async () => {
@@ -172,7 +174,7 @@ try {
 finally {
   report.errors = errors;
   if (page) {
-    report.diagnostics = await page.evaluate(() => window.__graphics?.()).catch(() => null);
+    report.diagnostics = graphicsEvidence(await page.evaluate(() => window.__graphics?.()).catch(() => null), true);
     await mkdir('docs/screenshots/reliability', { recursive: true });
     await page.screenshot({ path: process.env.SCREENSHOT || 'docs/screenshots/reliability/graphics-recovery.png' }).catch(() => {});
   }

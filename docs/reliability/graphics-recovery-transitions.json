@@ -770,5982 +770,2997 @@
     {
       "at": 243806,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5626.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 43
+      }
     },
     {
       "at": 243806,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5626.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 44
+      }
     },
     {
       "at": 243806,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5626.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 45
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 46
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 47
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 48
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 49
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 50
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 51
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 52
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 53
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 54
+      }
     },
     {
       "at": 243806.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 55
+      }
     },
     {
       "at": 243806.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 56
+      }
     },
     {
       "at": 243806.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 57
+      }
     },
     {
       "at": 243806.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 58
+      }
     },
     {
       "at": 243806.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 59
+      }
     },
     {
       "at": 243806.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 60
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 61
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 62
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 63
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 64
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 65
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 66
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 67
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 68
+      }
     },
     {
       "at": 243806.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 69
+      }
     },
     {
       "at": 243806.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 70
+      }
     },
     {
       "at": 243806.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 71
+      }
     },
     {
       "at": 243806.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5627.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 29,
-      "calls": 1,
-      "pendingCompilations": 72
+      }
     },
     {
       "at": 243830.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 72
+      }
     },
     {
       "at": 243830.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 71
+      }
     },
     {
       "at": 243830.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 70
+      }
     },
     {
       "at": 243830.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 69
+      }
     },
     {
       "at": 243830.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 68
+      }
     },
     {
       "at": 243830.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 67
+      }
     },
     {
       "at": 243830.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 66
+      }
     },
     {
       "at": 243830.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 65
+      }
     },
     {
       "at": 243830.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 5651.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 1,
-        "textures": 5
-      },
-      "programs": 30,
-      "calls": 1,
-      "pendingCompilations": 64
+      }
     },
     {
       "at": 249501.29999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 63
+      }
     },
     {
       "at": 249501.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 62
+      }
     },
     {
       "at": 249501.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 61
+      }
     },
     {
       "at": 249501.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 60
+      }
     },
     {
       "at": 249501.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 59
+      }
     },
     {
       "at": 249501.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 58
+      }
     },
     {
       "at": 249501.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 57
+      }
     },
     {
       "at": 249501.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 56
+      }
     },
     {
       "at": 249501.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11322.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 55
+      }
     },
     {
       "at": 249502.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11323.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 54
+      }
     },
     {
       "at": 249502.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11323.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 53
+      }
     },
     {
       "at": 249502.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11323.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 52
+      }
     },
     {
       "at": 249502.79999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11323.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 52
+      }
     },
     {
       "at": 249503.5,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11324.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 53
+      }
     },
     {
       "at": 249503.79999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11324.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 54
+      }
     },
     {
       "at": 249503.8999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11324.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 55
+      }
     },
     {
       "at": 249503.8999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11324.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 56
+      }
     },
     {
       "at": 249503.8999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11324.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 57
+      }
     },
     {
       "at": 249504.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 58
+      }
     },
     {
       "at": 249504.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 59
+      }
     },
     {
       "at": 249504.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 60
+      }
     },
     {
       "at": 249504.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 61
+      }
     },
     {
       "at": 249504.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 62
+      }
     },
     {
       "at": 249504.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 63
+      }
     },
     {
       "at": 249504.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 64
+      }
     },
     {
       "at": 249504.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 65
+      }
     },
     {
       "at": 249504.5,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 66
+      }
     },
     {
       "at": 249504.59999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 67
+      }
     },
     {
       "at": 249504.69999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 68
+      }
     },
     {
       "at": 249504.69999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 69
+      }
     },
     {
       "at": 249504.69999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 70
+      }
     },
     {
       "at": 249504.8999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11325.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 71
+      }
     },
     {
       "at": 249507.69999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11328.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 72
+      }
     },
     {
       "at": 249507.8999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11328.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 73
+      }
     },
     {
       "at": 249508,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11328.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 74
+      }
     },
     {
       "at": 249508.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11329,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 75
+      }
     },
     {
       "at": 249508.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11329.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 76
+      }
     },
     {
       "at": 249508.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11329.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 77
+      }
     },
     {
       "at": 249508.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11329.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 78
+      }
     },
     {
       "at": 249508.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11329.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 79
+      }
     },
     {
       "at": 249508.69999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11329.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 80
+      }
     },
     {
       "at": 249509.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11330.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 32,
-      "calls": 197,
-      "pendingCompilations": 81
+      }
     },
     {
       "at": 249513.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11334,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 82
+      }
     },
     {
       "at": 249514,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11334.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 83
+      }
     },
     {
       "at": 249515,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11335.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 84
+      }
     },
     {
       "at": 249516.3999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11337.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 85
+      }
     },
     {
       "at": 249517.29999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11338.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 86
+      }
     },
     {
       "at": 249518.5,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11339.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 87
+      }
     },
     {
       "at": 249518.79999999702,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11339.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 88
+      }
     },
     {
       "at": 249518.8999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11339.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 89
+      }
     },
     {
       "at": 249519,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11339.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 90
+      }
     },
     {
       "at": 249519,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11339.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 91
+      }
     },
     {
       "at": 249519,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11339.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 92
+      }
     },
     {
       "at": 249519.09999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": false,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11340,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 93
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 93
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 92
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 91
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 90
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 89
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 88
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 87
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 86
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 85
+      }
     },
     {
       "at": 249520.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 84
+      }
     },
     {
       "at": 249520.8999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 83
+      }
     },
     {
       "at": 249520.8999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "RECOVERING",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 11341.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 82
+      }
     },
     {
       "at": 249540.79999999702,
       "event": "lifecycle",
       "owner": "campus",
+      "generation": 2,
       "from": "RECOVERING",
       "phase": "READY",
-      "generation": 2,
       "rendererId": 7,
       "error": ""
     },
     {
       "at": 250297.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 81
+      }
     },
     {
       "at": 250297.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 80
+      }
     },
     {
       "at": 250297.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 79
+      }
     },
     {
       "at": 250297.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 78
+      }
     },
     {
       "at": 250297.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 77
+      }
     },
     {
       "at": 250297.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 76
+      }
     },
     {
       "at": 250297.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 75
+      }
     },
     {
       "at": 250297.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 74
+      }
     },
     {
       "at": 250297.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 73
+      }
     },
     {
       "at": 250297.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 72
+      }
     },
     {
       "at": 250297.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 71
+      }
     },
     {
       "at": 250297.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 70
+      }
     },
     {
       "at": 250297.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 69
+      }
     },
     {
       "at": 250297.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 68
+      }
     },
     {
       "at": 250297.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12118.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 67
+      }
     },
     {
       "at": 250298.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 66
+      }
     },
     {
       "at": 250298.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 65
+      }
     },
     {
       "at": 250298.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 64
+      }
     },
     {
       "at": 250298.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 63
+      }
     },
     {
       "at": 250298.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 62
+      }
     },
     {
       "at": 250298.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 61
+      }
     },
     {
       "at": 250298.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 60
+      }
     },
     {
       "at": 250298.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 59
+      }
     },
     {
       "at": 250298.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 58
+      }
     },
     {
       "at": 250299,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12119.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 57
+      }
     },
     {
       "at": 250299.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 56
+      }
     },
     {
       "at": 250299.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 55
+      }
     },
     {
       "at": 250299.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 54
+      }
     },
     {
       "at": 250299.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 53
+      }
     },
     {
       "at": 250299.5,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 52
+      }
     },
     {
       "at": 250299.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 51
+      }
     },
     {
       "at": 250299.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 50
+      }
     },
     {
       "at": 250299.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 49
+      }
     },
     {
       "at": 250299.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 48
+      }
     },
     {
       "at": 250299.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 47
+      }
     },
     {
       "at": 250299.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12120.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 46
+      }
     },
     {
       "at": 250300.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12121,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 45
+      }
     },
     {
       "at": 250300.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12121.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 44
+      }
     },
     {
       "at": 250300.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12121.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 43
+      }
     },
     {
       "at": 250300.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12121.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 42
+      }
     },
     {
       "at": 250331.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 41
+      }
     },
     {
       "at": 250331.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 40
+      }
     },
     {
       "at": 250331.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 39
+      }
     },
     {
       "at": 250331.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 38
+      }
     },
     {
       "at": 250331.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 37
+      }
     },
     {
       "at": 250331.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 36
+      }
     },
     {
       "at": 250331.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 35
+      }
     },
     {
       "at": 250331.8999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 34
+      }
     },
     {
       "at": 250331.8999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12152.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 33
+      }
     },
     {
       "at": 250332.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12153,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 32
+      }
     },
     {
       "at": 250332.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12153,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 31
+      }
     },
     {
       "at": 250332.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12153,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 30
+      }
     },
     {
       "at": 250332.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12153.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 29
+      }
     },
     {
       "at": 250332.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12153.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 28
+      }
     },
     {
       "at": 250332.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 12153.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 171,
-        "textures": 82
-      },
-      "programs": 33,
-      "calls": 197,
-      "pendingCompilations": 27
+      }
     },
     {
       "at": 251985.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 26
+      }
     },
     {
       "at": 251985.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 25
+      }
     },
     {
       "at": 251985.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 24
+      }
     },
     {
       "at": 251985.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 23
+      }
     },
     {
       "at": 251985.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 22
+      }
     },
     {
       "at": 251985.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 21
+      }
     },
     {
       "at": 251985.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 20
+      }
     },
     {
       "at": 251985.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 19
+      }
     },
     {
       "at": 251985.69999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.60000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 18
+      }
     },
     {
       "at": 251985.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 17
+      }
     },
     {
       "at": 251985.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 16
+      }
     },
     {
       "at": 251985.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 15
+      }
     },
     {
       "at": 251985.8999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 14
+      }
     },
     {
       "at": 251985.8999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 13
+      }
     },
     {
       "at": 251985.8999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 12
+      }
     },
     {
       "at": 251986,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 11
+      }
     },
     {
       "at": 251986,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 10
+      }
     },
     {
       "at": 251986,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13806.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 9
+      }
     },
     {
       "at": 251986.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 8
+      }
     },
     {
       "at": 251986.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 7
+      }
     },
     {
       "at": 251986.09999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 6
+      }
     },
     {
       "at": 251986.19999999925,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 5
+      }
     },
     {
       "at": 251986.29999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 4
+      }
     },
     {
       "at": 251986.29999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807.199999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 3
+      }
     },
     {
       "at": 251986.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 2
+      }
     },
     {
       "at": 251986.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 1
+      }
     },
     {
       "at": 251986.3999999985,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807.300000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 0
+      }
     },
     {
       "at": 251987,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13807.900000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 0
+      }
     },
     {
       "at": 251987.8999999985,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13808.800000000745,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 1
+      }
     },
     {
       "at": 251988.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13809.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 2
+      }
     },
     {
       "at": 251988.19999999925,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13809.10000000149,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 3
+      }
     },
     {
       "at": 251988.5,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13809.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 4
+      }
     },
     {
       "at": 251988.59999999776,
       "event": "compile-start",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 13809.400000002235,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 330,
-      "pendingCompilations": 5
+      }
     },
     {
       "at": 252763.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 14584.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 197,
-      "pendingCompilations": 5
+      }
     },
     {
       "at": 252763.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 14584.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 197,
-      "pendingCompilations": 4
+      }
     },
     {
       "at": 252763.59999999776,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 14584.5,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 197,
-      "pendingCompilations": 3
+      }
     },
     {
       "at": 252765.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 14586.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 197,
-      "pendingCompilations": 2
+      }
     },
     {
       "at": 252765.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 14586.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 197,
-      "pendingCompilations": 1
+      }
     },
     {
       "at": 252765.79999999702,
       "event": "compile-end",
-      "id": 7,
       "owner": "campus",
+      "id": 7,
       "generation": 2,
+      "intentional": false,
       "lifecycle": {
         "phase": "READY",
         "generation": 2,
         "rendererId": 7,
         "resourcesReady": true,
         "error": ""
-      },
-      "intentional": false,
-      "activeOwner": "campus",
-      "scene": "campus",
-      "profile": "low",
-      "elapsedMs": 14586.699999999255,
-      "devicePixelRatio": 1,
-      "width": 192,
-      "height": 108,
-      "dpr": 0.15,
-      "memory": {
-        "geometries": 202,
-        "textures": 91
-      },
-      "programs": 44,
-      "calls": 197,
-      "pendingCompilations": 0
+      }
     }
   ],
   "lastContextLoss": {
