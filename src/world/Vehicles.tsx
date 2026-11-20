@@ -10,7 +10,7 @@ import { registerMovingCaster } from './shadows';
 import { freeze } from './rendering';
 import { silenceVehicle, vehicleSound } from '../audio/vehicles';
 
-function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
+export function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
   // Every part is static until it moves: a parked vehicle's forty-odd parts were re-composed every frame
   // (fourteen vehicles, over half the scene). Moving parts are updated below only when they change.
   const model = useMemo(() => { const m = buildVehicleModel(id, type); freeze(m.root); return m; }, [id, type]), group = useRef<THREE.Group>(null!);
@@ -49,7 +49,16 @@ function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
     m.brake = THREE.MathUtils.damp(m.brake, braking ? 1 : 0, 14, dt);
     model.tail.emissiveIntensity = .25 + m.brake * 2.4; model.reverse.emissiveIntensity = v.speed < -.1 ? 1.6 : 0;
   });
-  return <group ref={group} name={`vehicle:${id}`} matrixAutoUpdate={false}><primitive object={model.root} /></group>;
+  return <group ref={group} name={`vehicle:${id}`} matrixAutoUpdate={false}><primitive object={model.root} />{id.startsWith('getaway-unit-')&&<Lightbar/>}</group>;
+}
+function Lightbar(){
+  const red=useRef<THREE.Mesh>(null!),blue=useRef<THREE.Mesh>(null!);
+  useFrame(({clock})=>{
+    const beat=Math.floor(clock.elapsedTime*3)%2===0;
+    (red.current.material as THREE.MeshBasicMaterial).color.set(beat?'#ff4235':'#712a29');
+    (blue.current.material as THREE.MeshBasicMaterial).color.set(beat?'#223d75':'#659dff');
+  });
+  return <group position={[0,1.58,-.2]}><mesh ref={red} position-x={-.28}><boxGeometry args={[.47,.12,.23]}/><meshBasicMaterial color="#ff4235"/></mesh><mesh ref={blue} position-x={.28}><boxGeometry args={[.47,.12,.23]}/><meshBasicMaterial color="#659dff"/></mesh></group>;
 }
 /** Rotate a part only when the angle visibly changed (its matrix is composed by hand: see above); the damped
  * suspension otherwise kept creeping towards rest for minutes. */

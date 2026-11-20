@@ -4,7 +4,7 @@ export { onRoomMessage } from './messages';
 import { receiveClasses } from '../ui/Classes';
 import { receiveVehicles, receiveDrive, driveProtocol, vehicleResult, setOccupancy, disconnectVehicles } from '../vehicles/client';
 import { useEffect } from 'react';
-import { livePeers, peerTracks, roomPlayback, player, prediction, trail, useGame, type Peer } from '../state';
+import { input, livePeers, peerTracks, roomPlayback, player, prediction, trail, useGame, type Peer } from '../state';
 import { MOTION_VERSION } from '../../shared/prediction.mjs';
 import { createSession } from './session.mjs';
 import { createTrack } from './interpolation.mjs';
@@ -90,7 +90,7 @@ export function connect(){
   if(m.type==='left'){livePeers.delete(m.id);peerTracks.delete(m.id);s.set({peers:s.peers.filter(p=>p.id!==m.id),count:Math.max(1,s.count-1)});}
   if(m.type==='chat')s.set({messages:[...s.messages,{id:m.id,name:m.name,text:m.text,at:m.at,channel:(m.channel==='party'?'party':'room') as 'party'|'room',handle:m.handle??null,verified:m.verified===true}].slice(-80)});
   // The room moved us (meeting up with a party member): jump there rather than gliding.
-  if(m.type==='meetUpResult'&&m.ok){Object.assign(player,{x:m.x,z:m.z,y:0,vy:0,reconcile:null});trail.clear();}
+  if(m.type==='getawayPosition'||m.type==='meetUpResult'&&m.ok){Object.assign(player,{x:m.x,z:m.z,y:0,vy:0,reconcile:null});trail.clear();if(m.type==='getawayPosition'){setOccupancy(null,null);input.yaw=m.yaw+Math.PI;input.pitch=.1;}}
   if(m.type==='interaction')openLocation(m.id);
   if(m.type==='collected'&&!bridge?.verified())s.collect(m.id);
   if(m.type==='notice')s.notify(m.text);

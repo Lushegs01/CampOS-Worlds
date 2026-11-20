@@ -90,3 +90,17 @@ products in `.asset-cache/blender/`, and only compressed GLBs are shipped.
 6. Add the key to `HERO` in `tests/arena-blender-props.test.mjs`; run it.
 
 Every asset in this pipeline is original work made by these scripts; there is no third-party mesh or texture in them.
+
+## Shadow Protocol — The Getaway
+
+The editable Industrial District prop source is `blender/source/getaway.blend`. It contains the freight container, its lower-detail mesh, the intelligence case, and the warehouse truss. Both container meshes use the same base pivot so they fit the same collision box. The assets carry UVs and a single vertex-color PBR material, with one mesh primitive per export and no texture downloads.
+
+```sh
+blender -b -t 2 --python-exit-code 1 -P blender/getaway.py
+node scripts/assets/optimize-getaway.mjs
+python3 scripts/audio/getaway-score.py
+```
+
+The Blender commands export and compress to `public/assets/getaway/` and record the triangle counts, dimensions, and byte sizes in `models.json`. The Python score renderer uses FFmpeg to write three phase-aligned MP3 loops to the same directory. The campus loader also uses existing Arena GLBs for the loadout, crates, and barrel. It fits the props to the authoritative collision boxes in `shared/getaway.mjs`. The existing campus vehicles and avatars supply the driving model and character animation.
+
+The browser plays existing recorded effects through the campus volume controls and crossfades the original score with the mission state. Each reused sample retains the credits in `docs/audio/LICENSES.md` and the repository's asset documentation. Mission dialogue is presented in text.

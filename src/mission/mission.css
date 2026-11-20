@@ -1,0 +1,51 @@
+.getaway-hud,.getaway-vitals{position:absolute;z-index:4;color:#faf0d9;background:#172923ed;border:1px solid #dbc59445;border-radius:9px;box-shadow:0 10px 35px #11191444}
+.getaway-hud{right:34px;top:91px;width:min(284px,40vw);padding:13px 16px 15px;border-left:3px solid var(--gold)}
+.getaway-hud-header{display:flex;align-items:center;justify-content:space-between;color:var(--gold)}
+.getaway-hud-header span,.getaway-dialog header span{font-size:10px;letter-spacing:2px;font-weight:700}
+.getaway-hud-header button,.getaway-dialog header button{background:transparent;padding:5px;color:inherit}
+.getaway-hud h2{font-size:23px;margin:.25rem 0}
+.getaway-hud p{font-size:12px;color:#d6dbce;line-height:1.45}
+.getaway-guide,.getaway-case-status,.getaway-wanted>span{display:flex;align-items:center;gap:7px}
+.getaway-guide{margin-top:9px;color:var(--gold);font-size:12px;font-variant-numeric:tabular-nums}
+.getaway-case-status{margin-top:9px;color:#c4d3a7}
+.getaway-wanted{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:5px 8px;margin-top:10px;padding-top:10px;border-top:1px solid #fff2;color:#f7ab89;font-size:11px}
+.getaway-wanted>small,.getaway-wanted>progress{grid-column:1/-1}
+.getaway-vitals{bottom:132px;left:34px;display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12px;font-variant-numeric:tabular-nums}
+.getaway-vitals b{font-size:14px}
+.getaway-vitals progress{width:64px}
+.getaway-vitals progress,.getaway-wanted progress{accent-color:#efc57b;height:7px}
+.getaway-reticle{position:absolute;z-index:2;left:50%;top:50%;width:32px;height:32px;transform:translate(-50%,-50%);pointer-events:none}
+.getaway-reticle.aimed{width:17px;height:17px}
+.getaway-reticle i{position:absolute;background:#fff7dd;filter:drop-shadow(0 0 2px #0c100c);width:7px;height:2px;top:calc(50% - 1px)}
+.getaway-reticle i:nth-child(2){right:0}
+.getaway-reticle i:nth-child(3),.getaway-reticle i:nth-child(4){width:2px;height:7px;left:calc(50% - 1px);top:0}
+.getaway-reticle i:nth-child(4){top:auto;bottom:0}
+.getaway-hurt{position:absolute;inset:0;pointer-events:none;z-index:2;box-shadow:inset 0 0 100px #ba382bba}
+.getaway-scrim{position:absolute;inset:0;z-index:32;display:grid;place-items:center;background:#101b18af;padding:18px}
+.getaway-dialog{width:min(580px,100%);max-height:95dvh;overflow:auto;border:1px solid #e6c98f5c;border-radius:13px;background:#20362e;color:#f7f0df;padding:clamp(16px,4vh,31px);box-shadow:0 18px 68px #0c170f90}
+.getaway-dialog header{display:flex;justify-content:space-between;align-items:center;color:var(--gold)}
+.getaway-dialog h2{font-size:clamp(29px,5vh,44px);margin:5px 0 10px}
+.getaway-dialog p{font-size:13px;color:#d7ddcb}
+.getaway-dialogue{padding-left:14px;border-left:2px solid #d9b778;margin-bottom:13px}
+.getaway-dialogue b{font-size:12px;color:var(--gold)}
+.getaway-dialogue p{margin:4px 0 8px}
+.getaway-dialog footer{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.getaway-dialog footer button:not(.primary){background:#ffffff14;border:1px solid #fff2;border-radius:7px;padding:8px 12px;font-size:13px}
+.getaway-objectives{margin:12px 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 9px;font-size:12px}
+.getaway-objectives li{display:flex;align-items:center;gap:7px;padding:5px 6px;color:#d4dac8}
+.getaway-objectives li[aria-current]{background:#f3c57b1c;color:var(--gold);border-radius:4px}
+.getaway-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0}
+.getaway-stats div{padding:6px 9px;background:#fcf8e411;border-radius:4px}
+.getaway-stats dt{font-size:10px;color:#d5dac5}.getaway-stats dd{margin:3px 0;font-size:16px}
+.getaway-dialog .getaway-error{color:#ffc0a3}
+.getaway-keys{display:flex;flex-wrap:wrap;align-items:center;gap:5px 7px}
+.getaway-active .control-hint,.getaway-active .location-hud,.getaway-active .vehicle-hud{display:none}
+.touch-actions .getaway-touch-fire{background:#9d4628dc;border-color:#eebb8e}
+@media(pointer:coarse){
+ .getaway-hud{top:60px;right:12px;padding:7px 9px;width:min(230px,37vw)}
+ .getaway-hud h2{font-size:17px}.getaway-hud p{display:none}
+ .getaway-vitals{left:13px;bottom:78px;padding:5px 7px;gap:5px}.getaway-vitals progress{width:36px}
+ .getaway-active .touch-actions{gap:5px;bottom:max(100px,env(safe-area-inset-bottom))}.getaway-active .touch-actions button{width:48px;height:48px;font-size:10px}
+ .getaway-active .touch-actions .touch-action{width:auto;min-width:64px}.getaway-active .touch-actions .getaway-touch-fire{width:55px;height:55px}
+ .getaway-keys{display:none}
+}

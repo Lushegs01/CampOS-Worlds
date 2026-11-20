@@ -26,14 +26,14 @@ export function drivable(x,z,pad=0){return !NO_DRIVE.some(r=>Math.abs(x-r.x)<r.w
 const fail=reason=>({ok:false,reason});
 const blank=()=>({throttle:0,steer:0,brake:true});
 /** One vehicle's physics for `dt` seconds of the given input (substepped so it cannot tunnel). */
-export function advance(v,i,dt,vehicles,players=[]){
+export function advance(v,i,dt,vehicles,players=[],onImpact=null){
  const t=VEHICLE_TYPES[v.type],steps=!v.speed&&!i.throttle?0:Math.max(1,Math.ceil(dt/.008)),h=dt/steps;
  for(let k=0;k<steps;k++){let accel=i.throttle*t.accel;if(i.brake)accel=-Math.sign(v.speed)*t.brake*1.5;else if(i.throttle*v.speed<0)accel=i.throttle*t.brake;
   const old=v.speed;v.speed+=accel*h;if(i.brake&&old*v.speed<0)v.speed=0;
   v.speed*=Math.exp(-h*(i.throttle&&!i.brake?.035:.7));v.speed=Math.max(-t.reverse,Math.min(t.maxSpeed,v.speed));if(Math.abs(v.speed)<.015)v.speed=0;
   v.steering+=(i.steer*t.steer/(1+Math.abs(v.speed)/18)-v.steering)*Math.min(1,h*7);
   const yaw=v.yaw+v.speed/t.wheelbase*Math.tan(v.steering)*h,q={...v,yaw,x:v.x+Math.sin(yaw)*v.speed*h,z:v.z+Math.cos(yaw)*v.speed*h};
-  if(vehicleBlocked(q,vehicles,players)){v.speed=0;}else{v.x=q.x;v.z=q.z;v.yaw=Math.atan2(Math.sin(yaw),Math.cos(yaw));v.wheel+=v.speed*h/.32;}
+  if(vehicleBlocked(q,vehicles,players)){if(Math.abs(v.speed)>2)onImpact?.(v,Math.abs(v.speed));v.speed=0;}else{v.x=q.x;v.z=q.z;v.yaw=Math.atan2(Math.sin(yaw),Math.cos(yaw));v.wheel+=v.speed*h/.32;}
  }
 }
 /** Driving time a driver may bank ahead of the room (s), and how long without commands before the room brakes. */
@@ -50,8 +50,9 @@ export function vehicleBlocked(v,all,players=[]){
  }
  return players.some(p=>!p.vehicle&&vehicleContains(v,p.x,p.z,.35));
 }
-export function createFleet(){
- const vehicles=VEHICLE_SPAWNS.map(s=>({...s,speed:0,steering:0,wheel:0,occupants:VEHICLE_TYPES[s.type].seats.map(()=>/** @type {string|null} */(null)),input:blank(),inputAt:0,idle:0}));
+export function createFleet(spawns=VEHICLE_SPAWNS,{onImpact=null, obstacles=null}={}){
+ const vehicles=spawns.map(s=>({...s,speed:0,steering:0,wheel:0,occupants:VEHICLE_TYPES[s.type].seats.map(()=>/** @type {string|null} */(null)),input:blank(),inputAt:0,idle:0}));
+ const allVehicles=()=>obstacles?[...vehicles,...obstacles()]:vehicles;
  const find=id=>vehicles.find(v=>v.id===id);
  // Per-vehicle command authority (shared/driving.mjs). A new epoch makes any in-flight commands obsolete.
  // simAt: the room time the vehicle's state represents. Commands arrive in bursts, so a driven vehicle's
@@ -61,13 +62,13 @@ export function createFleet(){
  const commanded=(v,now)=>now-(drives.get(v.id)?.commandAt??-Infinity)<DRIVE_STALE;
 
  function sync(v,players){v.occupants.forEach((id,i)=>{const p=players.find(p=>p.id===id);if(p){const a=seatAnchor(v,i);Object.assign(p,{x:a.x,z:a.z,y:0,yaw:v.yaw,vx:0,vz:0,vy:0,moving:false,vehicle:v.id,vehicleSeat:i});}});}
- function home(v,players){const spawn=VEHICLE_SPAWNS.find(s=>s.id===v.id);if(vehicleBlocked({...v,...spawn},vehicles,players))return false;Object.assign(v,spawn,{speed:0,steering:0,input:blank(),idle:0});restart(v);sync(v,players);return true;}
+ function home(v,players){const spawn=spawns.find(s=>s.id===v.id);if(vehicleBlocked({...v,...spawn},allVehicles(),players))return false;Object.assign(v,spawn,{speed:0,steering:0,input:blank(),idle:0});restart(v);sync(v,players);return true;}
  return {vehicles,find,
   snapshot:()=>vehicles.map(({input,inputAt,idle,...v})=>({...v,occupants:[...v.occupants]})),
   enter(p,id,seat=0){const v=find(id);if(!v||!Number.isInteger(seat)||seat<0||seat>=v.occupants.length)return fail('Unknown vehicle seat.');if(p.vehicle||p.seat||p.ball||p.y>.05)return fail('Stand up and put down the ball first.');if(v.occupants[seat])return fail('That seat is taken.');if(Math.abs(v.speed)>.5)return fail('Wait for the vehicle to stop.');const t=VEHICLE_TYPES[v.type],a=localPoint(v,(t.seats[seat][0]<0?-1:1)*(t.width/2+.65),t.seats[seat][1]);if(Math.hypot(p.x-a.x,p.z-a.z)>3)return fail('Approach a vehicle door.');v.occupants[seat]=p.id;p.vehicle=v.id;p.vehicleSeat=seat;p.input={dx:0,dz:0};v.idle=0;if(seat===0)restart(v);sync(v,[p]);return {ok:true};},
   exit(p,players=[]){const v=find(p.vehicle);if(!v)return fail('You are not in a vehicle.');if(Math.abs(v.speed)>.5)return fail('Stop before exiting.');const t=VEHICLE_TYPES[v.type],sz=t.seats[p.vehicleSeat]?.[1]??0,side=(t.seats[p.vehicleSeat]?.[0]??-1)<0?-1:1;
    const points=[localPoint(v,side*(t.width/2+.8),sz),localPoint(v,-side*(t.width/2+.8),sz),localPoint(v,0,-t.length/2-1),localPoint(v,0,t.length/2+1)];
-   const q=points.find(q=>!blocked(q.x,q.z)&&!vehicles.some(o=>vehicleContains(o,q.x,q.z,.35))&&!players.some(o=>o.id!==p.id&&!o.vehicle&&Math.hypot(o.x-q.x,o.z-q.z)<.65));if(!q)return fail('No safe exit. Move to an open parking bay.');
+   const q=points.find(q=>!blocked(q.x,q.z)&&!allVehicles().some(o=>vehicleContains(o,q.x,q.z,.35))&&!players.some(o=>o.id!==p.id&&!o.vehicle&&Math.hypot(o.x-q.x,o.z-q.z)<.65));if(!q)return fail('No safe exit. Move to an open parking bay.');
    v.occupants[p.vehicleSeat]=null;if(p.vehicleSeat===0){v.input=blank();v.speed=0;restart(v);}Object.assign(p,q,{vehicle:null,vehicleSeat:null,y:0,vy:0,vx:0,vz:0});return {ok:true,...q};},
   control(p,m,now=Date.now()){const v=find(p.vehicle);if(!v||v.occupants[0]!==p.id)return fail('Only the driver can control this vehicle.');if(![m.throttle,m.steer].every(Number.isFinite))return fail('Invalid input.');v.input={throttle:Math.max(-1,Math.min(1,m.throttle)),steer:Math.max(-1,Math.min(1,m.steer)),brake:m.brake===true};v.inputAt=now;return {ok:true};},
   recover(p,players=[]){const v=find(p.vehicle)||vehicles.find(v=>Math.hypot(p.x-v.x,p.z-v.z)<5&&!v.occupants.some(Boolean));if(!v)return fail('Approach an empty vehicle or sit in the driver seat.');if(v.occupants.some((id,i)=>id&&(i!==0||id!==p.id))||Math.abs(v.speed)>.5)return fail('Stop and let passengers exit before recovery.');return home(v,players)?{ok:true}:fail('The home bay is occupied. Try again when it is clear.');},
@@ -83,7 +84,7 @@ export function createFleet(){
    for(const c of m.commands){
     if(c[0]<=a.seq)continue;
     if(c[0]!==a.seq+1||c[1]>a.budget+1e-6){restart(v,now);return fail('Driving input out of sequence.');}
-    a.budget-=c[1];v.input=driveInput(c);v.inputAt=now;a.commandAt=now;advance(v,v.input,c[1],vehicles,players);a.seq=c[0];a.simAt=Math.min(now,a.simAt+c[1]*1000);
+    a.budget-=c[1];v.input=driveInput(c);v.inputAt=now;a.commandAt=now;advance(v,v.input,c[1],allVehicles(),players,onImpact);a.seq=c[0];a.simAt=Math.min(now,a.simAt+c[1]*1000);
    }
    v.idle=0;sync(v,players);return {ok:true};},
   /** What the driver needs to reconcile: the commands applied so far and the resulting state. */
@@ -93,7 +94,7 @@ export function createFleet(){
   step(dt,players,now=Date.now()){dt=Math.min(.25,Math.max(0,dt));for(const v of vehicles){const active=v.occupants[0]&&now-v.inputAt<DRIVE_STALE,i=active?v.input:blank();
     // A driver sending commands moves the vehicle with them (drive); the timer only covers everyone else,
     // and a driver whose commands have stopped arriving (the vehicle then brakes, as before).
-    if(!commanded(v,now)){advance(v,i,dt,vehicles,players);const a=drives.get(v.id);if(a)a.simAt=now;}
+    if(!commanded(v,now)){advance(v,i,dt,allVehicles(),players,onImpact);const a=drives.get(v.id);if(a)a.simAt=now;}
     sync(v,players);if(!v.occupants.some(Boolean)){v.idle+=dt;if(v.idle>300)home(v,players);}else v.idle=0;
    }}
  };

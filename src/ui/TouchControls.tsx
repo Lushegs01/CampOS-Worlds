@@ -1,3 +1,5 @@
+import { TouchCombat } from '../mission/Hud';
+import { activeCombat, useGetaway } from '../mission/client';
 import { useVehicle, vehicleInteract, vehicleAction } from '../vehicles/client';
 import { useEffect, useRef } from 'react';
 import { ArrowUp } from 'lucide-react';
@@ -6,6 +8,7 @@ import { TouchInteract } from './Interaction';
 import { useInteraction } from '../interaction/world';
 
 export default function TouchControls() {
+  const combat=useGetaway(s=>activeCombat(s.mission));
   const vehicle=useVehicle(s=>s.id);
   const held=useRef(new Map<number,string>());
   const drive=(id:number,key?:string)=>{if(key)held.current.set(id,key);else held.current.delete(id);const keys=new Set(held.current.values());input.x=Number(keys.has('right'))-Number(keys.has('left'));input.z=Number(keys.has('reverse'))-Number(keys.has('accelerate'));};
@@ -26,7 +29,7 @@ export default function TouchControls() {
   return <div className="touch-controls">
     <div className="touch-look" aria-label="Drag to look around"
       onPointerDown={e => { if (lookPointer.current !== null) return; lookPointer.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId); camera.current = { x: e.clientX, y: e.clientY }; }}
-      onPointerMove={e => { if (lookPointer.current !== e.pointerId) return; input.yaw -= (e.clientX - camera.current.x) * .006; input.pitch = Math.max(-.12, Math.min(.95, input.pitch + (e.clientY - camera.current.y) * .004)); camera.current = { x: e.clientX, y: e.clientY }; }}
+      onPointerMove={e => { if (lookPointer.current !== e.pointerId) return; input.yaw -= (e.clientX - camera.current.x) * .006; input.pitch = Math.max(combat ? -.8 : -.12, Math.min(.95, input.pitch + (e.clientY - camera.current.y) * .004)); camera.current = { x: e.clientX, y: e.clientY }; }}
       onPointerUp={releaseLook} onPointerCancel={releaseLook} onLostPointerCapture={releaseLook} />
     {vehicle?<div className="driving-touch">{[['left','Steer left','←'],['right','Steer right','→'],['reverse','Brake and reverse','Brake / R'],['accelerate','Accelerate','Go']].map(([key,label,text])=><button key={key} aria-label={label} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);drive(e.pointerId,key);}} onPointerUp={e=>drive(e.pointerId)} onPointerCancel={e=>drive(e.pointerId)} onLostPointerCapture={e=>drive(e.pointerId)}>{text}</button>)}</div>:<div className="joystick" role="group" aria-label="Movement joystick"
       onPointerDown={e => { if (movePointer.current !== null) return; movePointer.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId); origin.current = { x: e.clientX, y: e.clientY }; }}
@@ -37,6 +40,6 @@ export default function TouchControls() {
         // Pointer events bypass React reconciliation while steering.
         if (knob.current) knob.current.style.transform = `translate(${x / d}px, ${y / d}px)`;
       }} onPointerUp={releaseMove} onPointerCancel={releaseMove} onLostPointerCapture={releaseMove}><span ref={knob} /></div>}
-    <div className="touch-actions">{vehicle?<button onClick={vehicleInteract} aria-label="Exit vehicle">Exit</button>:<TouchInteract />}{vehicle&&<button onClick={()=>vehicleAction('vehicleRecover')}>Recover</button>}{!vehicle && !ball && !seated && <button aria-label="Jump" onPointerDown={() => { input.jump = true; }}><ArrowUp size={20} /><span>Jump</span></button>}</div>
+    <div className="touch-actions">{vehicle?<button onClick={vehicleInteract} aria-label="Exit vehicle">Exit</button>:<TouchInteract />}{vehicle&&<button onClick={()=>vehicleAction('vehicleRecover')}>Recover</button>}{!vehicle&&combat&&<TouchCombat/>}{!vehicle && !ball && !seated && !combat && <button aria-label="Jump" onPointerDown={() => { input.jump = true; }}><ArrowUp size={20} /><span>Jump</span></button>}</div>
   </div>;
 }

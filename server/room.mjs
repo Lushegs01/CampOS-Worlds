@@ -1,3 +1,5 @@
+import { createMissionService } from './mission/service.mjs';
+import { isGetawayVehicle } from '../shared/getaway.mjs';
 import { createClasses } from '../shared/classes.mjs';
 import { createEconomyService, principalOf } from './economy/service.mjs';
 import { createFleet, vehicleContains } from '../shared/vehicles.mjs';
@@ -106,9 +108,9 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   // burst then queues thousands of tiny zlib jobs ahead of movement acknowledgements.
   ws.send(raw,{compress:raw.length>=512});
  };
- const motionContext=c=>`${c.seat??''}|${c.vehicle??''}|${c.dorm?.host.id??''}`;
+ const motionContext=c=>`${c.seat??''}|${c.vehicle??''}|${c.dorm?.host.id??''}|${missions.frozen(c)?'paused':''}`;
  const motionSnapshot=c=>c.motion?.snapshot(motionContext(c),performance.now());
- const send=(ws,data)=>{const c=bySocket.get(ws);const motion=c?.motion&&['welcome','result','dormResult','vehicleResult','meetUpResult','motion'].includes(data.type)?motionSnapshot(c):undefined;sendRaw(ws,JSON.stringify(motion?{...data,motion}:data));};
+ const send=(ws,data)=>{const c=bySocket.get(ws);const motion=c?.motion&&['welcome','result','dormResult','vehicleResult','meetUpResult','getawayPosition','motion'].includes(data.type)?motionSnapshot(c):undefined;sendRaw(ws,JSON.stringify(motion?{...data,motion}:data));};
  // Serialised once for everyone (it used to be stringified again for every recipient).
  const broadcast=data=>{const raw=JSON.stringify(data);clients.forEach(c=>{if(c.joined)sendRaw(c.ws,raw);});};
  const http=createServer({maxHeaderSize:8192,requestTimeout:10000,headersTimeout:10000,keepAliveTimeout:5000},async(req,res)=>{
@@ -180,9 +182,10 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   // One account appears once: the newest verified window takes over (a reload or a second tab);
   // the older connection carries on as a guest and is told why.
   const prior=[...clients.values()].find(o=>o!==c&&o.account?.id===who.id);
-  if(prior){if(prior.dorm)leaveDorm(prior,'Your account opened in another window, so you’re back in the common room.');prior.authSeq++;prior.account=null;prior.social=null;prior.hoops=[];prior.earned=[];prior.owned=[];prior.name='Explorer';parties.touch(prior);send(prior.ws,{type:'auth',ok:false,code:'replaced',reason:'You opened campus with this account in another window, so this one continues as a guest.'});}
+  if(prior){missions.identity(prior);if(prior.dorm)leaveDorm(prior,'Your account opened in another window, so you’re back in the common room.');prior.authSeq++;prior.account=null;prior.social=null;prior.hoops=[];prior.earned=[];prior.owned=[];prior.name='Explorer';parties.touch(prior);send(prior.ws,{type:'auth',ok:false,code:'replaced',reason:'You opened campus with this account in another window, so this one continues as a guest.'});}
   if(c.dorm)leaveDorm(c,'You signed in, so you’re back in the common room. Go to your room again to open it.');
-  bindAccount(c,who.id,snap,who.email);reply({ok:true,account:{handle:snap.handle,display_name:snap.display_name}});
+  if(c.account?.id!==who.id)missions.identity(c);
+  bindAccount(c,who.id,snap,who.email);void missions.load(c);reply({ok:true,account:{handle:snap.handle,display_name:snap.display_name}});
  }
  // Earned accents and titles are only ever taken from the saved, verified profile.
  const earned=snap=>Array.isArray(snap?.achievements)?snap.achievements.map(a=>a.id):[];
@@ -272,6 +275,11 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // Guests' rooms last as long as the room server (by session); signed-in players' rooms are saved.
  const guestRooms=new Map(),GUEST_ROOMS=500;
  const place=(c,p)=>Object.assign(c,{x:p.x,z:p.z,y:0,yaw:p.yaw,vy:0,vx:0,vz:0,input:{dx:0,dz:0,sprint:false,jump:false},simAt:Date.now()});
+ const missions=createMissionService({accounts,fleet,place,send:(c,data)=>send(c.ws,data),release:c=>{
+  if(isGetawayVehicle(c.vehicle))c.getaway?.fleet.release(c);
+  else if(c.vehicle)fleet.release(c);
+ }});
+ const fleetFor=(c,id=c.vehicle)=>isGetawayVehicle(id)?missions.privateFleet(c):fleet;
  const hosting=c=>c.dorm?.host===c,layoutOf=c=>c.dorm?.host.dorm?.layout??null,spaceOf=c=>c.dorm?c.dorm.host.id:undefined;
  const blockedReason='You can’t visit this room.';
  /** Why `c` can't go into a room right now (null when they can). */
@@ -378,7 +386,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   clearTimeout(c.socialTimer);challenges.release(c);
   if(c.sessionStarted)analytics.track(c,'session_end',{seconds:(Date.now()-c.joinedAt)/1000,reason:code===4003?'removed':'closed'});
   const driving=!!c.vehicle;
-  duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);npcs.release(c);
+  missions.depart(c);duels.release(c);fleet.release(c);classes.release(c);world.release(c);parties.disconnect(c);npcs.release(c);
   // A resident reconnects outside their room's door: the room is entered (and its layout loaded) only on request.
   const at=c.dorm||inDormRoom(c.x,c.z)?DORM_OUTSIDE:c;vacate(c);
   if(was&&c.token&&!driving)recent.set(c.token,{x:at.x,z:at.z,yaw:at.yaw,at:Date.now()});
@@ -428,29 +436,42 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     // A signed-in player joins as a guest and is upgraded once the room has verified the token.
     if(typeof m.access==='string'&&rate('auth',4,60000))authenticate(c,m.access);else startSession(c);return;
    }if(!c.joined)return;
+   if(c.getaway&&['meetUp','sit','pickup','duel','challenge'].includes(m.type)){
+    send(ws,{type:'notice',text:'Complete or abandon The Getaway before starting another activity.'});return;
+   }
    if(m.type==='lab'){
     if(!rate('lab',12,10000)){send(ws,{type:'labResult',ref:Number.isInteger(m.ref)?m.ref:null,ok:false,reason:'Wait a moment before using this workstation again.'});return;}
     const principal=principalOf(c);
     economy.request(c,m).then(r=>{if(clients.get(id)===c&&c.joined&&principalOf(c)===principal)send(ws,{type:'labResult',ref:Number.isInteger(m.ref)?m.ref:null,...r});});
    }else if(m.type==='classAction'&&rate('classAction',5)){const r=classes.action(c,m);if(!r.ok)send(ws,{type:'notice',text:r.reason});broadcast({type:'classes',sessions:classes.snapshot()});
-   }else if(m.type==='vehicleInput'&&rate('vehicleInput',35)){fleet.control(c,m);
-   // Sequenced driving commands (shared/driving.mjs), batched about 30 times a second by the client.
-   }else if(m.type==='vehicleDrive'&&rate('vehicleDrive',40)){fleet.drive(c,m,Date.now(),joined());
+   }else if(m.type==='getaway'){
+    const streaming=m.action==='fire';
+    if(rate(streaming?'getawayFire':'getaway',streaming?18:9))missions.handle(c,m);
+   }else if(m.type==='vehicleInput'&&rate('vehicleInput',35)){
+    if(!missions.frozen(c))fleetFor(c)?.control(c,m);
+   }else if(m.type==='vehicleDrive'&&rate('vehicleDrive',40)){
+    if(!missions.frozen(c))fleetFor(c)?.drive(c,m,Date.now(),isGetawayVehicle(c.vehicle)?[c]:joined());
    }else if(['vehicleEnter','vehicleExit','vehicleRecover'].includes(m.type)&&rate('vehicleAction',5)){
-    const r=m.type==='vehicleEnter'?fleet.enter(c,str(m.id),m.seat??0):m.type==='vehicleExit'?fleet.exit(c,joined()):fleet.recover(c,joined());
-    send(ws,{type:'vehicleResult',...r,vehicle:c.vehicle,vehicleSeat:c.vehicleSeat,x:c.x,z:c.z});broadcast({type:'vehicles',vehicles:fleet.snapshot()});
+    const entering=m.type==='vehicleEnter',chosen=entering?str(m.id):c.vehicle,privateVehicle=isGetawayVehicle(chosen);
+    const selected=fleetFor(c,chosen),players=privateVehicle?[c]:joined(),seat=m.seat??0;
+    const refused=missions.frozen(c)||!selected||(entering&&!missions.canEnter(c,chosen,seat))||
+     (privateVehicle&&m.type==='vehicleRecover'&&c.getaway?.wanted);
+    const r=refused?{ok:false,reason:'That vehicle action is unavailable now.'}:
+     entering?selected.enter(c,chosen,seat):m.type==='vehicleExit'?selected.exit(c,players):selected.recover(c,players);
+    send(ws,{type:'vehicleResult',...r,vehicle:c.vehicle,vehicleSeat:c.vehicleSeat,x:c.x,z:c.z});
+    if(!privateVehicle)broadcast({type:'vehicles',vehicles:fleet.snapshot()});
    }else if(m.type==='move'&&rate('input',105,3000)){
     if(!c.motion)return;
-    const accepted=c.motion.receive(m,motionContext(c),performance.now(),(x,z,fx,fz)=>footAllowed(c,x,z,fx,fz),!!(c.seat||c.vehicle));
+    const accepted=c.motion.receive(m,motionContext(c),performance.now(),(x,z,fx,fz)=>footAllowed(c,x,z,fx,fz),!!(c.seat||c.vehicle||missions.frozen(c)));
     c.lastInput=Date.now();if(!accepted)send(ws,{type:'motion'});
    }else if(m.type==='input'&&rate('input',35)){
-    if(c.motion||c.vehicle)return;
+    if(c.motion||c.vehicle||missions.frozen(c))return;
     if(![m.dx,m.dz,m.yaw].every(Number.isFinite))return;
     // Walk on to this moment with the previous input first: a new input applies from when it arrived.
     const t=Date.now();if(c.seat)c.simAt=t;else walk(c,t);
     const length=Math.max(1,Math.hypot(m.dx,m.dz));c.input={dx:m.dx/length,dz:m.dz/length,sprint:m.sprint===true,jump:c.input.jump||m.jump===true};c.yaw=m.yaw%(Math.PI*2);c.lastInput=t;
    }else if(m.type==='settle'&&rate('settle',3,1000)){
-    if(c.motion)return;
+    if(c.motion||c.getaway)return;
     // A standing player's client may nudge its server position to where it sees itself (small, walkable
     // corrections only), so range checks for seats, doors and balls agree with what the player sees.
     const x=num(m.x),z=num(m.z);if(!Number.isFinite(x)||!Number.isFinite(z)||c.seat||c.vehicle||Math.hypot(c.vx,c.vz)>.25||Date.now()-c.lastInput<INPUT_HOLD_MS&&Math.hypot(c.input.dx,c.input.dz)>.01)return;
@@ -460,7 +481,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(m.type==='auth'){
     // Verification is expensive; revoking our own identity must always remain possible.
     if(typeof m.token==='string'){if(rate('auth',4,60000))authenticate(c,m.token);}
-    else{c.authSeq++;if(c.account){if(c.dorm)leaveDorm(c,'You signed out, so you’re back in the common room.');c.account=null;c.social=null;c.hoops=[];c.earned=[];c.owned=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
+    else{c.authSeq++;if(c.account){missions.identity(c);if(c.dorm)leaveDorm(c,'You signed out, so you’re back in the common room.');c.account=null;c.social=null;c.hoops=[];c.earned=[];c.owned=[];c.name=guestName(m.name);c.avatar=sanitizeAvatar(m.avatar??{});parties.touch(c);}send(ws,{type:'auth',ok:true,account:null});}
    }else if(m.type==='shopCheckout'&&rate('shopCheckout',3,10000)){
     // A Bachs checkout for one store item, for a signed-in player who does not own it yet.
     const ref=Number.isInteger(m.ref)?m.ref:null,reply=data=>send(ws,{type:'shopCheckout',ref,item:str(m.item),...data});
@@ -516,6 +537,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(m.type==='dorm'){
     const action=str(m.action),reply=r=>{if(clients.get(id)===c)send(ws,{type:'dormResult',ref:Number.isSafeInteger(m.ref)?m.ref:null,action:action.slice(0,8),...r});};
     if(!rate('dorm',10,5000)){reply({ok:false,reason:'Wait a moment and try again.'});return;}
+    if(c.getaway&&action!=='leave'){reply({ok:false,reason:'Complete or abandon The Getaway before entering a residence.'});return;}
     if(c.vehicle&&action!=='leave'){reply({ok:false,reason:'Leave the vehicle first.'});return;}
     if(action==='enter')enterDorm(c).then(reply);
     else if(action==='leave')reply(leaveDorm(c));
@@ -576,30 +598,34 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  function changedVehicles(){const out=[],now=Date.now();for(const v of fleet.snapshot()){const p=packVehicle(v),key=JSON.stringify(p);if(sentVehicles.get(v.id)!==key){sentVehicles.set(v.id,key);out.push({...p,ts:fleet.stateTime(v.id,now)});}}return out;}
  // The last input applies for INPUT_HOLD_MS after it arrived, then the player coasts to a stop
  // (shared/movement.mjs); vehicles block walking into them, never walking out of one's footprint.
- const footAllowed=(c,x,z,fx,fz)=>!fleet.vehicles.some(v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz))&&furnitureAllows(layoutOf(c),x,z,fx,fz);
+ const footAllowed=(c,x,z,fx,fz)=>{
+  const overlaps=v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz);
+  return !fleet.vehicles.some(overlaps)&&!c.getaway?.fleet.vehicles.some(overlaps)&&!c.getaway?.police.some(overlaps)&&furnitureAllows(layoutOf(c),x,z,fx,fz);
+ };
  const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>footAllowed(c,x,z,fx,fz));
  let last=performance.now(),tick=0;
  const simulation=setInterval(()=>{const now=performance.now(),gap=now-last,dt=Math.min(gap/1000,MAX_STEP),wall=Date.now();last=now;metrics.ticks++;metrics.maxTickGapMs=Math.max(metrics.maxTickGapMs,Math.round(gap));
   for(const c of clients.values()){if(!c.joined){if(Date.now()-c.joinedAt>10000)c.ws.close();continue;}
    if(c.motion){if(wall-c.lastInput>INPUT_HOLD_MS)c.moving=false;if(wall-c.emoteAt>3000)c.emote='';continue;}
-   if(c.seat||c.vehicle){c.vx=c.vz=0;c.moving=false;c.input.jump=false;c.simAt=wall;continue;}
+   if(c.seat||c.vehicle||missions.frozen(c)){c.vx=c.vz=0;c.moving=false;c.input.jump=false;c.simAt=wall;continue;}
    const i=c.input;if(i.jump&&c.y===0)c.vy=JUMP_SPEED;i.jump=false;
    walk(c,wall);
    c.moving=Math.hypot(c.vx,c.vz)>.2;c.sprinting=i.sprint;if(Date.now()-c.emoteAt>3000)c.emote='';
   }
   fleet.step(dt,joined());classes.step(joined());
+  for(const c of clients.values())if(c.joined)missions.step(c,dt);
   const events=world.step(dt,joined());
   if(events.length){broadcast({type:'events',list:events});npcs.react(events);}
   duels.step(events);
   for(const e of events)if(e.type==='score'){const shot=clients.get(e.by)?.hoops.find(s=>s.id===e.shot);if(shot){shot.points=e.points;shot.done=true;}}
   if(tick%3===0)challenges.step(joined());
-  if(tick%15===0){const t=Date.now();npcs.step(joined());for(const c of clients.values())settleHoops(c,t);parties.step();partyTime(t);for(const [k,r] of recent)if(t-r.at>partyLimits.graceMs)recent.delete(k);}
+  if(tick%15===0){const t=Date.now();npcs.step(joined());for(const c of clients.values())settleHoops(c,t);parties.step();missions.expire();partyTime(t);for(const [k,r] of recent)if(t-r.at>partyLimits.graceMs)recent.delete(k);}
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
   // 15 Hz state: positions to the centimetre and angles to the milliradian (the client interpolates), and
   // only the vehicles that changed since the last broadcast (joining clients get the whole fleet in welcome).
-  if(++tick%2===0){const data={type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm})=>({id,name,avatar,space:dorm?dorm.host.id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()};
+  if(++tick%2===0){const data={type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm,getaway})=>({id,name,avatar,space:dorm?dorm.host.id:getaway&&isGetawayVehicle(vehicle)?'getaway:'+id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()};
    // Each driver also gets what the room has applied of their driving commands, to reconcile against.
-   const raw=JSON.stringify(data);for(const c of clients.values())if(c.joined){const motion=motionSnapshot(c),drive=c.vehicle&&c.vehicleSeat===0?fleet.driveState(c.vehicle):null;
+   const raw=JSON.stringify(data);for(const c of clients.values())if(c.joined){const motion=motionSnapshot(c),drive=c.vehicle&&c.vehicleSeat===0?fleetFor(c)?.driveState(c.vehicle):null;
     sendRaw(c.ws,motion||drive?raw.slice(0,-1)+(motion?',"motion":'+JSON.stringify(motion):'')+(drive?',"drive":'+JSON.stringify(drive):'')+'}':raw,true);}
   }
  },1000/30);
@@ -617,7 +643,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    try{await Promise.all([
     new Promise(resolve=>wss.close(()=>resolve())),
     new Promise(resolve=>http.close(()=>resolve())),
-    economy.close(),arena.close(),reportQueue,moderation.flush(),analytics.flush?.(),Promise.allSettled([...accountJobs]),
+    economy.close(),arena.close(),missions.drain(),reportQueue,moderation.flush(),analytics.flush?.(),Promise.allSettled([...accountJobs]),
    ]);}finally{clearTimeout(socketDeadline);clearTimeout(httpDeadline);}
   })();return closePromise;
  }
