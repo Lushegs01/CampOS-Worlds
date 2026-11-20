@@ -190,7 +190,7 @@ let current: Candidate | null = null;
 type Rank = (priority: number, x: number, z: number) => number;
 const extraCandidates: ((rank: Rank) => Candidate[])[] = [];
 /** Other features offer prompts here (the residents' door), so the controller does not import them. */
-export function registerCandidates(fn: (rank: Rank) => Candidate[]) { extraCandidates.push(fn); }
+export function registerCandidates(fn: (rank: Rank) => Candidate[]) { extraCandidates.push(fn); return () => { const at=extraCandidates.indexOf(fn); if(at>=0)extraCandidates.splice(at,1); }; }
 const facingScore = (x: number, z: number) => { const dx = x - player.x, dz = z - player.z, d = Math.hypot(dx, dz) || 1; return (Math.sin(player.yaw) * dx + Math.cos(player.yaw) * dz) / d; };
 // What you are closest to and facing wins; priority only breaks near-ties (a ball over a seat beside it).
 const rank = (priority: number, x: number, z: number) => priority - Math.hypot(x - player.x, z - player.z) * 2.5 + facingScore(x, z) * 1.2;

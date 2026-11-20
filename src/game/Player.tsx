@@ -1,3 +1,4 @@
+import { activeCombat, command, equip, fire, heldFire, isMissionOverlay, openMissionJournal, resetMissionControls, setAim, shotInput, useGetaway } from '../mission/client';
 import { useGraphicsSession } from '../graphics/session';
 import { portraitBlocked } from '../mobile/orientation';
 import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked, vehicleLift } from '../vehicles/client';
@@ -93,8 +94,17 @@ export default function Player() {
       if ((e.target as HTMLElement).matches('input,textarea,select')) return; const s = useGame.getState();
       // Combat Arena handles its own keys (including Escape for its menus) while it is open.
       if (s.panel === 'arena') return;
+      if(e.code==='Escape'&&!s.panel&&(useGetaway.getState().mission||isMissionOverlay())){
+        if(useGetaway.getState().brief)command('closeBrief');
+        else openMissionJournal(!isMissionOverlay());
+        keys.clear();return;
+      }
       if (e.code === 'Escape') { cancelCharge(); if (s.panel) s.set({ panel: null }); else if (s.phase === 'playing') s.set({ panel: 'settings' }); document.exitPointerLock?.(); keys.clear(); return; }
-      if (s.phase !== 'playing' || s.panel || portraitBlocked()) return;
+      if (s.phase !== 'playing' || s.panel || portraitBlocked() || isMissionOverlay()) return;
+      if(activeCombat()&&['Digit1','Digit2','Digit3','KeyR'].includes(e.code)){
+        if(!e.repeat){if(e.code==='KeyR')command('reload');else equip(Number(e.code.slice(-1))-1);}
+        return;
+      }
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); keys.add(e.code);
       const act = activity();
       if(useVehicle.getState().id&&['Space','KeyQ',...MOVE_KEYS].includes(e.code))return;
@@ -109,10 +119,20 @@ export default function Player() {
       if (['Digit1', 'Digit2', 'Digit3'].includes(e.code) && act === 'free') { const emote = ['wave', 'dance', 'cheer'][Number(e.code.slice(-1)) - 1]; player.emote = emote; player.emoteUntil = Date.now() + 3000; send({ type: 'emote', emote }); }
     };
     const keyup = (e: KeyboardEvent) => { keys.delete(e.code); if (e.code === 'Space') releaseShot(e.timeStamp / 1000); };
-    const clear = () => { keys.clear(); input.jump = false; input.x = input.z = 0; input.dragging = false; cancelCharge(); cancelApproach(); };
-    const mouse = (e: MouseEvent) => { const s = useGame.getState(); if (s.phase !== 'playing' || s.panel || portraitBlocked()) return; if (document.pointerLockElement === gl.domElement || input.dragging) { input.yaw -= e.movementX * .0032; input.pitch = THREE.MathUtils.clamp(input.pitch + e.movementY * .0022, -.25, .95); } };
-    const down = (e: PointerEvent) => { if (e.pointerType === 'touch') return; if (useGame.getState().phase === 'playing' && !useGame.getState().panel) input.dragging = true; };
-    const up = () => { input.dragging = false; };
+    const clear = () => { keys.clear(); input.jump = false; input.x = input.z = 0; input.dragging = false; resetMissionControls(); cancelCharge(); cancelApproach(); };
+    const mouse = (e: MouseEvent) => { const s = useGame.getState(); if (s.phase !== 'playing' || s.panel || portraitBlocked()) return; if (document.pointerLockElement === gl.domElement || input.dragging) { input.yaw -= e.movementX * .0032; input.pitch = THREE.MathUtils.clamp(input.pitch + e.movementY * .0022, activeCombat() ? -.8 : -.25, .95); } };
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      if (useGame.getState().phase !== 'playing' || useGame.getState().panel || isMissionOverlay()) return;
+      input.dragging = true;
+      if(!activeCombat()||useVehicle.getState().id)return;
+      if(e.button===0)heldFire(true);
+      if(e.button===2)setAim(true);
+      if(document.pointerLockElement!==gl.domElement)try{void gl.domElement.requestPointerLock?.()?.catch(()=>{});}catch{/* Drag still works. */}
+    };
+    const up = (e: PointerEvent) => { input.dragging = false; if(e.button===0)heldFire(false);if(e.button===2)setAim(false); };
+    const context = (e:MouseEvent) => { if(activeCombat()) e.preventDefault(); };
+    const unlock = () => { if(document.pointerLockElement!==gl.domElement)resetMissionControls(); };
     const wheel = (e: WheelEvent) => { if (useGame.getState().phase !== 'playing' || useGame.getState().panel) return; cam.current.zoom = THREE.MathUtils.clamp(cam.current.zoom + Math.sign(e.deltaY) * .6, 2.8, 9); };
     // Development-only QA hook for scripted screenshots from fixed viewpoints.
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusDebug = {
@@ -124,8 +144,8 @@ export default function Player() {
       state: () => ({ prediction: { active: prediction.active, pending: prediction.pending }, activity: activity(), chargeStart: chargeStartedAt(), x: player.x, z: player.z, room: { ...roomSelf }, y: player.y, yaw: player.yaw, sit: player.sit && { ...player.sit }, holding: player.holding, charge: player.charge, ui: { ...useInteraction.getState(), set: undefined }, world: world.snapshot() }),
       face: (yaw: number) => { player.yaw = yaw; input.yaw = yaw + Math.PI; cam.current.yaw = input.yaw; },
     };
-    window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); window.addEventListener('gameinputreset', clear); document.addEventListener('visibilitychange', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
-    return () => { clear(); send({ type: 'input', dx: 0, dz: 0, yaw: player.yaw, sprint: false, jump: false }); if (QA_HOOKS) delete (window as unknown as Record<string, unknown>).__campusDebug; window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); window.removeEventListener('gameinputreset', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
+    window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', clear); window.addEventListener('gameinputreset', clear); document.addEventListener('visibilitychange', clear); window.addEventListener('mousemove', mouse); gl.domElement.addEventListener('pointerdown', down); gl.domElement.addEventListener('contextmenu',context); document.addEventListener('pointerlockchange',unlock); window.addEventListener('pointerup', up); gl.domElement.addEventListener('wheel', wheel, { passive: true });
+    return () => { clear(); send({ type: 'input', dx: 0, dz: 0, yaw: player.yaw, sprint: false, jump: false }); if (QA_HOOKS) delete (window as unknown as Record<string, unknown>).__campusDebug; window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', clear); window.removeEventListener('gameinputreset', clear); document.removeEventListener('visibilitychange', clear); window.removeEventListener('mousemove', mouse); gl.domElement.removeEventListener('pointerdown', down); gl.domElement.removeEventListener('contextmenu',context); document.removeEventListener('pointerlockchange',unlock); window.removeEventListener('pointerup', up); gl.domElement.removeEventListener('wheel', wheel); };
   }, [gl]);
 
   useEffect(() => { prediction.collision(footAllowed); }, []);
@@ -141,10 +161,11 @@ export default function Player() {
     }
     if (c.wasWelcome) { c.wasWelcome = false; c.intro = s.reducedMotion ? 1 : 0; posFrom.copy(camera.position); lookFrom.set(-3, 2, -10); }
     root.current.visible = true;
-    const enabled = graphics.isReady() && !s.panel && !document.hidden && !portraitBlocked();
+    const enabled = graphics.isReady() && !s.panel && !document.hidden && !portraitBlocked() && !isMissionOverlay();
     tickInteractions(dt);
     const vehicle=currentVehicle(),occupancy=useVehicle.getState();
     if(vehicle){
+      if(camera instanceof THREE.PerspectiveCamera && camera.zoom!==1){camera.zoom=1;camera.updateProjectionMatrix();}
       player.vx=player.vz=0;input.jump=false;player.y=player.vy=player.speed=0;player.moving=false;
       driving.throttle=enabled?(Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-input.z):0;
       // Settings → Steering sensitivity shapes what is sent; the room's vehicle physics is the same for everyone.
@@ -210,7 +231,9 @@ export default function Player() {
     const jump = enabled && input.jump && player.y === 0 && !still && !sit; if (jump && !prediction.active) player.vy = JUMP_SPEED;
     input.jump = false;
     const wantX = dx * speed, wantZ = dz * speed;
-    if (Math.hypot(dx, dz) > .1) player.yaw = Math.atan2(dx, dz);
+    const armed=activeCombat();
+    if(armed)player.yaw=input.yaw+Math.PI;
+    else if (Math.hypot(dx, dz) > .1) player.yaw = Math.atan2(dx, dz);
     if (prediction.active) { sentMove.x = wantX; sentMove.z = wantZ; }
     if (still || !connected) { sentMove.x = wantX; sentMove.z = wantZ; }
     body.x = player.x; body.z = player.z; body.y = player.y; body.vy = player.vy; body.vx = player.vx; body.vz = player.vz;
@@ -253,6 +276,17 @@ export default function Player() {
       c.intro = Math.min(1, c.intro + dt / 1.8); const k = ease(c.intro);
       camera.position.lerpVectors(posFrom, desired, k); camera.lookAt(rayTo.copy(lookFrom).lerp(look, k));
     } else { camera.position.copy(desired); camera.lookAt(look); }
+
+    if(armed){
+      root.current.visible=false;
+      const aim=useGetaway.getState().aim, pitch=-input.pitch + shotInput.kick*Math.exp(-(performance.now()-shotInput.recoilAt)/82);
+      camera.position.set(px,ground+player.y+1.5,pz);
+      camera.lookAt(look.set(px-Math.sin(input.yaw),camera.position.y+Math.tan(pitch),pz-Math.cos(input.yaw)));
+      if(camera instanceof THREE.PerspectiveCamera){
+        camera.zoom=THREE.MathUtils.damp(camera.zoom,aim?1.26:1,18,dt);camera.updateProjectionMatrix();
+      }
+      if(shotInput.held&&enabled)fire();
+    }else if(camera instanceof THREE.PerspectiveCamera&&camera.zoom!==1){camera.zoom=1;camera.updateProjectionMatrix();}
 
     // 20 inputs a second while moving, sooner (40 ms) when the input changes; standing still, the room only
     // needs reminding 4 times a second (the first "stopped" still goes out at once). The room allows 35 a second.

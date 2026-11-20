@@ -1,0 +1,42 @@
+{
+  "freightContainer": {
+    "file": "freightContainer.glb",
+    "triangles": 2488,
+    "bytes": 28816,
+    "dimensionsBlender": [
+      6.066,
+      2.6,
+      2.65
+    ]
+  },
+  "freightContainerLow": {
+    "file": "freightContainerLow.glb",
+    "triangles": 176,
+    "bytes": 4260,
+    "dimensionsBlender": [
+      6.047,
+      2.6,
+      2.65
+    ]
+  },
+  "intelligenceCase": {
+    "file": "intelligenceCase.glb",
+    "triangles": 572,
+    "bytes": 9580,
+    "dimensionsBlender": [
+      0.776,
+      0.572,
+      0.282
+    ]
+  },
+  "warehouseTruss": {
+    "file": "warehouseTruss.glb",
+    "triangles": 532,
+    "bytes": 9608,
+    "dimensionsBlender": [
+      28.468,
+      0.24,
+      0.827
+    ]
+  }
+}

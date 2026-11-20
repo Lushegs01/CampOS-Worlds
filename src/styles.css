@@ -532,8 +532,17 @@ button,.touch-controls,.game-dock,.minimap,.interact-prompt,.location-hud,.quest
 @media(pointer:coarse) and (orientation:landscape) and (max-height:500px){
   .topbar{left:max(20px,env(safe-area-inset-left));right:max(20px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top))}
   .joystick{left:max(25px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom))}
-  .touch-actions{right:max(25px,env(safe-area-inset-right));bottom:max(28px,env(safe-area-inset-bottom))}
+  .touch-actions{right:max(25px,env(safe-area-inset-right));bottom:calc(76px + env(safe-area-inset-bottom))}
   .game-dock{bottom:max(8px,env(safe-area-inset-bottom));max-width:calc(100vw - 280px);overflow-x:auto;justify-content:flex-start;gap:10px;padding:7px 10px}
   .quest-card{right:max(20px,env(safe-area-inset-right))}
+  .welcome{top:clamp(65px,20vh,100px);bottom:auto;left:max(4vw,env(safe-area-inset-left));max-width:59vw}
+  .welcome h1{font-size:clamp(31px,8.5vh,45px);margin:10px 0;letter-spacing:-1.4px}
+  .welcome p{font-size:12px;line-height:1.45}
+  .welcome-actions{margin-top:13px;gap:16px}
+  .enter-button{min-height:43px;padding-block:9px}
+  .welcome-details{display:none}
+  .welcome-footer{bottom:max(10px,env(safe-area-inset-bottom));padding-top:8px}
+  .destination-card{right:max(20px,env(safe-area-inset-right));bottom:52px;width:min(34vw,320px);padding:9px;gap:9px}
+  .destination-icon{width:32px;height:32px;flex-shrink:0}
 }
 @media(max-width:420px){.quality-options{grid-template-columns:repeat(2,minmax(0,1fr))}}

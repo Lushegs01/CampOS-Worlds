@@ -1,3 +1,4 @@
+import { INDUSTRIAL_NODES, INDUSTRIAL_LINKS, inDistrict } from './getaway.mjs';
 // Metres; +X east, +Z south. Stable authored data is used by rendering, maps and physics.
 export const WORLD_LIMIT = 1400;
 export const DISTRICTS = [
@@ -13,10 +14,10 @@ export const ROAD_NODES = [
  {id:'w',x:-600,z:55.55},{id:'hub',x:0,z:55.55},{id:'e',x:600,z:55.55},
  {id:'sw',x:-600,z:650},{id:'sc',x:0,z:650},{id:'se',x:600,z:650},
  {id:'east-village',x:760,z:55.55},{id:'east-park',x:760,z:650},{id:'gate-east',x:160,z:1250},
- {id:'north',x:0,z:-80},{id:'gate',x:0,z:1250},
+ {id:'north',x:0,z:-80},{id:'gate',x:0,z:1250}, ...INDUSTRIAL_NODES,
 ];
 const roadNode=id=>{const node=ROAD_NODES.find(n=>n.id===id);if(!node)throw Error('Unknown road node '+id);return node;};
-const edges=[['nw','na'],['na','nc'],['nc','ne'],['nw','w'],['w','sw'],['ne','e'],['e','se'],['sw','sc'],['sc','se'],['w','hub'],['hub','e'],['hub','sc'],['sc','gate'],['nc','north'],['e','east-village'],['se','east-park'],['gate','gate-east']];
+const edges=[['nw','na'],['na','nc'],['nc','ne'],['nw','w'],['w','sw'],['ne','e'],['e','se'],['sw','sc'],['sc','se'],['w','hub'],['hub','freight-west'],['hub','sc'],['sc','gate'],['nc','north'],['e','east-village'],['se','east-park'],['gate','gate-east'],...INDUSTRIAL_LINKS];
 // Two-lane carriageways, 8 m kerb to kerb. The hub road continues the courtyard's own road (z 51.6–59.5).
 export const ROAD_WIDTH=8;
 export const ROADS=edges.map(([a,b],i)=>({id:`road-${i}`,a:roadNode(a),b:roadNode(b),width:ROAD_WIDTH}));
@@ -64,7 +65,7 @@ export const ROADSIDE_TREES=(()=>{
   const avenue=!horizontal&&c===0&&lo>=55;
   for(const side of [-1,1])for(let t=lo+16+(side>0?0:12);t<hi-14;t+=24){
    const x=horizontal?t:c+side*(r.width/2+4.2),z=horizontal?c+side*(r.width/2+4.2):t;
-   if(Math.abs(x)<100&&z>35&&z<75)continue;
+   if(inDistrict(x,z,5)||Math.abs(x)<100&&z>35&&z<75)continue;
    if(ROAD_NODES.some(n=>Math.hypot(n.x-x,n.z-z)<16)||transportSurface(x,z,-2.5))continue;
    if(near(x,z,BUILDINGS,4)||near(x,z,PARKING,4)||near(x,z,pitch,2)||STOPS.some(p=>Math.hypot(p.x-x,p.z-z)<7))continue;
    if(DISTRICTS.some(d=>Math.abs(x-(d.x+48))<4&&Math.abs(z-d.z)<12))continue;
@@ -86,7 +87,7 @@ export const BELT_TREES=(()=>{
   if(transportSurface(x,z,-4.5)||near(x,z,BUILDINGS,5)||near(x,z,PARKING,5)||ROADSIDE_TREES.some(t=>Math.hypot(t.x-x,t.z-z)<5)||out.some(t=>Math.hypot(t.x-x,t.z-z)<3.5))continue;
   out.push({x:Math.round(x*100)/100,z:Math.round(z*100)/100,species:species[i%species.length],s:Math.round(s*100)/100});
  }
- return out;
+ return out.filter(t=>!inDistrict(t.x,t.z,5));
 })();
 // Dijkstra on actual roads. Start/end are projected onto edges, never an arbitrary line through buildings.
 export function roadRoute(from,to){

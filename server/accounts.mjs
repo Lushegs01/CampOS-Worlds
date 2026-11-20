@@ -68,6 +68,9 @@ export function createAccounts({ url = '', serviceKey = '', anonKey = '', timeou
     dormLayout: id => service('dorm_layout', { p_user: id }),
     /** Save a room layout the room server has validated (shared/dorm.mjs). */
     saveDorm: (id, layout) => service('save_dorm_layout', { p_user: id, p_layout: layout }),
+    getaway: id => service('getaway_status', { p_user: id }),
+    saveGetaway: (id, checkpoint) => service('getaway_checkpoint', { p_user: id, p_checkpoint: checkpoint }),
+    finishGetaway: (id, report) => service('getaway_complete', { p_user: id, p_report: report }),
     /** Combat Arena: experience, weapon statistics, saved loadouts and earned emblem (supabase/migrations/*_combat_arena.sql). */
     arenaSnapshot: id => service('arena_snapshot', { p_user: id }),
     /** A finished Combat Arena match, scored by the arena server. Idempotent on the match id, so retries are safe. */
