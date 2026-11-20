@@ -1,4 +1,4 @@
-export type Quality = 'low' | 'medium' | 'high';
+export type Quality = 'low' | 'medium' | 'high' | 'ultra';
 
 export interface QualityProfile {
   /** Device-pixel-ratio ceiling. */
@@ -22,6 +22,7 @@ export const QUALITY: Record<Quality, QualityProfile> = {
   low: { dpr: 1, shadowSize: 1024, shadowMode: 'static', shadowRadius: 2, post: false, grassBlades: 0, grassRadius: 0, foliage: .35, detailDistance: 28, anisotropy: 2, skyTexture: 'sky-low.jpg', groundLayers: false, materialDetail: false, terrainSegments: 64 },
   medium: { dpr: 1.5, shadowSize: 2048, shadowMode: 'every-2nd-frame', shadowRadius: 3, post: false, grassBlades: 16000, grassRadius: 8, foliage: .8, detailDistance: 65, anisotropy: 4, skyTexture: 'sky.jpg', groundLayers: true, materialDetail: true, terrainSegments: 140 },
   high: { dpr: 2, shadowSize: 4096, shadowMode: 'every-2nd-frame', shadowRadius: 3, post: true, grassBlades: 52000, grassRadius: 11, foliage: 1, detailDistance: 140, anisotropy: 8, skyTexture: 'sky.jpg', groundLayers: true, materialDetail: true, terrainSegments: 200 },
+  ultra: { dpr: 2, shadowSize: 4096, shadowMode: 'every-frame', shadowRadius: 3, post: true, grassBlades: 52000, grassRadius: 11, foliage: 1, detailDistance: 180, anisotropy: 16, skyTexture: 'sky.jpg', groundLayers: true, materialDetail: true, terrainSegments: 200 },
 };
 
 /** First-visit default: phones and small touch screens start on Low, laptops on Medium. */

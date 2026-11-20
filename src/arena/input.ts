@@ -132,12 +132,12 @@ export function attachDesktop(canvas: HTMLCanvasElement, h: Hooks, zoomOf: () =>
   };
   const clear = () => { keys.clear(); mouseButtons = 0; controls.held = 0; controls.latched = 0; };
   const menu = (e: Event) => e.preventDefault();
-  window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('blur', clear);
+  window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('blur', clear); window.addEventListener('gameinputreset', releaseAll);
   window.addEventListener('mousemove', mouse); canvas.addEventListener('mousedown', md); window.addEventListener('mouseup', mu);
   canvas.addEventListener('wheel', wheel, { passive: true }); canvas.addEventListener('contextmenu', menu);
   document.addEventListener('pointerlockchange', lock);
   return () => {
-    window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', clear);
+    window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', clear); window.removeEventListener('gameinputreset', releaseAll);
     window.removeEventListener('mousemove', mouse); canvas.removeEventListener('mousedown', md); window.removeEventListener('mouseup', mu);
     canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', menu);
     document.removeEventListener('pointerlockchange', lock);

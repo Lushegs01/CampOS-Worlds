@@ -1,3 +1,4 @@
+import { campusBudget } from './rendering';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -47,12 +48,12 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     hdr.mapping = THREE.EquirectangularReflectionMapping;
-    const env = pmrem.fromEquirectangular(hdr).texture;
+    const environmentTarget = pmrem.fromEquirectangular(hdr), env = environmentTarget.texture;
     scene.environment = env; scene.environmentIntensity = LIGHTING.envIntensity;
     const fogColor = new THREE.Color().setRGB(...info.horizon, THREE.LinearSRGBColorSpace).multiplyScalar(1.05);
     scene.fog = new THREE.Fog(fogColor, LIGHTING.fogNear, LIGHTING.fogFar);
     pmrem.dispose();
-    return () => { scene.environment = null; scene.fog = null; env.dispose(); };
+    return () => { scene.environment = null; scene.fog = null; environmentTarget.dispose(); };
   }, [gl, scene, hdr, info]);
 
   const dir = useMemo(() => new THREE.Vector3(...info.sunDirection).normalize(), [info]);
@@ -100,7 +101,7 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
       if (inside) fit([-78, 78, -72, 66]);
       else { const cx = Math.round(player.x / step) * step, cz = Math.round(player.z / step) * step; fit([cx - 70, cx + 70, cz - 70, cz + 70]); }
     }
-    if (quality.shadowMode === 'every-2nd-frame') { const s = sun.current.shadow; s.autoUpdate = false; s.needsUpdate = s.needsUpdate || (frame.current++ & 1) === 0; }
+    if (quality.shadowMode !== 'static') { const s = sun.current.shadow, interval = (quality.shadowMode === 'every-2nd-frame' ? 2 : 1) * (campusBudget.level >= 2 ? 3 : 1); s.autoUpdate = false; s.needsUpdate = s.needsUpdate || frame.current++ % interval === 0; }
   });
   return <directionalLight ref={sun} color={color} intensity={info.sunIrradiance * LIGHTING.sunScale} castShadow />;
 }

@@ -6,11 +6,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { B, weaponOf } from '../../shared/arena/sim.mjs';
 import { HUD_ELEMENT_BY_ID, drawnScale } from '../../shared/arena/hud.mjs';
-import { useArena } from './store';
+import { useArena, inputPaused } from './store';
 import { controls, press, hold, look, aimScale } from './input';
 import { live, toggleAutoFire } from './net';
 import { useActiveLayout, useHudProfile, type Layout } from './hudLayout';
 import { Slot, useViewport, layoutVars, TOUCH_ICONS, TOUCH_LABELS, MenuButtonsView } from './hudViews';
+
+/** Release pointer captures' local bookkeeping as well as the shared control bits. */
+function useInputReset(reset: () => void) {
+  const latest = useRef(reset); latest.current = reset;
+  useEffect(() => {
+    const clear = () => latest.current();
+    window.addEventListener('gameinputreset', clear); window.addEventListener('blur', clear);
+    document.addEventListener('visibilitychange', clear);
+    return () => { clear(); window.removeEventListener('gameinputreset', clear); window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear); };
+  }, []);
+}
 
 export default function TouchControls() {
   const profile = useHudProfile(), layout = useActiveLayout(), view = useViewport();
@@ -18,6 +29,7 @@ export default function TouchControls() {
   const m7 = useArena(s => s.hud.weapon === 'm7'), semi = useArena(s => s.hud.fireMode === 'semi');
   const autoFire = useArena(s => s.settings.autoFire), allowed = useArena(s => s.match?.autoFire !== false);
   const [crouched, setCrouched] = useState(false), [sprinting, setSprinting] = useState(false);
+  useInputReset(() => { setCrouched(false); setSprinting(false); });
   const enabled = profile !== 'desktop';
   // Block browser gestures (scroll, pinch, pull-to-refresh, long-press menus) while the controls are up.
   useEffect(() => {
@@ -68,12 +80,14 @@ function Btn({ cls, label, children, onDown, active = false, disabled = false }:
 function FireButton() {
   const last = useRef<{ id: number; x: number; y: number } | null>(null);
   const up = () => { last.current = null; hold(B.FIRE, false); };
+  useInputReset(up);
   return <button className="ar-tbtn fire" aria-label="Fire"
     onPointerDown={e => { e.preventDefault(); e.stopPropagation(); (e.target as HTMLElement).setPointerCapture?.(e.pointerId); last.current = { id: e.pointerId, x: e.clientX, y: e.clientY }; hold(B.FIRE, true); }}
     onPointerMove={e => { const l = last.current; if (!l || l.id !== e.pointerId) return; drag(e.clientX - l.x, e.clientY - l.y); l.x = e.clientX; l.y = e.clientY; }}
     onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up}>{TOUCH_ICONS.fire}</button>;
 }
 function drag(dx: number, dy: number) {
+  if (inputPaused(useArena.getState())) return;
   const s = useArena.getState().settings, ads = live.sim?.ads ?? 0, zoom = live.sim ? weaponOf(live.sim).zoom ?? 1.35 : 1;
   const k = .0052 * s.touch * aimScale(ads, zoom);
   look(dx * k, dy * k * .85 * (s.invertY ? -1 : 1));
@@ -86,9 +100,10 @@ function drag(dx: number, dy: number) {
 function Stick({ layout, view }: { layout: Layout; view: { w: number; h: number } }) {
   const base = useRef<HTMLDivElement>(null!), knob = useRef<HTMLDivElement>(null!), origin = useRef<{ id: number; x: number; y: number } | null>(null), zone = useRef<HTMLDivElement>(null!);
   const fixed = useArena(s => s.settings.fixedStick), e = layout.elements.stick, def = HUD_ELEMENT_BY_ID.get('stick')!;
+  const end = () => { origin.current = null; controls.touchMx = controls.touchMz = 0; controls.touchSprint = false; controls.touchSprintLock = false; base.current?.classList.remove('on', 'sprint'); if (knob.current) knob.current.style.transform = ''; if (base.current) { base.current.style.left = ''; base.current.style.top = ''; } };
+  useInputReset(end);
   if (!e) return null;
   const k = drawnScale(def, e, view.w, view.h), R = 56 * k;
-  const end = () => { origin.current = null; controls.touchMx = controls.touchMz = 0; controls.touchSprint = false; controls.touchSprintLock = false; base.current?.classList.remove('on', 'sprint'); if (knob.current) knob.current.style.transform = ''; if (base.current) { base.current.style.left = ''; base.current.style.top = ''; } };
   const left = e.x < .5;
   return <>
     {!fixed && <div ref={zone} className={`ar-stickzone ${left ? 'left' : 'right'}`}
@@ -123,8 +138,9 @@ function Stick({ layout, view }: { layout: Layout; view: { w: number; h: number 
 /** Aim: drag anywhere that is not a control. */
 function LookPad() {
   const last = useRef<Map<number, { x: number; y: number }>>(new Map());
+  useInputReset(() => last.current.clear());
   return <div className="ar-lookzone"
     onPointerDown={e => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); last.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); }}
     onPointerMove={e => { const l = last.current.get(e.pointerId); if (!l) return; drag(e.clientX - l.x, e.clientY - l.y); l.x = e.clientX; l.y = e.clientY; }}
-    onPointerUp={e => last.current.delete(e.pointerId)} onPointerCancel={e => last.current.delete(e.pointerId)} />;
+    onPointerUp={e => last.current.delete(e.pointerId)} onPointerCancel={e => last.current.delete(e.pointerId)} onLostPointerCapture={e => last.current.delete(e.pointerId)} />;
 }

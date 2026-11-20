@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_BYTES, createSnapshotOrder } from './flow.mjs';
 import { emitRoomMessage } from './messages';
 export { onRoomMessage } from './messages';
 import { receiveClasses } from '../ui/Classes';
@@ -29,16 +30,20 @@ export const roomInfo={id:'',name:''};
 export function sendAccountIdentity(token:string|null|'refresh',name?:string,avatar?:AvatarConfig){if(token==='refresh')send({type:'profile',name,avatar});else if(token)send({type:'auth',token});else send({type:'auth',token:null,name,avatar});}
 let socket:WebSocket|null=null;let ownId='';let reconnect:ReturnType<typeof setTimeout>;let retry=0;let stopped=false;
 /** Connection attempts that failed since the last successful join (a reliability statistic, sent only with consent). */
-let failures=0;
+let failures=0, lastRoomAt=0;
+const roomOrder=createSnapshotOrder();
 const session=createSession(()=>sessionStorage);
 export function flushMovement(){
- if(!prediction.active||socket?.readyState!==WebSocket.OPEN)return;
+ if(!prediction.active)return true;
+ if(socket?.readyState!==WebSocket.OPEN||socket.bufferedAmount>MAX_BUFFERED_BYTES)return false;
  for(let batch=prediction.batch();batch.commands.length;batch=prediction.batch()){
+  if(socket.bufferedAmount>MAX_BUFFERED_BYTES)return false;
   socket.send(JSON.stringify(batch));prediction.didSend(batch);
  }
+ return true;
 }
 // TCP preserves ordering: range-checked actions must follow the movement that brought us there.
-export function send(data:unknown){if(socket?.readyState===WebSocket.OPEN){if((data as {type?:string})?.type!=='move')flushMovement();socket.send(JSON.stringify(data));return true;}return false;}
+export function send(data:unknown){if(socket?.readyState===WebSocket.OPEN&&socket.bufferedAmount<=MAX_BUFFERED_BYTES){if((data as {type?:string})?.type!=='move'&&!flushMovement())return false;socket.send(JSON.stringify(data));return true;}return false;}
 /** Where the room last placed us (read by the development QA hook to diagnose drift). */
 export const roomSelf={x:NaN,z:NaN};
 export function interact(id:string){if(useGame.getState().status==='connected'){send({type:'interact',id});}else openLocation(id);}
@@ -72,11 +77,12 @@ export function connect(){
  // verifies it with the account service and upgrades the guest identity.
  ws.onopen=async()=>{if(socket!==ws)return;const access=await bridge?.access().catch(()=>null)??null;if(socket!==ws)return;const g=useGame.getState();send({type:'join',movement:MOTION_VERSION,name:g.name,avatar:g.avatar,invite:g.invite,token:session.get(),analytics:analyticsPayload(),...(access?{access}:{})});};
  ws.onmessage=event=>{if(socket!==ws)return;let m;try{m=JSON.parse(event.data);}catch{return;}const s=useGame.getState();
+  if(m.type==='state'&&!roomOrder.accept(m.at))return;
   if(m.classes)receiveClasses(m.classes);if(m.type==='classes')receiveClasses(m.sessions);
-  if(m.type==='welcome'){prediction.stop();roomPlayback.reset();ownId=m.id;retry=0;if(failures&&analyticsPayload().consent)setTimeout(()=>send({type:'telemetry',failures}),1000);failures=0;Object.assign(roomInfo,m.room??{id:'courtyard',name:'The Courtyard'});session.set(m.token);Object.assign(player,m.position,{vx:0,vz:0,vy:0,reconcile:null});trail.clear();releaseLocal(true);bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);driveProtocol(m.drive);if(m.vehicles)receiveVehicles(m.vehicles);setOccupancy(null,null);s.set({status:'connected'});}
+  if(m.type==='welcome'){roomOrder.reset();lastRoomAt=performance.now();prediction.stop();roomPlayback.reset();ownId=m.id;retry=0;if(failures&&analyticsPayload().consent)setTimeout(()=>send({type:'telemetry',failures}),1000);failures=0;Object.assign(roomInfo,m.room??{id:'courtyard',name:'The Courtyard'});session.set(m.token);Object.assign(player,m.position,{vx:0,vz:0,vy:0,reconcile:null});trail.clear();releaseLocal(true);bindNetwork(send,m.id);if(m.world)loadSnapshot(m.world);driveProtocol(m.drive);if(m.vehicles)receiveVehicles(m.vehicles);setOccupancy(null,null);s.set({status:'connected',connectionLagging:false});}
   if(m.type==='vehicles')receiveVehicles(m.vehicles);
   if(m.type==='vehicleResult')vehicleResult(m);
-  if(m.type==='state'){if(typeof m.at==='number')roomPlayback.receive(m.at,performance.now());if(m.vehicles)receiveVehicles(m.vehicles,typeof m.at==='number'?m.at:undefined);const self=m.players.find((p:{id:string})=>p.id===ownId);if(self){setOccupancy(self.vehicle??null,self.vehicleSeat??null);if(m.drive)receiveDrive(m.drive);roomSelf.x=self.x;roomSelf.z=self.z;}const live=self&&!self.vehicle,gap=live?Math.hypot(self.x-player.x,self.z-player.z):0;
+  if(m.type==='state'){lastRoomAt=performance.now();if(s.connectionLagging)s.set({connectionLagging:false});if(typeof m.at==='number')roomPlayback.receive(m.at,performance.now());if(m.vehicles)receiveVehicles(m.vehicles,typeof m.at==='number'?m.at:undefined);const self=m.players.find((p:{id:string})=>p.id===ownId);if(self){setOccupancy(self.vehicle??null,self.vehicleSeat??null);if(m.drive)receiveDrive(m.drive);roomSelf.x=self.x;roomSelf.z=self.z;}const live=self&&!self.vehicle,gap=live?Math.hypot(self.x-player.x,self.z-player.z):0;
    // The room's position trails ours by the network and tick delay: only a position away from the path we
    // just walked is real disagreement (beyond 2 m, snap to it). A lagging snapshot used to snap us back.
    if(!m.motion&&live&&gap>2&&trail.distance(self.x,self.z,performance.now())>2){Object.assign(player,{x:self.x,z:self.z,y:self.y,reconcile:null});trail.clear();}
@@ -102,4 +108,10 @@ export function connect(){
 // QA builds only: lose the connection the way a phone does when it changes networks (the room still holds
 // the old socket and only notices later), or close it outright.
 if(QA_HOOKS)(window as unknown as Record<string,unknown>).__campusNet={abandon:()=>{const ws=socket;if(ws)ws.onclose?.(new CloseEvent('close',{code:1006}));},close:()=>socket?.close(),id:()=>ownId};
-export function useNetwork(){const phase=useGame(s=>s.phase);useEffect(()=>{if(phase!=='playing')return;connect();return()=>{stopped=true;clearTimeout(reconnect);socket?.close();};},[phase]);}
+export function useNetwork(){const phase=useGame(s=>s.phase);useEffect(()=>{if(phase!=='playing')return;connect();const watch=setInterval(()=>{
+ if(document.hidden||useGame.getState().status!=='connected'||!socket)return;
+ const gap=performance.now()-lastRoomAt;if(gap>2000&&!useGame.getState().connectionLagging)useGame.getState().set({connectionLagging:true});
+ if(gap<=8000)return;
+ useGame.getState().notify('The room stopped responding. Reconnecting; you can explore locally.');
+ const stale=socket;stale.close();stale.onclose?.(new CloseEvent('close',{code:1006}));
+ },1000);return()=>{clearInterval(watch);stopped=true;clearTimeout(reconnect);socket?.close();};},[phase]);}

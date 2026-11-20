@@ -524,3 +524,16 @@ button,.touch-controls,.game-dock,.minimap,.interact-prompt,.location-hud,.quest
 .npc-answer{display:flex;flex-direction:column;gap:12px;padding:16px 18px;background:#fbf8f0;border:1px solid #395d2e14;border-radius:10px;min-width:0}.npc-answer .list-cards{margin-top:4px}.npc-answer .note{margin-top:0}.npc-actions{display:flex;flex-wrap:wrap;gap:8px}.npc-actions button{white-space:normal;text-align:left}
 .npc-staff{display:flex;gap:12px;align-items:center;padding:11px 14px;background:#ebe9dc;border-radius:8px;color:#4b674c;min-width:0}.npc-staff>span:last-child{display:flex;flex-direction:column;gap:4px;min-width:0}.npc-staff small{overflow-wrap:anywhere}.status-dot{width:9px;height:9px;border-radius:50%;background:#b7ad97;flex-shrink:0}.status-dot.on{background:#3f8d5e;box-shadow:0 0 0 3px #3f8d5e26}
 @media(max-width:600px){.npc-line{font-size:15px}.npc-answer{padding:13px 14px}.npc-topics button{flex:1 1 100%}}
+
+/* The orientation fallback owns input while the live room keeps running. */
+.orientation-overlay{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:max(28px,env(safe-area-inset-top)) max(26px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(26px,env(safe-area-inset-left));text-align:center;color:#f1ebdd;background:radial-gradient(ellipse at top,#315f4e,#132e26 75%);touch-action:none}
+.orientation-overlay h2{max-width:340px;font-size:30px;margin:0}.orientation-overlay p{max-width:330px;line-height:1.6;margin:0;color:#d6dfd7}.orientation-overlay small{max-width:310px;line-height:1.5;opacity:.75}.orientation-overlay>.eyebrow{color:#efd098}.orientation-overlay>svg{color:#efd098}
+.quality-options{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:500px){
+  .topbar{left:max(20px,env(safe-area-inset-left));right:max(20px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top))}
+  .joystick{left:max(25px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom))}
+  .touch-actions{right:max(25px,env(safe-area-inset-right));bottom:max(28px,env(safe-area-inset-bottom))}
+  .game-dock{bottom:max(8px,env(safe-area-inset-bottom));max-width:calc(100vw - 280px);overflow-x:auto;justify-content:flex-start;gap:10px;padding:7px 10px}
+  .quest-card{right:max(20px,env(safe-area-inset-right))}
+}
+@media(max-width:420px){.quality-options{grid-template-columns:repeat(2,minmax(0,1fr))}}

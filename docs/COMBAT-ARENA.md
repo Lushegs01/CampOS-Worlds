@@ -4,7 +4,8 @@ An optional, competitive first-person multiplayer mode inside CampOS Worlds. Pla
 campus dock (**Arena**), play team matches in a fictional training simulation, and return to the same
 spot on campus with the same account, profile and connection. Campus exploration, chat, parties,
 vehicles, characters, classes and every other campus system are untouched: combat state never
-reaches the campus room, and the campus scene stops rendering while the arena is open.
+reaches the campus room, and the campus renderer is unmounted while the arena is open. Both environments share an exclusive
+renderer lease; see [graphics lifecycle and validation](GRAPHICS-LIFECYCLE.md).
 
 All names, maps, weapons, sounds, models and interface are original. Nothing is taken from any
 existing shooter.

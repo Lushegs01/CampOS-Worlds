@@ -1,3 +1,5 @@
+import { useGame } from '../state';
+import { useGraphicsSession } from '../graphics/session';
 // Combat Arena 3D view.
 //
 // Rendering: physically based materials lit by the HDR sky (image-based lighting) and a shadow-casting
@@ -8,8 +10,8 @@
 //
 // Everything in the frame loop is imperative and pooled: the environment is a few merged meshes and
 // instanced props, soldiers are created once per player, and effects come from fixed particle pools.
-import { Component, type ReactNode, memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, RenderPass, EffectPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode, BloomEffect, VignetteEffect, BrightnessContrastEffect, HueSaturationEffect } from 'postprocessing';
 import { N8AOPostPass } from 'n8ao';
@@ -18,11 +20,11 @@ import { WEAPONS, EQUIPMENT_BY_ID } from '../../shared/arena/weapons.mjs';
 import { weaponOf, eyeOf, EYE } from '../../shared/arena/sim.mjs';
 import { raycast } from '../../shared/arena/physics.mjs';
 import { setListener } from '../audio/mixer';
-import { useArena, useBanners } from './store';
+import { useArena, useBanners, inputPaused } from './store';
 import { live, onFx, tickInput, eye, useStreak, matOf, toggleAutoFire, sceneLoaded, onRetryAssets, type Fx } from './net';
 import * as deploy from './deploy';
 import { deadline } from '../world/fetcher';
-import { controls, pollGamepad, attachDesktop, releaseAll } from './input';
+import { controls, releaseAll, pollGamepad, attachDesktop } from './input';
 import { ARENA_QUALITY, softTexture, labelTexture, TEAM_COLORS, type ArenaQuality } from './scene/world';
 import { loadLibrary, resetLibrary, loadDecor, loadSurfaceDetail, themeOf, skyDome, clearMaterialCache, P1, P2, type Library } from './scene/library';
 import { buildMetropolis, CITY_DECOR, type CityVariant } from './scene/metropolis';
@@ -36,10 +38,10 @@ import { buildEnvironment, surfaceOf } from './scene/environment';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
 import { forgetAssets, cachedAssets } from '../world/assets';
-import { trackDisposeListeners } from './scene/gpuListeners';
-import { createGraphicsLifecycle } from './scene/graphicsLifecycle.mjs';
-type GraphicsLifecycle = ReturnType<typeof createGraphicsLifecycle>;
-import { createAdaptive, frameTarget } from '../../shared/arena/adaptive.mjs';
+import { ExclusiveCanvas, scenePixelRatio } from '../graphics/ExclusiveCanvas';
+import { frameTarget } from '../../shared/arena/adaptive.mjs';
+import { createPerformanceBudget } from '../../shared/arena/performance.mjs';
+import { portraitBlocked } from '../mobile/orientation';
 
 import { Effects, Casings, setEffectsGround } from './scene/fx';
 import { ViewmodelAnimator } from './scene/viewmodel';
@@ -75,6 +77,7 @@ function releaseGpu(...roots: THREE.Object3D[]) {
     const m = o as THREE.Mesh;
     if (m.geometry) geometries.add(m.geometry);
     if (m.material) for (const x of Array.isArray(m.material) ? m.material : [m.material]) { materials.add(x); texturesOf(x); }
+    if ((o as THREE.DirectionalLight).shadow) (o as THREE.DirectionalLight).shadow.dispose();
     if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
     if ((o as THREE.SkinnedMesh).isSkinnedMesh) (o as THREE.SkinnedMesh).skeleton?.dispose();
   });
@@ -103,6 +106,8 @@ function fitShadow(sun: THREE.DirectionalLight, bounds: number[], y0: number, y1
   cam.near = Math.max(.5, -box.max.z - 4); cam.far = -box.min.z + 4; cam.updateProjectionMatrix();
 }
 
+// Keep a working recovery pipeline across Arena re-entry until the page is reloaded.
+let compatibilityRequired = false;
 /** The texture tier is chosen once per match: an adaptive drop to Low mid-match keeps the textures already loaded. */
 const matchTier = { id: '', mobile: false };
 const qaStaticShadows = QA_HOOKS && typeof location !== 'undefined' && new URLSearchParams(location.search).has('qa-static-shadows');
@@ -120,84 +125,33 @@ class GraphicsBoundary extends Component<{ graphics: GraphicsLifecycle; children
 }
 
 export default memo(function ArenaScene({ mapId }: { mapId: string }) {
+  const [compatibility, setCompatibility] = useState(() => compatibilityRequired);
   const quality = useArena(s => s.settings.quality), matchId = useArena(s => s.match?.id ?? '');
-  const q = useMemo(() => { const base = ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId]);
-  const graphics = useMemo(() => createGraphicsLifecycle(), []);
-  const health = useSyncExternalStore(graphics.subscribe, graphics.getSnapshot);
-  const [rebuild, setRebuild] = useState(0);
-  const renderer = useRef<THREE.WebGLRenderer | null>(null);
-  const rebuildGraphics = () => {
-    if (!graphics.retry()) return;
-    // Retire the failed context before allocating its replacement. Network/session state stays intact.
-    renderer.current?.dispose(); renderer.current?.forceContextLoss(); renderer.current = null;
-    setRebuild(n => n + 1);
-  };
-  // Old renderers must not stay reachable through three.js's shared objects (see scene/gpuListeners.ts).
-  useLayoutEffect(() => trackDisposeListeners(), []);
+  const q = useMemo(() => { const base = compatibility ? { ...ARENA_QUALITY.low, compatibility: true, dpr: 1, antialias: false, shadows: false, post: false, ao: false, bloom: false, lights: 0, reflections: 0 } : ARENA_QUALITY[quality]; const mobile = tierFor(matchId, base.mobileAssets); return mobile === base.mobileAssets ? base : { ...base, mobileAssets: mobile }; }, [quality, matchId, compatibility]);
   // Resolution scale (Settings) multiplies the profile's pixel density; adaptive performance works below it.
   const renderScale = useArena(s => s.settings.renderScale);
   const dpr = Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale;
   // QA builds only: `?qa-scale=0.25` renders at a fixed low resolution so machines without a GPU stay responsive.
   // (or localStorage 'campos-arena-qa-scale', for suites that open pages through shared helpers).
   const qa = QA_HOOKS ? Math.min(1, Math.max(0, Number(new URLSearchParams(location.search).get('qa-scale') ?? (() => { try { return localStorage.getItem('campos-arena-qa-scale'); } catch { return null; } })()) || 0)) : 0;
-  return <><GraphicsBoundary key={`${quality}:${rebuild}`} graphics={graphics}><Canvas onCreated={({ gl }) => { renderer.current = gl; }} className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
-    gl={{ antialias: !q.post, powerPreference: 'high-performance', stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
+  return <ExclusiveCanvas owner="arena" profile={compatibility ? 'low' : quality} compatibility={compatibility} sceneName={mapId}
+    onExit={() => useGame.getState().set({ panel: null })}
+    onInterrupted={() => {
+      useArena.getState().set({ sceneReady: false }); sceneLoaded(false);
+      deploy.graphicsInterrupted(); releaseAll(); document.exitPointerLock?.();
+    }}
+    onRecovering={() => { compatibilityRequired = true; setCompatibility(true); deploy.graphicsInterrupted(); }}
+    onReady={() => { useArena.getState().set({ sceneReady: true }); sceneLoaded(true); }}
+    className="ar-canvas" dpr={qa || [Math.min(1, dpr), dpr]} shadows={q.shadows ? { type: THREE.PCFShadowMap } : false}
+    options={{ antialias: q.antialias, stencil: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: .82 }}
     camera={{ fov: 78, near: .06, far: 1200, position: [0, 2, 0] }}>
-    <RendererLifecycle key={`${matchId}:${mapId}`} mapId={mapId} q={q} graphics={graphics} />
-  </Canvas></GraphicsBoundary>
-    {['CONTEXT_LOST', 'RECOVERING', 'RECOVERY_FAILED'].includes(health.state) && <div className="ar-modal ar-graphics-recovery" role="alertdialog" aria-modal="true" aria-labelledby="ar-graphics-title" data-graphics-state={health.state}>
-      <div className="ar-sheet small"><h2 id="ar-graphics-title">{health.state === 'RECOVERING' ? 'Rebuilding arena graphics…' : 'Arena graphics were interrupted.'}</h2>
-        <p>{health.error || 'Your session is preserved. Rebuild graphics to continue.'}</p>
-        <button className="ar-primary" disabled={health.state === 'RECOVERING'} onClick={rebuildGraphics}>Rebuild arena graphics</button>
-      </div>
-    </div>}
-  </>;
+    <World mapId={mapId} q={q} />
+  </ExclusiveCanvas>;
 });
 
-/** Keep restoration listeners alive while the lost World's GPU resources are torn down. */
-function RendererLifecycle({ mapId, q, graphics }: { mapId: string; q: ArenaQuality; graphics: GraphicsLifecycle }) {
-  const gl = useThree(s => s.gl);
-  const [generation, setGeneration] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    let id = graphics.begin();
-    setGeneration(id);
-    useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
-    const fail = (message: string) => {
-      if (!graphics.transition(id, 'RECOVERY_FAILED', message)) return;
-      useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
-    };
-    const lost = (event: Event) => {
-      event.preventDefault();
-      if (!graphics.transition(id, 'CONTEXT_LOST')) return;
-      useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
-      document.exitPointerLock?.();
-      // Delete invalid resources while the context is lost. Deleting their old GL handles
-      // after restoration would produce INVALID_OPERATION in the new context.
-      setGeneration(null);
-    };
-    const restored = () => {
-      if (!graphics.restore(id)) return;
-      resetLibrary(gl);
-      id = graphics.begin();
-      setGeneration(id);
-    };
-    const shaderError = gl.debug.onShaderError;
-    gl.debug.onShaderError = () => fail('Arena shaders could not compile. Try rebuilding graphics.');
-    gl.domElement.addEventListener('webglcontextlost', lost);
-    gl.domElement.addEventListener('webglcontextrestored', restored);
-    // A context may already have been lost between Canvas creation and listener installation.
-    if (gl.getContext().isContextLost()) lost(new Event('webglcontextlost', { cancelable: true }));
-    return () => {
-      gl.domElement.removeEventListener('webglcontextlost', lost);
-      gl.domElement.removeEventListener('webglcontextrestored', restored);
-      gl.debug.onShaderError = shaderError;
-      graphics.retire(id);
-    };
-  }, [gl, graphics]);
-  return generation === null ? null : <World key={generation} mapId={mapId} q={q} graphics={graphics} generation={generation} />;
-}
-
-function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQuality; graphics: GraphicsLifecycle; generation: number }) {
+function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
+  const graphics = useGraphicsSession(), prefetched = useRef(false);
+  const weaponCompile = useRef<{ gun: THREE.Group; ready: boolean } | null>(null);
   const { scene, camera, gl, size } = useThree(), setDpr = useThree(s => s.setDpr), dprNow = useThree(s => s.viewport.dpr);
   const map = MAP_BY_ID.get(mapId)!;
   const settings = useArena(s => s.settings);
@@ -208,7 +162,7 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
   // Metropolis: the cinematic finish over its weather's grade and exposure (scene/cinematic.ts).
   const fin = useMemo(() => (atmo ? cinematicFinish(atmo) : null), [atmo]);
   // Low (no post stack): the same grade, folded into the tone mapper (scene/grade.ts). Set before anything compiles.
-  const toneGraded = useMemo(() => { const on = !q.post && !!fin; installToneGrade(on ? fin : null); return on; }, [q.post, fin]);
+  const toneGraded = useMemo(() => { const on = !q.compatibility && !q.post && !!fin; installToneGrade(on ? fin : null); return on; }, [q.post, q.compatibility, fin]);
   const citySun = useMemo(() => atmo ? { dir: new THREE.Vector3(...atmo.sunDir).normalize(), color: new THREE.Color(...atmo.sunColor) } : null, [atmo]);
   const [lib, setLib] = useState<Library | null>(null), [kits, setKits] = useState<Awaited<ReturnType<typeof loadSoldiers>> | null>(null);
   const [gunReady, setGunReady] = useState(false), [compiled, setCompiled] = useState(false), [attempt, setAttempt] = useState(0);
@@ -242,7 +196,7 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     soldiers(0);
     startAmbience(mapId, ambientEmitters(map));
     return () => { on = false; ctrl.abort(); stopArenaAmbience(); stopMatchSounds(); setIndoor(0); };
-  }, [gl, q, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gl, mapId, q.mobileAssets, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { deploy.pending([...(lib ? [] : ['environment']), ...(gunReady ? [] : ['weapon']), ...(kits ? [] : ['soldiers'])]); }, [lib, gunReady, kits]);
 
   // ---------------------------------------------------------------- environment, sky and lighting
@@ -279,14 +233,16 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
   useEffect(() => {
     if (!world || !lib) return;
     // Metropolis: the image-based light is baked from the variant's own sky, so reflections and shade match it.
-    const cityEnv = atmo ? bakeEnvironment(gl, world.sky, q.envSize) : null;
-    scene.add(world.group); scene.environment = cityEnv ?? lib.env; scene.environmentIntensity = atmo?.env ?? 1.5;
-    vm.vmScene.environment = cityEnv ?? lib.env;
-    const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
-    setHeightFog(atmo);
+    const cityEnv = atmo && !q.compatibility ? bakeEnvironment(gl, world.sky, q.envSize) : null;
+    scene.add(world.group); scene.environment = cityEnv?.texture ?? lib.env; scene.environmentIntensity = atmo?.env ?? 1.5;
+    vm.vmScene.environment = cityEnv?.texture ?? lib.env;
+    const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = q.compatibility ? null : new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
+    setHeightFog(q.compatibility ? null : atmo);
+    if (q.compatibility) world.sky.visible = false;
+    graphics.preparing(); setCompiled(false); useArena.getState().set({ sceneReady: false }); sceneLoaded(false);
     // Compile every shader before the player sees the match, so the first seconds of play do not stutter.
     let on = true;
-    deadline((gl as THREE.WebGLRenderer & { compileAsync: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> }).compileAsync(scene, camera), 8000, 'shader compile').then(() => { if (on && !gl.getContext().isContextLost()) setCompiled(true); }).catch(e => { if (on) graphics.transition(generation, 'RECOVERY_FAILED', `Arena shaders could not initialize: ${String(e).slice(0, 160)}`); });
+    deadline(gl.compileAsync(scene, camera), 45000, 'shader compile').then(() => { if (on) setCompiled(true); }).catch(error => { if (on) graphics.fail(error); });
     // Set dressing streams in once the match is playable (priority 2); a static sun shadow is redrawn once for it.
     const ctrl = new AbortController();
     const decorate = () => loadDecor(lib, ctrl.signal, mapId === 'metropolis' ? CITY_DECOR : undefined).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
@@ -294,20 +250,25 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     waitPlayable();
     return () => {
       on = false; ctrl.abort();
-      // Release everything this renderer uploaded, shared cached assets included: three.js keeps a 'dispose' listener
-      // on every texture, geometry and material a renderer has used, and those listeners would keep this renderer
-      // (and its WebGL context) alive for as long as the cached assets live. Cached objects stay usable: the next
-      // match's renderer uploads them again.
-      const shared = cachedAssets('arena/'), weapons = weaponResources();
-      releaseGpu(scene, vm.vmScene, world.group, ...shared.scenes, ...weapons.scenes, ...Object.values(lib.props).map(p => p!.scene));
-      for (const t of [lib.env, lib.sky, lib.hdr, softTexture(), ...shared.textures]) t.dispose();
+      releaseGpu(world.group);
       cityEnv?.dispose(); setHeightFog(null);
-      for (const r of standInResources()) { r.geometry.dispose(); r.material.dispose(); }
-      for (const m of weapons.materials) m.dispose();
       scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null;
       clearMaterialCache();
     };
-  }, [scene, world, lib, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene, world, lib, q, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Library environments are GPU render targets: keep them across quality changes, but never
+  // reuse them with another context. loadLibrary caches by renderer, while source assets stay CPU-side.
+  useEffect(() => () => {
+    if (!lib) return;
+    const shared = cachedAssets('arena/'), weapons = weaponResources();
+    releaseGpu(scene, vm.vmScene, ...shared.scenes, ...weapons.scenes, ...Object.values(lib.props).map(p => p!.scene));
+    lib.envTarget.dispose();
+    for (const t of [lib.sky, lib.hdr, softTexture(), ...shared.textures]) t.dispose();
+    for (const r of standInResources()) { r.geometry.dispose(); r.material.dispose(); }
+    for (const m of weapons.materials) m.dispose();
+    clearMaterialCache();
+  }, [gl, lib]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------- sound levels and the acoustic probe
   useEffect(() => {
@@ -385,6 +346,7 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
   useEffect(() => { if (!lib) return; for (const g of fx.crates) { g.clear(); const c = lib.props.milCrate.scene.clone(); c.scale.setScalar(.8); g.add(c); } }, [lib, fx]);
 
   // ---------------------------------------------------------------- players
+  const seenNums = useMemo(() => new Set<number>(), []);
   const soldiers = useRef(new Map<number, { s: SoldierLike; tag: THREE.Sprite | null; tagKey: string; flashAt: number; model: string; standIn: boolean; animDt?: number }>());
   const dropSoldier = (e: { s: SoldierLike; tag: THREE.Sprite | null }) => { if (e.tag) { (e.tag.material as THREE.SpriteMaterial).map?.dispose(); e.tag.material.dispose(); e.tag = null; } scene.remove(e.s.root); e.s.dispose(); };
   useEffect(() => () => { for (const e of soldiers.current.values()) dropSoldier(e); soldiers.current.clear(); }, [scene, kits]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -450,8 +412,9 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     // Light shafts read the world's depth, so they run before anything else replaces it (see scene/shafts.ts).
     const shafts = atmo && citySun && atmo.shafts > 0 ? new ShaftsPass(camera as THREE.PerspectiveCamera, citySun.dir, atmo.shafts) : null;
     if (shafts) c.addPass(shafts);
+    let ao: N8AOPostPass | null = null;
     if (q.ao) {
-      const ao = new N8AOPostPass(scene, camera, size.width, size.height);
+      ao = new N8AOPostPass(scene, camera, size.width, size.height);
       Object.assign(ao.configuration, { aoRadius: 1.4, distanceFalloff: .7, intensity: 2.4, halfRes: !q.aoHigh, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color('#0a0908') });
       ao.setQualityMode(q.aoMode ?? (q.aoHigh ? 'High' : 'Medium')); c.addPass(ao);
     }
@@ -466,7 +429,7 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     c.addPass(new EffectPass(camera, ...fxs));
     c.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
     if (fin) c.addPass(new EffectPass(camera, new SharpenEffect(fin.sharpen)));
-    return { c, weapon, shafts };
+    return { c, weapon, shafts, ao };
   }, [gl, scene, camera, q, vm, atmo, fin]); // eslint-disable-line react-hooks/exhaustive-deps
   // The street's reflection in the rain (High, Ultra), drawn before the frame.
   const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
@@ -497,24 +460,19 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     return () => { delete hooks.__arenaRenderScale; };
   }, [setDpr]);
   // ---------------------------------------------------------------- adaptive performance
-  // Hold the frame rate (30 on touch devices, 55 elsewhere): fewer pixels first, then a lighter profile.
-  // The simulation, input and network run at fixed rates whatever the frame rate.
+  // Live effect budgets never mutate the saved profile or recreate the map/viewmodel.
   const touchDevice = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
   const renderScale = useArena(s => s.settings.renderScale);
-  const baseDpr = useMemo(() => Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale, [q, renderScale]);
-  // Clarity floor: however hard the frame rate is pressed, never fewer than 0.85 drawn pixels per CSS pixel on a phone
-  // (0.75 elsewhere): below that the image turns to mush, which the profile's cheaper effects are there to prevent.
-  const CLARITY_FLOOR = touchDevice ? .85 : .75;
-  const adaptive = useMemo(() => createAdaptive({ target: frameTarget(touchDevice), min: Math.min(1, Math.max(.5, CLARITY_FLOOR / Math.max(.01, baseDpr))) }), [q, baseDpr, touchDevice]); // eslint-disable-line react-hooks/exhaustive-deps
+  const baseDpr = useMemo(() => scenePixelRatio(gl, size.width, size.height, Math.min(q.dpr, window.devicePixelRatio || 1) * renderScale, settings.quality), [gl, size.width, size.height, q, renderScale, settings.quality]);
+  const CLARITY_FLOOR = touchDevice ? .85 : .85;
+  const adaptive = useMemo(() => createPerformanceBudget({ target: frameTarget(touchDevice), min: Math.min(1, CLARITY_FLOOR / Math.max(.01, baseDpr)) }), [baseDpr, touchDevice, settings.adaptive, q]);
+  // Restore the user's resolution when they turn adaptation off or change their profile.
+  useEffect(() => { if (!(QA_HOOKS && new URLSearchParams(location.search).has('qa-scale'))) setDpr(baseDpr); }, [adaptive, baseDpr, setDpr]);
+  const budget = () => settings.adaptive ? adaptive.level : 0;
   const adaptFps = (fps: number) => {
-    const st = useArena.getState().settings; if (!st.adaptive || QA_HOOKS && new URLSearchParams(location.search).has('qa-scale')) return;
+    if (!settings.adaptive || QA_HOOKS && new URLSearchParams(location.search).has('qa-scale')) return;
     const r = adaptive.sample(fps);
     if (r.changed) setDpr(Math.max(Math.min(baseDpr, CLARITY_FLOOR), baseDpr * r.scale));
-    if (r.stepDown && st.quality !== 'low') {
-      const lower = st.quality === 'ultra' ? 'high' : st.quality === 'high' ? 'medium' : 'low';
-      useArena.getState().setSettings({ quality: lower, qualityChosen: false });
-      useBanners.getState().push({ text: 'Graphics lowered to keep the game smooth', sub: `Now ${lower[0].toUpperCase() + lower.slice(1)} · change it in Settings`, tone: 'info', ms: 3600 });
-    }
   };
 
   // ---------------------------------------------------------------- input
@@ -634,9 +592,9 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     }
     // ---- shadows: static on phones, refreshed at the profile's rate otherwise
     // (QA builds: `?qa-static-shadows` draws the sun's shadow once, so software-rendered captures of a still scene finish.)
-    if (world && q.shadows && q.shadowEvery && frameNo.current % q.shadowEvery === 0 && !qaStaticShadows) world.sun.shadow.needsUpdate = true;
+    if (world && q.shadows && q.shadowEvery && frameNo.current % (q.shadowEvery * (budget() >= 2 ? 3 : 1)) === 0 && !qaStaticShadows) world.sun.shadow.needsUpdate = true;
     // ---- players
-    const t = live.playback.time(now), seenNums = new Set<number>();
+    const t = live.playback.time(now); seenNums.clear();
     // Soldiers are skinned meshes with culling off (their bones move them outside their bounds), so cull them here:
     // a sphere around each soldier against the view frustum (wider when sun shadows are drawn live, so a shadow cast
     // into view from just outside it stays).
@@ -679,7 +637,7 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     fx.effects.update(dt); vm.casings.update(dt);
     if (world && world.leaves.update(dt, live.world) && world.sun.castShadow) world.sun.shadow.needsUpdate = true;
     if (fx.muzzleLight.intensity > 0) fx.muzzleLight.intensity = Math.max(0, fx.muzzleLight.intensity - dt * 600);
-    if (q.detail && s && now - dustAt.current > 260) { dustAt.current = now; fx.effects.mote(v1.set(cam.position.x + (Math.random() - .5) * 14, .2 + Math.random() * 2.2, cam.position.z + (Math.random() - .5) * 14)); }
+    if (!budget() && q.detail && s && now - dustAt.current > 260) { dustAt.current = now; fx.effects.mote(v1.set(cam.position.x + (Math.random() - .5) * 14, .2 + Math.random() * 2.2, cam.position.z + (Math.random() - .5) * 14)); }
     let gi = 0; for (const gr of live.grenades.values()) { const m = fx.grenades[gi++]; if (!m) break; m.visible = true; m.position.set(gr.x, gr.y, gr.z); (m.material as THREE.MeshStandardMaterial).color.set(EQUIP_IDS[gr.kind] === 'flash' ? '#b9bcc0' : EQUIP_IDS[gr.kind] === 'smoke' ? '#5f6c78' : '#3f4a34'); }
     for (; gi < fx.grenades.length; gi++) fx.grenades[gi].visible = false;
     grenadeAudio(now);
@@ -700,7 +658,28 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
       });
     } else objectives.g.visible = false;
     updateViewmodel(dt, now);
-    const f = fpsRef.current; f.frames++; if (now - f.t > 1000) { const fps = Math.round(f.frames * 1000 / (now - f.t)); f.frames = 0; f.t = now; if (a.hud.fps !== fps) a.set({ hud: { ...useArena.getState().hud, fps } }); if (a.sceneReady && !document.hidden) adaptFps(fps); }
+    // Asset/shader readiness permits a validation frame. Only its successful completion
+    // transitions this renderer to READY and sends the server's loaded handshake.
+    if (world && compiled && gunReady && vm.gun) {
+      if (weaponCompile.current?.gun !== vm.gun) {
+        const job = { gun: vm.gun, ready: false }; weaponCompile.current = job;
+        const visible = vm.holder.visible; vm.holder.visible = true;
+        const compilation = gl.compileAsync(vm.vmScene, vm.vmCam);
+        vm.holder.visible = visible;
+        deadline(compilation, 45000, 'weapon shader compile').then(() => { if (weaponCompile.current === job) job.ready = true; }).catch(error => { if (weaponCompile.current === job) graphics.fail(error); });
+      }
+      if (weaponCompile.current.ready) graphics.resourcesReady();
+    }
+    if (a.sceneReady && !prefetched.current) {
+      prefetched.current = true;
+      const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
+      prefetchRemainingWeapons(q.detail > 0 && !saveData);
+    }
+    if (a.sceneReady && a.match && live.loadedSent !== a.match.id) sceneLoaded(true);
+    const f = fpsRef.current;
+    // Loading, background gaps and deliberately throttled menus are not GPU measurements.
+    if (!a.sceneReady || inputPaused(a) || document.hidden || dtRaw > 3) { f.frames = 0; f.t = now; }
+    else { if (!f.t) f.t = now; f.frames++; if (now - f.t >= 1000) { const fps = f.frames * 1000 / (now - f.t); f.frames = 0; f.t = now; if (a.hud.fps !== Math.round(fps)) a.set({ hud: { ...useArena.getState().hud, fps: Math.round(fps) } }); adaptFps(fps); } }
   }, -1);
 
   /** What a boot lands on: the box underfoot (its material; a stair riser), or the ground as it is painted. */
@@ -758,8 +737,11 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     const s = live.sim, scoped = !!s && weaponOf(s).category === 'sniper' && s.ads > .85;
     const show = !!s && live.alive && !scoped && !!lib;
     vm.holder.visible = show; if (vm.arms) vm.arms.visible = show;
-    if (!s || !lib) return;
-    const w = weaponOf(s), skin = live.loadout?.skins?.[w.id] ?? 'standard';
+    if (!lib) return;
+    // Prepare the starting weapon before the server spawns a load-gated player.
+    const w = s ? weaponOf(s) : WEAPONS.find(w => w.id === live.loadout?.primary);
+    if (!w) return;
+    const skin = live.loadout?.skins?.[w.id] ?? 'standard';
     if (vm.gunId !== w.id || vm.skin !== skin) {
       // The model streams in on first use; until then nothing is drawn (the weapon is still raising).
       const next = weaponModel(w.id, skin);
@@ -768,6 +750,7 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
     }
     if (vm.armsSrc && (vm.armsTeam !== live.team || !vm.arms)) { if (vm.arms) { vm.vmScene.remove(vm.arms.root); vm.arms.dispose(); } vm.arms = new FirstPersonArms(vm.armsSrc, live.team); vm.arms.root.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = !!vm.sun.castShadow; }); vm.vmScene.add(vm.arms.root); vm.armsTeam = live.team; }
     if (!vm.gun) { vm.holder.visible = false; if (vm.arms) vm.arms.visible = false; return; }
+    if (!s) return;
     const gun = vm.gun, melee = w.fire === 'melee';
     // The weapon's whole motion (hip/sights, sway, recoil, reload choreography, actions) from the simulation's state.
     const dyaw = controls.yaw - vm.lastYaw, dpitch = controls.pitch - vm.lastPitch; vm.lastYaw = controls.yaw; vm.lastPitch = controls.pitch;
@@ -800,38 +783,28 @@ function World({ mapId, q, graphics, generation }: { mapId: string; q: ArenaQual
   const noRender = QA_HOOKS && new URLSearchParams(location.search).has('qa-norender');
   // QA builds: `__arenaFreeze(true)` stops drawing (the canvas keeps its last frame) so a software-rendered capture can
   // take its screenshot while the GPU process is idle; the frame loop, simulation and HUD keep running.
-  const frozen = useRef(false);
+  const frozen = useRef(false), renderElapsed = useRef(0);
   useEffect(() => { if (!QA_HOOKS) return; const w = window as unknown as Record<string, unknown>; w.__arenaFreeze = (on: boolean) => { frozen.current = on; }; return () => { delete w.__arenaFreeze; }; }, []);
   useFrame(({ gl: r }, dt) => {
-    if ((noRender && graphics.getSnapshot().state === 'READY') || frozen.current || !world || !compiled || !gunReady) return;
-    const health = graphics.getSnapshot();
-    if (health.generation !== generation || !['INITIALIZING', 'RECOVERING', 'READY'].includes(health.state)) return;
-    if (r.getContext().isContextLost()) return;
+    if (!graphics.canRender() || frozen.current || noRender && graphics.isReady()) return;
     try {
+      renderElapsed.current += dt;
+      if ((inputPaused(useArena.getState()) || portraitBlocked() || document.hidden) && renderElapsed.current < .1) return;
+      dt = Math.min(renderElapsed.current, .5); renderElapsed.current = 0;
+      if (composer?.ao) composer.ao.enabled = budget() === 0;
+      if (reflection) cityWeather.uReflect.value = budget() === 0 ? 1 : 0;
+      if (!graphics.beginFrame()) return;
       r.info.reset();
       // Exposure follows the eye: opening up indoors and in the station, closing again outside.
       // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
       r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
       // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
       // frames the sun's shadow is not redrawn, so the two passes never land together.)
-      if (reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
+      if (!budget() && reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
       if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
       else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
-      if (!r.getContext().isContextLost() && graphics.getSnapshot().state !== 'RECOVERY_FAILED') {
-        if (health.state !== 'READY') {
-          if (r.getContext().getError() !== r.getContext().NO_ERROR) throw new Error('WebGL rejected the validation frame.');
-          if (graphics.transition(generation, 'READY')) {
-            useArena.getState().set({ sceneReady: true }); sceneLoaded(true);
-            const saveData = !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData;
-            prefetchRemainingWeapons(q.detail > 0 && !saveData);
-          }
-        } else if (useArena.getState().match && live.loadedSent !== useArena.getState().match?.id) sceneLoaded(true);
-      }
-    } catch (error) {
-      graphics.transition(generation, 'RECOVERY_FAILED', `Arena could not render: ${String(error).slice(0, 160)}`);
-      useArena.getState().set({ sceneReady: false }); sceneLoaded(false); releaseAll();
-      return;
-    }
+      graphics.frameRendered();
+    } catch (error) { graphics.fail(error); return; }
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaBreakdown = () => { const out: Record<string, number> = {}; scene.traverse(o => { const m = o as THREE.InstancedMesh; if (!m.isMesh || !m.visible) return; const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); const k = m.name || (m.material as THREE.Material).name || m.type; out[k] = (out[k] ?? 0) + Math.round(n); }); return out; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__arenaStats = { world: passes.world, calls: r.info.render.calls, triangles: r.info.render.triangles, textures: r.info.memory.textures, geometries: r.info.memory.geometries };
   }, 1);

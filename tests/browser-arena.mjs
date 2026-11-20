@@ -21,7 +21,7 @@ const check = (name, detail = '') => { results.checks.push({ name, ok: true, det
 const arenaState = page => page.evaluate(() => window.__arena?.state());
 // Software rendering (SwiftShader in CI) draws the arena's photoscanned scene at a few frames a second:
 // render it small so the networking under test is not starved, and give slow clients longer.
-const pinArena = async page => page.addInitScript(() => { localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: 'low', showFps: true })); localStorage.setItem('campos-arena-qa-scale', '0.3'); });
+const pinArena = async page => { const pin = () => { localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: 'low', showFps: true })); localStorage.setItem('campos-arena-qa-scale', '0.15'); }; await page.addInitScript(pin); await page.evaluate(pin); };
 async function openArena(page) {
   await page.getByRole('button', { name: /Combat Arena/ }).click();
   await page.getByRole('heading', { name: 'Combat Arena' }).waitFor({ timeout: 60000 });
@@ -31,10 +31,15 @@ const matchOf = id => stack.room.arena.matches.get(id);
 try {
   // ---------------------------------------------------------------- two signed-in players
   const ada = await account(stack, 'ada_arena', 'Ada'), tobi = await account(stack, 'tobi_arena', 'Tobi');
-  const [pa, pb] = await Promise.all([open(browser, stack, 'Ada', errors), open(browser, stack, 'Tobi', errors)]);
-  for (const p of [pa, pb]) await pinArena(p);
-  await signIn(pa, ada); await signIn(pb, tobi);
-  await openArena(pa); await openArena(pb);
+  // Enter Arena's lobby before opening the second campus: on software WebGL two campus
+  // render loops otherwise compete with shader compilation and can starve the UI.
+  const pa = await open(browser, stack, 'Ada', errors);
+  await pinArena(pa); await signIn(pa, ada);
+  const campusBefore = await pa.evaluate(() => window.__campusInspect());
+  await openArena(pa);
+  await pa.waitForFunction(() => window.__graphics().active === null);
+  const pb = await open(browser, stack, 'Tobi', errors);
+  await pinArena(pb); await signIn(pb, tobi); await openArena(pb);
   const lobby = await arenaState(pa);
   assert.equal(lobby.phase, 'lobby');
   assert.ok(await pa.getByText('Level 1').first().isVisible());
@@ -127,7 +132,13 @@ try {
   await pa.getByRole('button', { name: 'Return to campus' }).click();
   await pa.getByRole('button', { name: /online/ }).waitFor();
   assert.equal(await pa.locator('.ar-root').count(), 0);
-  const pos = await pa.evaluate(() => window.__campusInspect().position);
+  await pa.waitForFunction(() => !!window.__campusInspect && !!window.__campusDebug);
+  await pa.getByRole('button', { name: 'Your profile, @ada_arena' }).waitFor();
+  const restoredCampus = await pa.evaluate(() => window.__campusInspect());
+  assert.deepEqual(restoredCampus.discovered, campusBefore.discovered);
+  assert.deepEqual(restoredCampus.avatar, campusBefore.avatar);
+  assert.ok(Math.hypot(restoredCampus.position.x - campusBefore.position.x, restoredCampus.position.z - campusBefore.position.z) < .1);
+  const pos = restoredCampus.position;
   await pa.keyboard.down('KeyW'); await pa.waitForFunction(z => Math.abs(window.__campusInspect().position.z - z) > 1, pos.z, { timeout: 20000 }).finally(() => pa.keyboard.up('KeyW'));
   check('returning to campus restores normal campus play (walking works)');
   await pb.getByRole('button', { name: 'Return to campus' }).click();

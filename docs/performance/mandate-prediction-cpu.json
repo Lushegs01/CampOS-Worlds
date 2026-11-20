@@ -1,0 +1,130 @@
+{
+  "date": "2026-11-17T13:30:51.298Z",
+  "node": "v24.22.1",
+  "commandsPerRun": 40000,
+  "repetitions": 7,
+  "environment": "Linux container; shared movement authority, open collision callback, 60 Hz commands / 15 Hz snapshots. CPU microbenchmark only; no GPU, network or phone FPS claim.",
+  "medianMs": {
+    "before": 108.01033900000004,
+    "after": 45.31112299999995
+  },
+  "improvementPercent": 58.04927248677561,
+  "runs": {
+    "before": [
+      {
+        "elapsedMs": 123.12081100000003,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 149.97519999999997,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 121.479963,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 108.01033900000004,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 99.330153,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 100.59858599999984,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 96.42811600000005,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      }
+    ],
+    "after": [
+      {
+        "elapsedMs": 58.24396999999999,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 45.36954000000003,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 47.681229999999914,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 35.678923000000054,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 45.31112299999995,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 43.75776399999995,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      },
+      {
+        "elapsedMs": 36.29082400000016,
+        "checksum": [
+          -297.3747940110884,
+          0,
+          300
+        ]
+      }
+    ]
+  }
+}

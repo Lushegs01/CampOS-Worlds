@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import type { Quality } from '../../world/quality';
 
 export interface ArenaQuality {
+  /** Recovery for drivers that reject the normal shader pipeline. */
+  compatibility?: boolean;
   dpr: number; antialias: boolean; shadows: boolean; shadowSize: number; shadowEvery: number; post: boolean; ao: boolean; bloom: boolean;
   effects: number; anisotropy: number; detail: number; fogFar: number; decals: number; casings: number; ik: boolean; lights: number;
   /** Load the 512² texture tier (public/assets/arena/mobile): same art, a third of the download. */
@@ -19,7 +21,7 @@ export interface ArenaQuality {
   /** N8AO quality preset when ambient occlusion is on. */
   aoMode?: 'Low' | 'Medium' | 'High';
 }
-/** The arena's profiles: the campus' three plus Ultra (arena only: the campus keeps its own three). */
+/** Four visual profiles; simulation and server authority are identical at every level. */
 export type ArenaQualityId = Quality | 'ultra';
 export const ARENA_QUALITY: Record<ArenaQualityId, ArenaQuality> = {
   // Phones: a static sun shadow, no post stack, fewer particles, but a clear image. It starts at 1.5× pixel density

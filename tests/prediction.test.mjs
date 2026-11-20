@@ -85,7 +85,8 @@ test('high-refresh input batches stay within the message limit, and a silent los
   const w = body(), p = createPrediction(w), a = createMotionAuthority(body()); p.receive(a.snapshot('', 0));
   p.frame(0, 0, 0, false, false, 0);
   for (let i = 0; i < 2000; i++) p.frame(1 / 240, Math.SQRT1_2, Math.SQRT1_2, true, false, Math.PI);
-  assert.equal(p.pending, 1024);
+  assert.ok(p.pending <= 1024);
+  assert.ok(p.pending <= 961, 'speculation also stops after four seconds, independently of refresh rate');
   assert.ok(JSON.stringify(p.batch()).length < 2048);
 });
 
@@ -108,4 +109,18 @@ test('changing authoritative context cannot replenish movement time', () => {
     assert.equal(a.receive({ epoch: s.epoch, commands: [[1, .15, 1, 0, 1, 0, 0]] }, context, 0), false);
     assert.equal(w.x, x);
   }
+});
+
+
+test('a stalled room bounds speculative time even at two render frames per second', () => {
+  const client = body(), p = createPrediction(client), a = createMotionAuthority(body());
+  p.receive(a.snapshot('', 0)); p.frame(0, 0, 0, false, false, 0);
+  for (let i = 0; i < 100; i++) p.frame(.5, 1, 0, false, false, 0);
+  const stopped = client.x;
+  assert.equal(p.pending, 8);
+  assert.equal(p.frame(.5, 1, 0, false, false, 0), 0);
+  assert.equal(client.x, stopped);
+  a.receive(p.batch(), '', 4000); p.receive(a.snapshot('', 4000));
+  assert.equal(p.pending, 0); assert.equal(client.x, stopped);
+  assert.ok(p.frame(.1, 1, 0, false, false, 0) > 0);
 });

@@ -25,7 +25,7 @@ async function bot(n) {
 }
 const series = [];
 try {
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.goto(base + (process.env.SOAK_QUERY || ''), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 300000 });
   await page.getByRole('button', { name: 'Enter campus', exact: true }).click();
   await page.getByRole('button', { name: /online/ }).waitFor();
@@ -45,7 +45,7 @@ try {
   }
   await page.keyboard.up(key);
   const warm = series.find(s => s.t >= 120) ?? series[0], end = series.at(-1);
-  const report = { date: new Date().toISOString(), label, url: base, seconds, visitors: n, environment: 'Linux container, Chromium with SwiftShader (software WebGL), Low quality, 800x600. Not a phone.', series, growthAfterWarmup: { textures: end.textures - warm.textures, geometries: end.geometries - warm.geometries, heapMB: +(end.heapMB - warm.heapMB).toFixed(1) }, errors };
+  const report = { date: new Date().toISOString(), label, url: base, query: process.env.SOAK_QUERY || '', seconds, visitors: n, environment: 'Linux container, Chromium with SwiftShader (software WebGL), Low quality, 800x600. Not a phone.', series, growthAfterWarmup: { textures: end.textures - warm.textures, geometries: end.geometries - warm.geometries, heapMB: +(end.heapMB - warm.heapMB).toFixed(1) }, errors };
   await writeFile(`docs/performance/soak-${label}.json`, JSON.stringify(report, null, 2));
   console.log('growth after warm-up', JSON.stringify(report.growthAfterWarmup));
   if (process.env.SOAK_ASSERT === '1') assert.ok(report.growthAfterWarmup.textures <= 8, `GPU textures kept growing: +${report.growthAfterWarmup.textures}`);
