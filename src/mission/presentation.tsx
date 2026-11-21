@@ -85,7 +85,7 @@ function Hostile({ id, operative }: { id: string; operative: boolean }) {
     s.hp = actor.hp;
     s.hurt *= Math.exp(-dt * 8);
     const distance = Math.hypot(player.x - actor.x, player.z - actor.z);
-    marker.visible = actor.hp > 0 && distance < 28;
+    marker.visible = actor.hp > 0 && distance < 28 && (actor.mode === 'alert' || actor.mode === 'suspicious');
     marker.position.set(s.at.x, s.at.y + 2, s.at.z);
     marker.quaternion.copy(camera.quaternion);
     // The static Performance sun map omits moving figures. A small floor shadow anchors their feet.

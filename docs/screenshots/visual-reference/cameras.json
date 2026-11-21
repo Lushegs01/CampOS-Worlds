@@ -1,0 +1,401 @@
+{
+  "baselineCommit": "c044799",
+  "before": {
+    "metropolitan-street": {
+      "camera": [
+        410,
+        2.55,
+        53.7
+      ],
+      "target": [
+        375,
+        4.1,
+        35
+      ],
+      "calls": 303,
+      "triangles": 789011,
+      "width": 806,
+      "height": 504
+    },
+    "player-character": {
+      "camera": [
+        141.65,
+        1.63,
+        39.02
+      ],
+      "target": [
+        141,
+        1.16,
+        41
+      ],
+      "calls": 243,
+      "triangles": 869939,
+      "width": 806,
+      "height": 504
+    },
+    "warehouse-exterior": {
+      "camera": [
+        198,
+        2.9,
+        43
+      ],
+      "target": [
+        191,
+        4,
+        24
+      ],
+      "calls": 450,
+      "triangles": 1422685,
+      "width": 806,
+      "height": 504
+    },
+    "industrial-gantry": {
+      "camera": [
+        255,
+        3.4,
+        45
+      ],
+      "target": [
+        263,
+        5.5,
+        15
+      ],
+      "calls": 168,
+      "triangles": 577553,
+      "width": 806,
+      "height": 504
+    },
+    "warehouse-interior": {
+      "camera": [
+        191,
+        2.7,
+        22.7
+      ],
+      "target": [
+        192.6,
+        2.3,
+        5
+      ],
+      "calls": 547,
+      "triangles": 1519434,
+      "width": 806,
+      "height": 504
+    },
+    "enemy-character": {
+      "camera": [
+        187.7,
+        1.69,
+        15.7
+      ],
+      "target": [
+        184.7,
+        1.18,
+        13.65
+      ],
+      "calls": 851,
+      "triangles": 2113676,
+      "width": 806,
+      "height": 504
+    },
+    "combat": {
+      "camera": [
+        191,
+        1.5,
+        22
+      ],
+      "target": [
+        191,
+        1.46,
+        8
+      ],
+      "calls": 537,
+      "triangles": 1492466,
+      "width": 806,
+      "height": 504
+    },
+    "vehicle-exterior": {
+      "camera": [
+        212,
+        1.53,
+        50.2
+      ],
+      "target": [
+        209,
+        0.85,
+        46
+      ],
+      "calls": 797,
+      "triangles": 1905509,
+      "width": 806,
+      "height": 504
+    },
+    "vehicle-interior": {
+      "camera": [
+        209.37,
+        1.18,
+        45.87
+      ],
+      "target": [
+        209.06,
+        0.79,
+        47.3
+      ],
+      "calls": 321,
+      "triangles": 766125,
+      "width": 806,
+      "height": 504
+    },
+    "officers": {
+      "camera": [
+        237.3,
+        1.7,
+        50.3
+      ],
+      "target": [
+        232.63,
+        1.06,
+        51.9
+      ],
+      "calls": 712,
+      "triangles": 1272455,
+      "width": 806,
+      "height": 504
+    },
+    "police-containment": {
+      "camera": [
+        240,
+        4.6,
+        73
+      ],
+      "target": [
+        241,
+        0.8,
+        54.5
+      ],
+      "calls": 526,
+      "triangles": 922453,
+      "width": 806,
+      "height": 504
+    },
+    "explosion": {
+      "camera": [
+        187.5,
+        2.8,
+        38
+      ],
+      "target": [
+        198,
+        1.35,
+        32
+      ],
+      "wreck": true,
+      "fallout": false,
+      "draw": {
+        "frame": 235,
+        "calls": 382,
+        "triangles": 957109,
+        "points": 0,
+        "lines": 0
+      }
+    }
+  },
+  "after": {
+    "metropolitan-street": {
+      "camera": [
+        410,
+        2.55,
+        53.7
+      ],
+      "target": [
+        375,
+        4.1,
+        35
+      ],
+      "calls": 441,
+      "triangles": 981673,
+      "width": 806,
+      "height": 504
+    },
+    "player-character": {
+      "camera": [
+        141.65,
+        1.63,
+        39.02
+      ],
+      "target": [
+        141,
+        1.16,
+        41
+      ],
+      "calls": 266,
+      "triangles": 878096,
+      "width": 806,
+      "height": 504
+    },
+    "warehouse-exterior": {
+      "camera": [
+        198,
+        2.9,
+        43
+      ],
+      "target": [
+        191,
+        4,
+        24
+      ],
+      "calls": 522,
+      "triangles": 1442570,
+      "width": 806,
+      "height": 504
+    },
+    "industrial-gantry": {
+      "camera": [
+        255,
+        3.4,
+        45
+      ],
+      "target": [
+        263,
+        5.5,
+        15
+      ],
+      "calls": 203,
+      "triangles": 582614,
+      "width": 806,
+      "height": 504
+    },
+    "warehouse-interior": {
+      "camera": [
+        191,
+        2.7,
+        22.7
+      ],
+      "target": [
+        192.6,
+        2.3,
+        5
+      ],
+      "calls": 621,
+      "triangles": 1543383,
+      "width": 806,
+      "height": 504
+    },
+    "enemy-character": {
+      "camera": [
+        187.7,
+        1.69,
+        15.7
+      ],
+      "target": [
+        184.7,
+        1.18,
+        13.65
+      ],
+      "calls": 893,
+      "triangles": 2129323,
+      "width": 806,
+      "height": 504
+    },
+    "combat": {
+      "camera": [
+        191,
+        1.5,
+        22
+      ],
+      "target": [
+        191,
+        1.46,
+        8
+      ],
+      "calls": 607,
+      "triangles": 1516399,
+      "width": 806,
+      "height": 504
+    },
+    "vehicle-exterior": {
+      "camera": [
+        212,
+        1.53,
+        50.2
+      ],
+      "target": [
+        209,
+        0.85,
+        46
+      ],
+      "calls": 877,
+      "triangles": 1938882,
+      "width": 806,
+      "height": 504
+    },
+    "vehicle-interior": {
+      "camera": [
+        209.37,
+        1.18,
+        45.87
+      ],
+      "target": [
+        209.06,
+        0.79,
+        47.3
+      ],
+      "calls": 355,
+      "triangles": 799870,
+      "width": 806,
+      "height": 504
+    },
+    "officers": {
+      "camera": [
+        237.3,
+        1.7,
+        50.3
+      ],
+      "target": [
+        232.63,
+        1.06,
+        51.9
+      ],
+      "calls": 813,
+      "triangles": 1375202,
+      "width": 806,
+      "height": 504
+    },
+    "police-containment": {
+      "camera": [
+        240,
+        4.6,
+        73
+      ],
+      "target": [
+        241,
+        0.8,
+        54.5
+      ],
+      "calls": 608,
+      "triangles": 998646,
+      "width": 806,
+      "height": 504
+    },
+    "explosion": {
+      "camera": [
+        187.5,
+        2.8,
+        38
+      ],
+      "target": [
+        198,
+        1.35,
+        32
+      ],
+      "wreck": true,
+      "fallout": true,
+      "draw": {
+        "frame": 216,
+        "calls": 598,
+        "triangles": 1139776,
+        "points": 0,
+        "lines": 0
+      }
+    }
+  }
+}

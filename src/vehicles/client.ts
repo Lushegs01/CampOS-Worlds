@@ -1,3 +1,4 @@
+import { isHarbourTraffic } from '../../shared/harbour.mjs';
 import { packetVehicle, type ActionPacket } from '../animation/motion';
 import { isGetawayVehicle } from '../../shared/getaway.mjs';
 import { create } from 'zustand';
@@ -69,7 +70,7 @@ export function nearestDoor(id:string|null){const v=localFleet.find(id);if(!v)re
 /** Enter the nearest vehicle by its closest free door, or leave the current one. */
 export function vehicleInteract(){const s=useVehicle.getState();if(s.id){vehicleAction('vehicleExit');return true;}const n=nearestDoor(s.near);if(!n||player.sit||player.holding)return false;if(n.door)vehicleAction('vehicleEnter',n.v.id,n.door.seat);else useGame.getState().notify('This vehicle is full.');return true;}
 /** Every frame, without allocating: the nearest vehicle within 6 m. */
-export function senseVehicles(){let near:string|null=null,best=6;for(const v of localFleet.vehicles){if(missionVehicleInfo(v.id)?.police||missionVehicleInfo(v.id)?.condition===0||missionVehicleInfo(v.id)?.available===false)continue;const d=Math.hypot(v.x-player.x,v.z-player.z);if(d<best){best=d;near=v.id;}}if(useVehicle.getState().near!==near)useVehicle.setState({near});}
+export function senseVehicles(){let near:string|null=null,best=6;for(const v of localFleet.vehicles){if(isHarbourTraffic(v.id)||missionVehicleInfo(v.id)?.police||missionVehicleInfo(v.id)?.condition===0||missionVehicleInfo(v.id)?.available===false)continue;const d=Math.hypot(v.x-player.x,v.z-player.z);if(d<best){best=d;near=v.id;}}if(useVehicle.getState().near!==near)useVehicle.setState({near});}
 let sent=0;
 export function tickVehicles(dt:number){
  const s=useVehicle.getState(),online=useGame.getState().status==='connected',driver=!!s.id&&s.seat===0;

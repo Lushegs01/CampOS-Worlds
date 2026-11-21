@@ -87,7 +87,7 @@ function armFraction(from: THREE.Vector3, to: THREE.Vector3) {
 const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 // Camera orbit is session state, independent of a disposable Canvas.
-const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false, freightChase: false, drivingZoom: 1, first: 0 };
+const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false, freightChase: false, drivingZoom: 1, first: 0, cockpit: 0 };
 
 export default function Player() {
   const graphics = useGraphicsSession();
@@ -201,7 +201,22 @@ export default function Player() {
       // The camera moves rigidly with the vehicle and only its offset (swinging round behind, clearing walls) is eased:
       // easing its position made how far it trailed depend on each frame's length, so the car shook on screen.
       const f=armFraction(target,desired);desired.lerp(target,1-f);if(!c.chasing){c.chasing=true;chase.subVectors(camera.position,target);}
-      chase.lerp(desired.sub(target),1-Math.exp(-real*7));camera.position.addVectors(target,chase);camera.lookAt(target);return;
+      chase.lerp(desired.sub(target),1-Math.exp(-real*7));camera.position.addVectors(target,chase);camera.lookAt(target);
+      const cockpitGoal = s.firstPerson ? 1 : 0;
+      c.cockpit = s.reducedMotion ? cockpitGoal : THREE.MathUtils.damp(c.cockpit,cockpitGoal,13,dt);
+      if (c.cockpit > .003) {
+        const pitch = THREE.MathUtils.clamp(input.pitch,-.24,.38), cabYaw = input.dragging ? Math.atan2(Math.sin(input.yaw-a.yaw-Math.PI),Math.cos(input.yaw-a.yaw-Math.PI)) : 0;
+        const viewYaw = a.yaw + THREE.MathUtils.clamp(cabYaw,-.78,.78);
+        const y = size.seatHeight + (vehicle.type==='car' ? .72 : .73) + (vehicleLift.get(vehicle.id) ?? 0);
+        eyeAt.set(a.x-Math.sin(a.yaw)*.08,y,a.z-Math.cos(a.yaw)*.08);
+        eyeLook.set(eyeAt.x+Math.sin(viewYaw)*7,y-Math.tan(pitch)*7,eyeAt.z+Math.cos(viewYaw)*7);
+        combatRotation.setFromRotationMatrix(sightFrame.lookAt(eyeAt,eyeLook,upv));
+        camera.position.lerp(eyeAt,c.cockpit);
+        camera.quaternion.slerp(combatRotation,c.cockpit);
+        if (camera instanceof THREE.PerspectiveCamera && c.cockpit > .9 && camera.zoom!==1) {camera.zoom=1;camera.updateProjectionMatrix();}
+        root.current.visible = c.cockpit < .73;
+      }
+      return;
     }
     if (c.chasing && c.freightChase && !s.reducedMotion) {
       posFrom.copy(camera.position);
@@ -209,6 +224,7 @@ export default function Player() {
       c.intro = 0;
     }
     c.chasing = false;
+    c.cockpit = 0;
     driving.throttle=driving.steer=wheel=0;
     // Finished standing: step onto the spot the stand-up motion ended on.
     if (player.sit?.phase === 'done') { const exit = player.sit.exit; if (exit) { player.x = exit.x; player.z = exit.z; } player.sit = null; player.vx = player.vz = 0; }

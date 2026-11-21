@@ -118,3 +118,16 @@ node --test tests/getaway-visual-assets.test.mjs
 The five runtime files use Meshopt and 16-bit position quantization. Their projected UVs are in metres. The optimizer keeps those UVs because the shared campus KTX2 scans are bound by material name at runtime and the GLBs carry no embedded images. Keep the artwork and gameplay volumes separate. If a new piece blocks movement, update `shared/getaway.mjs` and test the loading corridor, freight gate, parking-lot exit, and warehouse encounter. Prefer geometry for silhouettes, load-bearing members, rails, and profiles that catch light. Use scanned normal and material maps for much smaller relief.
 
 See [the Getaway asset manifest](ASSET_MANIFEST.md#orisun-freight--the-getaway) for the export and license inventory.
+
+### Harbour Exchange
+
+Regenerate the nine parcel models and the freight gantry from the shared world layout. Run from the repository root.
+
+```sh
+node --input-type=module -e 'import { HARBOUR_BLOCKS, HARBOUR_BUILDINGS } from "./shared/harbour.mjs";console.log(JSON.stringify({blocks:HARBOUR_BLOCKS,buildings:HARBOUR_BUILDINGS}))' > /tmp/campos-harbour-layout.json
+blender -b -P blender/harbour_exchange.py -- /tmp/campos-harbour-layout.json public/assets/harbour
+node scripts/assets/optimize-harbour.mjs
+node --test tests/harbour.test.mjs
+```
+
+The generator updates `blender/source/harbour_exchange.blend`. Each parcel exports separate material meshes with metre-scale UVs for the inherited PBR textures. The optimizer preserves those UVs and packs the GLB buffers with Meshopt. Keep the collision footprints and road connections in the shared layout so browser movement and room physics agree with the exported geometry.

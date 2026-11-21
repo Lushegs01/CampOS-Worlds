@@ -10,6 +10,7 @@ import { portraitBlocked } from '../mobile/orientation';
 
 export type Point = { x: number; z: number };
 export type MissionCar = Vehicle & { condition: number; police?: boolean; mode?: string };
+export type Officer = Point & { id: string; side: number; yaw: number; mode: 'dismount' | 'deploy' | 'cover' | 'returning'; seat: Point; age: number };
 export type Actor = Point & { id: string; kind: 'guard' | 'operative'; yaw: number; hp: number; maxHp: number; mode: string };
 export type MissionEvent = Point & { id: number; y: number; kind: string; end?: [number, number, number]; weapon?: string; impact?: boolean; normal?: [number, number, number]; surface?: 'metal' | 'wood' | 'concrete' | 'actor'; stage?: number };
 export type Report = { duration: number; defeated: number; distance: number; topSpeed: number; crashes: number; blastKills: number };
@@ -18,7 +19,7 @@ export type Mission = {
   stage: number; checkpoint: number; paused: boolean; failed: string | null; health: number;
   carried: boolean; ambushed: boolean; exploded: boolean; wanted: number; spotted: boolean;
   closest: number | null; escape: number; gun: { id: string; mag: number; reserve: number };
-  slot: number; reloading: number; mark: Point | null; actors: Actor[]; vehicles: MissionCar[];
+  slot: number; reloading: number; mark: Point | null; actors: Actor[]; officers?: Officer[]; vehicles: MissionCar[];
   events: MissionEvent[]; report: Report | null; reward: { saved: boolean; first?: boolean; completion?: Receipt } | null; saveError: boolean;
 };
 type State = { mission: Mission | null; history: Receipt | null; resume: number | null; brief: boolean; journal: boolean; aim: boolean };

@@ -173,3 +173,22 @@ test('Postgres completion is service-only and concurrent retries grant one accou
   assert.deepEqual(record.completion.report,p_report);
   assert.equal(await rpc(db.pool,'getaway_status',{p_user:other},service),null);
 });
+
+test('a cruiser can stop, deploy visible officers, contain and reboard when its target moves on',()=>{
+  const m=newRun(O.pursuit),p=fresh({x:239,z:55.5});
+  m.policeAt=Infinity;
+  m.police=[{id:'getaway-unit-1',x:231,z:54,yaw:Math.PI/2,type:'car',speed:0,wheel:0,steering:0,
+    occupants:[null,null,null,null],route:[],plan:0,mode:'dispatch',last:{x:p.x,z:p.z},lastSeen:-Infinity}];
+  missionStep(m,p,dt,1);
+  const deployed=viewMission(m,1);
+  assert.equal(deployed.vehicles.find(v=>v.police).mode,'containment');
+  assert.equal(deployed.officers.length,2);
+  assert.ok(deployed.officers.every(o=>o.mode==='dismount'&&o.age===0));
+  for(let now=1.04;now<3.5;now+=.04)missionStep(m,p,.04,now);
+  assert.ok(viewMission(m,3.5).officers.every(o=>o.mode==='cover'));
+  assert.ok(m.capture>0);
+  Object.assign(p,{x:270,z:48});
+  for(let now=3.54;now<7;now+=.04)missionStep(m,p,.04,now);
+  assert.equal(viewMission(m,7).officers.length,0);
+  assert.notEqual(m.police[0].mode,'containment');
+});

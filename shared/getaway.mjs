@@ -30,6 +30,7 @@ export const INDUSTRIAL_SOLIDS = [
   // Simple footprint proxies for the new freight-side equipment and fixtures.
   piece('fence', 136.475, 44.62, 13.95, .18, 2.08),
   piece('fence', 240.7, 45.23, 18.2, .18, 2.08),
+  ...[257,270].flatMap(x=>[12,26].map(z=>piece('equipment',x,z,1.28,1.25,7.3))),
   piece('equipment', 213, 24.1, 2.5, 1.3, 2.1),
   piece('equipment', 182.1, 1.74, 5.78, .92, 3.35),
   piece('equipment', 199.45, 1.74, 5.78, .92, 3.35),

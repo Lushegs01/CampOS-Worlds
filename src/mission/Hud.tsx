@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ArrowUp, Check, Circle, ClipboardList, Crosshair, MapPin, Shield, X } from 'lucide-react';
+import { ArrowUp, Check, Circle, ClipboardList, Crosshair, MapPin, ScanLine, Shield, ArrowLeftRight, X, RotateCw } from 'lucide-react';
 import { INDUSTRIAL_LOCATION, OBJECTIVES, O, distance } from '../../shared/getaway.mjs';
 import { WEAPON_BY_ID } from '../../shared/arena/weapons.mjs';
 import { input, player, useGame } from '../state';
@@ -29,9 +29,9 @@ export function TouchCombat() {
   const live = useGetaway(s => activeCombat(s.mission)), aim = useGetaway(s => s.aim);
   if (!live) return null;
   return <>
-    <button type="button" aria-label="Switch weapon" onClick={() => equip()}>Swap</button>
-    <button type="button" onClick={() => command('reload')}>Reload</button>
-    <button type="button" aria-pressed={aim} onClick={() => setAim(!aim)}>Aim</button>
+    <button type="button" aria-label="Switch weapon" onClick={() => equip()}><ArrowLeftRight size={18}/><span>Swap</span></button>
+    <button type="button" aria-label="Reload" onClick={() => command('reload')}><RotateCw size={18}/><span>Reload</span></button>
+    <button type="button" aria-label="Aim" aria-pressed={aim} onClick={() => setAim(!aim)}><ScanLine size={18}/><span>Aim</span></button>
     <button type="button" className="getaway-touch-fire" aria-label="Fire" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); heldFire(true); }}
       onPointerUp={() => heldFire(false)} onPointerCancel={() => heldFire(false)} onLostPointerCapture={() => heldFire(false)}><Crosshair size={24}/><span>Fire</span></button>
   </>;
@@ -84,6 +84,8 @@ export default function GetawayHud() {
       </div>}
       {mission.carried && <small className="getaway-case-status"><Check size={12}/> Case secured</small>}
     </aside>}
+    {!dialogue && mission?.officers?.some(o => o.mode === 'deploy' || o.mode === 'cover') &&
+      <p className="getaway-police-command" role="status"><b>Police</b> Stop. Stay where you are.</p>}
     {mission && !dialogue && (activeCombat(mission) || !!vehicle) && <div className="getaway-vitals">
       <span><b>{mission.health}</b> HP</span><progress aria-label="Health" value={mission.health} max={100}/>
       {activeCombat(mission) && !vehicle && <><b>{WEAPON_BY_ID.get(mission.gun.id)?.name}</b><span><b>{mission.gun.mag}</b> / {mission.gun.reserve}{mission.reloading > 0 && ' · Reloading'}</span></>}

@@ -33,6 +33,7 @@ const POLICE_START = [
   { id:'getaway-unit-1', x:286, z:54, yaw:-Math.PI/2 }, { id:'getaway-unit-2', x:151, z:-24, yaw:Math.PI/2 },
   { id:'getaway-unit-3', x:111, z:57, yaw:Math.PI/2 },
 ];
+const OFFICER_EXIT = .48;
 const COVER = INDUSTRIAL_SOLIDS.filter(b => b.kind === 'crate' || b.kind === 'container')
   .flatMap(b => [point(b.x-b.w/2-.75,b.z),point(b.x+b.w/2+.75,b.z),point(b.x,b.z-b.d/2-.75),point(b.x,b.z+b.d/2+.75)]);
 const CORNERS = INDUSTRIAL_SOLIDS.flatMap(b => [-1,1].flatMap(x => [-1,1].map(z =>
@@ -260,6 +261,42 @@ function dispatch(m,now) {
     route:[],plan:0,mode:'dispatch',last:EXIT,lastSeen:-Infinity,age:now,stuckAt:null,reverseUntil:0});
   event(m,'dispatch',spawn);
 }
+function dismount(unit,now) {
+  const officers = [-1,1].flatMap(side => {
+    const seat = localPoint(unit,side*.39,-.02);
+    const door = localPoint(unit,side*1.49,-.12);
+    const cover = localPoint(unit,side*2.1,side>0?1.63:-1.15);
+    if(blocked(door.x,door.z,.4)||!walkClear(door,cover))return [];
+    return [{id:unit.id+'-officer-'+side,side,...door,door,seat,cover,
+      yaw:unit.yaw+side*Math.PI/2,mode:'dismount',at:now}];
+  });
+  if(!officers.length)return false;
+  unit.speed=0;unit.officers=officers;unit.mode='containment';unit.releaseAt=now+1.35;
+  return true;
+}
+function stepOfficers(unit,p,dt,now,holding) {
+  if(holding)unit.releaseAt=now+1.35;
+  const returning=now>=unit.releaseAt;
+  let nearPlayer=false, boarded=0;
+  for(const officer of unit.officers){
+    if(officer.mode==='dismount'&&now-officer.at<OFFICER_EXIT)continue;
+    const target=returning?officer.door:officer.cover;
+    const d=distance(officer,target);
+    if(d<.12){
+      officer.mode=returning?'returning':'cover';
+      officer.yaw=returning?facing(officer,officer.seat):facing(officer,p);
+      if(returning)boarded++;
+    }else{
+      officer.mode=returning?'returning':'deploy';
+      officer.yaw=facing(officer,target);
+      const step=Math.min(d,dt*2.05);
+      Object.assign(officer,moveWithCollisions(officer.x,officer.z,Math.sin(officer.yaw)*step,Math.cos(officer.yaw)*step));
+    }
+    if(!returning&&officer.mode==='cover'&&distance(officer,p)<9&&clear(officer,p,1.25,1.25))nearPlayer=true;
+  }
+  if(returning&&boarded===unit.officers.length){unit.officers=null;unit.plan=0;unit.mode='search';}
+  return nearPlayer;
+}
 function chase(m,p,dt,now) {
   if(now>=m.policeAt&&m.police.length<m.wanted){
     dispatch(m,now);m.policeAt=now+4.5;
@@ -267,12 +304,20 @@ function chase(m,p,dt,now) {
   let visible=false, closest=Infinity;
   const vehicle=m.fleet.find(p.vehicle);
   const traffic=[...m.fleet.vehicles,...m.police,...m.externalVehicles()];
+  let officersNear = false;
+  const containment = m.stage === O.pursuit && (!vehicle || Math.abs(vehicle.speed) < 1.7);
   for(const unit of m.police){
     const d=distance(unit,p);
     closest=Math.min(closest,d);
     const sees=d<61&&clear(unit,p,1.55,vehicle?1.35:1.3);
-    if(sees){visible=true;unit.last=point(p.x,p.z);unit.lastSeen=now;unit.mode='pursuit';}
+    if(sees){visible=true;unit.last=point(p.x,p.z);unit.lastSeen=now;}
+    if(unit.officers){
+      officersNear = stepOfficers(unit,p,dt,now,containment && d<19 && sees) || officersNear;
+      if(unit.officers)continue;
+    }
+    if(sees)unit.mode='pursuit';
     else if(unit.mode==='pursuit'&&now-unit.lastSeen>1)unit.mode='search';
+    if(containment && sees && d<14.5 && d>4.5 && Math.abs(unit.speed)<.4 && dismount(unit,now))continue;
     if(now>=unit.plan){
       unit.plan=now+(sees?.85:2.8);
       const route=roadRoute(unit,unit.last);
@@ -283,7 +328,7 @@ function chase(m,p,dt,now) {
     }
     while(unit.route.length>1&&near(unit,unit.route[0],7))unit.route.shift();
     const next=unit.route[0]??unit.last,dest=distance(unit,next),turn=angle(facing(unit,next)-unit.yaw);
-    const done=dest<3.4||d<4.3&&sees;
+    const done=dest<3.4||d<(containment?11.5:4.3)&&sees;
     const desired=done?0:clamp(18-Math.abs(turn)*8,4,18);
     if(!done&&Math.abs(unit.speed)<.45){
       unit.stuckAt??=now;
@@ -307,7 +352,7 @@ function chase(m,p,dt,now) {
       m.wanted=0;m.police=[];m.closest=Infinity;advanceTo(m,O.safehouse,p);
     }
   }else m.lostAt=null;
-  if(visible&&closest<6&&(!vehicle||Math.abs(vehicle.speed)<1.3))m.capture=(m.capture??0)+dt;
+  if(visible&&(closest<6||officersNear)&&(!vehicle||Math.abs(vehicle.speed)<1.3))m.capture=(m.capture??0)+dt;
   else m.capture=0;
   if(m.capture>7)fail(m,'Police boxed you in. Retry from the motor pool.',p);
 }
@@ -377,6 +422,7 @@ export function viewMission(m,now) {
   return {stage:m.stage,checkpoint:m.checkpoint,paused:m.paused,failed:m.failed,health:m.health,carried:m.carried,
     ambushed:m.ambushed,exploded:m.exploded,wanted:m.wanted,spotted:m.spotted,closest:Number.isFinite(m.closest)?Math.round(m.closest):null,
     escape:m.lostAt===null?0:clamp((now-m.lostAt)/8,0,1),gun,slot:m.arm,reloading:m.reloadAt?Math.max(0,m.reloadAt-now):0,mark,
+    officers:m.police.flatMap(v=>(v.officers??[]).map(({id,side,x,z,yaw,mode,seat,at})=>({id,side,x,z,yaw,mode,seat,age:now-at}))),
     actors:m.actors.map(({id,kind,x,z,yaw,hp,maxHp,mode})=>({id,kind,x,z,yaw,hp,maxHp,mode})),
     vehicles:[...m.fleet.snapshot().map(v=>({...v,available:m.stage>=O.vehicle&&m.stage<=O.deliver})),...m.police.map(({id,type,x,z,yaw,speed,wheel,steering,occupants,mode})=>({id,type,x,z,yaw,speed,wheel,steering,occupants,police:true,mode,condition:100}))],
     report:m.report, reward:m.reward??null, saveError:m.saveError, events:m.events.splice(0)};

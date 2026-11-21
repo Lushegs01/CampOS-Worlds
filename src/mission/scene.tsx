@@ -14,6 +14,8 @@ import { surfaceHeight } from '../world/layout';
 import { VehicleModel } from '../world/Vehicles';
 import { useGetaway } from './client';
 import GetawayEffects from './effects';
+import Police from './Police';
+import BlastSite from './BlastSite';
 
 const CombatPresentation = lazy(() => import('./presentation'));
 
@@ -71,6 +73,7 @@ export default function GetawayScene({ lib }: { lib: Materials }) {
         <mesh position-y={.59} castShadow><cylinderGeometry args={[.45,.45,1.18,16]}/><meshStandardMaterial color="#a74c35" roughness={.65}/></mesh>
       </MeshAsset>
     </group>}
+    {blast&&stage!==null&&stage<O.safehouse&&<BlastSite/>}
     {blast&&stage!==null&&stage<O.safehouse&&<group name="getaway:fuel-wreck" position={[BARREL.x + .34,.27,BARREL.z + .29]} rotation-z={Math.PI / 2 + .18} scale={[.56,1,.64]}>
       <MeshAsset file="arena/props/barrel.glb" fit={[.91,1.18,.91]}/>
     </group>}
@@ -80,6 +83,6 @@ export default function GetawayScene({ lib }: { lib: Materials }) {
     </group>}
     {stage!==null&&(stage<=O.ambush||activeActors)&&<Suspense fallback={null}><CombatPresentation stage={stage}/></Suspense>}
     {vehicleIds.map(id=><VehicleModel key={id} id={id} type={vehicles?.find(v=>v.id===id)?.type??'car'}/>)}
-    <GetawayEffects stage={stage}/>
+    <Police/><GetawayEffects stage={stage}/>
   </>;
 }

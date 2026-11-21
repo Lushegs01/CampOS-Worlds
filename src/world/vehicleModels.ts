@@ -115,6 +115,8 @@ const shared = {
   amber: new THREE.MeshStandardMaterial({ name: 'indicator', color: '#e39a34', emissive: '#a35a00', emissiveIntensity: .2, roughness: .2 }),
   canopy: new THREE.MeshStandardMaterial({ name: 'canopy', color: '#f1eee6', roughness: .55 }),
 };
+const instrument = new THREE.MeshStandardMaterial({color:'#728c96',emissive:'#608b92',emissiveIntensity:.32,roughness:.28});
+const instrumentMark = new THREE.MeshStandardMaterial({color:'#dce5e6',emissive:'#9eb6b9',emissiveIntensity:.32,roughness:.4});
 const lens = new THREE.MeshPhysicalMaterial({ name: 'smoked lens', color: '#91a6a8', roughness: .17, metalness: .18, clearcoat: .8, transparent: true, opacity: .49, depthWrite: false });
 const grille = new THREE.MeshStandardMaterial({ name: 'radiator grille', color: '#333a3c', roughness: .46, metalness: .6 });
 const LIVERIES: Record<string, { paint: string; accent: string; metallic: number }> = {
@@ -368,10 +370,34 @@ function buildCar(id: string): VehicleModel {
   for (const s of [-1, 1]) p.box(shared.trim, [.55, .015, .02], [s * .28, .99, .9], [0, s * .12, 0], .006); // wipers
   // Cabin: dashboard, steering wheel on the left (LHD), seats and rear bench.
   p.box(shared.cabin, [1.5, .22, .45], [0, .86, .62], [-.25, 0, 0], .05);
-  p.add(shared.trim, new THREE.TorusGeometry(.18, .022, 8, 28), [t.seats[0][0], .98, .38], [-1.15, 0, 0]);
+  const wheelX=t.seats[0][0];
+  p.add(shared.trim,new THREE.TorusGeometry(.177,.018,10,32),[wheelX,.88,.354],[-.49,0,0]);
+  p.box(shared.cabin,[.265,.037,.033],[wheelX,.879,.354],[-.49,0,0],.013);
+  p.box(shared.cabin,[.044,.132,.03],[wheelX,.81,.393],[-.49,0,0],.012);
+  p.box(shared.trim,[.12,.079,.052],[wheelX,.88,.33],[-.49,0,0],.024);
+  p.box(shared.chrome,[.038,.009,.007],[wheelX,.88,.302],[-.49,0,0],.003);
   p.cylinder(shared.trim, .025, .3, [t.seats[0][0], .92, .48], [1.0, 0, 0], 8);
   for (const [x, z] of t.seats.slice(0, 2)) { p.box(shared.fabric, [.48, .12, .5], [x, t.seatHeight - .06, z + .03], [0, 0, 0], .05); p.box(shared.fabric, [.48, .62, .12], [x, t.seatHeight + .3, z - .27], [-.18, 0, 0], .05); p.box(shared.fabric, [.26, .16, .1], [x, t.seatHeight + .7, z - .33], [-.1, 0, 0], .04); }
   p.box(shared.fabric, [1.3, .12, .5], [0, t.seatHeight - .06, t.seats[2][1] + .04], [0, 0, 0], .05); p.box(shared.fabric, [1.3, .58, .12], [0, t.seatHeight + .28, t.seats[2][1] - .27], [-.2, 0, 0], .05);
+  // Gauge binnacle, three-piece dashboard, switch gear, door trim and belt anchors.
+  p.box(shared.trim,[.43,.141,.198],[t.seats[0][0],.986,.58],[0,0,0],.037);
+  p.box(instrument,[.305,.087,.015],[t.seats[0][0],.988,.477],[0,0,0],.016);
+  for(const sx of [-1,1]) {
+    const x=t.seats[0][0]+sx*.073;
+    const gauge=new THREE.RingGeometry(.021,.024,20).rotateY(Math.PI);
+    p.add(instrumentMark,gauge,[x,.994,.466]);
+    p.box(instrumentMark,[.003,.024,.006],[x,.989,.461],[0,0,-sx*.68]);
+  }
+  p.box(shared.trim,[.216,.208,.123],[0,.791,.383],[-.13,0,0],.029);
+  p.box(instrument,[.14,.075,.01],[0,.825,.318],[-.12,0,0],.012);
+  for (let i=-2;i<=2;i++)p.box(shared.chrome,[.014,.011,.007],[i*.029,.756,.313],[0,0,0],.002);
+  p.box(shared.fabric,[.172,.094,.41],[0,.552,-.17],[0,0,0],.031);
+  for(const side of [-1,1]) {
+    p.box(shared.cabin,[.063,.21,1.42],[side*.756,.68,.075],[0,0,0],.027);
+    p.box(shared.fabric,[.035,.09,.52],[side*.715,.75,.071],[0,0,0],.011);
+    p.box(shared.chrome,[.025,.028,.115],[side*.721,.819,.27],[0,0,0],.009);
+    p.box(shared.amber,[.034,.043,.058],[side*.14,.56,-.135],[0,0,0],.008);
+  }
   p.box(shared.cabin, [1.55, .05, 3.0], [0, .3, -.35], [0, 0, 0], .02); // floor pan
   p.build(body);
   const registration = response ? 'OR 806 RSP' : freight ? 'OR 624 FRG' : 'OR 214 CMP';

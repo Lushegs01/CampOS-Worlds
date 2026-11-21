@@ -1,3 +1,5 @@
+import { inHarbour } from '../../shared/harbour.mjs';
+import { inDistrict } from '../../shared/getaway.mjs';
 import { inDormRoom } from '../../shared/dorm.mjs';
 import { BUILDINGS, DRIVEWAYS, EXPANSION_PATHS, PARKING } from '../../shared/expansion.mjs';
 import { FOOTPRINTS, PITCH, inRect, isLawn, onPath } from '../world/layout';
@@ -14,10 +16,11 @@ export function surfaceAt(x: number, z: number): Surface {
   if (inDormRoom(x, z)) return 'wood';
   // Inside the campus walls everything that is not lawn or the pitch is paved or a floor.
   if (inCourtyard(x, z)) return isLawn(x, z) || inRect(x, z, PITCH) ? 'grass' : 'hard';
+  if (inHarbour(x, z) || (inDistrict(x,z) && x > 155 && x < 261 && z > -20 && z < 51)) return 'hard';
   if (onPath(x, z) || inRect(x, z, courtyardLot) || roadsideHeight(x, z) > 0 || CARRIAGEWAY.some(r => inRect(x, z, r))) return 'hard';
   if (OPEN_WORLD_HARD.some(r => centred(r, x, z)) || BUILDINGS.some(b => centred(b, x, z, .5))) return 'hard';
   return 'grass';
 }
 
 /** Under a roof: inside a campus building, a district building or your room (the outdoors is muffled there). */
-export const indoors = (x: number, z: number) => inDormRoom(x, z) || FOOTPRINTS.some(f => inRect(x, z, f)) || BUILDINGS.some(b => centred(b, x, z));
+export const indoors = (x: number, z: number) => inDormRoom(x, z) || (x > 177.3 && x < 204.7 && z > 1.3 && z < 23.7) || FOOTPRINTS.some(f => inRect(x, z, f)) || BUILDINGS.some(b => centred(b, x, z));
