@@ -7,6 +7,8 @@ Mobile rendering improvements, benchmark results, and the itel S24 test checklis
 
 SIG Sauer M7 (free battle rifle, modes, assets, validation): [implementation report](docs/M7-IMPLEMENTATION.md).
 
+Harbour Exchange and the Getaway visual update. [In-game comparisons and implementation notes](docs/VISUAL-REFERENCE-IMPLEMENTATION.md).
+
 Shadow Protocol: The Getaway visual slice (Bay 04, the Orisun freight yard, vehicles, and the warehouse encounter): [in-game comparisons and engineering report](docs/GETAWAY-VISUAL-DELIVERY.md).
 
 Operation: Metropolis rendering (sky and image-based light per weather, height fog, weathered and wet materials, interior-mapped windows, rain, street reflections, the Storm Break weather with light shafts and the rebuilt port, profiles and measurements): [photorealism report](docs/PHOTOREALISM.md).

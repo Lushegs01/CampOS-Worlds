@@ -103,10 +103,10 @@ function ActiveEffects() {
         if (e.normal) vector.fromArray(e.normal).normalize();
         else vector.negate();
         if (vector.y > .9 && end.y < .04) end.y = groundAt(end.x, end.y, end.z);
-        fx.impact(end, vector, e.surface ?? 'concrete');
+        fx.impact(end, vector, e.surface ?? 'concrete', false, e.weapon==='bastion' ? 1.35 : .88);
       }
     } else if (e.kind === 'blast') {
-      fx.explosion(at, 3.4);
+      fx.explosion(at, 3.4, true);
       motion.current.fireAt = now;
       motion.current.fireNext = now;
     } else if (e.kind === 'crash' && !reduced) {

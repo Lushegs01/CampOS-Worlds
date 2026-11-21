@@ -2,7 +2,7 @@ import { player, useGame } from '../state';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { VEHICLE_SPAWNS, VEHICLE_TYPES } from '../../shared/vehicles.mjs';
+import { WORLD_VEHICLE_SPAWNS, VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { vehicleVisuals, vehicleLift, tickVehicles, missionVehicleInfo, useVehicle } from '../vehicles/client';
 import { surfaceHeight } from './layout';
 import { buildVehicleModel, type VehicleType } from './vehicleModels';
@@ -126,5 +126,5 @@ function turn(o: THREE.Object3D, axis: 'x' | 'y' | 'z', angle: number) { if (Mat
 
 export default function Vehicles() {
   useFrame((_, raw) => tickVehicles(Math.min(raw, .25)), -2);
-  return <>{VEHICLE_SPAWNS.map(v => <VehicleModel key={v.id} id={v.id} type={v.type as VehicleType} />)}</>;
+  return <>{WORLD_VEHICLE_SPAWNS.map(v => <VehicleModel key={v.id} id={v.id} type={v.type as VehicleType} />)}</>;
 }

@@ -49,3 +49,13 @@
  .getaway-active .touch-actions .touch-action{width:auto;min-width:64px}.getaway-active .touch-actions .getaway-touch-fire{width:55px;height:55px}
  .getaway-keys{display:none}
 }
+
+.getaway-police-command{position:fixed;z-index:15;left:50%;bottom:max(13vh,72px);transform:translateX(-50%);margin:0;max-width:80vw;padding:.5rem .85rem;border-radius:.32rem;background:#111918eb;color:#f5f3ea;font-size:.92rem;text-align:center;pointer-events:none;white-space:nowrap}
+.getaway-police-command b{color:#acc9df;margin-right:.35rem}
+
+@media(pointer:coarse){
+ .touch-actions.combat-touch-actions{display:grid;grid-template-columns:repeat(3,48px);justify-items:center;align-items:end;gap:8px;padding-right:4px}
+ .getaway-active .combat-touch-actions .getaway-touch-fire{grid-column:3;grid-row:1;width:68px;height:68px;justify-self:end;border-radius:50%;background:#241d18db;border:2px solid #ffd299;color:#ffedd3;box-shadow:0 0 0 3px #1d211cb8,inset 0 0 0 2px #382a1c}
+ .getaway-active .combat-touch-actions .getaway-touch-fire:active{background:#8c4d2bf0}
+ .combat-touch-actions button[aria-pressed=true]{background:#635436e8;border-color:#ffda9c}
+}

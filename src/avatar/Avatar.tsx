@@ -1,3 +1,4 @@
+import { sign } from '../world/architecture/signage';
 import { fixtureCalibration } from '../../shared/primitive-calibration.mjs';
 import { characterAction, PRIMITIVES } from '../../shared/character-actions.mjs';
 import { GAITS, gaitTargets, gestureSpec, speedsScratch, type VehicleMotion } from '../animation/motion';
@@ -36,7 +37,7 @@ export type FixturePreview = {
 export interface AvatarMotion {
   authoring?:FixturePreview;
   speed: number; y: number; vy: number; emote?: string; emoteUntil?: number; turn?: number;
-  vehicleSeatHeight?:number|null; vehicleMotion?:VehicleMotion|null; vehicleSpeed?:number; sprinting?:boolean; sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
+  coverPose?: boolean; vehicleSeatHeight?:number|null; vehicleMotion?:VehicleMotion|null; vehicleSpeed?:number; sprinting?:boolean; sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
   /** Head turn towards someone, radians from straight ahead (campus characters looking at a player; src/npc). */
   gaze?: number;
 }
@@ -117,16 +118,21 @@ function skinTint(target: string, ref: [number, number, number]) {
 }
 
 /** Skin-tone shift driven by the baked skin mask in the roughness map's red channel. */
-function patchMaterial(material: THREE.MeshStandardMaterial, uniforms: { uSkinTint: { value: THREE.Vector3 } }) {
+function patchMaterial(material: THREE.MeshStandardMaterial, uniforms: { uSkinTint: { value: THREE.Vector3 } }, duty = false) {
   material.onBeforeCompile = shader => {
     shader.uniforms.uSkinTint = uniforms.uSkinTint;
     shader.fragmentShader = 'uniform vec3 uSkinTint;\n' + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       #ifdef USE_ROUGHNESSMAP
         float skinMask = smoothstep(.25, .75, texture2D(roughnessMap, vRoughnessMapUv).r);
         diffuseColor.rgb *= mix(vec3(1.), uSkinTint, skinMask);
+        ${duty ? 'diffuseColor.rgb *= mix(vec3(.20,.29,.41),vec3(1.),skinMask);' : ''}
+      #endif`).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      #ifdef USE_ROUGHNESSMAP
+        // The baked mask separates cloth roughness from the softer specular lobe of exposed skin.
+        roughnessFactor = mix(clamp(roughnessFactor + .08,.63,1.),clamp(roughnessFactor,.43,.67),skinMask);
       #endif`);
   };
-  material.customProgramCacheKey = () => 'avatar-skin';
+  material.customProgramCacheKey = () => duty ? 'avatar-duty-fabric' : 'avatar-skin';
 }
 
 /**
@@ -368,6 +374,32 @@ function accessoryMeshes(kind: string, accent: string, fit: HeadFit | BackFit) {
 }
 
 
+function dutyVest(rig: Rig) {
+  const spine = rig.bones.Bip01_Spine2;
+  if (!spine) return null;
+  const group = new THREE.Group();
+  group.userData.accessory = true;
+  const chest = rig.root.worldToLocal(spine.getWorldPosition(new THREE.Vector3()));
+  const y = chest.y + .028, z = chest.z + .125;
+  const add = (geometry: THREE.BufferGeometry, color: string, at: [number, number, number]) => {
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, roughness: .88 }));
+    mesh.position.set(...at);
+    mesh.castShadow = true;
+    group.add(mesh);
+  };
+  add(new RoundedBoxGeometry(.35,.34,.092,3,.042),'#202934',[0,y,z]);
+  add(new RoundedBoxGeometry(.3,.27,.061,3,.03),'#202934',[0,y,chest.z-.124]);
+  for (const side of [-1,1]) {
+    add(new RoundedBoxGeometry(.066,.055,.23,2,.022),'#263441',[side*.115,y+.16,chest.z]);
+    add(new RoundedBoxGeometry(.079,.123,.062,2,.015),'#2c3846',[side*.104,y-.078,z+.057]);
+    add(new RoundedBoxGeometry(.08,.065,.22,2,.021),'#263441',[side*.167,y-.068,chest.z]);
+  }
+  const patch = sign({text:'POLICE',kind:'panel',color:'#e5eaf0',background:'#263745',width:.182,height:.039,tracking:.085});
+  patch.position.set(0,y+.064,z+.048);
+  group.add(patch);
+  return group;
+}
+
 interface Rig { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; bones: Record<string, THREE.Bone>; rest: Map<string, THREE.Matrix4>; uniforms: { uSkinTint: { value: THREE.Vector3 } }; info: CharacterInfo; lib: Library; mapped:ReturnType<typeof mapCampusRig>; accessory: THREE.Object3D | null }
 
 const TMP_Q = new THREE.Quaternion(), AXIS_X = new THREE.Vector3(1, 0, 0), AXIS_Y = new THREE.Vector3(0, 1, 0), AXIS_Z = new THREE.Vector3(0, 0, 1);
@@ -375,7 +407,7 @@ const rotate = (bone: THREE.Object3D | undefined, axis: THREE.Vector3, angle: nu
 // Clips whose playback time the frame loop sets directly (gait phase, transitions, frozen poses).
 const SCRUBBED = [...LOCO, 'sitDown', 'standUp', 'holdArms', 'leftHold', 'armsUp', 'doorPush', 'doorPull', 'crouch'];
 
-function useRig(config: AvatarConfig): Rig {
+function useRig(config: AvatarConfig, duty: boolean): Rig {
   const all = suspend(loadCharacterManifest());
   const info = all.characters.find(c => c.id === config.model) ?? all.characters[0];
   const gltf = suspend(loadModel(`characters/${info.id}.glb`));
@@ -388,7 +420,7 @@ function useRig(config: AvatarConfig): Rig {
       if (!mesh.isMesh) return;
       mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
       const m = (mesh.material as THREE.MeshStandardMaterial).clone();
-      if (m.alphaTest > 0) { m.alphaTest = .4; m.side = THREE.DoubleSide; } else patchMaterial(m, uniforms);
+      if (m.alphaTest > 0) { m.alphaTest = .4; m.side = THREE.DoubleSide; } else patchMaterial(m, uniforms, duty && !/face|head|eye|teeth/i.test(m.name));
       m.envMapIntensity = .85;
       mesh.material = m;
     });
@@ -402,7 +434,7 @@ function useRig(config: AvatarConfig): Rig {
     for (const n of SCRUBBED) actions[n].timeScale = 0;
     actions.armsUp.time = lib.armsUpTime;
     return { root, mixer, actions, bones, rest, uniforms, info, lib, mapped:mapCampusRig(bones), accessory: null };
-  }, [gltf, lib]);
+  }, [gltf, lib, duty]);
   // (Re)start every clip on mount; StrictMode runs this cleanup once in development, so the
   // cleanup only stops actions and never uncaches the bindings the rig still owns.
   // Cleanup also releases the rig's own GPU resources (cloned materials, the skeleton's bone texture);
@@ -412,7 +444,8 @@ function useRig(config: AvatarConfig): Rig {
   // Customization: skin tone uniform and accessory attached to a bone in bind pose.
   useEffect(() => { rig.uniforms.uSkinTint.value.copy(skinTint(config.skin, rig.info.skinRef)); }, [rig, config.skin]);
   useEffect(() => {
-    if (config.accessory === 'none') return;
+    const accessory = duty ? 'cap' : config.accessory;
+    if (accessory === 'none') return;
     const boneName = config.accessory === 'backpack' ? 'Bip01_Spine2' : 'Bip01_Head', bone = rig.bones[boneName]; if (!bone) return;
     // Fit the accessory to the rest pose in the rig's space, then re-parent it to the bone.
     const saved = Object.values(rig.bones).map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()] as const);
@@ -424,13 +457,23 @@ function useRig(config: AvatarConfig): Rig {
     const back = config.accessory === 'backpack', key = `${rig.info.id}:${back ? 'back' : 'head'}`;
     let fit = fits.get(key); if (!fit) { fit = back ? backFit(rig) : headFit(rig); if (finite(fit)) fits.set(key, fit); }
     // A character the measurement cannot read goes without the accessory rather than without its body.
-    const mesh = finite(fit) ? accessoryMeshes(config.accessory, config.accent, fit) : null;
+    const mesh = finite(fit) ? accessoryMeshes(accessory, duty ? '#1d2a38' : config.accent, fit) : null;
+    const vest = duty ? dutyVest(rig) : null;
+    if (vest) { rig.root.add(vest); rig.root.updateMatrixWorld(true); rig.bones.Bip01_Spine2.attach(vest); }
     if (mesh) { rig.root.add(mesh); rig.root.updateMatrixWorld(true); bone.attach(mesh); }
     for (const [b, p, q, s] of saved) { b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); }
-    if (!mesh) return;
     rig.accessory = mesh;
-    return () => { mesh.removeFromParent(); mesh.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } }); rig.accessory = null; };
-  }, [rig, config.accessory, config.accent]);
+    return () => {
+      for (const equipment of [mesh, vest]) {
+        equipment?.removeFromParent();
+        equipment?.traverse(o => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); }
+        });
+      }
+      rig.accessory = null;
+    };
+  }, [rig, config.accessory, config.accent, duty]);
   return rig;
 }
 
@@ -485,14 +528,14 @@ const vehicleSit:SitState={seat:'vehicle',phase:'seated',t:0};
 const REACH=new THREE.Vector3(), ACTOR=new THREE.Vector3();
 const HAND_L = new THREE.Vector3(), HAND_R = new THREE.Vector3(), FWD = new THREE.Vector3(), RIGHT = new THREE.Vector3(), WQ = new THREE.Quaternion(), WP = new THREE.Vector3(), BOUNCE = new THREE.Vector3();
 
-export default function Avatar({ config, motion, preview = false, id }: { config: AvatarConfig; motion?: () => AvatarMotion; preview?: boolean; id?: string }) {
-  const rig = useRig(config);
+export default function Avatar({ config, motion, preview = false, id, duty = false }: { config: AvatarConfig; motion?: () => AvatarMotion; preview?: boolean; id?: string; duty?: boolean }) {
+  const rig = useRig(config, duty);
   const contact = useRef<THREE.Mesh>(null!), contactMat = useMemo(contactShadowMaterial, []);
   const footContacts=useMemo(createFootContacts,[]), target=useMemo(speedsScratch,[]);
   const vehicleSeat=useMemo(()=>({id:'vehicle',x:0,z:0,y:0,table:true,pull:0}),[]);
   const soundPosition=useMemo(()=>({x:0,y:0,z:0}),[]);
   const state = useRef({
-    phase: 0, weights: { idle: 1, walk: 0, jog: 0, run: 0, emote: 0 } as Record<string, number>, emote: '', air: 0, land: 0, wasAir: false, lean: 0, look: 0, nextLook: 6,
+    phase: 0, weights: { idle: 1, walk: 0, jog: 0, run: 0, emote: 0 } as Record<string, number>, emote: '', air: 0, land: 0, cover: 0, wasAir: false, lean: 0, look: 0, nextLook: 6,
     sitPhase: '', sitSeat: '', sitT: 0, settle: 0, out: 0, sitLook: 0, nextSitLook: 7,
     gesture: -1, gestureKind: '', gestureWeight:0, hold: 0, dribble: 0, dribbleW: 0, raise: 0, poseDt: 0, poseFrame: 0, cast: true, inAir: false,
   });
@@ -663,8 +706,13 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     s.gestureWeight=authoring?gestureW:THREE.MathUtils.damp(s.gestureWeight,gestureW,24,dt);gestureW=s.gestureWeight;
     for (const k of GESTURE_CLIPS) actions[k].setEffectiveWeight(spec?.clip === k ? gestureW * (1 - sitW) : 0);
 
+    s.cover = THREE.MathUtils.damp(s.cover, m.coverPose && !gestureW && speed < .35 ? .76 : 0, 12, dt);
+    if (s.cover > .002 && !gestureW) {
+      actions.crouch.time = .54;
+      actions.crouch.setEffectiveWeight(s.cover);
+    }
     const lookW = Math.sin(Math.min(1, s.look) * Math.PI) * s.weights.idle;
-    const rest = (1 - s.weights.emote) * (1 - sitW) * (1 - gestureW);
+    const rest = (1 - s.weights.emote) * (1 - sitW) * (1 - gestureW) * (1 - s.cover);
     actions.idle.setEffectiveWeight(s.weights.idle * rest * (1 - lookW)); actions.look.setEffectiveWeight(s.weights.idle * rest * lookW);
     for (const n of LOCO) actions[n].setEffectiveWeight(s.weights[n] * rest);
     for (const e of EMOTES) actions[e].setEffectiveWeight(e === s.emote ? s.weights.emote * (1 - sitW) : 0);

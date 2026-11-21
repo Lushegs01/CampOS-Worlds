@@ -168,27 +168,47 @@ export class Effects {
     const t = this.tracers[this.ti++ % this.tracers.length], len = from.distanceTo(to); if (len < 1) return;
     t.from.copy(from); t.dir.copy(to).sub(from).normalize(); t.len = len; t.t = 0; t.mesh.visible = true;
   }
-  impact(at: THREE.Vector3, normal: THREE.Vector3, kind: SurfaceKind, flesh = false) {
+  impact(at: THREE.Vector3, normal: THREE.Vector3, kind: SurfaceKind, flesh = false, markScale = 1) {
     const s = this.scale;
     if (flesh) { for (let i = 0; i < 6 * s + 2; i++) this.smoke.emit({ x: at.x, y: at.y, z: at.z, vx: (Math.random() - .5) * 1.5, vy: Math.random() * 1.2, vz: (Math.random() - .5) * 1.5, size: .08, grow: .5, life: .35, r: .55, g: .06, b: .05, a: .8, drag: 4 }); return; }
     const f = IMPACT[kind], n = normal;
     for (let i = 0; i < 4 * s + 2; i++) this.smoke.emit({ x: at.x, y: at.y, z: at.z, vx: n.x * (1 + Math.random() * 2) + (Math.random() - .5), vy: n.y * (1 + Math.random() * 2) + Math.random() * .8, vz: n.z * (1 + Math.random() * 2) + (Math.random() - .5), size: .07, grow: .8 + Math.random() * .6, life: .7 + Math.random() * .6, r: f.dust[0], g: f.dust[1], b: f.dust[2], a: .55, drag: 3.5, spin: (Math.random() - .5) * 2 });
     for (let i = 0; i < f.chips * s; i++) this.smoke.emit({ x: at.x, y: at.y, z: at.z, vx: n.x * 3 + (Math.random() - .5) * 4, vy: n.y * 3 + Math.random() * 3, vz: n.z * 3 + (Math.random() - .5) * 4, size: .018, life: .6, r: f.dust[0] * .6, g: f.dust[1] * .6, b: f.dust[2] * .6, a: 1, gravity: 9.8, drag: .5 });
     for (let i = 0; i < f.sparks * s; i++) this.glow.emit({ x: at.x, y: at.y, z: at.z, vx: n.x * 4 + (Math.random() - .5) * 7, vy: n.y * 4 + Math.random() * 4, vz: n.z * 4 + (Math.random() - .5) * 7, size: .025, life: .25 + Math.random() * .25, r: 1, g: .75, b: .35, a: 1, gravity: 9.8, drag: 1.5, stretch: 2 });
-    if (f.hole) this.decals.add(at, normal, f.hole * (.8 + Math.random() * .4), new THREE.Color(f.tint));
+    if (f.hole) this.decals.add(at, normal, f.hole * markScale * (.8 + Math.random() * .4), new THREE.Color(f.tint));
   }
   muzzle(at: THREE.Vector3, dir: THREE.Vector3) {
     for (let i = 0; i < 2 * this.scale + 1; i++) this.smoke.emit({ x: at.x + dir.x * .1, y: at.y + dir.y * .1, z: at.z + dir.z * .1, vx: dir.x * 1.2 + (Math.random() - .5) * .3, vy: .35 + Math.random() * .3, vz: dir.z * 1.2 + (Math.random() - .5) * .3, size: .06, grow: .5, life: .9, r: .7, g: .7, b: .7, a: .22, drag: 2 });
   }
-  explosion(at: THREE.Vector3, r: number) {
+  explosion(at: THREE.Vector3, r: number, fuel = false) {
     const s = this.scale;
-    for (let i = 0; i < 26 * s + 6; i++) { const a = Math.random() * 6.28, up = Math.random(); this.glow.emit({ x: at.x, y: at.y + .3, z: at.z, vx: Math.cos(a) * (2 + Math.random() * 6), vy: 1 + up * 6, vz: Math.sin(a) * (2 + Math.random() * 6), size: .5 + Math.random() * .6, grow: 1.5, life: .35 + Math.random() * .3, r: 1, g: .55 + Math.random() * .2, b: .2, a: .9, drag: 3 }); }
-    for (let i = 0; i < 20 * s + 6; i++) { const a = Math.random() * 6.28; this.smoke.emit({ x: at.x, y: at.y + .4, z: at.z, vx: Math.cos(a) * (1 + Math.random() * 3), vy: .8 + Math.random() * 3, vz: Math.sin(a) * (1 + Math.random() * 3), size: .9, grow: 1.2 + r * .1, life: 2.2 + Math.random() * 1.5, r: .22, g: .2, b: .19, a: .75, drag: 1.4, spin: (Math.random() - .5) }); }
+    for (let i = 0; i < 26 * s + 6; i++) {
+      const azimuth = Math.random() * Math.PI * 2, up = Math.random();
+      const x = Math.cos(azimuth), z = Math.sin(azimuth);
+      // A fuel flash has a broken outline from its first frame. As it rises, its lower edge drops away.
+      const fringe = fuel ? .21+up*.46 : 0;
+      this.glow.emit({
+        x:at.x+x*fringe, y:at.y+.3+(fuel?up*.56:0), z:at.z+z*fringe,
+        vx:x*(2+Math.random()*6), vy:1+up*6, vz:z*(2+Math.random()*6),
+        size:.5+Math.random()*.6, grow:1.5, life:.35+Math.random()*.3,
+        r:1, g:.55+Math.random()*.2, b:.2, a:fuel ? .69 : .9, drag:3,
+      });
+    }
+    for (let i = 0; i < 20 * s + 6; i++) {
+      const azimuth = Math.random() * Math.PI * 2, x = Math.cos(azimuth), z = Math.sin(azimuth);
+      const core = fuel ? .12 + Math.random()*.39 : 0;
+      this.smoke.emit({
+        x:at.x+x*core, y:at.y+.4+core, z:at.z+z*core,
+        vx:x*(1+Math.random()*3)+(fuel ? .46 : 0), vy:.8+Math.random()*(fuel?4.4:3), vz:z*(1+Math.random()*3),
+        size:fuel?1.02:.9, grow:1.2+r*.1, life:2.2+Math.random()*1.5,
+        r:fuel ? .17 : .22, g:fuel ? .15 : .2, b:fuel ? .135 : .19, a:.75, drag:1.4, spin:Math.random()-.5,
+      });
+    }
     for (let i = 0; i < 18 * s; i++) { const a = Math.random() * 6.28; this.smoke.emit({ x: at.x, y: at.y + .2, z: at.z, vx: Math.cos(a) * (4 + Math.random() * 6), vy: 3 + Math.random() * 6, vz: Math.sin(a) * (4 + Math.random() * 6), size: .04, life: 1.4, r: .12, g: .11, b: .1, a: 1, gravity: 9.8, drag: .3 }); }
     // The ground ring of dust and the scorch mark sit on whatever the blast stood on.
     const floor = this.groundAt(at.x, at.y + .3, at.z);
     for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; this.smoke.emit({ x: at.x, y: floor + .15, z: at.z, vx: Math.cos(a) * 7, vy: .2, vz: Math.sin(a) * 7, size: .5, grow: 1.5, life: 1.2, r: .55, g: .5, b: .42, a: .45, drag: 2.5 }); }
-    if (at.y - floor < 1.5) this.decals.add(new THREE.Vector3(at.x, floor + .01, at.z), new THREE.Vector3(0, 1, 0), r * .5, new THREE.Color('#2a2622'));
+    if (!fuel && at.y - floor < 1.5) this.decals.add(new THREE.Vector3(at.x, floor + .01, at.z), new THREE.Vector3(0, 1, 0), r * .5, new THREE.Color('#2a2622'));
     this.light.position.copy(at).setY(at.y + 1); this.lightT = .45;
   }
   smokeCloud(at: THREE.Vector3, r: number, seconds: number) {

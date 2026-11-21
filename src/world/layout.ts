@@ -1,3 +1,4 @@
+import { onHarbourBlock } from '../../shared/harbour.mjs';
 import { LAB_PATH } from '../../shared/economic-lab.mjs';
 import { COLLIDERS, FOOTPRINTS, TREES } from '../../shared/campus.mjs';
 import { roadsideHeight } from './roads';
@@ -79,6 +80,7 @@ export const BEDS: Bed[] = [
 /** Finished-surface height under a point, so feet rest on paving rather than sinking into it. */
 const GALLERIES = [{ x0: 31, x1: 53, z0: -36.55, z1: -34 }, { x0: 31.3, x1: 37.5, z0: -43, z1: -36.4 }, { x0: -62, x1: -42, z0: -38.9, z1: -36.5 }];
 export function surfaceHeight(x: number, z: number) {
+  if (onHarbourBlock(x, z)) return .125;
   // Beyond the courtyard walls only the open-world sidewalks and kerbs are raised.
   if (Math.abs(x) > 91 || z > 59.7 || z < -66) return roadsideHeight(x, z);
   if (inRect(x,z,{x0:-64,x1:-46,z0:17,z1:27})) return .03;

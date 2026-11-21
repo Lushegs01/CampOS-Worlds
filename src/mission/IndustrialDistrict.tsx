@@ -70,6 +70,8 @@ function WarehouseLights({ detailed, low }: { detailed: boolean; low: boolean })
   return <>
     <pointLight position={[191, 5.65, 8]} color="#fff0d6" intensity={detailed ? 64 : 51} distance={11.6} decay={2}/>
     {detailed && <pointLight position={[191, 5.65, 17]} color="#ffe6c4" intensity={49} distance={10.8} decay={2}/>}
+    <pointLight position={[182.9,4.2,3.3]} color="#cce0ed" intensity={33} distance={8} decay={2}/>
+    <pointLight position={[199.1,3.55,2.45]} color="#ffd7a3" intensity={34} distance={7.4} decay={2}/>
   </>;
 }
 
@@ -103,6 +105,7 @@ const DRESSING: { file: string; at: XYZ; yaw?: number; fine?: boolean }[] = [
   {file: 'cardboard', at: [182.2, 1.2, 10.18], yaw: -.2, fine: true},
   {file: 'plasticCrate', at: [198.21, 1.35, 16.07], yaw: -.12, fine: true},
   {file: 'handTruck', at: [186.7, 0, 1.88], yaw: -Math.PI / 2, fine: true},
+  {file: 'powerBox', at: [187.55, 1.08, 1.74], yaw: 0},
   {file: 'roofVent', at: [235, 8, 10.15], yaw: Math.PI / 2, fine: true},
 ];
 
@@ -164,7 +167,17 @@ export default memo(function IndustrialDistrict({ lib }: { lib: Materials }) {
       </MeshAsset>
     </group>
     <FreightSigns/>
+    <MeshAsset file="harbour/freight-gantry.glb" cast={!low}
+      surfaces={{yellowPaint:lib.paintYellow,darkSteel:lib.darkMetal,concrete:surfaces.concrete}}/>
     <WarehouseLights detailed={detailed} low={low}/>
+    <group name="getaway:maintenance-walkway">
+      <mesh geometry={UNIT_BOX} material={lib.darkMetal} position={[191,4.23,2.51]} scale={[26.5,.16,1.52]} dispose={null} castShadow receiveShadow/>
+      {[4.7,5.19].map(y=><mesh key={y} geometry={UNIT_BOX} material={lib.paintYellow} position={[191,y,3.22]} scale={[26.5,.048,.048]} dispose={null} castShadow/> )}
+      {[178,181.25,184.5,187.75,191,194.25,197.5,200.75,204].map(x=><group key={x}>
+        <mesh geometry={UNIT_BOX} material={lib.paintYellow} position={[x,4.69,3.22]} scale={[.052,.95,.052]} dispose={null} castShadow/>
+        <mesh geometry={UNIT_BOX} material={lib.darkMetal} position={[x,4.05,2.48]} scale={[.13,.21,1.67]} dispose={null} castShadow/>
+      </group>)}
+    </group>
     {[4, 10, 17, 23].map(z => <group key={z} position={[191, 6.2, z]}><MeshAsset file="getaway/warehouseTruss.glb"/></group>)}
     {INDUSTRIAL_SOLIDS.map((solid, index) => {
       const { kind, x, z, w, d, h } = solid;

@@ -70,3 +70,12 @@ The new original assets were authored for CampOS Worlds. Their source is `blende
 - **Reused Rocketbox avatars and animations** include the selectable campus player, Sade and two military rigs. Microsoft Rocketbox is MIT, copyright © 2020 Microsoft. The male locomotion library is shared with campus and Arena. [Character and rig credits](ASSETS.md)
 - **Reused licensed weapon and arms meshes** include the Sparrow, Vanguard, Bastion and rigged gloves. Sources, CC0 and CC BY 4.0 terms, and attribution are recorded for each exact model in the existing inventory. [Weapon and arm credits](ASSETS.md#weapons-and-first-person-arms)
 - **Acquisition review** covered Quixel Megascans listings and Fab’s terms for incorporated assets, along with Poly Haven’s CC0 terms. The slice uses the repository’s existing world-ready scans, optimized derivatives and original assets. [Quixel catalogue](https://www.fab.com/sellers/Quixel%20Megascans) · [Fab Standard License](https://www.fab.com/eula) · [Poly Haven license](https://polyhaven.com/license)
+
+### Harbour Exchange source and scene binding
+
+| Runtime asset | Source | Use |
+| --- | --- | --- |
+| `harbour/block-{0,1,2}-{0,1,2}.glb` | `blender/source/harbour_exchange.blend` | Commercial façades, roof equipment, recesses, shop displays, sidewalks and curb edges. Streaming and shared parcel footprints come from `shared/harbour.mjs`. |
+| `harbour/freight-gantry.glb` | Same Blender scene | Freight-yard crane. Its supporting feet are shared collision geometry in `shared/getaway.mjs`. |
+
+The Blender scenes contain original CampOS geometry. Both environments use the existing licensed texture library. See [asset licenses](ASSETS.md) for the Poly Haven surface sets, Rocketbox character rigs and motion clips, and Arena weapons and props.

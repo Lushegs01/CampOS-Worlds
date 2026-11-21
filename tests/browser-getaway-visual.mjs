@@ -16,6 +16,7 @@ const viewport = { width: 1280, height: 800 };
 const profile = process.env.GETAWAY_PROFILE ?? 'high';
 const timing = process.env.GETAWAY_TIMING === '1';
 const combatOnly = process.env.GETAWAY_COMBAT_ONLY === '1';
+const blastOnly = process.env.GETAWAY_BLAST_FRAME === '1';
 try {
   await mkdir(output, { recursive: true });
   const user = await account(stack, 'visualqa', 'Visual QA', 'tunde');
@@ -49,6 +50,30 @@ try {
   }
   const metrics = { profile, viewport, timing, sample: timing ? 'Live renderer on requestAnimationFrame' : 'Single-frame capture', views: {}, failedAssets, errors };
   async function capture(name, position, target) {
+    if (blastOnly && name !== 'fuel-blast') return;
+    if (blastOnly) {
+      const available = await page.waitForFunction(({position,target})=>{
+        const gl=window.__campusGL, camera=window.__campusCamera, scene=window.__campusScene;
+        const wreck=scene.getObjectByName('getaway:fuel-wreck');
+        const effects=scene.getObjectByName('getaway:effects');
+        if(!wreck||!effects?.children.some(mesh=>mesh.isInstancedMesh&&mesh.visible&&
+          mesh.geometry.getAttribute('aColor')?.array.some((value,index)=>index%4===3&&value>.12)))return false;
+        camera.position.set(...position);
+        camera.lookAt(...target);
+        gl.info.reset();
+        if(window.__campusComposer)window.__campusComposer.render(1/60);
+        else gl.render(scene,camera);
+        return {frame:gl.domElement.toDataURL('image/jpeg',.93).split(',')[1],camera:camera.position.toArray(),target,
+          wreck:!!scene.getObjectByName('getaway:fuel-wreck'),fallout:!!scene.getObjectByName('getaway:blast-site'),
+          draw:{...gl.info.render}};
+      },{position,target},{timeout:25000});
+      const {frame,...details}=await available.jsonValue();
+      assert.equal(details.wreck,true);
+      await writeFile(`${output}/${name}.jpg`,Buffer.from(frame,'base64'));
+      metrics.views[name]=details;
+      console.log(name,JSON.stringify(details));
+      return;
+    }
     await page.waitForFunction(() => window.__campusLoads() === 0);
     const info = await page.evaluate(({ position, target, timing }) => {
       const gl = window.__campusGL, camera = window.__campusCamera, scene = window.__campusScene;
@@ -154,7 +179,8 @@ try {
     Object.assign(actor().getaway, { stage: O.ambush, checkpoint: O.ambush, carried: true, actors: [] });
     await place(191, 29.5);
     for (const enemy of actor().getaway.actors) enemy.nextShot = Date.now() / 1000 + 180;
-    await page.waitForFunction(async () => {
+    if (blastOnly) actor().getaway.blastAt=Date.now()/1000+1.4;
+    else await page.waitForFunction(async () => {
       const mission = (await import('/src/mission/client.ts')).useGetaway.getState().mission;
       const pool = window.__campusScene.getObjectByName('getaway:effects');
       return mission?.exploded

@@ -1,3 +1,4 @@
+import { HARBOUR_BUILDINGS, HARBOUR_PARKING, HARBOUR_TRAFFIC, harbourTrafficInput, isHarbourTraffic } from './harbour.mjs';
 import { blocked, FOOTPRINTS } from './campus.mjs';
 import { BUILDINGS, DISTRICTS, COURTYARD_PARKING } from './expansion.mjs';
 import { DORM_ROOM } from './dorm.mjs';
@@ -12,7 +13,7 @@ export const VEHICLE_TYPES = {
 };
 // Parked nose-out in marked bays so drivers pull straight out onto the road.
 /** @type {{id:string,type:keyof typeof VEHICLE_TYPES,x:number,z:number,yaw:number}[]} */
-export const VEHICLE_SPAWNS=[{id:'courtyard-car',type:'car',x:COURTYARD_PARKING.x-4.5,z:63,yaw:Math.PI},...DISTRICTS.flatMap((d,i)=>[{id:`${d.id}-shuttle`,type:'shuttle',x:d.x+24,z:d.z+28,yaw:Math.PI},{id:`${d.id}-local`,type:i%2?'cart':'car',x:d.x+36,z:d.z+28,yaw:Math.PI}])];
+export const VEHICLE_SPAWNS=[{id:'courtyard-car',type:'car',x:COURTYARD_PARKING.x-4.5,z:63,yaw:Math.PI},...HARBOUR_PARKING,...DISTRICTS.flatMap((d,i)=>[{id:`${d.id}-shuttle`,type:'shuttle',x:d.x+24,z:d.z+28,yaw:Math.PI},{id:`${d.id}-local`,type:i%2?'cart':'car',x:d.x+36,z:d.z+28,yaw:Math.PI}])];
 export function localPoint(v,x,z){return {x:v.x+x*Math.cos(v.yaw)+z*Math.sin(v.yaw),z:v.z-x*Math.sin(v.yaw)+z*Math.cos(v.yaw)};}
 export function seatAnchor(v,index){const t=VEHICLE_TYPES[v.type],s=t.seats[index];return {...localPoint(v,...s),y:t.seatHeight,yaw:v.yaw};}
 export function vehicleContains(v,x,z,pad=.3){const dx=x-v.x,dz=z-v.z,t=VEHICLE_TYPES[v.type],c=Math.cos(v.yaw),s=Math.sin(v.yaw);return Math.abs(dx*c-dz*s)<t.width/2+pad&&Math.abs(dx*s+dz*c)<t.length/2+pad;}
@@ -20,7 +21,7 @@ export function vehicleContains(v,x,z,pad=.3){const dx=x-v.x,dz=z-v.z,t=VEHICLE_
 // districts. Walls, trees, fences and people block them; they never enter a building (or your room), and
 // stay off the fenced basketball court, where a parked car would block a game.
 const span_=r=>({x:(r.x0+r.x1)/2,z:(r.z0+r.z1)/2,w:r.x1-r.x0,d:r.z1-r.z0});
-export const NO_DRIVE=[...FOOTPRINTS.map(span_),...BUILDINGS,span_(DORM_ROOM),span_(COURT)];
+export const NO_DRIVE=[...FOOTPRINTS.map(span_),...BUILDINGS,...HARBOUR_BUILDINGS,span_(DORM_ROOM),span_(COURT)];
 /** False where any part of a vehicle `pad` metres round this point would be inside a building or on the court. */
 export function drivable(x,z,pad=0){return !NO_DRIVE.some(r=>Math.abs(x-r.x)<r.w/2+pad&&Math.abs(z-r.z)<r.d/2+pad);}
 const fail=reason=>({ok:false,reason});
@@ -50,13 +51,15 @@ export function vehicleBlocked(v,all,players=[]){
  }
  return players.some(p=>!p.vehicle&&vehicleContains(v,p.x,p.z,.35));
 }
-export function createFleet(spawns=VEHICLE_SPAWNS,{onImpact=null, obstacles=null}={}){
+export const WORLD_VEHICLE_SPAWNS=[...VEHICLE_SPAWNS,...HARBOUR_TRAFFIC.map(({id,type,x,z,yaw})=>({id,type,x,z,yaw}))];
+export function createFleet(spawns=WORLD_VEHICLE_SPAWNS,{onImpact=null, obstacles=null}={}){
  const vehicles=spawns.map(s=>({...s,speed:0,steering:0,wheel:0,occupants:VEHICLE_TYPES[s.type].seats.map(()=>/** @type {string|null} */(null)),input:blank(),inputAt:0,idle:0}));
  const allVehicles=()=>obstacles?[...vehicles,...obstacles()]:vehicles;
  const find=id=>vehicles.find(v=>v.id===id);
  // Per-vehicle command authority (shared/driving.mjs). A new epoch makes any in-flight commands obsolete.
  // simAt: the room time the vehicle's state represents. Commands arrive in bursts, so a driven vehicle's
  // state can trail the room's clock; snapshots carry it (stateTime) so others draw steady motion.
+ const trafficRoutes=new Map();
  const drives=new Map(),authority=v=>{let a=drives.get(v.id);if(!a)drives.set(v.id,a={epoch:1,seq:0,budget:0,at:null,commandAt:-Infinity,driver:null,simAt:Date.now()});return a;};
  const restart=(v,now=Date.now())=>{const a=authority(v);a.epoch++;a.seq=0;a.budget=0;a.at=now;a.commandAt=-Infinity;a.driver=v.occupants[0];a.simAt=now;};
  const commanded=(v,now)=>now-(drives.get(v.id)?.commandAt??-Infinity)<DRIVE_STALE;
@@ -65,13 +68,13 @@ export function createFleet(spawns=VEHICLE_SPAWNS,{onImpact=null, obstacles=null
  function home(v,players){const spawn=spawns.find(s=>s.id===v.id);if(vehicleBlocked({...v,...spawn},allVehicles(),players))return false;Object.assign(v,spawn,{speed:0,steering:0,input:blank(),idle:0});restart(v);sync(v,players);return true;}
  return {vehicles,find,
   snapshot:()=>vehicles.map(({input,inputAt,idle,...v})=>({...v,occupants:[...v.occupants]})),
-  enter(p,id,seat=0){const v=find(id);if(!v||!Number.isInteger(seat)||seat<0||seat>=v.occupants.length)return fail('Unknown vehicle seat.');if(p.vehicle||p.seat||p.ball||p.y>.05)return fail('Stand up and put down the ball first.');if(v.occupants[seat])return fail('That seat is taken.');if(Math.abs(v.speed)>.5)return fail('Wait for the vehicle to stop.');const t=VEHICLE_TYPES[v.type],a=localPoint(v,(t.seats[seat][0]<0?-1:1)*(t.width/2+.65),t.seats[seat][1]);if(Math.hypot(p.x-a.x,p.z-a.z)>3)return fail('Approach a vehicle door.');v.occupants[seat]=p.id;p.vehicle=v.id;p.vehicleSeat=seat;p.input={dx:0,dz:0};v.idle=0;if(seat===0)restart(v);sync(v,[p]);return {ok:true};},
+  enter(p,id,seat=0){const v=find(id);if(!v||isHarbourTraffic(id)||!Number.isInteger(seat)||seat<0||seat>=v.occupants.length)return fail('Unknown vehicle seat.');if(p.vehicle||p.seat||p.ball||p.y>.05)return fail('Stand up and put down the ball first.');if(v.occupants[seat])return fail('That seat is taken.');if(Math.abs(v.speed)>.5)return fail('Wait for the vehicle to stop.');const t=VEHICLE_TYPES[v.type],a=localPoint(v,(t.seats[seat][0]<0?-1:1)*(t.width/2+.65),t.seats[seat][1]);if(Math.hypot(p.x-a.x,p.z-a.z)>3)return fail('Approach a vehicle door.');v.occupants[seat]=p.id;p.vehicle=v.id;p.vehicleSeat=seat;p.input={dx:0,dz:0};v.idle=0;if(seat===0)restart(v);sync(v,[p]);return {ok:true};},
   exit(p,players=[]){const v=find(p.vehicle);if(!v)return fail('You are not in a vehicle.');if(Math.abs(v.speed)>.5)return fail('Stop before exiting.');const t=VEHICLE_TYPES[v.type],sz=t.seats[p.vehicleSeat]?.[1]??0,side=(t.seats[p.vehicleSeat]?.[0]??-1)<0?-1:1;
    const points=[localPoint(v,side*(t.width/2+.8),sz),localPoint(v,-side*(t.width/2+.8),sz),localPoint(v,0,-t.length/2-1),localPoint(v,0,t.length/2+1)];
    const q=points.find(q=>!blocked(q.x,q.z)&&!allVehicles().some(o=>vehicleContains(o,q.x,q.z,.35))&&!players.some(o=>o.id!==p.id&&!o.vehicle&&Math.hypot(o.x-q.x,o.z-q.z)<.65));if(!q)return fail('No safe exit. Move to an open parking bay.');
    v.occupants[p.vehicleSeat]=null;if(p.vehicleSeat===0){v.input=blank();v.speed=0;restart(v);}Object.assign(p,q,{vehicle:null,vehicleSeat:null,y:0,vy:0,vx:0,vz:0});return {ok:true,...q};},
   control(p,m,now=Date.now()){const v=find(p.vehicle);if(!v||v.occupants[0]!==p.id)return fail('Only the driver can control this vehicle.');if(![m.throttle,m.steer].every(Number.isFinite))return fail('Invalid input.');v.input={throttle:Math.max(-1,Math.min(1,m.throttle)),steer:Math.max(-1,Math.min(1,m.steer)),brake:m.brake===true};v.inputAt=now;return {ok:true};},
-  recover(p,players=[]){const v=find(p.vehicle)||vehicles.find(v=>Math.hypot(p.x-v.x,p.z-v.z)<5&&!v.occupants.some(Boolean));if(!v)return fail('Approach an empty vehicle or sit in the driver seat.');if(v.occupants.some((id,i)=>id&&(i!==0||id!==p.id))||Math.abs(v.speed)>.5)return fail('Stop and let passengers exit before recovery.');return home(v,players)?{ok:true}:fail('The home bay is occupied. Try again when it is clear.');},
+  recover(p,players=[]){const v=find(p.vehicle)||vehicles.find(v=>!isHarbourTraffic(v.id)&&Math.hypot(p.x-v.x,p.z-v.z)<5&&!v.occupants.some(Boolean));if(!v)return fail('Approach an empty vehicle or sit in the driver seat.');if(v.occupants.some((id,i)=>id&&(i!==0||id!==p.id))||Math.abs(v.speed)>.5)return fail('Stop and let passengers exit before recovery.');return home(v,players)?{ok:true}:fail('The home bay is occupied. Try again when it is clear.');},
   release(p){for(const v of vehicles){const driver=v.occupants[0]===p.id;v.occupants=v.occupants.map(id=>id===p.id?null:id);if(driver){v.speed=0;v.input=blank();restart(v);}}p.vehicle=null;p.vehicleSeat=null;},
   /**
    * Sequenced commands from the driver: each is applied for its own duration, in order, once. Time is the
@@ -91,7 +94,16 @@ export function createFleet(spawns=VEHICLE_SPAWNS,{onImpact=null, obstacles=null
   driveState(id){const v=find(id);if(!v)return null;const a=authority(v);return {version:DRIVE_VERSION,epoch:a.epoch,seq:a.seq,x:v.x,z:v.z,yaw:v.yaw,speed:v.speed,steering:v.steering,wheel:v.wheel};},
   /** Room time (ms) that a vehicle's current state represents. */
   stateTime(id,now=Date.now()){const v=find(id);return v&&commanded(v,now)?drives.get(id).simAt:now;},
-  step(dt,players,now=Date.now()){dt=Math.min(.25,Math.max(0,dt));for(const v of vehicles){const active=v.occupants[0]&&now-v.inputAt<DRIVE_STALE,i=active?v.input:blank();
+  step(dt,players,now=Date.now()){dt=Math.min(.25,Math.max(0,dt));for(const v of vehicles){
+    if(isHarbourTraffic(v.id)){
+     if(players.some(p=>Math.hypot(p.x-v.x,p.z-v.z)<170)){
+      const input=harbourTrafficInput(v,trafficRoutes.get(v.id)??0);
+      trafficRoutes.set(v.id,input.index);
+      advance(v,input,dt,allVehicles(),players);
+     }else v.speed=0;
+     continue;
+    }
+    const active=v.occupants[0]&&now-v.inputAt<DRIVE_STALE,i=active?v.input:blank();
     // A driver sending commands moves the vehicle with them (drive); the timer only covers everyone else,
     // and a driver whose commands have stopped arriving (the vehicle then brakes, as before).
     if(!commanded(v,now)){advance(v,i,dt,allVehicles(),players,onImpact);const a=drives.get(v.id);if(a)a.simAt=now;}

@@ -2,7 +2,7 @@ import { TouchCombat } from '../mission/Hud';
 import { activeCombat, useGetaway } from '../mission/client';
 import { useVehicle, vehicleInteract, vehicleAction } from '../vehicles/client';
 import { useEffect, useRef } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, View } from 'lucide-react';
 import { input, useGame } from '../state';
 import { TouchInteract } from './Interaction';
 import { useInteraction } from '../interaction/world';
@@ -40,6 +40,6 @@ export default function TouchControls() {
         // Pointer events bypass React reconciliation while steering.
         if (knob.current) knob.current.style.transform = `translate(${x / d}px, ${y / d}px)`;
       }} onPointerUp={releaseMove} onPointerCancel={releaseMove} onLostPointerCapture={releaseMove}><span ref={knob} /></div>}
-    <div className="touch-actions">{vehicle?<button onClick={vehicleInteract} aria-label="Exit vehicle">Exit</button>:<TouchInteract />}{vehicle&&<button onClick={()=>vehicleAction('vehicleRecover')}>Recover</button>}{!vehicle&&combat&&<TouchCombat/>}{!vehicle && !ball && !seated && !combat && <button aria-label="Jump" onPointerDown={() => { input.jump = true; }}><ArrowUp size={20} /><span>Jump</span></button>}</div>
+    <div className={`touch-actions${combat&&!vehicle?' combat-touch-actions':''}`}>{vehicle?<button onClick={vehicleInteract} aria-label="Exit vehicle">Exit</button>:<TouchInteract />}{vehicle&&<button aria-label="Switch camera" onClick={()=>useGame.getState().set({firstPerson:!useGame.getState().firstPerson})}><View size={18}/><span>View</span></button>}{vehicle&&<button onClick={()=>vehicleAction('vehicleRecover')}>Recover</button>}{!vehicle&&combat&&<TouchCombat/>}{!vehicle && !ball && !seated && !combat && <button aria-label="Jump" onPointerDown={() => { input.jump = true; }}><ArrowUp size={20} /><span>Jump</span></button>}</div>
   </div>;
 }

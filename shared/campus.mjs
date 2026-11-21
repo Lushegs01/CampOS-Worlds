@@ -1,3 +1,4 @@
+import { HARBOUR_BUILDINGS, HARBOUR_FURNITURE, HARBOUR_LOCATION } from './harbour.mjs';
 import { INDUSTRIAL_LOCATION, INDUSTRIAL_SOLIDS } from './getaway.mjs';
 import { LAB_LOCATION, LAB_WALLS, LOGISTICS_SITES } from './economic-lab.mjs';
 import { WORLD_LIMIT, EXPANSION_LOCATIONS, EXPANSION_WALLS, ROADSIDE_TREES, BELT_TREES } from './expansion.mjs';
@@ -9,7 +10,7 @@ export const BRAND = { name: 'CampOS', product: 'Worlds', campus: 'Òrìṣun Ca
 // Spawn on the main avenue, facing north towards The Confluence and Horizon Auditorium.
 export const SPAWN = { x: 0, y: 0, z: 36 };
 export const LOCATIONS = [
- ...EXPANSION_LOCATIONS, LAB_LOCATION, INDUSTRIAL_LOCATION,
+ ...EXPANSION_LOCATIONS, LAB_LOCATION, INDUSTRIAL_LOCATION, HARBOUR_LOCATION,
  {id:'orientation',name:'Welcome Pavilion',type:'Orientation',x:-12,z:26,icon:'compass',description:'Your first steps, made a little easier.'},
  {id:'landmark',name:'The Confluence',type:'Landmark',x:0,z:8,icon:'sparkles',description:'Different paths. A shared future.'},
  {id:'library',name:'Adunni Learning Commons',type:'Library',x:-24.5,z:-1.6,icon:'book',description:'Room for your next big idea.'},
@@ -61,7 +62,7 @@ const LIBRARY = [
  {x:-22.5,z:-7.5,w:3.1,d:.95,h:1.1},{x:-20.95,z:-8.4,w:.95,d:1.9,h:1.1},{x:-30,z:-23.2,w:2.2,d:.7,h:1},
 ];
 export const COLLIDERS = [
- ...EXPANSION_WALLS, ...LAB_WALLS, ...INDUSTRIAL_SOLIDS,
+ ...EXPANSION_WALLS, ...LAB_WALLS, ...INDUSTRIAL_SOLIDS, ...HARBOUR_BUILDINGS, ...HARBOUR_FURNITURE,
  ...LOGISTICS_SITES.map(s=>({x:s.x+.9,z:s.z,w:.55,d:.4,h:1.4})),
  // The residents' wing behind Palm House (shared/dorm.mjs).
  ...DORM_WALLS,
