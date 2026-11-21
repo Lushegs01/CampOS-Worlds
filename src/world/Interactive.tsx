@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { doorContacts } from '../animation/contacts';
+import { doorHandle } from '../../shared/character-actions.mjs';
 import { DOORS, SEATS, LIBRARY_COMPUTERS } from '../../shared/interactions.mjs';
 import { BALL_R } from '../../shared/ball.mjs';
 import { doorOpen } from '../../shared/campus.mjs';
@@ -20,7 +22,7 @@ import { freeze, prepare } from './rendering';
 
 // ------------------------------------------------------------------ doors
 const OPEN_ANGLE = 1.45; // ~83°: the leaf stops short of the wall
-function leafMeshes(lib: Materials, len: number, height: number, glass: boolean, dir: number) {
+function leafMeshes(lib: Materials, len: number, height: number, glass:boolean,dir:number,handle:ReturnType<typeof doorHandle>) {
   const g = new THREE.Group(), box = (mat: THREE.Material, x: number, y: number, z: number, w: number, h: number, d: number) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
   const c = dir * len / 2;
   if (glass) {
@@ -30,13 +32,13 @@ function leafMeshes(lib: Materials, len: number, height: number, glass: boolean,
     box(lib.bronzeFrame, c, height - .04, 0, len, .08, .05); box(lib.bronzeFrame, c, .07, 0, len, .14, .05);
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(len - 2 * s, height - .22), lib.glassClear); pane.position.set(c, height / 2 + .03, 0); g.add(pane);
     const back = pane.clone(); back.rotation.y = Math.PI; g.add(back);
-    for (const z of [-.06, .06]) { box(lib.chrome, dir * (len * .55), 1.05, z, len * .7, .035, .035); for (const x of [len * .22, len * .88]) box(lib.chrome, dir * x, 1.05, z * .6, .025, .025, .05); }
+    for (const z of [-.06, .06]) { box(lib.chrome,handle.x,handle.y,Math.sign(z)*handle.z,len*.7,.035,.035); for(const x of [-.33,.33])box(lib.chrome,handle.x+dir*x*len,handle.y,Math.sign(z)*handle.z*.6,.025,.025,.05); }
   } else {
     // Painted timber leaf with a narrow vision panel and lever handles.
     box(lib.paintGreen, c, height / 2, 0, len - .02, height, .045);
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(.18, .7), lib.glassClear); pane.position.set(dir * (len - .3), 1.55, .024); g.add(pane);
     const back = pane.clone(); back.rotation.y = Math.PI; back.position.z = -.024; g.add(back);
-    for (const z of [-.05, .05]) { box(lib.chrome, dir * (len - .1), 1.02, z, .03, .03, .05); box(lib.chrome, dir * (len - .16), 1.02, z * 1.35, .14, .022, .022); }
+    for (const z of [-.05, .05]) { box(lib.chrome,handle.x+dir*.06,handle.y,Math.sign(z)*handle.z/1.35,.03,.03,.05);box(lib.chrome,handle.x,handle.y,Math.sign(z)*handle.z,.14,.022,.022); }
   }
   return g;
 }
@@ -45,11 +47,25 @@ export function Doors({ lib, distance }: { lib: Materials; distance: number }) {
   const doors = useMemo(() => DOORS.filter(d => !d.locked).map(d => {
     const group = new THREE.Group(); group.name = `door:${d.id}`;
     const y = surfaceHeight(d.x, d.z - .05);
-    const leaves = d.leaves.map(l => { const pivot = new THREE.Group(); pivot.position.set(l.hx, y, l.hz); pivot.add(leafMeshes(lib, l.len, d.height, d.glass, l.dir)); group.add(pivot); return { pivot, dir: l.dir }; });
+    const leaves = d.leaves.map(l => { const pivot=new THREE.Group(),handle=doorHandle(d,l);pivot.position.set(l.hx,y,l.hz);pivot.add(leafMeshes(lib,l.len,d.height,d.glass,l.dir,handle));group.add(pivot);return {pivot,dir:l.dir,handle}; });
     // Static until a leaf swings: the pivots' matrices are composed by hand below.
     return { d, group: freeze(group), leaves, angle: 0, vel: 0, open: 0, latched: true };
   }), [lib]);
-  useEffect(() => { const off = doors.map(s => registerMovingCaster(s.group)); return () => off.forEach(f => f()); }, [doors]);
+  useEffect(() => {
+    const off=doors.map(s=>registerMovingCaster(s.group));
+    const sample=new THREE.Vector3();
+    for(const s of doors)doorContacts.set(s.d.id,(near,into)=>{
+      let best=Infinity;
+      const side=near.z>=s.d.z?1:-1;
+      for(const {pivot,handle} of s.leaves){
+        sample.set(handle.x,handle.y,handle.z*side);
+        pivot.localToWorld(sample);
+        const d=sample.distanceToSquared(near);
+        if(d<best){into.copy(sample);best=d;}
+      }
+    });
+    return ()=>{off.forEach(f=>f());for(const s of doors)doorContacts.delete(s.d.id);};
+  },[doors]);
   useFrame(({ camera }, raw) => {
     const dt = Math.min(raw, .25); // real time on slow frames (a 50 ms cap slowed doors and balls below 20 FPS)
     for (const s of doors) {

@@ -1,3 +1,9 @@
+import { fixtureCalibration } from '../../shared/primitive-calibration.mjs';
+import { characterAction, PRIMITIVES } from '../../shared/character-actions.mjs';
+import { GAITS, gaitTargets, gestureSpec, speedsScratch, type VehicleMotion } from '../animation/motion';
+import { createFootContacts, doorContacts, mapCampusRig, solve } from '../animation/contacts';
+import { allowContacts, animationFrame, recordAvatar, recordContacts } from '../animation/budget';
+import { QA_HOOKS } from '../qa';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -22,9 +28,15 @@ interface Manifest { characters: CharacterInfo[]; animations: Record<'m' | 'f', 
 let manifest: Promise<Manifest> | null = null;
 export const loadCharacterManifest = (): Promise<Manifest> => manifest ??= fetch(assetUrl('characters/manifest.json')).then(r => { if (!r.ok) throw Error(`manifest ${r.status}`); return r.json(); }).catch(e => { setTimeout(() => { manifest = null; }, 5000); throw e; });
 
+export type FixturePreview = {
+  progress:number;
+  seat?: {id:string;x:number;y:number;z:number;table:boolean;pull:number;kind:string};
+  calibration?: ReturnType<typeof fixtureCalibration>;
+};
 export interface AvatarMotion {
+  authoring?:FixturePreview;
   speed: number; y: number; vy: number; emote?: string; emoteUntil?: number; turn?: number;
-  vehicleSeatHeight?:number|null; sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
+  vehicleSeatHeight?:number|null; vehicleMotion?:VehicleMotion|null; vehicleSpeed?:number; sprinting?:boolean; sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
   /** Head turn towards someone, radians from straight ahead (campus characters looking at a player; src/npc). */
   gaze?: number;
 }
@@ -356,12 +368,12 @@ function accessoryMeshes(kind: string, accent: string, fit: HeadFit | BackFit) {
 }
 
 
-interface Rig { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; bones: Record<string, THREE.Bone>; rest: Map<string, THREE.Matrix4>; uniforms: { uSkinTint: { value: THREE.Vector3 } }; info: CharacterInfo; lib: Library; accessory: THREE.Object3D | null }
+interface Rig { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>; bones: Record<string, THREE.Bone>; rest: Map<string, THREE.Matrix4>; uniforms: { uSkinTint: { value: THREE.Vector3 } }; info: CharacterInfo; lib: Library; mapped:ReturnType<typeof mapCampusRig>; accessory: THREE.Object3D | null }
 
 const TMP_Q = new THREE.Quaternion(), AXIS_X = new THREE.Vector3(1, 0, 0), AXIS_Y = new THREE.Vector3(0, 1, 0), AXIS_Z = new THREE.Vector3(0, 0, 1);
 const rotate = (bone: THREE.Object3D | undefined, axis: THREE.Vector3, angle: number) => { if (bone && angle) bone.quaternion.multiply(TMP_Q.setFromAxisAngle(axis, angle)); };
 // Clips whose playback time the frame loop sets directly (gait phase, transitions, frozen poses).
-const SCRUBBED = [...LOCO, 'sitDown', 'standUp', 'holdArms', 'leftHold', 'armsUp', 'doorPush', 'doorPull'];
+const SCRUBBED = [...LOCO, 'sitDown', 'standUp', 'holdArms', 'leftHold', 'armsUp', 'doorPush', 'doorPull', 'crouch'];
 
 function useRig(config: AvatarConfig): Rig {
   const all = suspend(loadCharacterManifest());
@@ -389,7 +401,7 @@ function useRig(config: AvatarConfig): Rig {
     for (const [name, clip] of Object.entries(lib.clips)) actions[name] = mixer.clipAction(clip);
     for (const n of SCRUBBED) actions[n].timeScale = 0;
     actions.armsUp.time = lib.armsUpTime;
-    return { root, mixer, actions, bones, rest, uniforms, info, lib, accessory: null };
+    return { root, mixer, actions, bones, rest, uniforms, info, lib, mapped:mapCampusRig(bones), accessory: null };
   }, [gltf, lib]);
   // (Re)start every clip on mount; StrictMode runs this cleanup once in development, so the
   // cleanup only stops actions and never uncaches the bindings the rig still owns.
@@ -434,6 +446,7 @@ function contactShadowMaterial() {
 }
 
 const smooth = (t: number) => { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); };
+const sitRootProgress=(tr:Transition,t:number)=>smooth(t*tr.rate/Math.max(.001,tr.end-tr.start));
 const FRUSTUM = new THREE.Frustum(), VIEW = new THREE.Matrix4(), BOUNDS = new THREE.Sphere(new THREE.Vector3(), 1.8);
 let frustumAt = -1;
 /** 0: outside the view; otherwise pose the skeleton every n-th frame (1 near, 2 beyond 30 m, 4 beyond 60 m). */
@@ -463,16 +476,25 @@ function queueUploads(root: THREE.Object3D) {
 /** How far each table chair is pulled back from the table (1 = pulled out, 0 = tucked in), by seat id. */
 export const chairPull = new Map<string, number>();
 const SCOOT = .6;
-const GESTURE: Record<string, { clip: string; from: number; to: number }> = { 'door-push': { clip: 'doorPush', from: .1, to: 1.9 }, 'door-pull': { clip: 'doorPull', from: .1, to: 1.9 }, pickup: { clip: 'crouch', from: 0, to: .8 } };
+const GESTURE_CLIPS=['doorPush','doorPull','crouch'] as const;
+const SEAT_CLIPS=['sitDown','sitIdle','sitTable','sitLook'] as const;
+const SIDES=['L','R'] as const, EMOTES=['wave','dance','cheer'] as const;
+const idleMotion:AvatarMotion={speed:0,y:0,vy:0};
+const actionContext={vehicle:false,seat:false,grounded:true,vy:0,speed:0,sprint:false,sport:false,interaction:false};
+const vehicleSit:SitState={seat:'vehicle',phase:'seated',t:0};
+const REACH=new THREE.Vector3(), ACTOR=new THREE.Vector3();
 const HAND_L = new THREE.Vector3(), HAND_R = new THREE.Vector3(), FWD = new THREE.Vector3(), RIGHT = new THREE.Vector3(), WQ = new THREE.Quaternion(), WP = new THREE.Vector3(), BOUNCE = new THREE.Vector3();
 
 export default function Avatar({ config, motion, preview = false, id }: { config: AvatarConfig; motion?: () => AvatarMotion; preview?: boolean; id?: string }) {
   const rig = useRig(config);
   const contact = useRef<THREE.Mesh>(null!), contactMat = useMemo(contactShadowMaterial, []);
+  const footContacts=useMemo(createFootContacts,[]), target=useMemo(speedsScratch,[]);
+  const vehicleSeat=useMemo(()=>({id:'vehicle',x:0,z:0,y:0,table:true,pull:0}),[]);
+  const soundPosition=useMemo(()=>({x:0,y:0,z:0}),[]);
   const state = useRef({
     phase: 0, weights: { idle: 1, walk: 0, jog: 0, run: 0, emote: 0 } as Record<string, number>, emote: '', air: 0, land: 0, wasAir: false, lean: 0, look: 0, nextLook: 6,
     sitPhase: '', sitSeat: '', sitT: 0, settle: 0, out: 0, sitLook: 0, nextSitLook: 7,
-    gesture: -1, gestureKind: '', hold: 0, dribble: 0, dribbleW: 0, raise: 0, poseDt: 0, poseFrame: 0, cast: true, inAir: false,
+    gesture: -1, gestureKind: '', gestureWeight:0, hold: 0, dribble: 0, dribbleW: 0, raise: 0, poseDt: 0, poseFrame: 0, cast: true, inAir: false,
   });
   const remote = !!id && id !== 'local' && !preview;
   useEffect(() => registerMovingCaster(rig.root), [rig]);
@@ -487,19 +509,29 @@ export default function Avatar({ config, motion, preview = false, id }: { config
   useEffect(() => { if (!id) return; avatars.set(id, anchor); return () => { if (avatars.get(id) === anchor) avatars.delete(id); }; }, [id, anchor]);
 
   useFrame(({ clock, camera, gl }, raw) => {
+    const measure=QA_HOOKS?performance.now():0;
+    animationFrame(clock.elapsedTime);
     // The queue belongs to the campus renderer: the avatar editor's preview canvas has a context of its own.
     if (!preview && pendingUploads.length && uploadAt !== clock.elapsedTime) { uploadAt = clock.elapsedTime; gl.initTexture(pendingUploads.shift()!); }
     // Real time, up to a quarter second a frame: a 50 ms cap played every animation (and the sit-down and
     // stand-up that gate actions) in slow motion below 20 FPS, ten times slower at 2 FPS.
-    const dt = Math.min(raw, .25), m = motion?.() ?? { speed: 0, y: 0, vy: 0 }, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;
+    const dt = Math.min(raw, .25), m = motion?.() ?? idleMotion, s = state.current, { actions, lib } = rig, now = performance.now() / 1000;
+    const authoring=m.authoring;
     const inVehicle=m.vehicleSeatHeight!=null;
-    const sit = inVehicle ? {seat:'vehicle',phase:'seated',t:0} as SitState : preview ? null : m.sit ?? null, seat = inVehicle ? {id:'vehicle',y:m.vehicleSeatHeight!,table:true,pull:0} : sit ? SEAT_BY_ID.get(sit.seat) : undefined;
+    vehicleSeat.y=m.vehicleSeatHeight??0;
+    const sit=inVehicle?vehicleSit:preview?null:m.sit??null;
+    const seat=authoring?.seat??(inVehicle?vehicleSeat:sit?SEAT_BY_ID.get(sit.seat):undefined);
+    actionContext.vehicle=inVehicle;actionContext.seat=!!seat;actionContext.grounded=m.y<.04;actionContext.vy=m.vy;
+    actionContext.speed=m.speed;actionContext.sprint=!!m.sprinting;actionContext.sport=!!m.holding;
+    actionContext.interaction=!!m.gesture&&now-m.gesture.start<(gestureSpec(m.gesture.kind)?.seconds??0);
+    const motionState=characterAction(actionContext);
     const seated = !!(sit && seat && (sit.phase === 'down' || sit.phase === 'seated' || sit.phase === 'up'));
     const speed = preview || seated ? 0 : m.speed;
     // Sound: where this character stands (its parent group), heard from there unless it is you. Players in
     // another space (their own room) are hidden and silent.
-    const body = rig.root.parent, audible = !preview && !!body && body.visible, px = body?.position.x ?? 0, pz = body?.position.z ?? 0;
-    const at = remote ? { x: px, y: (body?.position.y ?? 0) + .1, z: pz } : null;
+    const body = rig.root.parent, audible = !preview && !authoring && !!body && body.visible, px = body?.position.x ?? 0, pz = body?.position.z ?? 0;
+    soundPosition.x=px;soundPosition.y=(body?.position.y??0)+.1;soundPosition.z=pz;
+    const at=remote?soundPosition:null;
 
     // ------------------------------------------------------------------ seating
     // The parent group stands on the seat anchor facing the seat's direction; the captured root travel
@@ -520,19 +552,21 @@ export default function Avatar({ config, motion, preview = false, id }: { config
       }
       s.sitT += dt; s.out = 0;
       if (sit.phase === 'down') {
-        const tr = lib.down, span = (tr.end - tr.start) / tr.rate, t = Math.min(s.sitT, span), clipT = tr.start + t * tr.rate;
+        const tr=lib.down,span=(tr.end-tr.start)/tr.rate;
+        if(authoring)s.sitT=authoring.progress*span;
+        const t=Math.min(s.sitT,span),clipT=tr.start+t*tr.rate;
         actions.sitDown.time = clipT;
         const [cx, cz] = curveAt(tr, clipT); rx = cx - tr.endX; rz = cz - tr.endZ - pull; ry = dy * smooth(t / span);
         sitW = smooth(s.sitT / .25); s.settle = 0;
         actions.sitDown.setEffectiveWeight(sitW); actions.sitIdle.setEffectiveWeight(0); actions.sitTable.setEffectiveWeight(0);
-        if (seat.table) chairPull.set(seat.id, 1);
-        if (s.sitT >= span) sit.phase = 'seated';
+        if(seat.table&&!authoring)chairPull.set(seat.id, 1);
+        if(!authoring&&s.sitT>=span)sit.phase = 'seated';
       } else if (sit.phase === 'seated') {
         // Settle from the end of the transition into the seated idle, then scoot the chair in.
         s.settle = Math.min(1, s.settle + dt / .45); sitW = 1;
         actions.sitDown.time = lib.down.end; actions.sitDown.setEffectiveWeight(1 - s.settle);
         const k = pull ? 1 - smooth(s.sitT / SCOOT) : 0; rz = -pull * k; ry = dy;
-        if (seat.table) chairPull.set(seat.id, k);
+        if(seat.table&&!authoring)chairPull.set(seat.id, k);
         // An occasional glance around while seated (benches; at a table the arms rest on the top).
         s.nextSitLook -= dt; if (s.nextSitLook < 0) { s.sitLook = 1; s.nextSitLook = 10 + Math.random() * 9; actions.sitLook.reset().play(); }
         s.sitLook = Math.max(0, s.sitLook - dt / actions.sitLook.getClip().duration);
@@ -541,15 +575,24 @@ export default function Avatar({ config, motion, preview = false, id }: { config
         actions[seat.table ? 'sitIdle' : 'sitTable'].setEffectiveWeight(0);
       } else {
         // Scoot the chair back, then the captured stand-up carries the body forward off the seat.
-        const tr = lib.up, scoot = pull ? SCOOT : 0, span = (tr.end - tr.start) / tr.rate, t = s.sitT - scoot;
+        const tr=lib.up,scoot=pull?SCOOT:0,span=(tr.end-tr.start)/tr.rate;
+        if(authoring)s.sitT=authoring.progress*(span+scoot);
+        const t=s.sitT-scoot;
         actions.sitDown.setEffectiveWeight(0); actions.sitLook.setEffectiveWeight(0);
-        if (t < 0) { const k = smooth(s.sitT / scoot); rz = -pull * k; ry = dy; sitW = 1; chairPull.set(seat.id, k); actions[idleSeat].setEffectiveWeight(1); actions.standUp.setEffectiveWeight(0); }
+        if (t < 0) { const k = smooth(s.sitT / scoot); rz = -pull * k; ry = dy; sitW = 1; if(!authoring)chairPull.set(seat.id,k); actions[idleSeat].setEffectiveWeight(1); actions.standUp.setEffectiveWeight(0); }
         else {
           const tt = Math.min(t, span), clipT = tr.start + tt * tr.rate, [cx, cz] = curveAt(tr, clipT), [sx, sz] = curveAt(tr, tr.start);
-          actions.standUp.time = clipT; rx = cx - sx; rz = cz - sz - pull; ry = dy * (1 - smooth(tt / span)); sitW = 1;
+          actions.standUp.time=clipT;rx=cx-sx;rz=cz-sz-pull;ry=dy*(1-smooth(tt/span));sitW=1;
+          if(sit.exit&&seat.id!=='vehicle'){
+            const yaw=body?.rotation.y??0,dx=sit.exit.x-seat.x,dz=sit.exit.z-seat.z;
+            const adjustX=dx*Math.cos(yaw)-dz*Math.sin(yaw)-(tr.endX-sx);
+            const adjustZ=dx*Math.sin(yaw)+dz*Math.cos(yaw)-(tr.endZ-sz-pull);
+            const k=Math.min(1,.65/Math.max(.001,Math.hypot(adjustX,adjustZ)))*smooth(tt/span);
+            rx+=adjustX*k;rz+=adjustZ*k;
+          }
           const w = smooth(t / .3); actions.standUp.setEffectiveWeight(w); actions[idleSeat].setEffectiveWeight(1 - w);
-          if (seat.table) chairPull.set(seat.id, 1);
-          if (t >= span) { sit.phase = 'done'; s.out = 1; }
+          if(seat.table&&!authoring)chairPull.set(seat.id, 1);
+          if(!authoring&&t>=span){sit.phase = 'done'; s.out = 1; }
         }
       }
     } else {
@@ -557,24 +600,46 @@ export default function Avatar({ config, motion, preview = false, id }: { config
       if (s.sitPhase) { s.sitPhase = ''; s.sitSeat = ''; if (!s.out) s.out = 1; }
       s.out = Math.max(0, s.out - dt / .35);
       actions.standUp.time = lib.up.end; actions.standUp.setEffectiveWeight(s.out); sitW = s.out;
-      for (const n of ['sitDown', 'sitIdle', 'sitTable', 'sitLook']) actions[n].setEffectiveWeight(0);
+      for (const n of SEAT_CLIPS) actions[n].setEffectiveWeight(0);
+    }
+
+    const calibration=seated&&seat&&seat.id!=='vehicle'?(authoring?.calibration??fixtureCalibration(seat.id)):null;
+    const contactWeight=seated&&sit?.phase==='down'?smooth(s.sitT/.55):sitW;
+    const releaseWeight=sit?.phase==='up'?Math.max(0,1-sitRootProgress(lib.up,s.sitT-(seat?.pull?SCOOT:0))):1;
+    const alignment=contactWeight*releaseWeight;
+    if(calibration){rx+=calibration.x*alignment;ry+=calibration.y*alignment;rz+=calibration.z*alignment;}
+
+    // Occupancy changes immediately in the room. Blend the rig relative to the approved anchor.
+    const ride=m.vehicleMotion, vehicleAge=ride?now-ride.start:0;
+    if(ride&&vehicleAge>=0&&vehicleAge<PRIMITIVES[ride.kind].seconds&&
+       (ride.kind==='vehicle-enter'?inVehicle&&(m.vehicleSpeed??0)<1.5:!inVehicle&&speed<.65)){
+      const enter=ride.kind==='vehicle-enter', t=smooth(vehicleAge/PRIMITIVES[ride.kind].seconds);
+      const offset=Math.min(1,.55/Math.max(.01,Math.hypot(ride.x,ride.z)))*(1-t);
+      const yaw=body?.rotation.y??0;
+      rx=(ride.x*Math.cos(yaw)-ride.z*Math.sin(yaw))*offset;
+      rz=(ride.x*Math.sin(yaw)+ride.z*Math.cos(yaw))*offset;
+      if(enter){
+        ry*=t;const tr=lib.down;actions.sitDown.time=tr.end-(1-t)*Math.min(.7,tr.end-tr.start);
+        actions.sitDown.setEffectiveWeight(1-t);actions.sitTable.setEffectiveWeight(t);
+      }else{
+        const tr=lib.up;ry=(ride.seatHeight-lib.tableSeatHeight)*(1-t);
+        actions.standUp.time=tr.end-(1-t)*Math.min(.68,tr.end-tr.start);
+        actions.standUp.setEffectiveWeight(1-t);sitW=1-t;
+      }
     }
 
     // ------------------------------------------------------------------ locomotion
-    const nodes = [['idle', 0], ['walk', lib.speeds.walk], ['jog', lib.speeds.jog], ['run', lib.speeds.run]] as const;
-    const target: Record<string, number> = { idle: 0, walk: 0, jog: 0, run: 0 };
-    if (speed >= nodes[3][1]) target.run = 1;
-    else for (let i = 0; i < 3; i++) { const [a, sa] = nodes[i], [b, sb] = nodes[i + 1]; if (speed <= sb) { const t = Math.max(0, (speed - sa) / (sb - sa)); target[a] = 1 - t; target[b] = t; break; } }
+    gaitTargets(target,speed,lib.speeds.walk,lib.speeds.jog,lib.speeds.run);
     const holding = !preview && !!m.holding;
     const emoteActive = !!m.emote && (m.emoteUntil ?? 0) > Date.now() && speed < .6 && m.y < .05 && !seated && !holding;
     if (emoteActive && s.emote !== m.emote) { s.emote = m.emote!; actions[s.emote]?.reset().play(); }
     s.weights.emote = THREE.MathUtils.damp(s.weights.emote, emoteActive ? 1 : 0, 6, dt);
-    for (const k of ['idle', 'walk', 'jog', 'run']) s.weights[k] = THREE.MathUtils.damp(s.weights[k], target[k], 10, dt);
+    for(let i=0;i<GAITS.length;i++){const k=GAITS[i];s.weights[k]=THREE.MathUtils.damp(s.weights[k],target[i],10,dt);}
     // Shared gait phase: the blended stride length sets how fast the cycle advances.
     let stride = 0, w = 0;
     for (const n of LOCO) { const len = lib.speeds[n] * lib.clips[n].duration; stride += s.weights[n] * len; w += s.weights[n]; }
     const before = s.phase;
-    if (w > .001 && speed > .05) s.phase = (s.phase + dt * speed / (stride / w)) % 1;
+    if (w > .001 && speed > .05 && m.y<.12) s.phase = (s.phase + dt * speed / (stride / w)) % 1;
     // A footstep as each foot meets the ground: the gait cycle starts at the left foot's contact (lib.contact)
     // and the right foot's is half a cycle later.
     if (audible && speed > .35 && m.y < .05 && (s.phase < before || (before < .5 && s.phase >= .5))) footstep(px, pz, speed, at);
@@ -588,20 +653,21 @@ export default function Avatar({ config, motion, preview = false, id }: { config
 
     // ------------------------------------------------------------------ gestures (doors, picking up)
     const g = !preview && !seated ? m.gesture : null;
-    if (g && GESTURE[g.kind] && g.start !== s.gesture) { s.gesture = g.start; s.gestureKind = g.kind; }
-    const spec = GESTURE[s.gestureKind], gt = now - s.gesture;
+    if(g&&g.start!==s.gesture){s.gesture=g.start;s.gestureKind=g.kind;}
+    const spec=gestureSpec(s.gestureKind),gt=authoring&&spec?authoring.progress*spec.seconds:now-s.gesture;
     let gestureW = 0;
-    if (spec && gt >= 0 && gt < spec.to - spec.from + .4) {
+    if (g && spec && gt >= 0 && gt < spec.to - spec.from + .4) {
       const len = spec.to - spec.from; gestureW = smooth(gt / .18) * (1 - smooth((gt - len + .1) / .4)) * (s.gestureKind === 'pickup' ? .85 : 1) * (1 - Math.min(1, speed / 2));
-      if (spec.clip !== 'crouch') actions[spec.clip].time = spec.from + Math.min(gt, len);
+      actions[spec.clip].time=spec.from+Math.min(gt,len);
     }
-    for (const k of ['doorPush', 'doorPull', 'crouch']) actions[k].setEffectiveWeight(spec?.clip === k ? gestureW * (1 - sitW) : 0);
+    s.gestureWeight=authoring?gestureW:THREE.MathUtils.damp(s.gestureWeight,gestureW,24,dt);gestureW=s.gestureWeight;
+    for (const k of GESTURE_CLIPS) actions[k].setEffectiveWeight(spec?.clip === k ? gestureW * (1 - sitW) : 0);
 
     const lookW = Math.sin(Math.min(1, s.look) * Math.PI) * s.weights.idle;
     const rest = (1 - s.weights.emote) * (1 - sitW) * (1 - gestureW);
     actions.idle.setEffectiveWeight(s.weights.idle * rest * (1 - lookW)); actions.look.setEffectiveWeight(s.weights.idle * rest * lookW);
     for (const n of LOCO) actions[n].setEffectiveWeight(s.weights[n] * rest);
-    for (const e of ['wave', 'dance', 'cheer']) actions[e].setEffectiveWeight(e === s.emote ? s.weights.emote * (1 - sitW) : 0);
+    for (const e of EMOTES) actions[e].setEffectiveWeight(e === s.emote ? s.weights.emote * (1 - sitW) : 0);
 
     // ------------------------------------------------------------------ ball handling layers
     // Arm-only clips carry a large weight: the mixer normalises per bone, so on arm bones they
@@ -624,26 +690,26 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     // ------------------------------------------------------------------ level of detail (other players)
     // Off screen, the skeleton is not posed or drawn at all; far away it is posed every 2nd or 4th frame.
     // Everything above keeps running every frame, so sit-down and stand-up transitions finish on time.
-    const lod = remote ? avatarLod(rig.root, camera, clock.elapsedTime) : 1;
+    const lod=remote?(body?.visible===false?0:avatarLod(rig.root,camera,clock.elapsedTime)):1;
     if (remote) {
       const shown = lod > 0; rig.root.visible = shown; if (contact.current) contact.current.visible = shown;
       const cast = shown && lod < 4; if (cast !== s.cast) { s.cast = cast; rig.root.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = cast; }); }
     }
     s.poseDt += dt;
     // A ball held by someone off screen follows their room position instead of a stale hand.
-    if (!lod || ++s.poseFrame % lod) { anchor.holding = holding && lod > 0; return; }
+    if(!lod||++s.poseFrame%lod){footContacts.clear();anchor.holding=holding&&lod>0;if(QA_HOOKS)recordAvatar(measure,false);return;}
     const pdt = s.poseDt; s.poseDt = 0;
     rig.mixer.update(pdt);
 
     // ------------------------------------------------------------------ procedural layers
     // Airborne tuck, landing compression and banking into turns.
-    const airborne = m.y > .04;
+    const airborne = m.y>.04;
     s.air = THREE.MathUtils.damp(s.air, airborne ? 1 : 0, airborne ? 14 : 18, pdt);
     if (s.wasAir && !airborne) s.land = 1; s.wasAir = airborne;
     s.land = Math.max(0, s.land - pdt * 5);
     s.lean = THREE.MathUtils.damp(s.lean, THREE.MathUtils.clamp((m.turn ?? 0) * speed * .045, -.22, .22), 8, pdt);
     const b = rig.bones, shooting = up > .05, tuck = s.air * (m.vy > 0 ? .75 : 1) * (shooting ? .35 : 1), comp = Math.sin(s.land * Math.PI) * .5 * (1 - sitW);
-    for (const side of ['L', 'R']) {
+    for (const side of SIDES) {
       rotate(b[`Bip01_${side}_Thigh`], AXIS_Z, -(tuck * .55 + comp * .45));
       rotate(b[`Bip01_${side}_Calf`], AXIS_Z, tuck * 1.05 + comp * .8);
       rotate(b[`Bip01_${side}_Foot`], AXIS_Z, -tuck * .35 - comp * .3);
@@ -651,25 +717,50 @@ export default function Avatar({ config, motion, preview = false, id }: { config
     }
     // Release: raise the upper arms further and straighten the elbows past the set pose.
     const ext = follow * (1 - s.raise * .4);
-    if (ext > 0) for (const side of ['L', 'R']) { rotate(b[`Bip01_${side}_UpperArm`], AXIS_Z, -ext * .55); rotate(b[`Bip01_${side}_Forearm`], AXIS_Z, ext * .5); rotate(b[`Bip01_${side}_Hand`], AXIS_Z, ext * .5); }
+    if (ext > 0) for (const side of SIDES) { rotate(b[`Bip01_${side}_UpperArm`], AXIS_Z, -ext * .55); rotate(b[`Bip01_${side}_Forearm`], AXIS_Z, ext * .5); rotate(b[`Bip01_${side}_Hand`], AXIS_Z, ext * .5); }
     // Dribble: the right arm pumps the ball down and absorbs it on the way back up.
     const pump = s.dribbleW * s.hold * (1 - up);
     if (pump > .01) { const c = Math.cos(s.dribble * Math.PI * 2); rotate(b.Bip01_R_UpperArm, AXIS_Z, -pump * (.35 + .12 * c)); rotate(b.Bip01_R_Forearm, AXIS_Z, pump * (.25 - .3 * c)); rotate(b.Bip01_R_Hand, AXIS_Z, -pump * .5 * c); }
     rotate(b.Bip01_Spine, AXIS_Z, -(tuck * .12 + comp * .2));
     rotate(b.Bip01_Spine1, AXIS_X, s.lean * (1 - sitW)); rotate(b.Bip01_Pelvis, AXIS_X, -s.lean * .4 * (1 - sitW));
     // Looking at someone: the neck and head twist about their own long axis (Biped X, vertical when standing).
-    if (m.gaze) { const g = THREE.MathUtils.clamp(m.gaze, -1.1, 1.1); rotate(b.Bip01_Neck, AXIS_X, g * .4); rotate(b.Bip01_Head, AXIS_X, g * .6); }
+    if (m.gaze) { const g = THREE.MathUtils.clamp(m.gaze, -1.1, 1.1); rotate(rig.mapped.neck, AXIS_X, g * .4); rotate(rig.mapped.head, AXIS_X, g * .6); }
     rig.root.position.set(rx, ry - comp * .09, rz);
-    if (preview) rig.root.rotation.y = Math.sin(clock.elapsedTime * .4) * .35;
+    rig.root.rotation.y=preview?Math.sin(clock.elapsedTime*.4)*.35:(calibration?.yaw??0)*alignment*Math.PI/180;
     if (contact.current) { const lift = Math.max(0, m.y); contact.current.position.set(rx, -lift + .012, rz); contact.current.scale.setScalar(1 - Math.min(.45, lift * .35)); contactMat.opacity = .3 * (1 - Math.min(.7, lift * .6)) * (1 - sitW * .6); }
+
+    // Solve only the visible contacts. The mesh can bend toward an anchor while its capsule stays put.
+    if(authoring||(!preview&&audible&&allowContacts(remote,raw))){
+      const start=performance.now();let usedFeet=false,usedHand=false;
+      if(!authoring&&!seated&&!airborne&&gestureW<.15&&up<.1&&(motionState==='idle'||motionState==='locomotion')&&
+         ((!remote&&raw<.075)||(remote&&lod===1&&raw<.032))){
+        footContacts.apply(rig.mapped,s.phase,speed,rig.root);usedFeet=true;
+      }else footContacts.clear();
+      if(g&&gestureW>.1&&rig.mapped.arms[1]){
+        rig.root.getWorldPosition(ACTOR);
+        const handle=g.target?doorContacts.get(g.target):undefined;
+        if(handle||g.point){
+          if(handle)handle(ACTOR,REACH);
+          else REACH.set(g.point!.x,g.point!.y+.11,g.point!.z);
+          solve(rig.mapped.arms[1],REACH,gestureW*.8,.24);usedHand=true;
+        }
+      }
+      if(usedFeet||usedHand)recordContacts(start,remote,usedFeet,usedHand);
+    }else footContacts.clear();
 
     // ------------------------------------------------------------------ ball anchor (world space)
     anchor.holding = holding;
     if (id && holding) {
       rig.root.updateMatrixWorld(true);
-      b.Bip01_L_Hand.getWorldPosition(HAND_L); b.Bip01_R_Hand.getWorldPosition(HAND_R);
+      const left=rig.mapped.arms[0]?.[2],right=rig.mapped.arms[1]?.[2];
+      if(!left||!right){anchor.holding=false;return;}
+      left.getWorldPosition(HAND_L);right.getWorldPosition(HAND_R);
       rig.root.getWorldQuaternion(WQ); FWD.set(0, 0, 1).applyQuaternion(WQ); RIGHT.set(-1, 0, 0).applyQuaternion(WQ); rig.root.getWorldPosition(WP);
-      anchor.ball.copy(HAND_L).add(HAND_R).multiplyScalar(.5).addScaledVector(FWD, .07 + up * .03);
+      anchor.ball.copy(HAND_L).add(HAND_R).multiplyScalar(.5).addScaledVector(FWD,.07+up*.03);
+      if(g?.kind==='pickup'&&g.point&&gt<.73){
+        REACH.set(g.point.x,g.point.y||BALL_R,g.point.z);
+        anchor.ball.lerp(REACH,1-smooth((gt-PRIMITIVES.pickup.commitMs/1000)/.4));
+      }
       if (s.dribbleW > .01) {
         // Bounce beside the right foot: pushed down from the hand, a sharp floor contact, caught at the top.
         const floor = floorAt(WP.x, WP.z) + BALL_R, top = HAND_R.y - .1, k = Math.pow(Math.abs(Math.cos(s.dribble * Math.PI)), 1.3), reach = .42 + speed * .03;
@@ -677,6 +768,7 @@ export default function Avatar({ config, motion, preview = false, id }: { config
         anchor.ball.lerp(BOUNCE, s.dribbleW);
       }
     }
+    if(QA_HOOKS)recordAvatar(measure,true);
   });
   return <><primitive object={rig.root} />{!preview && <mesh ref={contact} material={contactMat} rotation-x={-Math.PI / 2} renderOrder={1}><planeGeometry args={[1.25, 1.25]} /></mesh>}</>;
 }

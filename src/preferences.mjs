@@ -17,6 +17,7 @@ export function preferences(saved, current) {
     ambience: finite(s.ambience, current.ambience, 0, 1),
     steering: finite(s.steering, current.steering, STEERING.min, STEERING.max),
     reducedMotion: typeof s.reducedMotion === 'boolean' ? s.reducedMotion : current.reducedMotion,
+    ...(typeof current.firstPerson==='boolean'?{firstPerson:typeof s.firstPerson==='boolean'?s.firstPerson:current.firstPerson}:{}),
     discovered: strings(s.discovered, current.discovered, new Set(LOCATIONS.map(l => l.id))),
     tokens: strings(s.tokens, current.tokens, new Set(TOKENS.map(t => t.id))),
     muted: strings(s.muted, current.muted),
