@@ -1,3 +1,4 @@
+import { fixtureCalibration } from '../../shared/primitive-calibration.mjs';
 import { activeCombat, combatView, command, equip, fire, heldFire, isMissionOverlay, openMissionJournal, resetMissionControls, setAim, shotInput, useGetaway } from '../mission/client';
 import { useGraphicsSession } from '../graphics/session';
 import { portraitBlocked } from '../mobile/orientation';
@@ -17,7 +18,7 @@ import { COLLIDERS, LOCATIONS, TOKENS, collidersIn } from '../../shared/campus.m
 import { stepFrame, MAX_STEP, WALK_SPEED, SPRINT_SPEED, JUMP_SPEED } from '../../shared/movement.mjs';
 import { SEAT_BY_ID, seatApproach } from '../../shared/interactions.mjs';
 import { roomSelf, send, flushMovement } from '../network/client';
-import { activate, activity, beginSit, cancelApproach, cancelCharge, chargeStartedAt, drop, releaseShot, requestSit, standUp, startCharge, tickInteractions } from '../interaction/controller';
+import { activate, activity, approachMotion, beginSit, finishApproach, cancelApproach, cancelCharge, cancelWindup, chargeStartedAt, drop, releaseShot, requestSit, standUp, startCharge, tickInteractions } from '../interaction/controller';
 import { useInteraction, world } from '../interaction/world';
 import { currentKeepsakes } from '../account/store';
 import { surfaceHeight } from '../world/layout';
@@ -27,6 +28,7 @@ const keys = new Set<string>();
 const target = new THREE.Vector3(), desired = new THREE.Vector3(), chase = new THREE.Vector3(), look = new THREE.Vector3(), lookFrom = new THREE.Vector3(), posFrom = new THREE.Vector3();
 const eyes = new THREE.Vector3(), sight = new THREE.Vector3();
 const combatRotation = new THREE.Quaternion(), sightFrame = new THREE.Matrix4();
+const eyeAt = new THREE.Vector3(), eyeLook = new THREE.Vector3();
 const ray = new THREE.Vector3(), side = new THREE.Vector3(), upv = new THREE.Vector3(0, 1, 0);
 /** Where the driver's steering wheel is, -1..1 (src/vehicles/steering.mjs). */
 let wheel = 0;
@@ -85,7 +87,7 @@ function armFraction(from: THREE.Vector3, to: THREE.Vector3) {
 const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 // Camera orbit is session state, independent of a disposable Canvas.
-const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false, freightChase: false, drivingZoom: 1 };
+const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false, freightChase: false, drivingZoom: 1, first: 0 };
 
 export default function Player() {
   const graphics = useGraphicsSession();
@@ -98,12 +100,14 @@ export default function Player() {
       // Combat Arena handles its own keys (including Escape for its menus) while it is open.
       if (s.panel === 'arena') return;
       if(e.code==='Escape'&&!s.panel&&(useGetaway.getState().mission||isMissionOverlay())){
+        cancelWindup();
         if(useGetaway.getState().brief)command('closeBrief');
         else openMissionJournal(!isMissionOverlay());
         keys.clear();return;
       }
-      if (e.code === 'Escape') { cancelCharge(); if (s.panel) s.set({ panel: null }); else if (s.phase === 'playing') s.set({ panel: 'settings' }); document.exitPointerLock?.(); keys.clear(); return; }
+      if (e.code === 'Escape') { cancelCharge(); cancelWindup(); if (s.panel) s.set({ panel: null }); else if (s.phase === 'playing') s.set({ panel: 'settings' }); document.exitPointerLock?.(); keys.clear(); return; }
       if (s.phase !== 'playing' || s.panel || portraitBlocked() || isMissionOverlay()) return;
+      if(e.code==='Space'||MOVE_KEYS.includes(e.code))cancelWindup();
       if(activeCombat()&&['Digit1','Digit2','Digit3','KeyR'].includes(e.code)){
         if(!e.repeat){if(e.code==='KeyR')command('reload');else equip(Number(e.code.slice(-1))-1);}
         return;
@@ -117,12 +121,13 @@ export default function Player() {
       if (e.code === 'KeyE' && !e.repeat) activate();
       if (e.code === 'KeyQ' && !e.repeat) drop();
       if (MOVE_KEYS.includes(e.code)) { if (act === 'seated') standUp(); else if (act === 'approach') cancelApproach(); }
+      if (e.code === 'KeyP'&&!e.repeat)s.set({firstPerson:!s.firstPerson});
       if (e.code === 'KeyM') { s.set({ panel: 'map' }); document.exitPointerLock?.(); }
       if (e.code === 'KeyC') { s.set({ panel: 'chat' }); document.exitPointerLock?.(); }
       if (['Digit1', 'Digit2', 'Digit3'].includes(e.code) && act === 'free') { const emote = ['wave', 'dance', 'cheer'][Number(e.code.slice(-1)) - 1]; player.emote = emote; player.emoteUntil = Date.now() + 3000; send({ type: 'emote', emote }); }
     };
     const keyup = (e: KeyboardEvent) => { keys.delete(e.code); if (e.code === 'Space') releaseShot(e.timeStamp / 1000); };
-    const clear = () => { keys.clear(); input.jump = false; input.x = input.z = 0; input.dragging = false; resetMissionControls(); cancelCharge(); cancelApproach(); };
+    const clear = () => { keys.clear(); input.jump = false; input.x = input.z = 0; input.dragging = false; resetMissionControls(); cancelCharge(); cancelApproach(); cancelWindup(); };
     const mouse = (e: MouseEvent) => { const s = useGame.getState(); if (s.phase !== 'playing' || s.panel || portraitBlocked()) return; if (document.pointerLockElement === gl.domElement || input.dragging) { input.yaw -= e.movementX * .0032; input.pitch = THREE.MathUtils.clamp(input.pitch + e.movementY * .0022, activeCombat() ? -.8 : -.25, .95); } };
     const down = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return;
@@ -168,6 +173,8 @@ export default function Player() {
     tickInteractions(dt);
     const vehicle=currentVehicle(),occupancy=useVehicle.getState();
     if(vehicle){
+      player.vehicleSpeed = Math.abs(vehicle.speed);
+      c.first = 0;
       combatView.blend = 0;
       const size = VEHICLE_TYPES[vehicle.type], freight = isGetawayVehicle(vehicle.id);
       const speedBlend = freight && !s.reducedMotion ? Math.min(1, Math.abs(vehicle.speed) / size.maxSpeed) : 0;
@@ -212,6 +219,7 @@ export default function Player() {
     let z = enabled ? Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp')) + input.z : 0;
     const len = Math.max(1, Math.hypot(x, z)); x /= len; z /= len;
     const steering = Math.abs(x) + Math.abs(z) > .3;
+    if(steering&&act==='busy')cancelWindup();
     if (steering && act === 'seated') standUp();
     let dx = x * Math.cos(input.yaw) + z * Math.sin(input.yaw), dz = z * Math.cos(input.yaw) - x * Math.sin(input.yaw);
     let sprint = keys.has('ShiftLeft') || keys.has('ShiftRight'), speed = sprint ? SPRINT_SPEED : WALK_SPEED, scale = 1;
@@ -219,7 +227,7 @@ export default function Player() {
       // Walk to the spot in front of the seat, then turn around to face away from it.
       if (steering) cancelApproach();
       else {
-        const via = sit.path?.[0], a = via ?? seatApproach(seat), ex = a.x - player.x, ez = a.z - player.z, d = Math.hypot(ex, ez); sit.t += dt; sprint = false;
+        const via=sit.path?.[0],a=via??seatApproach(seat,.45+fixtureCalibration(seat.id).approach), ex = a.x - player.x, ez = a.z - player.z, d = Math.hypot(ex, ez); sit.t += dt; sprint = false;
         if (via && d < .14) sit.path!.shift();
         else if (via || d > .05) { dx = ex / d; dz = ez / d; speed = Math.min(via ? 1.4 : Math.min(1.5, d * 3 + .3), arrive(d, raw, s.status === 'connected')); scale = speed / WALK_SPEED; }
         else {
@@ -230,7 +238,14 @@ export default function Player() {
         if (sit.t > 8 && d > .2) { cancelApproach(); s.notify('Something is in the way of that seat.'); }
       }
     }
-    if (QA_HOOKS && qaTarget && !sit) {
+    const approach=enabled&&!steering?approachMotion():null;
+    if(approach){
+      const ex=approach.x-player.x,ez=approach.z-player.z,d=Math.hypot(ex,ez);
+      sprint=false;
+      if(d<.12){dx=dz=0;finishApproach();}
+      else {dx=ex/d;dz=ez/d;speed=Math.min(2.25,arrive(d,raw,s.status==='connected'));scale=speed/WALK_SPEED;}
+    }
+    if(QA_HOOKS&&qaTarget&&!sit&&!approach){
       const ex = qaTarget.x - player.x, ez = qaTarget.z - player.z, d = Math.hypot(ex, ez);
       if (d < .1 || performance.now() > qaTarget.until) qaTarget = null;
       else { dx = ex / d; dz = ez / d; sprint = false; speed = Math.min(WALK_SPEED, d * 4 + .3, arrive(d, raw, s.status === 'connected')); scale = speed / WALK_SPEED; }
@@ -299,6 +314,16 @@ export default function Player() {
     } else { camera.position.copy(desired); camera.lookAt(look); }
 
     if (c.intro >= 1) c.freightChase = false;
+    // The combat view blends over the current campus view, including first-person exploration.
+    const firstPersonGoal = s.firstPerson ? 1 : 0;
+    c.first = s.reducedMotion ? firstPersonGoal : THREE.MathUtils.damp(c.first, firstPersonGoal, 12, dt);
+    if (c.first > .003) {
+      const eyeY = ground + player.y + 1.58 - c.seated * .45;
+      eyeAt.set(px, eyeY, pz);
+      eyeLook.set(px - Math.sin(input.yaw) * 5, eyeY - Math.tan(input.pitch) * 5, pz - Math.cos(input.yaw) * 5);
+      camera.position.lerp(eyeAt, c.first);
+      camera.lookAt(look.lerp(eyeLook, c.first));
+    }
     const aim = armed && useGetaway.getState().aim, now = performance.now();
     const snap = s.reducedMotion || armed && (aim || shotInput.held || now - shotInput.started < 140);
     const want = armed ? 1 : 0;
@@ -312,8 +337,8 @@ export default function Player() {
       combatRotation.setFromRotationMatrix(sightFrame.lookAt(eyes, sight, upv));
       camera.position.lerp(eyes, blend);
       camera.quaternion.slerp(combatRotation, blend);
-      root.current.visible = blend < .8;
     }
+    root.current.visible = c.first < .74 && blend < .8;
     if (camera instanceof THREE.PerspectiveCamera) {
       const toward = THREE.MathUtils.damp(camera.zoom, aim ? 1.26 : 1, 18, dt);
       const zoom = Math.abs(toward - 1) < .0001 ? 1 : toward;
@@ -341,5 +366,5 @@ export default function Player() {
       if (enabled) for (const token of TOKENS) if (!currentKeepsakes().includes(token.id) && Math.hypot(player.x - token.x, player.z - token.z) < 1.65 && clock.elapsedTime - (collectSent.current[token.id] ?? -10) > .8) { collectSent.current[token.id] = clock.elapsedTime; if (s.status === 'connected') send({ type: 'collect', id: token.id }); else s.collect(token.id); }
     }
   });
-  return <group ref={root} rotation-y={Math.PI}><AvatarBoundary accent={avatar.accent}><Suspense fallback={null}><Avatar id="local" config={avatar} motion={() => player} /></Suspense></AvatarBoundary></group>;
+  return <group ref={root} name="campus-player" rotation-y={Math.PI}><AvatarBoundary accent={avatar.accent}><Suspense fallback={null}><Avatar id="local" config={avatar} motion={() => player} /></Suspense></AvatarBoundary></group>;
 }

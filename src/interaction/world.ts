@@ -43,7 +43,8 @@ export function unbindNetwork() { sendFn = null; selfId = 'local'; me.id = 'loca
  * player stayed seated here while the room had them standing, and "Stand up" failed for good.
  */
 export function releaseLocal(placed = false) {
-  player.charge = null;
+  player.charge = null; player.gesture=null;player.vehicleMotion=null;
+  window.dispatchEvent(new Event('cancelworldmotion'));
   const sit = player.sit, seat = sit ? SEAT_BY_ID.get(sit.seat) : undefined;
   // A new session places us itself (`placed`): no stand-up motion that would end somewhere else.
   if (placed) player.sit = null;

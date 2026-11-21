@@ -1,8 +1,9 @@
+import { characterActionAt, markCharacterAction, PRIMITIVES } from '../shared/character-actions.mjs';
 import { createMissionService } from './mission/service.mjs';
 import { isGetawayVehicle } from '../shared/getaway.mjs';
 import { createClasses } from '../shared/classes.mjs';
 import { createEconomyService, principalOf } from './economy/service.mjs';
-import { createFleet, vehicleContains } from '../shared/vehicles.mjs';
+import { createFleet, VEHICLE_TYPES, vehicleContains } from '../shared/vehicles.mjs';
 import { randomUUID, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { appendFile, mkdir } from 'node:fs/promises';
@@ -456,9 +457,13 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
     const selected=fleetFor(c,chosen),players=privateVehicle?[c]:joined(),seat=m.seat??0;
     const refused=missions.frozen(c)||!selected||(entering&&!missions.canEnter(c,chosen,seat))||
      (privateVehicle&&m.type==='vehicleRecover'&&c.getaway?.wanted);
+    const fromX=c.x,fromZ=c.z,v=selected?.find(chosen);
     const r=refused?{ok:false,reason:'That vehicle action is unavailable now.'}:
      entering?selected.enter(c,chosen,seat):m.type==='vehicleExit'?selected.exit(c,players):selected.recover(c,players);
-    send(ws,{type:'vehicleResult',...r,vehicle:c.vehicle,vehicleSeat:c.vehicleSeat,x:c.x,z:c.z});
+    const transition=r.ok&&v&&(entering||m.type==='vehicleExit');
+    if(transition)markCharacterAction(c,entering?'vehicle-enter':'vehicle-exit',v.id,Date.now(),
+     {x:fromX-c.x,y:VEHICLE_TYPES[v.type].seatHeight,z:fromZ-c.z});
+    send(ws,{type:'vehicleResult',...r,vehicle:c.vehicle,vehicleSeat:c.vehicleSeat,x:c.x,z:c.z,characterAction:transition?c.characterAction:undefined});
     if(!privateVehicle)broadcast({type:'vehicles',vehicles:fleet.snapshot()});
    }else if(m.type==='move'&&rate('input',105,3000)){
     if(!c.motion)return;
@@ -577,7 +582,17 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
    }else if(['sit','stand','door','pickup','drop','shoot','ballReset'].includes(m.type)&&rate('world',8,1000)){
     if(c.vehicle)return;
     // Physical interactions: validated against server-side position, possession and occupancy.
-    const held=c.ball,r=m.type==='sit'?world.sit(c,str(m.seat)):m.type==='stand'?world.stand(c):m.type==='door'?world.door(c,str(m.id),m.open===true,joined().filter(p=>p!==c)):m.type==='pickup'?world.pickup(c,str(m.ball)):m.type==='drop'?world.drop(c):m.type==='shoot'?world.shoot(c,num(m.yaw),num(m.charge)):world.resetBall(c,str(m.ball));
+    const held=c.ball, occupied=c.seat, pickup=m.type==='pickup'?world.balls.find(b=>b.id===m.ball):null;
+    const wasOpen=m.type==='door'?!!world.doors[str(m.id)]:false;
+    const r=m.type==='sit'?world.sit(c,str(m.seat)):m.type==='stand'?world.stand(c):m.type==='door'?world.door(c,str(m.id),m.open===true,joined().filter(p=>p!==c)):m.type==='pickup'?world.pickup(c,str(m.ball)):m.type==='drop'?world.drop(c):m.type==='shoot'?world.shoot(c,num(m.yaw),num(m.charge)):world.resetBall(c,str(m.ball));
+    if(r.ok&&m.type==='door'&&wasOpen!==!!world.doors[str(m.id)]){
+      const kind=m.open===true?'door-push':'door-pull';
+      markCharacterAction(c,kind,str(m.id),Date.now()-PRIMITIVES[kind].commitMs);
+    }
+    if(r.ok&&m.type==='sit')markCharacterAction(c,'sit',c.seat,Date.now());
+    if(r.ok&&m.type==='stand')markCharacterAction(c,'stand',occupied,Date.now(),c);
+    if(r.ok&&m.type==='shoot')markCharacterAction(c,'shoot',held,Date.now());
+    if(r.ok&&pickup)markCharacterAction(c,'pickup',pickup.id,Date.now()-PRIMITIVES.pickup.commitMs,pickup);
     send(ws,{type:'result',action:m.type,ref:Number.isInteger(m.ref)?m.ref:null,...r,seat:c.seat,ball:c.ball,x:c.x,z:c.z});
     if(r.ok&&m.type==='shoot'){broadcast({type:'events',list:[{type:'shot',by:id,shot:r.shot,hoop:r.hoop}]});duels.onShot(c,r.shot,held);if(c.account&&!c.duel)c.hoops.push({id:r.shot,at:Date.now(),points:0,done:false});}
    }else if(m.type==='report'&&rate('report',3,60000)&&clients.has(m.id)&&m.id!==id){
@@ -623,7 +638,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
   if(world.revision!==worldRevision){worldRevision=world.revision;broadcast(worldState());}
   // 15 Hz state: positions to the centimetre and angles to the milliradian (the client interpolates), and
   // only the vehicles that changed since the last broadcast (joining clients get the whole fleet in welcome).
-  if(++tick%2===0){const data={type:'state',at:Date.now(),players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm,getaway})=>({id,name,avatar,space:dorm?dorm.host.id:getaway&&isGetawayVehicle(vehicle)?'getaway:'+id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()};
+  if(++tick%2===0){const at=Date.now();const data={type:'state',at,players:joined().map(({id,name,avatar,x,y,z,yaw,moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,account,dorm,getaway,characterAction})=>({id,name,avatar,space:dorm?dorm.host.id:getaway&&isGetawayVehicle(vehicle)?'getaway:'+id:undefined,x:cm(x),y:cm(y),z:cm(z),yaw:mrad(yaw),moving,sprinting,emote,emoteAt,seat,ball,vehicle,vehicleSeat,characterAction:characterActionAt(characterAction,at)??undefined,handle:account&&!account.hidden?account.handle:null,verified:!!account,title:account?.title??null})),balls:world.balls.map(packBall),vehicles:changedVehicles(),classes:classes.snapshot()};
    // Each driver also gets what the room has applied of their driving commands, to reconcile against.
    const raw=JSON.stringify(data);for(const c of clients.values())if(c.joined){const motion=motionSnapshot(c),drive=c.vehicle&&c.vehicleSeat===0?fleetFor(c)?.driveState(c.vehicle):null;
     sendRaw(c.ws,motion||drive?raw.slice(0,-1)+(motion?',"motion":'+JSON.stringify(motion):'')+(drive?',"drive":'+JSON.stringify(drive):'')+'}':raw,true);}
