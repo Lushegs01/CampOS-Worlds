@@ -73,6 +73,9 @@ function flat(slot: 'normal' | 'arm') {
 }
 
 const pending = new WeakMap<THREE.WebGLRenderer, Map<string, Promise<Library>>>();
+/** A restored context needs freshly baked GPU textures, even when the renderer object is reused. */
+export function resetLibrary(gl: THREE.WebGLRenderer) { pending.delete(gl); }
+
 /**
  * Everything the arena needs before anyone can play: every surface set, the props that form cover, the sky and its
  * lighting. Downloads are shared (and retried, time-limited, prioritised); GPU-side results are per renderer.
