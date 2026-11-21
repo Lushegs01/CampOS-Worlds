@@ -96,7 +96,9 @@ test('case gates delivery, fuel barrel respects shots, blast damages and cleans 
   combatInput(m,p,'fire',aim(p,BARREL,.68),2.4);
   assert.equal(m.exploded,true);assert.ok(m.health<100);
   assert.equal(m.blastAt,null);
-  assert.equal(viewMission(m,2.4).events.filter(e=>e.kind==='blast').length,1);
+  const effects=viewMission(m,2.4).events;
+  assert.equal(effects.filter(e=>e.kind==='blast').length,1);
+  assert.ok(effects.some(e=>e.kind==='shot'&&e.impact&&e.surface==='metal'&&e.normal?.[2]<0));
   assert.equal(viewMission(m,2.5).events.length,0);
   for(let t=2.4;t<4;t+=dt)m.fleet.step(dt,[p],1000*t);
   for(const id of m.fleet.vehicles.map(v=>v.id)){

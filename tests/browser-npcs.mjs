@@ -146,7 +146,7 @@ try {
     await closeDialog(A); pass('coach: no prompt while holding a ball; afterwards a conversation about shooting');
 
     // ---- Graphics quality: the cast survives the scene being rebuilt.
-    await A.keyboard.press('Escape'); await A.getByRole('button', { name: /^medium/i }).click(); await A.getByRole('button', { name: /Back to campus/ }).click();
+    await A.keyboard.press('Escape'); await A.getByRole('button', { name: /^balanced/i }).click(); await A.getByRole('button', { name: /Back to campus/ }).click();
     await approach(A, 'librarian', -22.6, -6.6, 0, 'Ask librarian');
     await A.keyboard.press('KeyE'); await A.getByRole('heading', { name: 'Mrs Hauwa Musa' }).waitFor(); await closeDialog(A);
     pass('after switching graphics quality, characters are drawn and talk as before');

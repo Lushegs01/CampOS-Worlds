@@ -108,10 +108,12 @@ export function connect(){
 // QA builds only: lose the connection the way a phone does when it changes networks (the room still holds
 // the old socket and only notices later), or close it outright.
 if(QA_HOOKS)(window as unknown as Record<string,unknown>).__campusNet={abandon:()=>{const ws=socket;if(ws)ws.onclose?.(new CloseEvent('close',{code:1006}));},close:()=>socket?.close(),id:()=>ownId};
+// A software-rendered capture can spend several seconds inside a synchronous shader compile.
+const ROOM_SILENCE_MS = QA_HOOKS && new URLSearchParams(location.search).has('qa-render-lab') ? 60000 : 8000;
 export function useNetwork(){const phase=useGame(s=>s.phase);useEffect(()=>{if(phase!=='playing')return;connect();const watch=setInterval(()=>{
  if(document.hidden||useGame.getState().status!=='connected'||!socket)return;
  const gap=performance.now()-lastRoomAt;if(gap>2000&&!useGame.getState().connectionLagging)useGame.getState().set({connectionLagging:true});
- if(gap<=8000)return;
+ if(gap<=ROOM_SILENCE_MS)return;
  useGame.getState().notify('The room stopped responding. Reconnecting; you can explore locally.');
  const stale=socket;stale.close();stale.onclose?.(new CloseEvent('close',{code:1006}));
  },1000);return()=>{clearInterval(watch);stopped=true;clearTimeout(reconnect);socket?.close();};},[phase]);}

@@ -1,3 +1,4 @@
+import { inDistrict } from '../../shared/getaway.mjs';
 import { campusBudget } from './rendering';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -95,11 +96,28 @@ export function Lighting({ quality }: { quality: QualityProfile }) {
   }, [scene, quality]);
   useFrame(() => {
     const inside = Math.abs(player.x) < 85 && player.z > -78 && player.z < 70, step = 24;
-    const key = inside ? 'campus' : `${Math.round(player.x / step)},${Math.round(player.z / step)}`;
+    const industrial = inDistrict(player.x, player.z);
+    const key = inside ? 'campus' : `${industrial ? 'freight:' : ''}${Math.round(player.x / step)},${Math.round(player.z / step)}`;
     if (key !== region.current) {
       region.current = key;
+      const shadow = sun.current.shadow;
+      // The narrower freight frustum keeps the usual High texels per metre with a smaller atlas.
+      // Ultra retains the denser 4K map and its existing every-frame update.
+      const size = industrial && quality.shadowMode === 'every-2nd-frame' ? Math.min(3072, quality.shadowSize) : quality.shadowSize;
+      if (shadow.mapSize.x !== size) {
+        shadow.mapSize.set(size, size);
+        shadow.map?.dispose();
+        shadow.map = null;
+      }
       if (inside) fit([-78, 78, -72, 66]);
-      else { const cx = Math.round(player.x / step) * step, cz = Math.round(player.z / step) * step; fit([cx - 70, cx + 70, cz - 70, cz + 70]); }
+      else {
+        const cx = Math.round(player.x / step) * step, cz = Math.round(player.z / step) * step, radius = industrial ? 52 : 70;
+        fit([cx - radius, cx + radius, cz - radius, cz + radius]);
+      }
+      if (scene.fog instanceof THREE.Fog) {
+        scene.fog.near = industrial ? 102 : LIGHTING.fogNear;
+        scene.fog.far = industrial ? 760 : LIGHTING.fogFar;
+      }
     }
     if (quality.shadowMode !== 'static') { const s = sun.current.shadow, interval = (quality.shadowMode === 'every-2nd-frame' ? 2 : 1) * (campusBudget.level >= 2 ? 3 : 1); s.autoUpdate = false; s.needsUpdate = s.needsUpdate || frame.current++ % interval === 0; }
   });

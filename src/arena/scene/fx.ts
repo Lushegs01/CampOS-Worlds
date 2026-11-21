@@ -63,7 +63,7 @@ export function flashTexture() {
 type P = { alive: boolean; x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; age: number; size: number; grow: number; rot: number; spin: number; r: number; g: number; b: number; a: number; drag: number; gravity: number; stretch: number; floor: number };
 class Particles {
   mesh: THREE.InstancedMesh; private ps: P[]; private color: THREE.InstancedBufferAttribute; private data: THREE.InstancedBufferAttribute; private next = 0; private m = new THREE.Matrix4();
-  constructor(count: number, additive: boolean) {
+  constructor(count: number, additive: boolean, private groundAt: Ground) {
     const geo = new THREE.PlaneGeometry(1, 1);
     this.color = new THREE.InstancedBufferAttribute(new Float32Array(count * 4), 4); this.data = new THREE.InstancedBufferAttribute(new Float32Array(count * 4), 4);
     this.color.setUsage(THREE.DynamicDrawUsage); this.data.setUsage(THREE.DynamicDrawUsage);
@@ -71,16 +71,27 @@ class Particles {
     // Light particles glow by themselves; smoke and dust take the scene's ambient level (uLight) so they are not bright at night.
     const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { map: { value: additive ? softTexture() : puffTexture() }, uLight: { value: 1 } }, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false });
     this.mesh = new THREE.InstancedMesh(geo, mat, count); this.mesh.frustumCulled = false; this.mesh.renderOrder = additive ? 6 : 5;
+    this.mesh.visible = false;
     this.ps = Array.from({ length: count }, () => ({ alive: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 1, age: 0, size: .1, grow: 0, rot: 0, spin: 0, r: 1, g: 1, b: 1, a: 1, drag: 0, gravity: 0, stretch: 0, floor: 0 }));
     for (let i = 0; i < count; i++) { this.m.makeTranslation(0, -999, 0); this.mesh.setMatrixAt(i, this.m); }
   }
-  emit(o: Partial<P> & { x: number; y: number; z: number }) { const p = this.ps[this.next]; this.next = (this.next + 1) % this.ps.length; Object.assign(p, { alive: true, age: 0, vx: 0, vy: 0, vz: 0, life: 1, size: .1, grow: 0, rot: Math.random() * 6.28, spin: 0, r: 1, g: 1, b: 1, a: 1, drag: 0, gravity: 0, stretch: 0 }, o); p.floor = o.gravity ? ground(o.x, o.y + .05, o.z) : -1e9; }
+  emit(o: Partial<P> & { x: number; y: number; z: number }) { this.mesh.visible = true; const p = this.ps[this.next]; this.next = (this.next + 1) % this.ps.length; Object.assign(p, { alive: true, age: 0, vx: 0, vy: 0, vz: 0, life: 1, size: .1, grow: 0, rot: Math.random() * 6.28, spin: 0, r: 1, g: 1, b: 1, a: 1, drag: 0, gravity: 0, stretch: 0 }, o); p.floor = o.gravity ? this.groundAt(o.x, o.y + .05, o.z) : -1e9; }
   update(dt: number) {
+    if (!this.mesh.visible) return;
     const c = this.color.array as Float32Array, d = this.data.array as Float32Array;
+    let active = false;
     for (let i = 0; i < this.ps.length; i++) {
       const p = this.ps[i];
       if (!p.alive) { if (c[i * 4 + 3] !== 0) { c[i * 4 + 3] = 0; this.m.makeTranslation(0, -999, 0); this.mesh.setMatrixAt(i, this.m); } continue; }
-      p.age += dt; if (p.age >= p.life) { p.alive = false; continue; }
+      p.age += dt;
+      if (p.age >= p.life) {
+        p.alive = false;
+        c[i * 4 + 3] = 0;
+        this.m.makeTranslation(0, -999, 0);
+        this.mesh.setMatrixAt(i, this.m);
+        continue;
+      }
+      active = true;
       const k = p.age / p.life, damp = Math.exp(-p.drag * dt);
       p.vx *= damp; p.vy = p.vy * damp - p.gravity * dt; p.vz *= damp; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
       if (p.y < p.floor + .02 && p.gravity > 0) { p.y = p.floor + .02; p.vy *= -.3; p.vx *= .5; p.vz *= .5; }
@@ -90,6 +101,7 @@ class Particles {
       c[i * 4] = p.r; c[i * 4 + 1] = p.g; c[i * 4 + 2] = p.b; c[i * 4 + 3] = p.a * fade;
       d[i * 4] = p.size + p.grow * p.age; d[i * 4 + 1] = p.rot; d[i * 4 + 2] = p.stretch;
     }
+    this.mesh.visible = active;
     this.mesh.instanceMatrix.needsUpdate = true; this.color.needsUpdate = true; this.data.needsUpdate = true;
   }
 }
@@ -130,18 +142,24 @@ const IMPACT: Record<SurfaceKind, { dust: [number, number, number]; sparks: numb
   foliage: { dust: [.3, .4, .22], sparks: 0, chips: 4, tint: '#ffffff', hole: 0 },
 };
 
+interface EffectsOptions { glow?: number; smoke?: number; tracers?: number; light?: boolean; groundAt?: Ground }
+
 /** The whole effects layer for the world scene. */
 export class Effects {
   group = new THREE.Group(); private glow: Particles; private smoke: Particles; private decals: Decals; private tracers: { mesh: THREE.Mesh; from: THREE.Vector3; dir: THREE.Vector3; len: number; t: number; speed: number }[] = [];
   private light = new THREE.PointLight('#ffb35a', 0, 22, 2); private lightT = 0; private ti = 0; private scale: number;
-  constructor(scale: number, decals: number) {
+  private groundAt: Ground;
+  constructor(scale: number, decals: number, options: EffectsOptions = {}) {
     this.scale = scale;
-    this.glow = new Particles(Math.round(500 * Math.max(.5, scale)), true); this.smoke = new Particles(Math.round(400 * Math.max(.5, scale)), false);
+    this.groundAt = options.groundAt ?? ((x, y, z) => ground(x, y, z));
+    this.glow = new Particles(options.glow ?? Math.round(500 * Math.max(.5, scale)), true, this.groundAt);
+    this.smoke = new Particles(options.smoke ?? Math.round(400 * Math.max(.5, scale)), false, this.groundAt);
     this.decals = new Decals(decals);
     const tgeo = new THREE.PlaneGeometry(.035, 1); tgeo.translate(0, -.5, 0); tgeo.rotateX(-Math.PI / 2);
     const tmat = new THREE.MeshBasicMaterial({ color: '#ffe0a0', transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
-    for (let i = 0; i < 24; i++) { const mesh = new THREE.Mesh(tgeo, tmat); mesh.visible = false; this.group.add(mesh); this.tracers.push({ mesh, from: new THREE.Vector3(), dir: new THREE.Vector3(), len: 0, t: 1, speed: 420 }); }
-    this.group.add(this.glow.mesh, this.smoke.mesh, this.decals.mesh, this.light);
+    for (let i = 0; i < (options.tracers ?? 24); i++) { const mesh = new THREE.Mesh(tgeo, tmat); mesh.visible = false; this.group.add(mesh); this.tracers.push({ mesh, from: new THREE.Vector3(), dir: new THREE.Vector3(), len: 0, t: 1, speed: 420 }); }
+    this.group.add(this.glow.mesh, this.smoke.mesh, this.decals.mesh);
+    if (options.light !== false) this.group.add(this.light);
   }
   /** How much light falls on smoke and dust (1 in daylight; less in overcast, much less at night). */
   setAmbient(k: number) { (this.smoke.mesh.material as THREE.ShaderMaterial).uniforms.uLight.value = k; }
@@ -168,7 +186,7 @@ export class Effects {
     for (let i = 0; i < 20 * s + 6; i++) { const a = Math.random() * 6.28; this.smoke.emit({ x: at.x, y: at.y + .4, z: at.z, vx: Math.cos(a) * (1 + Math.random() * 3), vy: .8 + Math.random() * 3, vz: Math.sin(a) * (1 + Math.random() * 3), size: .9, grow: 1.2 + r * .1, life: 2.2 + Math.random() * 1.5, r: .22, g: .2, b: .19, a: .75, drag: 1.4, spin: (Math.random() - .5) }); }
     for (let i = 0; i < 18 * s; i++) { const a = Math.random() * 6.28; this.smoke.emit({ x: at.x, y: at.y + .2, z: at.z, vx: Math.cos(a) * (4 + Math.random() * 6), vy: 3 + Math.random() * 6, vz: Math.sin(a) * (4 + Math.random() * 6), size: .04, life: 1.4, r: .12, g: .11, b: .1, a: 1, gravity: 9.8, drag: .3 }); }
     // The ground ring of dust and the scorch mark sit on whatever the blast stood on.
-    const floor = ground(at.x, at.y + .3, at.z);
+    const floor = this.groundAt(at.x, at.y + .3, at.z);
     for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; this.smoke.emit({ x: at.x, y: floor + .15, z: at.z, vx: Math.cos(a) * 7, vy: .2, vz: Math.sin(a) * 7, size: .5, grow: 1.5, life: 1.2, r: .55, g: .5, b: .42, a: .45, drag: 2.5 }); }
     if (at.y - floor < 1.5) this.decals.add(new THREE.Vector3(at.x, floor + .01, at.z), new THREE.Vector3(0, 1, 0), r * .5, new THREE.Color('#2a2622'));
     this.light.position.copy(at).setY(at.y + 1); this.lightT = .45;
@@ -182,11 +200,31 @@ export class Effects {
   capture(at: THREE.Vector3, color: THREE.Color, r: number) {
     for (let i = 0; i < 40 * this.scale; i++) { const a = i / 40 * 6.28; this.glow.emit({ x: at.x + Math.cos(a) * r, y: .15, z: at.z + Math.sin(a) * r, vy: 1.5 + Math.random(), size: .12, life: .9, r: color.r, g: color.g, b: color.b, a: .9, drag: .5 }); }
   }
+  tyreSmoke(at: THREE.Vector3, direction: THREE.Vector3) {
+    this.smoke.emit({ x: at.x, y: at.y, z: at.z, vx: direction.x, vz: direction.z, vy: .45,
+      size: .2, grow: .65, life: 1.05, r: .5, g: .48, b: .44, a: .35, drag: 1.8, spin: .7 });
+  }
+  exhaust(at: THREE.Vector3, burning = false) {
+    this.smoke.emit({ x: at.x, y: at.y, z: at.z, vy: burning ? 1.2 : .64, vx: .35, vz: .14,
+      size: .24, grow: .65, life: burning ? 2.7 : 1.4, r: .21, g: .2, b: .19, a: .6, drag: .6, spin: .26 });
+    if (burning) this.glow.emit({ x: at.x, y: at.y + .2, z: at.z, vy: 1.5, vx: (Math.random() - .5) * .6,
+      size: .29, grow: .55, life: .36, r: 1, g: .48, b: .13, a: .7, drag: .9 });
+  }
+  dispose() {
+    const meshes = [this.glow.mesh, this.smoke.mesh, this.decals.mesh, ...this.tracers.map(t => t.mesh)];
+    const materials = new Set(meshes.map(mesh => mesh.material as THREE.Material));
+    (this.decals.mesh.material as THREE.MeshStandardMaterial).map?.dispose();
+    this.glow.mesh.dispose();
+    this.smoke.mesh.dispose();
+    this.decals.mesh.dispose();
+    new Set(meshes.map(mesh => mesh.geometry)).forEach(geometry => geometry.dispose());
+    materials.forEach(material => material.dispose());
+  }
   update(dt: number) {
     this.glow.update(dt); this.smoke.update(dt);
     for (const t of this.tracers) {
       if (!t.mesh.visible) continue;
-      t.t += dt * t.speed; const head = Math.min(t.t, t.len), tail = Math.max(0, head - 5);
+      t.t += dt * t.speed; const head = Math.min(t.t, t.len), tail = Math.max(0, t.t - 5);
       if (tail >= t.len) { t.mesh.visible = false; continue; }
       t.mesh.position.copy(t.from).addScaledVector(t.dir, head);
       t.mesh.lookAt(t.mesh.position.clone().add(t.dir)); t.mesh.scale.set(1, 1, Math.max(.01, head - tail));

@@ -1,0 +1,52 @@
+{
+  "bay04Shell": {
+    "file": "bay04Shell.glb",
+    "triangles": 3774,
+    "bytes": 54784,
+    "dimensionsBlender": [
+      29.64,
+      27.16,
+      8.76
+    ]
+  },
+  "bay04Fittings": {
+    "file": "bay04Fittings.glb",
+    "triangles": 4864,
+    "bytes": 67836,
+    "dimensionsBlender": [
+      27.4,
+      20.077,
+      6.18
+    ]
+  },
+  "freightGround": {
+    "file": "freightGround.glb",
+    "triangles": 5844,
+    "bytes": 76064,
+    "dimensionsBlender": [
+      131.32,
+      70.83,
+      0.05
+    ]
+  },
+  "freightFixtures": {
+    "file": "freightFixtures.glb",
+    "triangles": 5040,
+    "bytes": 62352,
+    "dimensionsBlender": [
+      121.055,
+      24.055,
+      6.185
+    ]
+  },
+  "freightDepots": {
+    "file": "freightDepots.glb",
+    "triangles": 11228,
+    "bytes": 110340,
+    "dimensionsBlender": [
+      125.9,
+      61.145,
+      9.04
+    ]
+  }
+}

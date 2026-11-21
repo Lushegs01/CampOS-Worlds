@@ -11,7 +11,7 @@ import { portraitBlocked } from '../mobile/orientation';
 export type Point = { x: number; z: number };
 export type MissionCar = Vehicle & { condition: number; police?: boolean; mode?: string };
 export type Actor = Point & { id: string; kind: 'guard' | 'operative'; yaw: number; hp: number; maxHp: number; mode: string };
-export type MissionEvent = Point & { id: number; y: number; kind: string; end?: [number, number, number]; weapon?: string; impact?: boolean; stage?: number };
+export type MissionEvent = Point & { id: number; y: number; kind: string; end?: [number, number, number]; weapon?: string; impact?: boolean; normal?: [number, number, number]; surface?: 'metal' | 'wood' | 'concrete' | 'actor'; stage?: number };
 export type Report = { duration: number; defeated: number; distance: number; topSpeed: number; crashes: number; blastKills: number };
 type Receipt = { report: Report; xp: number; credits: number; chapter: number; milestone: string; unlock: string; completedAt: string };
 export type Mission = {
@@ -26,6 +26,7 @@ export const useGetaway = create<State>(() => ({ mission: null, history: null, r
 export const command = (action: string, data = {}) => send({ type: 'getaway', action, ...data });
 export const activeCombat = (m = useGetaway.getState().mission) => !!m && (m.stage === O.combat || m.stage === O.package || m.stage === O.ambush);
 const getWeapon = () => WEAPON_BY_ID.get(useGetaway.getState().mission?.gun.id ?? '');
+export const combatView = { blend: 0 };
 export const shotInput = { held: false, next: 0, started: 0, kick: 0, recoilAt: -Infinity };
 const events = new Set<(event: MissionEvent) => void>();
 export function onMissionEvent(fn: (event: MissionEvent) => void) { events.add(fn); return () => { events.delete(fn); }; }

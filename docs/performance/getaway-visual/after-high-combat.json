@@ -1,0 +1,115 @@
+{
+  "profile": "high",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "timing": false,
+  "sample": "Single-frame capture",
+  "views": {
+    "warehouse-interior": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "shadowMap": [
+        3072,
+        3072
+      ],
+      "post": true,
+      "quality": "high",
+      "camera": [
+        191,
+        2.7,
+        22.7
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 368,
+        "textures": 271
+      },
+      "draw": {
+        "frame": 218,
+        "calls": 547,
+        "triangles": 1519434,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 3,
+      "weapon": "getaway:weapon:sparrow",
+      "districtMeshes": 49,
+      "jsHeapUsedBytes": 76255304
+    },
+    "combat-view": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "shadowMap": [
+        3072,
+        3072
+      ],
+      "post": true,
+      "quality": "high",
+      "camera": [
+        191,
+        1.5,
+        22
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 369,
+        "textures": 274
+      },
+      "draw": {
+        "frame": 234,
+        "calls": 535,
+        "triangles": 1492458,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 3,
+      "weapon": "getaway:weapon:sparrow",
+      "districtMeshes": 49,
+      "jsHeapUsedBytes": 54263096
+    },
+    "fuel-blast": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "shadowMap": [
+        3072,
+        3072
+      ],
+      "post": true,
+      "quality": "high",
+      "camera": [
+        187.5,
+        2.8,
+        38
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 380,
+        "textures": 294
+      },
+      "draw": {
+        "frame": 250,
+        "calls": 379,
+        "triangles": 958745,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 2,
+      "weapon": "getaway:weapon:sparrow",
+      "districtMeshes": 48,
+      "jsHeapUsedBytes": 75548628
+    }
+  },
+  "failedAssets": [],
+  "errors": [],
+  "assets": {
+    "requests": 28,
+    "transferredBytes": 9398736,
+    "maxDurationMs": 233
+  },
+  "graphicsErrors": []
+}

@@ -5,6 +5,8 @@ import { WEAPON_BY_ID } from '../../shared/arena/weapons.mjs';
 import { input, player, useGame } from '../state';
 import { currentVehicle, useVehicle } from '../vehicles/client';
 import { activeCombat, command, equip, heldFire, openMissionJournal, setAim, useGetaway, type Point, type Report } from './client';
+import { SpokenLine } from '../audio/SpokenLine';
+import { SADE } from './dialogue';
 import './mission.css';
 
 export function MissionButton() {
@@ -48,6 +50,13 @@ function Statistics({ report }: { report: Report }) {
     <p className="getaway-bonus">{report.blastKills ? 'Optional objective complete · Defeat a reinforcement with the fuel drum' : 'Optional objective missed · Defeat a reinforcement with the fuel drum'}</p>
   </>;
 }
+function SadeLine({ line }: { line: keyof typeof SADE }) {
+  return <div className="getaway-dialogue">
+    <b>Sade</b>
+    {SADE[line].map(text => <p key={text}>{text}</p>)}
+    <SpokenLine key={line} id={`voice/sade/${line}`} speaker="Sade" />
+  </div>;
+}
 export default function GetawayHud() {
   const { mission, history, resume, brief, journal, aim } = useGetaway();
   const phase = useGame(s => s.phase), panel = useGame(s => s.panel), status = useGame(s => s.status);
@@ -86,10 +95,10 @@ export default function GetawayHud() {
       <header><span>SHADOW PROTOCOL · CHAPTER I</span>{stage < O.commit && !mission?.failed && <button aria-label="Close mission journal" onClick={close}><X size={20}/></button>}</header>
       <h2>The Getaway</h2>
       {brief ? <>
-        <div className="getaway-dialogue"><b>Sade</b><p>The freight yard used to move university equipment. Now someone’s moving sealed cases through Bay 04. I need the one with the amber latch.</p><p>Take the loadout. If the yard lights turn red, head for the motor pool. I’ll meet you at the old maintenance office after you’ve lost anyone following you.</p></div>
+        <SadeLine line="briefing" />
         <footer><button className="primary" onClick={() => activate('accept')}>Accept assignment</button><button onClick={close}>Walk away</button></footer>
       </> : stage >= O.commit ? <>
-        <div className="getaway-dialogue"><b>Sade</b><p>These aren’t shipping records. They’re authorizations. Same university seal, different signatures. Wait. The next transfer is scheduled for tonight, under the auditorium.</p></div>
+        <SadeLine line="delivery" />
         {mission?.report && <Statistics report={mission.report}/>}
         {stage === O.commit ? <p role="status">{mission?.saveError ? 'Delivery verified. The account service could not save your reward.' : 'Delivery verified. Saving your campaign progress…'}</p>
           : <p role="status">{mission?.reward?.saved ? mission.reward.first ? '+500 campaign XP · +250 credits · Loose ends · Next contact unlocked' : 'Replay complete. Your first completion reward is already saved.' : 'Guest run complete. Sign in before starting a run to earn account rewards.'}</p>}
