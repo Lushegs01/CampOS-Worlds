@@ -87,12 +87,33 @@ Possession is validated by the server and visible to everyone. A disconnecting p
 - `npm test`: shot physics (ideal free throw, three-pointer, under- and over-charged misses, no upward scoring, no backboard tunnelling, ball rest), seat exclusivity and stand-up exits, every seat reachable on foot, door swing and obstruction rules, locked doors, doorway fit, ball possession and disconnect release, position-settle limits, and network seat contention with disconnect cleanup.
 - `node tests/browser-interactions.mjs` (with `npm run dev`, or the isolated `campos-qa-room` + `campos-qa-web` pair and `TEST_URL=http://localhost:5174`): two real browser players and a touch-emulated phone. It covers bench sitting and contention, standing by key and by movement, library doors (open, walk through, refused close, solid when closed, locked), table and computer seats, the new-arrivals display, café door, counter order, menu and table, classroom door, desk and whiteboard, a five-shot basketball round with real timing, a weak shot, dropping, disconnect release, and mobile sit, stand, pick-up and drop through the touch buttons. Screenshots go to `docs/screenshots/interactions/`.
 
+## Character motion and fixture authoring
+
+- Edit fixture measurements in `shared/interactions.mjs` and action contracts in `shared/character-actions.mjs`. Reuse a primitive by giving a new fixture a supported category and the usual seat or leaf anchor. For a door, the visual leaf and the contact solver share the same hinge and handle offsets. For a seat, set the seat surface height, orientation, and pull distance.
+- The clip provider in `src/animation/motion.ts` resolves approach and facing on interaction intent. Approaches use normal movement inputs and can be interrupted before a request commits. The room confirms the action before it projects the target and start time into its existing snapshots. Remote clients sample them on the room playback clock.
+- The campus avatar maps the Rocketbox limb chains once per rig. The mixer still poses the captured gait and fixture clips. The contact pass adds bounded foot and hand corrections on visible avatars. Where a limb is unavailable or the solver budget is exhausted, the authored clip remains available. Animation throttling leaves the renderer's texture and material settings alone.
+- **P** switches between campus camera perspectives. The same option is available under **Pause and settings** for touch players. Arena retains its weapon rig and viewmodel pipeline.
+- Run `node --test tests/character-actions.test.mjs` to check fixture definitions, skeleton hierarchies, clip references and authoritative action packets. Run `node tests/browser-character-actions.mjs` to preview the campus transitions and write screenshots to `CHARACTER_EVIDENCE` (or a temporary directory).
+
+### Primitive Studio
+
+Run `npm run dev:web` and open `http://localhost:5173/?primitive-editor=1`. Choose a seat or a working door, an action, and a character. Scrub or play the timeline. The green marker is the approach and the gold marker is the contact. Use the view-angle slider to inspect the pose from the side. The studio runs in an isolated development scene.
+
+**Save draft** stores the current calibration on this device. **Export JSON** makes it portable, and **Import JSON** can reopen it. Review an export before adding it to the project.
+
+```sh
+node scripts/assets/install-primitive-calibration.mjs primitive-library-main.json --dry-run
+node scripts/assets/install-primitive-calibration.mjs primitive-library-main.json
+```
+
+The installer validates the fixture and numeric bounds, then updates `shared/primitive-calibrations.json`. The campus runtime reads the committed calibration for the matching fixture. Campus collision, seat claims, door state, and stand-up exit selection still use the existing room rules. Studio previews cover sitting, standing, opening doors, and closing doors.
+
 ## Known limitations
 
-- Animations are motion captures blended procedurally. Hands are not IK-placed: the ball sits between the hands rather than in a fitted grip, and the dribbling arm's pump is procedural. Hands may hover a few centimetres from door handles and tables.
+- Foot and hand correction is bounded. Fitted finger grips, table hand contact, vehicle door articulation, and precise contacts during the basketball dribble and release are still approximated by the existing clips and procedural layers.
 - Chairs and tables are not obstacles for walking (only tabletops' central footprint is), so you can brush through a chair's edge. Doors swing through other furniture freely.
-- Remote players' door and pick-up gestures aren't replicated (the door itself is). Their sit and stand motions are.
+- The campus supports its existing jump and traversal mechanics. Arena supports its existing slide and crouch. Campus climbing and vaulting need gameplay and collision support. Primitive Studio currently exposes seats and working doors. Basketball, vehicles, and new primitive categories use the existing code and shared data.
 - Locked doors never unlock; there are no keys or roles.
 - There is no upper-floor access (no stairs), and the other academic blocks are not enterable.
 - Shot aim assist corrects 85% of the aiming error towards the targeted hoop: generous, deliberately.
-- Tested on desktop Chrome (Iris Xe) and a 390 × 844 touch-emulated viewport. No physical phone has been tested.
+- Browser automation covers desktop and emulated touch. Physical Android and iOS performance remains unmeasured.

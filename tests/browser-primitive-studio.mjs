@@ -1,0 +1,63 @@
+import assert from 'node:assert/strict';
+import { mkdir,readFile } from 'node:fs/promises';
+import { createServer } from 'vite';
+import { launch } from './support/browser.mjs';
+
+const server=await createServer({server:{host:'127.0.0.1',port:5203,strictPort:true},logLevel:'warn'});
+await server.listen();
+const browser=await launch(),out=process.env.CHARACTER_EVIDENCE??'/tmp/campos-primitive-evidence', errors=[];
+await mkdir(out,{recursive:true});
+try{
+ const page=await browser.newPage({viewport:{width:1040,height:670}});
+ page.on('pageerror',e=>errors.push(e.message));
+ const slide=(label,value)=>page.getByRole('slider',{name:label,exact:true}).evaluate((control,value)=>{
+   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(control,String(value));
+   control.dispatchEvent(new Event('input',{bubbles:true}));
+   control.dispatchEvent(new Event('change',{bubbles:true}));
+ },value);
+ let rigLoaded=false;
+ page.on('response',response=>{if(/characters\/anim-[fm]\.glb/.test(response.url())&&response.ok())rigLoaded=true;});
+ await page.goto('http://127.0.0.1:5203/?primitive-editor=1');
+ await page.getByRole('heading',{name:'Primitive Studio'}).waitFor();
+ await page.getByLabel('Fixture',{exact:true}).selectOption('library-main');
+ await page.getByLabel('Action',{exact:true}).selectOption('door-pull');
+ const premiumModel=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/characters/folake.glb')&&response.ok());
+ await page.getByLabel('Character',{exact:true}).selectOption('folake');
+ await premiumModel;
+ await page.getByText('Loading character…',{exact:true}).waitFor({state:'hidden'});
+ await page.getByLabel('Character',{exact:true}).selectOption('amara');
+ await slide('Preview progress',.61);
+ await slide('Height offset',.08);
+ await page.getByRole('button',{name:'Save draft'}).click();
+ await page.getByText('Draft saved on this device.').waitFor();
+ const download=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Export JSON'}).click();
+ const file=await download;
+ const draft=JSON.parse(await readFile(await file.path(),'utf8'));
+ assert.equal(draft.fixture,'library-main');
+ assert.equal(draft.calibration.y,.08);
+ await page.getByRole('button',{name:'Play preview'}).click();
+ await page.getByRole('button',{name:'Play preview'}).waitFor();
+ await page.reload();
+ assert.equal(await page.getByLabel('Fixture',{exact:true}).inputValue(),'library-main');
+ assert.equal(await page.getByRole('slider',{name:'Height offset',exact:true}).inputValue(),'0.08');
+ await slide('Preview progress',.35);
+ await page.locator('canvas').waitFor();
+ await page.getByText('Loading character…',{exact:true}).waitFor({state:'hidden'});
+ for(let i=0;i<80&&!rigLoaded;i++)await new Promise(resolve=>setTimeout(resolve,125));
+ assert.ok(rigLoaded);
+ await page.screenshot({path:out+'/door-studio.jpg',type:'jpeg',quality:85});
+ const seat={version:1,fixture:'bench-0-l',calibration:{x:.02,y:.04,z:0,yaw:4,approach:.01}};
+ const load=data=>page.getByLabel('Import calibration file').setInputFiles({name:'draft.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(data))});
+ await load({...seat,calibration:{...seat.calibration,x:9}});
+ await page.getByText('Expected a supported fixture and bounded calibration values.').waitFor();
+ await load(seat);
+ await page.getByText('Draft loaded.').waitFor();
+ await page.getByLabel('Action',{exact:true}).selectOption('stand');
+ await page.getByText('Loading character…',{exact:true}).waitFor({state:'hidden'});
+ await slide('Preview progress',.72);
+ await page.screenshot({path:out+'/seat-studio.jpg',type:'jpeg',quality:85});
+ assert.deepEqual(errors,[]);
+ console.log('PASS fixture selection, rig loading, playback controls, validation, save, reload and JSON round trip');
+}catch(e){process.exitCode=1;throw e;}
+finally{await browser.close();await server.close();}

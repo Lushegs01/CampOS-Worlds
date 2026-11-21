@@ -1,8 +1,9 @@
+import { clipProvider, type MotionPlan } from '../animation/motion';
 import { vehicleInteract, useVehicle, nearestDoor } from '../vehicles/client';
 import { SEATS, SEAT_BY_ID, DOORS, POINTS as POINT_DATA, BALLS, seatApproach, SEAT_RANGE, BALL_PICKUP_RANGE } from '../../shared/interactions.mjs';
 import { LOCATIONS } from '../../shared/campus.mjs';
 import { newBall, planShot, stepBall, targetHoop } from '../../shared/ball.mjs';
-import { input, player, prediction, useGame, type Gesture } from '../state';
+import { input, player, prediction, useGame } from '../state';
 import { interact } from '../network/client';
 import { me, onWorldEvent, request, selfIdNow, useInteraction, world, type WorldEvent } from './world';
 import { sfx } from './sound';
@@ -14,6 +15,8 @@ const POINTS = POINT_DATA as Point[];
 // action checks it first, so conflicting actions (sitting while holding a ball, shooting mid-stand,
 // opening a door while seated) are refused on the client before the server refuses them too.
 export type Activity = 'free' | 'approach' | 'sitting' | 'seated' | 'standing' | 'holding' | 'charging' | 'busy';
+let windup:ReturnType<typeof setTimeout>|null=null;
+let approach:{plan:MotionPlan;commit:()=>Promise<void>;until:number}|null=null;
 let pending = false, afterSit: string | null = null;
 export function activity(): Activity {
   const s = player.sit;
@@ -25,8 +28,17 @@ export function activity(): Activity {
 }
 const notify = (text?: string) => { if (text) useGame.getState().notify(text); };
 const nowS = () => performance.now() / 1000;
-const gesture = (kind: Gesture['kind']) => { player.gesture = { kind, start: nowS() }; };
-const face = (x: number, z: number) => { player.yaw = Math.atan2(x - player.x, z - player.z); };
+const gesture = (plan:MotionPlan) => {
+  if(plan.kind==='sit')return;
+  player.gesture={kind:plan.kind,start:nowS(),target:plan.target,point:plan.point};
+  if(plan.facing!==undefined)player.yaw=plan.facing;
+};
+export function cancelWindup() {
+  if(windup===null&&!approach)return;
+  if(windup!==null)clearTimeout(windup);
+  windup=null;approach=null;pending=false;player.gesture=null;
+}
+window.addEventListener('cancelworldmotion',cancelWindup);
 
 // ------------------------------------------------------------------ actions
 export function beginSit(id: string, then: string | null = null) {
@@ -34,21 +46,8 @@ export function beginSit(id: string, then: string | null = null) {
   const seat = SEAT_BY_ID.get(id); if (!seat) return;
   const holder = world.seats.get(id);
   if (holder && holder !== me.id) { notify('That seat is taken.'); sfx('deny'); return; }
-  player.sit = { seat: id, phase: 'approach', t: 0, path: routeTo(seat) }; afterSit = then;
-}
-/** From behind a chair, walk round its side (squeezing between neighbours in a row) to the front. */
-function routeTo(seat: typeof SEATS[number]) {
-  const f = [Math.sin(seat.yaw), Math.cos(seat.yaw)], r = [Math.cos(seat.yaw), -Math.sin(seat.yaw)];
-  const dx = player.x - seat.x, dz = player.z - seat.z, front = f[0] * dx + f[1] * dz, lat = r[0] * dx + r[1] * dz;
-  if (seat.kind !== 'chair' || front > .05) return [];
-  const side = lat >= 0 ? 1 : -1;
-  let room = .58;
-  for (const o of SEATS) if (o !== seat && Math.abs(o.x - seat.x) < 1.2 && Math.abs(o.z - seat.z) < 1.2) {
-    const ol = r[0] * (o.x - seat.x) + r[1] * (o.z - seat.z), of = f[0] * (o.x - seat.x) + f[1] * (o.z - seat.z);
-    if (Math.sign(ol) === side && Math.abs(of) < .5) room = Math.min(room, Math.abs(ol) / 2);
-  }
-  const at = (l: number, fw: number) => ({ x: seat.x + r[0] * side * l + f[0] * fw, z: seat.z + r[1] * side * l + f[1] * fw });
-  return front < -.3 ? [at(room, -.3), at(room, .25)] : [at(room, .25)];
+  const plan=clipProvider.plan({kind:'sit',id,from:player});if(!plan)return;
+  player.sit = { seat: id, phase: 'approach', t: 0, path: plan.route }; afterSit = then;
 }
 /** Called by the player controller once it stands on the approach point, facing away from the seat. */
 export function requestSit() {
@@ -73,20 +72,43 @@ export function standUp() {
   });
 }
 
-function useDoor(id: string) {
-  const d = DOORS.find(x => x.id === id); if (!d || activity() === 'busy') return;
-  face(d.x, d.z);
-  if (d.locked) { gesture('door-push'); setTimeout(() => sfx('locked', d), 350); notify(`Locked · ${d.locked}`); return; }
-  const open = !world.doors[id];
-  gesture(open ? 'door-push' : 'door-pull'); pending = true;
-  // The leaf moves when the hand reaches it, not when the key is pressed.
-  setTimeout(() => void request('door', { id, open }).then(r => { pending = false; if (!r.ok) { notify(r.reason); sfx('deny'); } }), open ? 420 : 300);
+export function approachMotion() {return approach?.plan.stand;}
+export function finishApproach() {
+  if(!approach)return;
+  const {plan,commit}=approach;approach=null;
+  startGesture(plan,commit);
 }
-
+function commitGesture(plan:MotionPlan,commit:()=>Promise<void>) {
+  if(plan.stand){approach={plan,commit,until:performance.now()+4000};pending=true;return;}
+  startGesture(plan,commit);
+}
+function startGesture(plan:MotionPlan, commit:()=>Promise<void>) {
+  gesture(plan);pending=true;
+  windup=setTimeout(()=>{
+    windup=null;
+    void commit().finally(()=>{pending=false;});
+  },plan.contactDelay);
+}
+function useDoor(id: string) {
+  const d=DOORS.find(x=>x.id===id);if(!d||activity()==='busy'||player.y>.05)return;
+  const open=!world.doors[id];
+  const plan=clipProvider.plan({kind:open?'door-push':'door-pull',id,from:player});
+  if(!plan)return;
+  if(d.locked){gesture(plan);setTimeout(()=>sfx('locked',d),350);notify(`Locked · ${d.locked}`);return;}
+  commitGesture(plan,async ()=>{
+    const r=await request('door',{id,open});
+    if(!r.ok){notify(r.reason);sfx('deny');}
+  });
+}
 function pickUp(id: string) {
-  const b = world.balls.find(x => x.id === id); if (!b || activity() !== 'free') return;
-  face(b.x, b.z); gesture('pickup'); pending = true;
-  setTimeout(() => void request('pickup', { ball: id }).then(r => { pending = false; if (!r.ok) { notify(r.reason); sfx('deny'); } else sfx('pickup'); }), 330);
+  const b=world.balls.find(x=>x.id===id);if(!b||activity()!=='free'||player.y>.05)return;
+  const plan=clipProvider.plan({kind:'pickup',id,from:player,point:{x:b.x,y:b.y,z:b.z}});
+  if(!plan)return;
+  commitGesture(plan,async ()=>{
+    const r=await request('pickup',{ball:id});
+    if(r.ok)sfx('pickup');
+    else{notify(r.reason);sfx('deny');}
+  });
 }
 export function drop() { if (activity() !== 'holding') return; pending = true; void request('drop').then(r => { pending = false; if (!r.ok) notify(r.reason); }); }
 
@@ -250,6 +272,7 @@ export function activate() {
 let sense = 0;
 /** Per-frame upkeep: charge meter, scoring zone, focus, shot results and post-sit actions. */
 export function tickInteractions(dt: number) {
+  if(approach&&performance.now()>approach.until){cancelWindup();notify('That approach is blocked. Try from closer.');}
   player.holding = !!me.ball;
   if (player.charge != null) {
     if (!me.ball) player.charge = null;

@@ -1,3 +1,4 @@
+import { packetVehicle, type ActionPacket } from '../animation/motion';
 import { isGetawayVehicle } from '../../shared/getaway.mjs';
 import { create } from 'zustand';
 import { createFleet, advance, VEHICLE_TYPES, localPoint, seatAnchor, vehicleContains } from '../../shared/vehicles.mjs';
@@ -57,10 +58,11 @@ export function receiveDrive(state:unknown){const s=useVehicle.getState();if(!dr
  // A real disagreement (a collision the room saw differently): go straight to the room's answer.
  if(Math.hypot(correction.x,correction.z)>4)correction.x=correction.z=correction.yaw=0;}
 export function setOccupancy(id:string|null,seat:number|null){if(useVehicle.getState().id!==id||useVehicle.getState().seat!==seat)useVehicle.setState({id:id??null,seat:seat??null});me.vehicle=id??null;me.vehicleSeat=seat??null;player.vehicleSeatHeight=id?VEHICLE_TYPES[localFleet.find(id)?.type??'car'].seatHeight:null;if(id){player.sit=null;player.speed=0;player.moving=false;player.reconcile=null;player.emote='';}}
-export function vehicleResult(m:{ok:boolean;reason?:string;vehicle?:string|null;vehicleSeat?:number|null;x?:number;z?:number}){if(!m.ok){useGame.getState().notify(m.reason??'Vehicle action unavailable.');return;}const was=useVehicle.getState().id;setOccupancy(m.vehicle??null,m.vehicleSeat??null);if(!m.vehicle&&was&&m.x!==undefined&&m.z!==undefined){player.x=m.x;player.z=m.z;player.y=0;player.vy=0;}}
+export function vehicleResult(m:{ok:boolean;reason?:string;vehicle?:string|null;vehicleSeat?:number|null;x?:number;z?:number;characterAction?:ActionPacket}){if(!m.ok){useGame.getState().notify(m.reason??'Vehicle action unavailable.');return;}const was=useVehicle.getState().id;if(m.characterAction)player.vehicleMotion=packetVehicle(m.characterAction,m.characterAction[3],performance.now()/1000);setOccupancy(m.vehicle??null,m.vehicleSeat??null);if(!m.vehicle&&was&&m.x!==undefined&&m.z!==undefined){player.x=m.x;player.z=m.z;player.y=0;player.vy=0;}}
 export function vehicleAction(action:'vehicleEnter'|'vehicleExit'|'vehicleRecover',id?:string,seat=0){
  if(useGame.getState().status==='connected'){send({type:action,id,seat});return;}
- const r=action==='vehicleEnter'?localFleet.enter(me,id,seat):action==='vehicleExit'?localFleet.exit(me,[me]):localFleet.recover(me,[me]);vehicleResult({...r,vehicle:me.vehicle,vehicleSeat:me.vehicleSeat,x:me.x,z:me.z});receiveVehicles(localFleet.snapshot());
+ const oldX=player.x,oldZ=player.z,v=localFleet.find(id??me.vehicle);
+ const r=action==='vehicleEnter'?localFleet.enter(me,id,seat):action==='vehicleExit'?localFleet.exit(me,[me]):localFleet.recover(me,[me]);if(r.ok&&v&&action!=='vehicleRecover')player.vehicleMotion={kind:action==='vehicleEnter'?'vehicle-enter':'vehicle-exit',start:performance.now()/1000,x:oldX-player.x,z:oldZ-player.z,seatHeight:VEHICLE_TYPES[v.type].seatHeight};vehicleResult({...r,vehicle:me.vehicle,vehicleSeat:me.vehicleSeat,x:me.x,z:me.z});receiveVehicles(localFleet.snapshot());
 }
 /** The free seat whose door is closest to the player (the room accepts entry within 3 m of a door). */
 export function nearestDoor(id:string|null){const v=localFleet.find(id);if(!v)return null;const t=VEHICLE_TYPES[v.type];const doors=v.occupants.map((who:string|null,i:number)=>({who,seat:i,p:localPoint(v,(t.seats[i][0]<0?-1:1)*(t.width/2+.65),t.seats[i][1])})).filter(d=>!d.who).map(d=>({...d,d:Math.hypot(d.p.x-player.x,d.p.z-player.z)})).sort((a,b)=>a.d-(a.seat===0?1:0)-(b.d-(b.seat===0?1:0)));const d=isGetawayVehicle(v.id)?doors.find(d=>d.seat===0):doors[0];return {v,type:t,door:d??null,full:!d};}
@@ -91,7 +93,7 @@ export function tickVehicles(dt:number){
 }
 /** Called for every movement substep: no allocation. */
 export function vehicleFootBlocked(x:number,z:number){for(const v of vehicleVisuals.values())if(vehicleContains(v,x,z))return true;return false;}
-export function disconnectVehicles(){const v=localFleet.find(useVehicle.getState().id);if(v){v.speed=0;localFleet.exit(me,[me]);}localFleet.release(me);setOccupancy(null,null);driving.throttle=driving.steer=0;driving.brake=true;prediction.stop();tracks.clear();receiveVehicles(localFleet.snapshot());}
+export function disconnectVehicles(){player.vehicleMotion=null;player.vehicleSpeed=0;const v=localFleet.find(useVehicle.getState().id);if(v){v.speed=0;localFleet.exit(me,[me]);}localFleet.release(me);setOccupancy(null,null);driving.throttle=driving.steer=0;driving.brake=true;prediction.stop();tracks.clear();receiveVehicles(localFleet.snapshot());}
 /** How far each drawn vehicle is raised to ride on the paving, sidewalk or kerb under its wheels (src/world/Vehicles.tsx). */
 export const vehicleLift=new Map<string,number>();
 export function occupiedAnchor(id:string,seat:number){const v=vehicleVisuals.get(id);return v?seatAnchor(v,seat):null;}

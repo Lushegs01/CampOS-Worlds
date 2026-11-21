@@ -1,3 +1,4 @@
+import { characterAction } from '../../shared/character-actions.mjs';
 import { useGame } from '../state';
 import { useGraphicsSession } from '../graphics/session';
 // Combat Arena 3D view.
@@ -337,6 +338,7 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => () => { for (const e of soldiers.current.values()) dropSoldier(e); soldiers.current.clear(); }, [scene, kits]); // eslint-disable-line react-hooks/exhaustive-deps
   /** How far below the eye the first-person body is cut off (metres): only a guard, so the neck never meets the lens. */
   const BODY_CUT = .12;
+  const bodyAction=useRef({slide:false,crouch:false,grounded:true,vy:0,speed:0,sprint:false});
   // The player's own body, seen when looking down: the same soldier model and camouflage everyone else sees.
   const ownBody = useRef<{ s: Soldier; key: string } | null>(null);
   useEffect(() => () => { const b = ownBody.current; if (b) { scene.remove(b.s.root); b.s.dispose(); ownBody.current = null; } }, [scene, kits]);
@@ -354,7 +356,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!b) return;
     const show = !!s && live.alive && pitch < -.22;
     b.s.root.visible = show; if (!show || !s) return;
-    const yaw = controls.yaw, back = s.stance === 2 ? .42 : s.stance === 1 ? .26 : .17;
+    const action=bodyAction.current;
+    action.slide=s.stance===2;action.crouch=s.stance===1;action.grounded=s.grounded;action.vy=s.vy;action.speed=Math.hypot(s.vx,s.vz);action.sprint=s.sprint;
+    const posture=characterAction(action);
+    const yaw=controls.yaw,back=posture==='slide'?.42:s.stance===1?.26:.17;
     bodyPos.set(eyePos.x + Math.sin(yaw) * back, eyePos.y - EYE[s.stance], eyePos.z + Math.cos(yaw) * back);
     bodyClip.constant = eyePos.y - BODY_CUT; // keep y ≤ eye − cut (the plane faces down)
     b.s.update(dt, bodyPos, yaw, 0, (s.stance === 1 ? 2 : 0) | (s.stance === 2 ? 4 : 0) | (s.sprint ? 8 : 0), false, false, false);

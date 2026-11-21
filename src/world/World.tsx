@@ -1,9 +1,11 @@
+import { animationMetrics } from '../animation/budget';
+import { packetGesture, packetVehicle } from '../animation/motion';
 import GetawayScene from "../mission/scene";
 import { useGraphicsSession } from '../graphics/session';
 import { createPerformanceBudget } from '../../shared/arena/performance.mjs';
 import { portraitBlocked } from '../mobile/orientation';
 import { ExclusiveCanvas, scenePixelRatio } from '../graphics/ExclusiveCanvas';
-import { occupiedAnchor, vehicleLift } from '../vehicles/client';
+import { occupiedAnchor, vehicleLift, vehicleVisuals } from '../vehicles/client';
 import { DormFurniture } from './Dorm';
 import { mySpace } from '../dorm/client';
 import Expansion from './Expansion';
@@ -17,7 +19,7 @@ import Player from '../game/Player';
 import Avatar, { pendingAvatarUploads, type AvatarMotion } from '../avatar/Avatar';
 import { AvatarBoundary } from '../avatar/AvatarBoundary';
 import { input, livePeers, peerTracks, roomPlayback, player, useGame, type Peer, type SitState } from '../state';
-import { SEAT_BY_ID } from '../../shared/interactions.mjs';
+import { DOOR_BY_ID, SEAT_BY_ID } from '../../shared/interactions.mjs';
 import { peerRelease } from '../interaction/controller';
 import { Doors, Chairs, Balls, Computers } from './Interactive';
 import { useKeepsakes } from '../account/store';
@@ -52,30 +54,43 @@ function PeerAvatar({ peer: initial }: { peer: Peer }) {
   const kind = useSocial(s => bond(s, initial.id, initial.handle)) ?? 'none';
   const group = useRef<THREE.Group>(null!), tag = useRef<THREE.Group>(null!), shown = useMemo(() => ({ x: 0, y: 0, z: 0, yaw: 0 }), []);
   // Someone already seated when we arrive is shown seated, not sitting down again.
-  const motion = useRef<AvatarMotion & { last: THREE.Vector3; yaw: number }>({ speed: 0, y: 0, vy: 0, turn: 0, last: new THREE.Vector3(peer.x, 0, peer.z), yaw: peer.yaw, sit: peer.seat ? { seat: peer.seat, phase: 'seated', t: 0 } : null });
+  const motion = useRef<AvatarMotion & { last: THREE.Vector3; yaw: number; actionSequence:number; airborneY:number }>({ speed: 0, y: 0, vy: 0, turn: 0, last: new THREE.Vector3(peer.x, 0, peer.z), yaw: peer.yaw, actionSequence:0, airborneY:peer.y, sit: peer.seat ? { seat: peer.seat, phase: 'seated', t: 0 } : null });
   useFrame(({ camera }, raw) => {
     const peer = livePeers.get(initial.id) ?? initial;
     // Players in their own rooms (and, inside yours, everyone outside it) are elsewhere: not drawn.
     const here = (peer.space ?? '') === mySpace(); group.current.visible = here; if (!here) return;
     const dt = Math.min(raw, .25), g = group.current, m = motion.current;
+    const now=performance.now(),t=roomPlayback.time(now),packet=peer.characterAction;
+    if(packet&&packet[0]>m.actionSequence){
+      const playback=t??packet[3];
+      if(playback>=packet[3]-.025){
+        m.actionSequence=packet[0];m.gesture=packetGesture(packet,playback,now/1000);m.vehicleMotion=packetVehicle(packet,playback,now/1000);
+        if(packet[1]==='shoot')m.release=now/1000-Math.max(0,playback-packet[3])/1000;
+      }
+    }
+    m.sprinting=peer.sprinting;
     // Seat state is replicated; the sit-down / stand-up motion itself plays locally.
     if (peer.seat && m.sit?.seat !== peer.seat) m.sit = { seat: peer.seat, phase: 'down', t: 0 } as SitState;
     else if (!peer.seat && m.sit && (m.sit.phase === 'down' || m.sit.phase === 'seated')) m.sit.phase = 'up';
     if (m.sit?.phase === 'done') { m.sit = null; g.position.set(peer.x, peer.y + surfaceHeight(peer.x, peer.z), peer.z); m.last.copy(g.position); }
     const anchor=peer.vehicle?occupiedAnchor(peer.vehicle,peer.vehicleSeat??0):null;
-    m.vehicleSeatHeight=anchor?.y??null;
+    m.vehicleSeatHeight=anchor?.y??null;m.vehicleSpeed=peer.vehicle?Math.abs(vehicleVisuals.get(peer.vehicle)?.speed??0):0;
     if(anchor){const lift=vehicleLift.get(peer.vehicle!)??0;g.position.set(anchor.x,.025+lift,anchor.z);g.rotation.y=anchor.yaw;m.speed=0;m.y=0;m.vy=0;m.turn=0;m.last.copy(g.position);tag.current.position.y=anchor.y+1.4;tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);return;}
     const seat = m.sit ? SEAT_BY_ID.get(m.sit.seat) : undefined;
     // Drawn slightly in the past, between the two snapshots around that moment: steady speed (./network/interpolation.mjs).
-    const t = roomPlayback.time(performance.now()), at = t !== null && peerTracks.get(initial.id)?.sample(t, shown) ? shown : peer;
+    const at = t !== null && peerTracks.get(initial.id)?.sample(t, shown) ? shown : peer;
     if (seat) { g.position.set(seat.x, surfaceHeight(seat.x, seat.z), seat.z); g.rotation.y = seat.yaw; }
     else g.position.set(at.x, at.y + surfaceHeight(at.x, at.z), at.z);
-    let d = at.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); if (!seat) g.rotation.y += d * (1 - Math.exp(-dt * 14));
-    m.holding = !!peer.ball; m.release = peerRelease.get(initial.id) ?? 0;
+    const fixture=m.gesture?.target?DOOR_BY_ID.get(m.gesture.target):null;
+    const point=m.gesture?.point??fixture;
+    const facing=point&&!peer.moving&&now/1000-(m.gesture?.start??0)<1.1?Math.atan2(point.x-g.position.x,point.z-g.position.z):at.yaw;
+    let d = facing - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); if (!seat) g.rotation.y += d * (1 - Math.exp(-dt * 14));
+    if(m.sit?.phase==='up'&&!m.sit.exit)m.sit.exit=packet?.[1]==='stand'&&packet[2]===m.sit.seat&&packet[4]!==undefined&&packet[6]!==undefined?{x:packet[4],z:packet[6]}:{x:peer.x,z:peer.z};
+    m.holding = !!peer.ball; if(packet?.[1]!=='shoot')m.release=peerRelease.get(initial.id)??m.release??0;
     // Derive gait speed from the interpolated motion so remote avatars animate like the local one.
     // Over the real frame time: dividing by the 50 ms-capped animation step made walkers run on slow devices.
     const moved = Math.hypot(g.position.x - m.last.x, g.position.z - m.last.z) / Math.min(Math.max(raw, 1e-4), STALL); m.last.copy(g.position);
-    m.speed = seat ? 0 : THREE.MathUtils.damp(m.speed, peer.moving ? moved : 0, 8, dt); m.y = peer.y; m.vy = peer.y > .05 ? 1 : 0; m.turn = d * 4;
+    m.speed = seat ? 0 : THREE.MathUtils.damp(m.speed, peer.moving ? moved : 0, 8, dt); m.y=at.y;m.vy=(at.y-m.airborneY)/Math.max(dt,.001);m.airborneY=at.y; m.turn = d * 4;
     m.emote = peer.emote; m.emoteUntil = peer.emoteAt + 3000;
     tag.current.quaternion.copy(g.quaternion).invert().multiply(camera.quaternion);
     tag.current.position.y = THREE.MathUtils.damp(tag.current.position.y, seat ? 1.8 : 2.25, 4, dt);
@@ -185,7 +200,7 @@ function Telemetry() {
   useEffect(() => { gl.info.autoReset = false; return () => { gl.info.autoReset = true; }; }, [gl]);
   useFrame(() => { if (gl.info.render.calls) sample.current = { calls: gl.info.render.calls, triangles: gl.info.render.triangles }; gl.info.reset(); }, -100);
   useEffect(() => {
-    if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene, __campusCamera: camera, __campusSetDpr: setDpr });
+    if (QA_HOOKS) Object.assign(window, { __campusGL: gl, __campusScene: scene, __campusCamera: camera, __campusSetDpr: setDpr, __campusAnimationMetrics: animationMetrics });
     if (QA_HOOKS) Object.assign(window, { __campusLoads: () => pendingAssetLoads() + pendingAvatarUploads() });
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusHide = (prefix: string, hide = true) => { let n = 0; scene.traverse(o => { if (o.name.startsWith(prefix)) { o.visible = !hide; n++; } }); return n; };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusStats = () => {
@@ -194,7 +209,7 @@ function Telemetry() {
       return Object.entries(by).sort((x, y) => y[1] - x[1]).slice(0, 30);
     };
     if (QA_HOOKS) (window as unknown as Record<string, unknown>).__campusInspect = () => { const s = useGame.getState(); return { position: { x: player.x, y: player.y, z: player.z }, yaw: input.yaw, panel: s.panel, nearby: s.nearby, status: s.status, discovered: s.discovered, tourStep: s.tourStep, tokens: s.tokens, bestScore: s.bestScore, peers: s.peers.map(p => ({ ...p, ...livePeers.get(p.id) })), avatar: s.avatar, quality: s.quality }; };
-    return () => { if (QA_HOOKS) for (const key of ['__campusGL', '__campusScene', '__campusCamera', '__campusSetDpr', '__campusLoads', '__campusInspect', '__campusHide', '__campusStats', '__campus']) delete (window as unknown as Record<string, unknown>)[key]; };
+    return () => { if (QA_HOOKS) for (const key of ['__campusGL', '__campusScene', '__campusCamera', '__campusSetDpr', '__campusAnimationMetrics', '__campusLoads', '__campusInspect', '__campusHide', '__campusStats', '__campus']) delete (window as unknown as Record<string, unknown>)[key]; };
   }, [gl, scene]);
   useFrame((_, dt) => {
     // Behind a menu the frame rate is held down on purpose: keep showing the one measured while playing.
