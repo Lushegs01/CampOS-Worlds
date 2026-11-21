@@ -12,6 +12,7 @@
     "test": "node --test --test-concurrency=2 --test-timeout=60000 tests/*.test.mjs",
     "dev:local": "node scripts/dev/local-stack.mjs",
     "typecheck": "tsc -b",
+    "assets:elevenlabs": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/audio/build-elevenlabs.mjs",
     "assets:brand": "node scripts/assets/build-brand.mjs",
     "test:release": "node tests/browser-release.mjs",
     "verify:release": "node scripts/qa/release-artifacts.mjs",

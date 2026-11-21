@@ -7,6 +7,8 @@ Mobile rendering improvements, benchmark results, and the itel S24 test checklis
 
 SIG Sauer M7 (free battle rifle, modes, assets, validation): [implementation report](docs/M7-IMPLEMENTATION.md).
 
+Shadow Protocol: The Getaway visual slice (Bay 04, the Orisun freight yard, vehicles, and the warehouse encounter): [in-game comparisons and engineering report](docs/GETAWAY-VISUAL-DELIVERY.md).
+
 Operation: Metropolis rendering (sky and image-based light per weather, height fog, weathered and wet materials, interior-mapped windows, rain, street reflections, the Storm Break weather with light shafts and the rebuilt port, profiles and measurements): [photorealism report](docs/PHOTOREALISM.md).
 
 Operation: Metropolis cinematic presentation (filmic finish, round tactical map, elimination card and experience popups with medals, "Back on top" lead calls, the after-action weapon-unlocks report, a finish at every weapon level): [cinematic presentation](docs/ARENA-CINEMATIC.md).
@@ -197,6 +199,6 @@ See [the lab guide and technical report](docs/ECONOMIC-LAB.md) and [validation r
 
 ## Performance and landscape
 
-Campus and Arena expose Low, Medium, High and Ultra. Runtime adaptation first reduces optional effects and shadow refreshes, then trials a bounded render scale; a trial that does not improve frame rate is reverted. Automatic adjustments do not overwrite the saved graphics profile. The HUD stays in CSS pixels. Mobile play requests landscape from the Enter button where fullscreen/orientation APIs permit it; otherwise a branded rotate overlay blocks gameplay input in portrait. Installed PWAs also declare landscape orientation.
+Campus exposes Performance, Balanced, High and Cinematic / Ultra. Arena uses Low, Medium, High and Ultra. Runtime adaptation first reduces optional effects and shadow refreshes, then trials a bounded render scale; a trial that does not improve frame rate is reverted. Automatic adjustments do not overwrite the saved graphics profile. The HUD stays in CSS pixels. Mobile play requests landscape from the Enter button where fullscreen/orientation APIs permit it; otherwise a branded rotate overlay blocks gameplay input in portrait. Installed PWAs also declare landscape orientation.
 
 See [the performance engineering report](docs/PERFORMANCE-MANDATE.md) for implementation, repeatable measurements, network/renderer checks and the device-validation gaps. Container software rendering does **not** establish 30/60 FPS on physical phones.

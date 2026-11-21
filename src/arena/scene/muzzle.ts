@@ -15,9 +15,9 @@ export class MuzzleFX {
   private flashT = 1; private flashScale = 1;
   private smoke: THREE.InstancedMesh; private ps: { x: number; y: number; z: number; vx: number; vy: number; vz: number; t: number; life: number; size: number; grow: number; rot: number; a: number }[] = [];
   private smokeMat: THREE.MeshBasicMaterial; private next = 0; private wisp = 0;
-  constructor(enabled = true) {
+  constructor(enabled = true, castLight = true) {
     const hot = new THREE.MeshBasicMaterial({ map: flashTexture(), color: new THREE.Color(6, 3.8, 1.6), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
-    const white = hot.clone(); white.color = new THREE.Color(9, 7.5, 5);
+    const white = hot; white.color.setRGB(9, 7.5, 5);
     // The petals are drawn opaque-ish (over-bright, alpha from the flash texture) rather than added, so a flash still
     // reads against a bright sky, as a real one does in daylight; the core stays additive and white-hot.
     const petal = new THREE.MeshBasicMaterial({ map: flashTexture(), color: new THREE.Color(3.2, 1.9, .7), transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, alphaTest: .02 });
@@ -27,7 +27,8 @@ export class MuzzleFX {
     // The face-on star: what the shooter mostly sees, since the petals are edge-on along the line of sight.
     this.cone = new THREE.Mesh(new THREE.PlaneGeometry(.22, .22), petal); this.cone.position.z = -.05; this.flash.add(this.cone);
     this.core = new THREE.Mesh(new THREE.PlaneGeometry(.12, .12), white); this.flash.add(this.core);
-    this.flash.visible = false; this.group.add(this.flash, this.light);
+    this.flash.visible = false; this.group.add(this.flash);
+    if (castLight) this.group.add(this.light);
     this.smokeMat = new THREE.MeshBasicMaterial({ map: puffTexture(), color: '#94918c', transparent: true, depthWrite: false, opacity: 1, toneMapped: true });
     // Each puff's fade is its instance colour's red channel, applied to alpha (not to the colour: smoke thins, it does
     // not darken).
@@ -87,5 +88,15 @@ export class MuzzleFX {
   }
   /** How bright the air is where the smoke hangs (0 dark … 1 open daylight): smoke is lit, not glowing. */
   setAmbient(level: number) { this.smokeMat.color.setRGB(.58, .57, .55).multiplyScalar(THREE.MathUtils.clamp(level, .08, 1.1)); }
-  dispose() { this.smoke.geometry.dispose(); this.smokeMat.dispose(); this.flash.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) m.geometry.dispose(); }); }
+  dispose() {
+    this.smoke.geometry.dispose();
+    this.smoke.dispose();
+    this.smokeMat.dispose();
+    const materials = new Set<THREE.Material>();
+    this.flash.traverse(o => {
+      const m = o as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
+      if (m.isMesh) { m.geometry.dispose(); materials.add(m.material); }
+    });
+    materials.forEach(material => material.dispose());
+  }
 }

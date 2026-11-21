@@ -228,7 +228,7 @@ export class Soldier implements SoldierLike {
     const e2 = fore.getWorldPosition(kE), w2 = hand.getWorldPosition(kW);
     aim(fore, e2, w2, target);
   }
-  dispose() { for (const old of [...this.gun.children]) disposeWeapon(old); this.mixer.stopAllAction(); this.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); }
+  dispose() { for (const old of [...this.gun.children]) disposeWeapon(old); this.mixer.stopAllAction(); this.flash.material.dispose(); this.rig.traverse(o => { const m = o as THREE.SkinnedMesh; if (m.isMesh) (m.material as THREE.Material).dispose(); if (m.isSkinnedMesh) m.skeleton.dispose(); }); }
 }
 
 /**

@@ -1,11 +1,12 @@
 import { fixtureCalibration } from '../../shared/primitive-calibration.mjs';
-import { activeCombat, command, equip, fire, heldFire, isMissionOverlay, openMissionJournal, resetMissionControls, setAim, shotInput, useGetaway } from '../mission/client';
+import { activeCombat, combatView, command, equip, fire, heldFire, isMissionOverlay, openMissionJournal, resetMissionControls, setAim, shotInput, useGetaway } from '../mission/client';
 import { useGraphicsSession } from '../graphics/session';
 import { portraitBlocked } from '../mobile/orientation';
 import { currentVehicle, useVehicle, driving, occupiedAnchor, vehicleFootBlocked, vehicleLift } from '../vehicles/client';
 import { dormLayout } from '../dorm/client';
 import { furnitureAllows, inDormRoom, DORM_ROOM } from '../../shared/dorm.mjs';
 import { VEHICLE_TYPES } from '../../shared/vehicles.mjs';
+import { isGetawayVehicle } from '../../shared/getaway.mjs';
 import { QA_HOOKS } from '../qa';
 import { Suspense, useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -25,7 +26,9 @@ import { steerAuthority, steerToward } from '../vehicles/steering.mjs';
 
 const keys = new Set<string>();
 const target = new THREE.Vector3(), desired = new THREE.Vector3(), chase = new THREE.Vector3(), look = new THREE.Vector3(), lookFrom = new THREE.Vector3(), posFrom = new THREE.Vector3();
-const eyeAt=new THREE.Vector3(),eyeLook=new THREE.Vector3();
+const eyes = new THREE.Vector3(), sight = new THREE.Vector3();
+const combatRotation = new THREE.Quaternion(), sightFrame = new THREE.Matrix4();
+const eyeAt = new THREE.Vector3(), eyeLook = new THREE.Vector3();
 const ray = new THREE.Vector3(), side = new THREE.Vector3(), upv = new THREE.Vector3(0, 1, 0);
 /** Where the driver's steering wheel is, -1..1 (src/vehicles/steering.mjs). */
 let wheel = 0;
@@ -84,7 +87,7 @@ function armFraction(from: THREE.Vector3, to: THREE.Vector3) {
 const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 // Camera orbit is session state, independent of a disposable Canvas.
-const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false, first: 0 };
+const campusCamera = { yaw: 0, pitch: .12, arm: 5.4, zoom: 5.4, intro: 0, wasWelcome: true, seated: 0, chasing: false, freightChase: false, drivingZoom: 1, first: 0 };
 
 export default function Player() {
   const graphics = useGraphicsSession();
@@ -162,7 +165,7 @@ export default function Player() {
       const t = s.reducedMotion ? 0 : clock.elapsedTime * .04;
       desired.set(46 + Math.sin(t) * 10, 30 + Math.sin(t * .7) * 2, 62 + Math.cos(t) * 6);
       camera.position.lerp(desired, 1 - Math.exp(-dt * 1.5)); camera.lookAt(-3, 2, -10);
-      root.current.visible = false; c.wasWelcome = true; return;
+      root.current.visible = false; c.wasWelcome = true; c.freightChase = false; combatView.blend = 0; return;
     }
     if (c.wasWelcome) { c.wasWelcome = false; c.intro = s.reducedMotion ? 1 : 0; posFrom.copy(camera.position); lookFrom.set(-3, 2, -10); }
     root.current.visible = true;
@@ -170,8 +173,16 @@ export default function Player() {
     tickInteractions(dt);
     const vehicle=currentVehicle(),occupancy=useVehicle.getState();
     if(vehicle){
-      player.vehicleSpeed=Math.abs(vehicle.speed);c.first=0;
-      if(camera instanceof THREE.PerspectiveCamera && camera.zoom!==1){camera.zoom=1;camera.updateProjectionMatrix();}
+      player.vehicleSpeed = Math.abs(vehicle.speed);
+      c.first = 0;
+      combatView.blend = 0;
+      const size = VEHICLE_TYPES[vehicle.type], freight = isGetawayVehicle(vehicle.id);
+      const speedBlend = freight && !s.reducedMotion ? Math.min(1, Math.abs(vehicle.speed) / size.maxSpeed) : 0;
+      c.drivingZoom = THREE.MathUtils.damp(c.drivingZoom, 1 - .105 * speedBlend, 5, dt);
+      if (camera instanceof THREE.PerspectiveCamera) {
+        const zoom = Math.abs(c.drivingZoom - 1) < .0001 ? 1 : c.drivingZoom;
+        if (camera.zoom !== zoom) { camera.zoom = zoom; camera.updateProjectionMatrix(); }
+      }
       player.vx=player.vz=0;input.jump=false;player.y=player.vy=player.speed=0;player.moving=false;
       driving.throttle=enabled?(Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-input.z):0;
       // Settings → Steering sensitivity shapes what is sent; the room's vehicle physics is the same for everyone.
@@ -182,13 +193,22 @@ export default function Player() {
       // Chase camera settles behind the vehicle in real time (frame-rate independent); dragging looks around.
       const real=Math.min(raw,.25);if(!input.dragging){c.yaw+=Math.atan2(Math.sin(a.yaw+Math.PI-c.yaw),Math.cos(a.yaw+Math.PI-c.yaw))*(1-Math.exp(-real*3));input.yaw=c.yaw;}else c.yaw=input.yaw;
       // Framing scales with the vehicle: further back and higher for the shuttle than the cart.
-      const size=VEHICLE_TYPES[vehicle.type],back=4+size.length*1.2;target.set(vehicle.x,size.height*.85,vehicle.z);desired.set(vehicle.x+Math.sin(c.yaw)*back,2.6+size.height*1.3+input.pitch*3,vehicle.z+Math.cos(c.yaw)*back);
+      const back = 4 + size.length * 1.2 + speedBlend * .94;
+      const lift = freight ? vehicleLift.get(vehicle.id) ?? 0 : 0;
+      target.set(vehicle.x, size.height * .85 + lift, vehicle.z);
+      desired.set(vehicle.x + Math.sin(c.yaw) * back, 2.6 + size.height * 1.3 + input.pitch * 3 + lift, vehicle.z + Math.cos(c.yaw) * back);
+      c.freightChase = freight;
       // The camera moves rigidly with the vehicle and only its offset (swinging round behind, clearing walls) is eased:
       // easing its position made how far it trailed depend on each frame's length, so the car shook on screen.
       const f=armFraction(target,desired);desired.lerp(target,1-f);if(!c.chasing){c.chasing=true;chase.subVectors(camera.position,target);}
       chase.lerp(desired.sub(target),1-Math.exp(-real*7));camera.position.addVectors(target,chase);camera.lookAt(target);return;
     }
-    c.chasing=false;
+    if (c.chasing && c.freightChase && !s.reducedMotion) {
+      posFrom.copy(camera.position);
+      camera.getWorldDirection(lookFrom).multiplyScalar(7).add(posFrom);
+      c.intro = 0;
+    }
+    c.chasing = false;
     driving.throttle=driving.steer=wheel=0;
     // Finished standing: step onto the spot the stand-up motion ended on.
     if (player.sit?.phase === 'done') { const exit = player.sit.exit; if (exit) { player.x = exit.x; player.z = exit.z; } player.sit = null; player.vx = player.vz = 0; }
@@ -287,31 +307,44 @@ export default function Player() {
     desired.y = Math.max(desired.y, ground + .45); if (indoors) desired.y = Math.min(desired.y, DORM_ROOM.height - .25);
     look.copy(target); look.y += .1;
     if (c.intro < 1) {
-      c.intro = Math.min(1, c.intro + dt / 1.8); const k = ease(c.intro);
-      camera.position.lerpVectors(posFrom, desired, k); camera.lookAt(rayTo.copy(lookFrom).lerp(look, k));
+      c.intro = Math.min(1, c.intro + dt / (c.freightChase ? .42 : 1.8)); const k = ease(c.intro);
+      camera.position.lerpVectors(posFrom, desired, k);
+      if (c.freightChase) camera.position.lerp(target, 1 - armFraction(target, camera.position));
+      camera.lookAt(rayTo.copy(lookFrom).lerp(look, k));
     } else { camera.position.copy(desired); camera.lookAt(look); }
 
-    if(!armed){
-      const goal=s.firstPerson?1:0;
-      c.first=s.reducedMotion?goal:THREE.MathUtils.damp(c.first,goal,12,dt);
-      if(c.first>.003){
-        const eyeY=ground+player.y+1.58-c.seated*.45;
-        eyeAt.set(px,eyeY,pz);
-        eyeLook.set(px-Math.sin(input.yaw)*5,eyeY-Math.tan(input.pitch)*5,pz-Math.cos(input.yaw)*5);
-        camera.position.lerp(eyeAt,c.first);camera.lookAt(look.lerp(eyeLook,c.first));
-        root.current.visible=c.first<.74;
-      }
+    if (c.intro >= 1) c.freightChase = false;
+    // The combat view blends over the current campus view, including first-person exploration.
+    const firstPersonGoal = s.firstPerson ? 1 : 0;
+    c.first = s.reducedMotion ? firstPersonGoal : THREE.MathUtils.damp(c.first, firstPersonGoal, 12, dt);
+    if (c.first > .003) {
+      const eyeY = ground + player.y + 1.58 - c.seated * .45;
+      eyeAt.set(px, eyeY, pz);
+      eyeLook.set(px - Math.sin(input.yaw) * 5, eyeY - Math.tan(input.pitch) * 5, pz - Math.cos(input.yaw) * 5);
+      camera.position.lerp(eyeAt, c.first);
+      camera.lookAt(look.lerp(eyeLook, c.first));
     }
-    if(armed){
-      root.current.visible=false;
-      const aim=useGetaway.getState().aim, pitch=-input.pitch + shotInput.kick*Math.exp(-(performance.now()-shotInput.recoilAt)/82);
-      camera.position.set(px,ground+player.y+1.5,pz);
-      camera.lookAt(look.set(px-Math.sin(input.yaw),camera.position.y+Math.tan(pitch),pz-Math.cos(input.yaw)));
-      if(camera instanceof THREE.PerspectiveCamera){
-        camera.zoom=THREE.MathUtils.damp(camera.zoom,aim?1.26:1,18,dt);camera.updateProjectionMatrix();
-      }
-      if(shotInput.held&&enabled)fire();
-    }else if(camera instanceof THREE.PerspectiveCamera&&camera.zoom!==1){camera.zoom=1;camera.updateProjectionMatrix();}
+    const aim = armed && useGetaway.getState().aim, now = performance.now();
+    const snap = s.reducedMotion || armed && (aim || shotInput.held || now - shotInput.started < 140);
+    const want = armed ? 1 : 0;
+    let blend = snap ? want : THREE.MathUtils.damp(combatView.blend, want, 22, dt);
+    if (Math.abs(blend - want) < .014) blend = want;
+    combatView.blend = blend;
+    if (blend > 0) {
+      const pitch = -input.pitch + (s.reducedMotion ? 0 : shotInput.kick * Math.exp(-(now - shotInput.recoilAt) / 82));
+      eyes.set(px, ground + player.y + 1.5, pz);
+      sight.set(px - Math.sin(input.yaw), eyes.y + Math.tan(pitch), pz - Math.cos(input.yaw));
+      combatRotation.setFromRotationMatrix(sightFrame.lookAt(eyes, sight, upv));
+      camera.position.lerp(eyes, blend);
+      camera.quaternion.slerp(combatRotation, blend);
+    }
+    root.current.visible = c.first < .74 && blend < .8;
+    if (camera instanceof THREE.PerspectiveCamera) {
+      const toward = THREE.MathUtils.damp(camera.zoom, aim ? 1.26 : 1, 18, dt);
+      const zoom = Math.abs(toward - 1) < .0001 ? 1 : toward;
+      if (camera.zoom !== zoom) { camera.zoom = zoom; camera.updateProjectionMatrix(); }
+    }
+    if (armed && shotInput.held && enabled) fire();
 
     // 20 inputs a second while moving, sooner (40 ms) when the input changes; standing still, the room only
     // needs reminding 4 times a second (the first "stopped" still goes out at once). The room allows 35 a second.

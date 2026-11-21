@@ -104,3 +104,17 @@ python3 scripts/audio/getaway-score.py
 The Blender commands export and compress to `public/assets/getaway/` and record the triangle counts, dimensions, and byte sizes in `models.json`. The Python score renderer uses FFmpeg to write three phase-aligned MP3 loops to the same directory. The campus loader also uses existing Arena GLBs for the loadout, crates, and barrel. It fits the props to the authoritative collision boxes in `shared/getaway.mjs`. The existing campus vehicles and avatars supply the driving model and character animation.
 
 The browser plays existing recorded effects through the campus volume controls and crossfades the original score with the mission state. Each reused sample retains the credits in `docs/audio/LICENSES.md` and the repository's asset documentation. Mission dialogue is presented in text.
+
+### Orisun Freight visual production
+
+The editable assembly in `blender/source/getaway_district.blend` uses Blender 4.3's metre scale. Its local origin is world `(191, 0, 12.5)` at Bay 04. Blender −Y faces the loading yard. Warehouse, yard, depot, and fitting meshes export separately so the game can assign surface materials by name and replace fallback shells independently.
+
+```sh
+blender -b -t 2 --python-exit-code 1 -P blender/getaway_district.py
+node scripts/assets/optimize-getaway.mjs --district
+node --test tests/getaway-visual-assets.test.mjs
+```
+
+The five runtime files use Meshopt and 16-bit position quantization. Their projected UVs are in metres. The optimizer keeps those UVs because the shared campus KTX2 scans are bound by material name at runtime and the GLBs carry no embedded images. Keep the artwork and gameplay volumes separate. If a new piece blocks movement, update `shared/getaway.mjs` and test the loading corridor, freight gate, parking-lot exit, and warehouse encounter. Prefer geometry for silhouettes, load-bearing members, rails, and profiles that catch light. Use scanned normal and material maps for much smaller relief.
+
+See [the Getaway asset manifest](ASSET_MANIFEST.md#orisun-freight--the-getaway) for the export and license inventory.

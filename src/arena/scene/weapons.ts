@@ -241,5 +241,5 @@ export class FirstPersonArms {
     bone.quaternion.copy(parent.multiply(world)); bone.updateMatrixWorld(true);
   }
   set visible(v: boolean) { this.root.visible = v; }
-  dispose() { this.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); }
+  dispose() { this.root.traverse(o => { const m = o as THREE.SkinnedMesh; if (m.isMesh) (m.material as THREE.Material).dispose(); if (m.isSkinnedMesh) m.skeleton.dispose(); }); }
 }

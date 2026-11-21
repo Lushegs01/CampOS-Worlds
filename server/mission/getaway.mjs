@@ -7,7 +7,8 @@ import { CONTACT, WAREHOUSE, PACKAGE, BARREL, EXIT, SAFEHOUSE, GETAWAY_CARS, VEH
   INDUSTRIAL_SOLIDS, LOADOUT, REWARD, O, distance, inDistrict } from '../../shared/getaway.mjs';
 
 const bounds = [110, -50, 306, 79];
-const collision = createWorld(collidersIn(...bounds).map(b => ({
+const collisionSolids = collidersIn(...bounds);
+const collision = createWorld(collisionSolids.map(b => ({
   min: [b.x-b.w/2, 0, b.z-b.d/2], max: [b.x+b.w/2, b.h, b.z+b.d/2],
 })), bounds);
 const clear = (a, b, eye = 1.45, height = eye) => {
@@ -160,7 +161,7 @@ export function combatInput(m,p,action,command,now) {
   const cone=(aiming?w.spread.ads:w.spread.hip)*(p.moving?1.25:1);
   m.recoil=Math.max(0,m.recoil-(now-m.lastFire)*.045);
   const origin={x:p.x,y:1.5+p.y,z:p.z};
-  let end, impact=false;
+  let end, normal, surface, impact=false;
   for(let i=0;i<w.pellets;i++){
     const y=yaw+(m.random()*2-1)*cone, a=pitch+m.recoil+(m.random()*2-1)*cone;
     const dx=Math.sin(y)*Math.cos(a),dy=Math.sin(a),dz=Math.cos(y)*Math.cos(a);
@@ -177,9 +178,18 @@ export function combatInput(m,p,action,command,now) {
       ?raySphere(origin.x,origin.y,origin.z,dx,dy,dz,BARREL.x,.68,BARREL.z,.62,max):-1;
     if(fuel>=0){max=fuel;m.barrelHp-=damageAt(w,fuel);if(m.barrelHp<=0)explode(m,p);}
     else if(target)hitActor(m,target,damageAt(w,max)*(head?w.head:1));
-    if(i===0){end=[origin.x+dx*max,origin.y+dy*max,origin.z+dz*max];impact=!!(wall||target||fuel>=0);}
+    if(i===0){
+      end=[origin.x+dx*max,origin.y+dy*max,origin.z+dz*max];impact=!!(wall||target||fuel>=0);
+      if(fuel>=0){surface='metal';normal=[end[0]-BARREL.x,0,end[2]-BARREL.z];}
+      else if(target){surface='actor';}
+      else if(wall){
+        normal=wall.normal;
+        const kind=collisionSolids[wall.box?.i]?.kind;
+        surface=kind==='crate'?'wood':kind==='container'||kind==='front'?'metal':'concrete';
+      }
+    }
   }
-  event(m,'shot',origin,{end,weapon:w.id,impact});
+  event(m,'shot',origin,{end,weapon:w.id,impact,normal,surface});
   m.recoil=Math.min(w.recoil.max,m.recoil+w.recoil.kick*(aiming?w.recoil.adsRecoil:1));m.lastFire=now;
   for(const a of m.actors)if(a.hp&&near(a,p,29)){
     a.remember=point(p.x,p.z);

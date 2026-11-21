@@ -16,3 +16,6 @@ server/data/
 dist-qa/
 dist-recovery-qa/
 scripts/qa/.probe/
+
+public/assets/elevenlabs/.generation.lock
+public/assets/elevenlabs/**/*.tmp

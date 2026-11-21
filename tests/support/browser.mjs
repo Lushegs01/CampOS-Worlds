@@ -25,9 +25,9 @@ export async function account(stack, handle, name, model = 'ada') {
   return { sb, email, handle, name };
 }
 /** Open the campus in a fresh browser context and enter it. */
-export async function open(browser, stack, label, errors, { viewport = { width: 1280, height: 800 }, mobile = false, query = QUERY } = {}) {
+export async function open(browser, stack, label, errors, { viewport = { width: 1280, height: 800 }, mobile = false, query = QUERY, quality = 'low' } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: mobile, isMobile: mobile });
-  await ctx.addInitScript(n => { if (!localStorage.getItem('campos-worlds-v1')) localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: n, reducedMotion: true }, version: 0 })); }, label);
+  await ctx.addInitScript(({ label, quality }) => { if (!localStorage.getItem('campos-worlds-v1')) localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality, name: label, reducedMotion: true }, version: 0 })); }, { label, quality });
   const page = await ctx.newPage(); page.setDefaultTimeout(45000);
   page.on('pageerror', e => errors.push(`${label}: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION|Failed to load resource|GPU stall|WebGL/.test(m.text())) errors.push(`${label}: ${m.text()}`); });
