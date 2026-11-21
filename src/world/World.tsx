@@ -254,7 +254,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
     <Props placements={campus.context.props} quality={quality} />
     <DistanceCull object={campus.books} centre={LIBRARY_CENTRE} distance={Math.min(60, quality.detailDistance)} />
     <Doors lib={lib} distance={quality.detailDistance + 12} /><Chairs distance={quality.detailDistance} post={quality.post} /><Computers /><Balls />
-    <Collectibles /><Waypoint /><Player /><GetawayScene /><Peers /><Npcs />
+    <Collectibles /><Waypoint /><Player /><GetawayScene lib={lib} /><Peers /><Npcs />
     </CompileGate>
     <Suspense fallback={null}><CompileGate post={quality.post}><Vegetation lib={lib} quality={quality} reduced={reduced} /></CompileGate></Suspense>
   </>;

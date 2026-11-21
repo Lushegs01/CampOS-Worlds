@@ -1,4 +1,5 @@
 import { audio, heard, noise, output, type At } from '../audio/mixer';
+import { loopElevenLabsEffect, playElevenLabsEffect, prepareElevenLabsEffects } from '../audio/elevenlabs';
 import { player, useGame } from '../state';
 import { assetUrl } from '../world/assetUrl';
 import { inDistrict, O } from '../../shared/getaway.mjs';
@@ -21,6 +22,7 @@ function request(path: string) {
 const loadBank = (id: string) => { for(const entry of banks?.[id]?.files ?? [])request('arena/audio/'+entry.file); };
 export function prepareMissionSound() {
   if (requesting||!useGame.getState().volume) return;
+  prepareElevenLabsEffects();
   requesting=true;
   if(!banks)void fetch(assetUrl('arena/audio/manifest.json')).then(r=>r.json()).then(data=>{
     banks=data.banks;
@@ -81,21 +83,26 @@ export function missionSound(e: MissionEvent) {
   if(e.kind==='shot'||e.kind==='enemyShot'){
     const heavy=e.weapon==='bastion',soft=e.weapon==='sparrow',v=e.kind==='enemyShot'?.26:1;
     const remote=e.kind==='enemyShot',id='w.'+e.weapon;
-    if(!sample(id,remote?'mid':'shot',remote?.37:.49,remote?e:undefined)){
+    const generated = playElevenLabsEffect('shot-' + e.weapon, remote ? .48 : .62, remote ? e : undefined);
+    if(!generated&&!sample(id,remote?'mid':'shot',remote?.37:.49,remote?e:undefined)){
       burst(e,heavy?.42:soft?.13:.21,(heavy?.49:.31)*v,heavy?180:450,soft?3600:2200);
       sweep(heavy?121:180,50,.115,.22*v,e,'triangle');
     }
-    if(!remote)sample(id,'tail',.12,undefined,.09);
+    if(!remote&&!generated)sample(id,'tail',.12,undefined,.09);
     if(e.impact&&e.end){
       const hitAt={x:e.end[0],y:e.end[1],z:e.end[2]};
-      if(!sample('impacts','concrete',.29,hitAt))burst(hitAt,.075,.19,420,3700);
+      const surface = e.surface ?? 'concrete';
+      const generatedImpact = surface !== 'actor' && playElevenLabsEffect('impact-' + surface, .42, hitAt);
+      if(!generatedImpact&&!sample('impacts',surface==='actor'?'flesh':surface,.29,hitAt))burst(hitAt,.075,.19,420,3700);
     }
   }else if(e.kind==='blast'){
+    if(playElevenLabsEffect('fuel-blast', .95, e))return;
     if(!sample('explosives','blastNear',.8,e)){
       burst(e,1.45,.9,100,1300);sweep(84,27,1.18,.5,e,'triangle');
     }
     sample('explosives','debris',.4,e,.18);
   }else if(e.kind==='reload'||e.kind==='equip'){
+    if(e.kind==='reload'&&e.weapon!=='bastion'&&playElevenLabsEffect('reload', .52))return;
     const id='w.'+e.weapon;
     const recorded=e.kind==='equip'?sample('handling','swap',.33):e.weapon==='bastion'?
       sample(id,'shellIn',.38):sample(id,'magOut',.38);
@@ -104,8 +111,12 @@ export function missionSound(e: MissionEvent) {
   }else if(e.kind==='hit'){
     if(!sample('voice.mC','hurt',.24,e))burst(e,.079,.13,220,1800);
   }
-  else if(e.kind==='crash')burst(e,.24,.33,160,1400);
-  else if(e.kind==='alarm'||e.kind==='dispatch')sweep(415,460,.6,.11,e,'triangle');
+  else if(e.kind==='crash'){
+    if(!playElevenLabsEffect('crash', .65, e))burst(e,.24,.33,160,1400);
+  }
+  else if(e.kind==='alarm'||e.kind==='dispatch'){
+    if(!playElevenLabsEffect('alarm', .47, e))sweep(415,460,.6,.11,e,'triangle');
+  }
   else if(e.kind==='failed')sweep(148,58,.65,.19);
   else if(e.kind==='pickup'||e.kind==='objective'){
     sweep(392,385,.23,.075);
@@ -114,6 +125,8 @@ export function missionSound(e: MissionEvent) {
 }
 
 let nextSiren=0,nextBed=0;
+let freightAmbience: ReturnType<typeof loopElevenLabsEffect>;
+let policeSiren: ReturnType<typeof loopElevenLabsEffect>;
 export function tickMissionSound(m: Mission | null) {
   const cfg=useGame.getState(), now=performance.now();
   const inside=inDistrict(player.x,player.z);
@@ -124,23 +137,39 @@ export function tickMissionSound(m: Mission | null) {
     const active=enabled&&!!m&&!m.paused&&!m.failed&&m.stage<O.commit;
     const music=!active?null:m.wanted>=2?'pursuit':m.stage>=O.combat&&m.stage<=O.ambush?'combat':'suspense';
     if(inside||beds.size){
-      bed('freight-ambience','arena/audio/amb.foundry.mp3',inside&&enabled?.31:0,10.46,12);
+      if(inside&&enabled)freightAmbience??=loopElevenLabsEffect('freight-ambience','ambience',.27);
+      else if(freightAmbience){freightAmbience.stop();freightAmbience=undefined;}
+      bed('freight-ambience','arena/audio/amb.foundry.mp3',inside && enabled && !freightAmbience ? .31 : 0,10.46,12);
       for(const stem of ['suspense','combat','pursuit'])bed(stem,'getaway/'+stem+'.mp3',music===stem?.48:0);
     }
     if(!inside&&!active&&beds.size)stopBeds();
   }
-  if(!enabled||m?.paused||m?.failed)return;
-  if(m?.wanted&&now>nextSiren){
-    nextSiren=now+910;
-    const v=m.vehicles.filter(v=>v.police).sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z))[0];
-    if(v){
-      sweep(490,760,.43,.085,{...v,y:1.7},'triangle');
-      sweep(760,470,.42,.085,{...v,y:1.7},'triangle',.43);
-    }
+  const pursuing = enabled && m && !m.paused && !m.failed && m.wanted;
+  const car = pursuing ? m.vehicles.reduce<(typeof m.vehicles)[number] | undefined>((nearest, v) => {
+    if (!v.police) return nearest;
+    return !nearest || Math.hypot(v.x-player.x, v.z-player.z) < Math.hypot(nearest.x-player.x, nearest.z-player.z) ? v : nearest;
+  }, undefined) : undefined;
+  if (!car || !heard(car, 100)) {
+    policeSiren?.stop();
+    policeSiren = undefined;
+    return;
+  }
+  const at = { x: car.x, y: 1.7, z: car.z };
+  policeSiren ??= loopElevenLabsEffect('police-siren', 'effects', .46, at);
+  if (policeSiren) policeSiren.move(at);
+  else if (now > nextSiren) {
+    nextSiren = now + 910;
+    sweep(490,760,.43,.085,at,'triangle');
+    sweep(760,470,.42,.085,at,'triangle',.43);
   }
 }
 function stopBeds() {
   for(const {source,gain} of beds.values()){source.stop();source.disconnect();gain.disconnect();}
   beds.clear();scoreStart=null;
 }
-export function stopMissionSound() { nextSiren=nextBed=0; stopBeds(); }
+export function stopMissionSound() {
+  nextSiren=nextBed=0;
+  freightAmbience?.stop(); freightAmbience=undefined;
+  policeSiren?.stop(); policeSiren=undefined;
+  stopBeds();
+}

@@ -1,0 +1,83 @@
+{
+  "profile": "low",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "timing": false,
+  "sample": "Single-frame capture",
+  "views": {
+    "warehouse-interior": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "shadowMap": [
+        1024,
+        1024
+      ],
+      "post": false,
+      "quality": "low",
+      "camera": [
+        191,
+        2.7,
+        22.7
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 223,
+        "textures": 174
+      },
+      "draw": {
+        "frame": 114,
+        "calls": 222,
+        "triangles": 439275,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 3,
+      "weapon": "getaway:weapon:sparrow",
+      "districtMeshes": 49,
+      "jsHeapUsedBytes": 80694440
+    },
+    "combat-view": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "shadowMap": [
+        1024,
+        1024
+      ],
+      "post": false,
+      "quality": "low",
+      "camera": [
+        191,
+        1.5,
+        22
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 224,
+        "textures": 174
+      },
+      "draw": {
+        "frame": 115,
+        "calls": 119,
+        "triangles": 220403,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 3,
+      "weapon": "getaway:weapon:sparrow",
+      "districtMeshes": 49,
+      "jsHeapUsedBytes": 70328092
+    }
+  },
+  "failedAssets": [],
+  "errors": [],
+  "assets": {
+    "requests": 21,
+    "transferredBytes": 4527976,
+    "maxDurationMs": 128.79999999981374
+  },
+  "graphicsErrors": []
+}

@@ -5,7 +5,10 @@ import { launch, open } from './support/browser.mjs';
 import { CONTACT, O } from '../shared/getaway.mjs';
 import { localPoint } from '../shared/vehicles.mjs';
 
-const stack=await startStack({name:'browser-getaway-touch',webPort:5186,roomPort:3286,supabasePort:54861});
+const softwareLab=process.env.GETAWAY_TOUCH_MANUAL_RENDER==='1';
+const portShift=Number(process.env.GETAWAY_PORT_SHIFT??0);
+const stack=await startStack({name:'browser-getaway-touch'+portShift,webPort:5186+portShift,
+  roomPort:3286+portShift,supabasePort:54861+portShift,...(softwareLab?{heartbeatMs:90000}:{})});
 const browser=await launch(), errors=[];
 const evidence=process.env.GETAWAY_EVIDENCE??'/tmp/campos-getaway-evidence';
 await mkdir(evidence,{recursive:true});
@@ -16,7 +19,14 @@ const wait=async(predicate,label)=>{
 };
 let page;
 try{
-  page=await open(browser,stack,'Touch QA',errors,{viewport:{width:900,height:420},mobile:true});
+  page=await open(browser,stack,'Touch QA',errors,{viewport:{width:900,height:420},mobile:true,
+    ...(softwareLab?{query:'/?qa-render-lab&qa-scale=0.25&qa-norender'}:{})});
+  const screenshot=async name=>{
+    if(softwareLab)await page.evaluate(()=>{
+      window.__campusGL.render(window.__campusScene,window.__campusCamera);
+    });
+    await page.screenshot({path:evidence+'/'+name+'.jpg',type:'jpeg',quality:83});
+  };
   assert.equal(await page.evaluate(()=>matchMedia('(pointer: coarse) and (orientation: landscape)').matches),true);
   const c=[...stack.room.clients.values()].find(p=>p.joined);
   assert.ok(c);
@@ -47,7 +57,7 @@ try{
   await wait(()=>m.guns[0].mag===12,'touch reload');
   await buttons.getByRole('button',{name:'Switch weapon'}).tap();
   await wait(()=>m.arm===1,'touch changes weapon');
-  const mobileFrames=await page.evaluate(()=>new Promise(resolve=>{
+  const mobileFrames=softwareLab?{renderMode:'manual software lab'}:await page.evaluate(()=>new Promise(resolve=>{
     const start=performance.now(), frames=[];
     const tick=t=>{
       frames.push(t);
@@ -59,16 +69,24 @@ try{
     };
     requestAnimationFrame(tick);
   }));
-  await page.screenshot({path:evidence+'/touch-combat.jpg',type:'jpeg',quality:83});
+  await screenshot('touch-combat');
   const car=m.fleet.find('getaway-compact');
   place(...Object.values(localPoint(car,1.6,0)));
   Object.assign(m,{stage:O.vehicle,actors:[],health:100,failed:null});
   await buttons.getByRole('button',{name:'Drive',exact:true}).tap();
   await wait(()=>c.vehicle===car.id&&m.stage===O.pursuit,'touch enters vehicle');
-  const gas=await page.getByRole('button',{name:'Accelerate',exact:true}).boundingBox(), z=car.z;
+  // The desktop run verifies pursuit. Keep police from ending this isolated touch gesture while
+  // software Chromium compiles the driving view and mounts the new controls.
+  m.policeAt=Date.now()/1000+120;
+  m.police.length=0;
+  m.capture=0;
+  const accelerator=page.getByRole('button',{name:'Accelerate',exact:true});
+  await accelerator.waitFor();
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  const gas=await accelerator.boundingBox(), z=car.z;
   await touch('touchStart',gas.x+gas.width/2,gas.y+gas.height/2);
   try{await wait(()=>car.z>z+1.1,'touch accelerator moves vehicle');}finally{await touch('touchEnd');}
-  await page.screenshot({path:evidence+'/touch-driving.jpg',type:'jpeg',quality:83});
+  await screenshot('touch-driving');
   assert.deepEqual(errors,[]);
   console.log('Touch smoke passed',mobileFrames);
 }catch(error){

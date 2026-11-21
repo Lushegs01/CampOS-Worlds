@@ -14,6 +14,7 @@ export function preferences(saved, current) {
     avatar: sanitizeAvatar(s.avatar ?? {}),
     quality: ['low', 'medium', 'high', 'ultra'].includes(s.quality) ? s.quality : current.quality,
     volume: finite(s.volume, current.volume, 0, 1),
+    dialogueVolume: finite(s.dialogueVolume, current.dialogueVolume, 0, 1),
     ambience: finite(s.ambience, current.ambience, 0, 1),
     steering: finite(s.steering, current.steering, STEERING.min, STEERING.max),
     reducedMotion: typeof s.reducedMotion === 'boolean' ? s.reducedMotion : current.reducedMotion,

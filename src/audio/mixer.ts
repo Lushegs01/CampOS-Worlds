@@ -6,19 +6,21 @@ import { QA_HOOKS } from '../qa';
 // (Settings). Ambience also has its own level (Settings → Environment sounds). Recorded sounds (public/assets/audio, CC0: docs/ASSETS.md) load once you are on campus, and
 // only while sound is on. Sounds in the world are positioned and heard from the camera.
 
-export interface Mixer { ctx: AudioContext; master: GainNode; effects: GainNode; ambience: GainNode; environment: GainNode; muffle: BiquadFilterNode }
+export interface Mixer { ctx: AudioContext; master: GainNode; effects: GainNode; dialogue: GainNode; duck: GainNode; ambience: GainNode; environment: GainNode; muffle: BiquadFilterNode }
 let mixer: Mixer | null = null;
 
 function create(): Mixer | null {
   if (mixer) return mixer;
   try {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
-    const master = ctx.createGain(), effects = ctx.createGain(), ambience = ctx.createGain(), environment = ctx.createGain(), muffle = ctx.createBiquadFilter();
+    const master = ctx.createGain(), effects = ctx.createGain(), ambience = ctx.createGain(), dialogue = ctx.createGain(), duck = ctx.createGain(), environment = ctx.createGain(), muffle = ctx.createBiquadFilter();
     muffle.type = 'lowpass'; muffle.frequency.value = 20000;
     // `ambience` is faded by the surroundings (quieter indoors); `environment` is the player's chosen level.
-    effects.connect(master); ambience.connect(environment).connect(muffle).connect(master); master.connect(ctx.destination);
+    effects.connect(duck); ambience.connect(environment).connect(muffle).connect(duck);
+    duck.connect(master); dialogue.connect(master); master.connect(ctx.destination);
     master.gain.value = useGame.getState().volume; environment.gain.value = useGame.getState().ambience;
-    mixer = { ctx, master, effects, ambience, environment, muffle };
+    dialogue.gain.value = useGame.getState().dialogueVolume;
+    mixer = { ctx, master, effects, dialogue, duck, ambience, environment, muffle };
   } catch { /* no Web Audio */ }
   return mixer;
 }
@@ -38,6 +40,7 @@ if (typeof window !== 'undefined') {
   // Volume 0 suspends the context entirely (no mixing at all on a phone that has sound off).
   useGame.subscribe((s, before) => {
     if (mixer && s.ambience !== before.ambience) mixer.environment.gain.setTargetAtTime(s.ambience, mixer.ctx.currentTime, .05);
+    if (mixer && s.dialogueVolume !== before.dialogueVolume) mixer.dialogue.gain.setTargetAtTime(s.dialogueVolume, mixer.ctx.currentTime, .03);
     if (s.volume === before.volume || !mixer) return;
     mixer.master.gain.setTargetAtTime(s.volume, mixer.ctx.currentTime, .05);
     if (s.volume) void mixer.ctx.resume().catch(() => {}); else setTimeout(() => { if (mixer && !useGame.getState().volume) void mixer.ctx.suspend(); }, 300);
@@ -90,6 +93,11 @@ let voices = 0;
 const MAX_VOICES = 28;
 // QA builds: what has played, for browser tests (tests/browser-sound.mjs).
 const played: string[] = [];
+export function recordSound(name: string) {
+  if (!QA_HOOKS) return;
+  if (played.length >= 300) played.shift();
+  played.push(name);
+}
 if (QA_HOOKS && typeof window !== 'undefined') (window as unknown as Record<string, unknown>).__campusSounds = () => ({ state: mixer?.ctx.state ?? 'none', loaded: [...buffers.keys()], played: played.slice(-300), voices, environment: mixer?.environment.gain.value ?? null });
 export interface PlayOptions { at?: At; gain?: number; rate?: number; delay?: number; range?: number; ref?: number; bus?: 'effects' | 'ambience' }
 /** Play one recorded sound (a random variant, slightly varied in pitch). False when it is not available yet. */
@@ -104,7 +112,7 @@ export function play(name: string, o: PlayOptions = {}): boolean {
   src.connect(g); (p ? g.connect(p) : g).connect(o.bus === 'ambience' ? m.ambience : m.effects);
   voices++; src.onended = () => { voices--; src.disconnect(); g.disconnect(); p?.disconnect(); };
   src.start(m.ctx.currentTime + (o.delay ?? 0));
-  if (QA_HOOKS) played.push(name);
+  recordSound(name);
   return true;
 }
 
@@ -118,7 +126,7 @@ export function loop(name: string, o: { at?: At; gain?: number; rate?: number; r
   src.connect(g); (p ? g.connect(p) : g).connect(o.bus === 'ambience' ? m.ambience : m.effects);
   // A random starting point, so two of the same engine (or two visits) never sound in lockstep.
   src.start(t, points[0] + Math.random() * (points[1] - points[0]));
-  if (QA_HOOKS) played.push('loop:' + name);
+  recordSound('loop:' + name);
   let stopped = false;
   return {
     gain: g.gain, rate: src.playbackRate, move: at => { if (p) place(p, at); },

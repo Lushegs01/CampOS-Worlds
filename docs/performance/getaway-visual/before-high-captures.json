@@ -1,0 +1,185 @@
+{
+  "profile": "high",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "timing": false,
+  "views": {
+    "character-close": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        137.4,
+        1.53,
+        50.05
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 313,
+        "textures": 218
+      },
+      "draw": {
+        "frame": 266,
+        "calls": 469,
+        "triangles": 1546255,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 66152164
+    },
+    "third-person": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        189.21148561842335,
+        2.671435868838187,
+        42.28432035151291
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 355,
+        "textures": 218
+      },
+      "draw": {
+        "frame": 282,
+        "calls": 348,
+        "triangles": 1165763,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 53515808
+    },
+    "industrial-street": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        203,
+        2.45,
+        53.4
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 355,
+        "textures": 220
+      },
+      "draw": {
+        "frame": 298,
+        "calls": 425,
+        "triangles": 1400905,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 47181668
+    },
+    "wide": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        221,
+        17,
+        72
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 363,
+        "textures": 224
+      },
+      "draw": {
+        "frame": 314,
+        "calls": 539,
+        "triangles": 1459137,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 50545616
+    },
+    "vehicle-close": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        211.8,
+        1.38,
+        49.9
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 363,
+        "textures": 224
+      },
+      "draw": {
+        "frame": 330,
+        "calls": 466,
+        "triangles": 1411355,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 53189204
+    },
+    "warehouse-interior": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 793,
+      "height": 496,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        191,
+        2.7,
+        22.7
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 370,
+        "textures": 239
+      },
+      "draw": {
+        "frame": 346,
+        "calls": 335,
+        "triangles": 1186619,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 55206708
+    }
+  },
+  "failedAssets": [],
+  "errors": [],
+  "assets": {
+    "requests": 5,
+    "transferredBytes": 1661580,
+    "maxDurationMs": 14.800000000046566
+  }
+}

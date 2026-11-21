@@ -50,3 +50,23 @@ Box sizes are length × depth × height in metres, as in the collision map.
 | Part | Merged into | Triangles | Textures | What |
 |---|---|---|---|---|
 | `sparrowMag` (`blender/source/weapon_parts.blend`) | `weapons/sparrow.glb` as `mag` (+59 KB) | 1,140 | 256² | Single-stack 9 mm magazine sized to the grip (1.85 × 2.7 × 8.3 cm): steel body, spine, witness holes, feed lips with the top round, polymer baseplate. The licensed model fused the magazine inside its grip; merged by `scripts/assets/add-weapon-part.mjs`. |
+
+## Orisun Freight — The Getaway
+
+The new original assets were authored for CampOS Worlds. Their source is `blender/source/getaway_district.blend` and the reproducible generator is `blender/getaway_district.py`. The source and exported meshes contain no marketplace or GTA content.
+
+| Runtime GLB | Contents | Triangles | Compressed bytes |
+| --- | --- | ---: | ---: |
+| `getaway/bay04Shell.glb` | Portal warehouse, profiled roof, glazing, roller grille, canopy, downpipes | 3,774 | 54,784 |
+| `getaway/bay04Fittings.glb` | Rack assemblies, boards, conduit and practical light fixtures | 4,864 | 67,836 |
+| `getaway/freightGround.glb` | Asphalt, jointed concrete apron, loading marks, drainage grating | 5,844 | 76,064 |
+| `getaway/freightFixtures.glb` | Welded gates, railings, bollards and yard lamps | 5,040 | 62,352 |
+| `getaway/freightDepots.glb` | Six varied secondary buildings, service doors and roof extraction | 11,228 | 110,340 |
+| **Total** | | **30,750** | **371,376** |
+
+- **Material scans** use the campus asphalt, concrete, box-profile metal and wood KTX2 sets. Sources and license are recorded in the [campus asset inventory](ASSETS.md#environment--cc0-poly-haven).
+- **Reused CC0 scans** include the wooden military crate, fuel drum, concrete barrier, portable generator, old tyre, plastic crate, cardboard box and hand truck. High and 512² mobile variants already ship in the Arena and Metropolis asset packs. [Arena source credits](ASSETS.md#photoscanned-props--cc0-poly-haven) · [Metropolis source ledger](../public/assets/arena/metropolis.json)
+- **Reused original CampOS artwork** includes the freight containers and their LOD, truss, intelligence case, Blender forklift and cabinet, waste bin and roof vent. The compact, shuttle and response cars use the existing drivable chassis with original projectors, grille details, finishes and livery. [Blender asset pipeline](BLENDER_ASSET_PIPELINE.md)
+- **Reused Rocketbox avatars and animations** include the selectable campus player, Sade and two military rigs. Microsoft Rocketbox is MIT, copyright © 2020 Microsoft. The male locomotion library is shared with campus and Arena. [Character and rig credits](ASSETS.md)
+- **Reused licensed weapon and arms meshes** include the Sparrow, Vanguard, Bastion and rigged gloves. Sources, CC0 and CC BY 4.0 terms, and attribution are recorded for each exact model in the existing inventory. [Weapon and arm credits](ASSETS.md#weapons-and-first-person-arms)
+- **Acquisition review** covered Quixel Megascans listings and Fab’s terms for incorporated assets, along with Poly Haven’s CC0 terms. The slice uses the repository’s existing world-ready scans, optimized derivatives and original assets. [Quixel catalogue](https://www.fab.com/sellers/Quixel%20Megascans) · [Fab Standard License](https://www.fab.com/eula) · [Poly Haven license](https://polyhaven.com/license)

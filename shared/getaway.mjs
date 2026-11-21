@@ -27,6 +27,12 @@ export const INDUSTRIAL_SOLIDS = [
   piece('depot', 165, 3, 13, 23, 6.5), piece('depot', 177, -35, 23, 13, 7),
   piece('safehouse', 280, -37, 8, 12, 4.7), piece('depot', 250, -37, 20, 13, 6),
   piece('container', 272, -8, 2.6, 8, 2.65),
+  // Simple footprint proxies for the new freight-side equipment and fixtures.
+  piece('fence', 136.475, 44.62, 13.95, .18, 2.08),
+  piece('fence', 240.7, 45.23, 18.2, .18, 2.08),
+  piece('equipment', 213, 24.1, 2.5, 1.3, 2.1),
+  piece('equipment', 182.1, 1.74, 5.78, .92, 3.35),
+  piece('equipment', 199.45, 1.74, 5.78, .92, 3.35),
 ];
 export const INDUSTRIAL_NODES = [
   { id: 'freight-west', x: 151, z: 55.55 }, { id: 'freight-east', x: 265, z: 55.55 },

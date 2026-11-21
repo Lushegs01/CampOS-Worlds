@@ -1,0 +1,97 @@
+{
+  "profile": "high",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "timing": true,
+  "sample": "Live renderer on requestAnimationFrame",
+  "views": {
+    "third-person": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 614,
+      "height": 384,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        189.21148561842335,
+        2.671435868838186,
+        42.28432035151291
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 226,
+        "textures": 175
+      },
+      "draw": {
+        "frame": 204,
+        "calls": 0,
+        "triangles": 0,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 75306620,
+      "framePacing": {
+        "fps": 0.35504219084701216,
+        "p50ms": 2599.9000000000015,
+        "p95ms": 3383.0999999999985,
+        "durationMs": 8449.700000000004,
+        "frames": 3,
+        "calls": 348,
+        "triangles": 1165763,
+        "textures": 192,
+        "geometries": 315
+      }
+    },
+    "warehouse-interior": {
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "width": 614,
+      "height": 384,
+      "post": true,
+      "quality": "high",
+      "camera": [
+        191,
+        1.5,
+        22
+      ],
+      "connection": "connected",
+      "resources": {
+        "geometries": 315,
+        "textures": 192
+      },
+      "draw": {
+        "frame": 284,
+        "calls": 0,
+        "triangles": 0,
+        "points": 0,
+        "lines": 0
+      },
+      "hostiles": 0,
+      "weapon": null,
+      "districtMeshes": 0,
+      "jsHeapUsedBytes": 78854688,
+      "framePacing": {
+        "fps": 0.3543460543566846,
+        "p50ms": 2649.899999999994,
+        "p95ms": 3483.199999999997,
+        "durationMs": 8466.300000000003,
+        "frames": 3,
+        "calls": 334,
+        "triangles": 1208465,
+        "textures": 216,
+        "geometries": 335
+      }
+    }
+  },
+  "failedAssets": [],
+  "errors": [],
+  "assets": {
+    "requests": 6,
+    "transferredBytes": 697980,
+    "maxDurationMs": 20.100000000093132
+  },
+  "graphicsErrors": []
+}

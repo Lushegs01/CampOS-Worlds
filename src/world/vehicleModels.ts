@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { isGetawayVehicle } from '../../shared/getaway.mjs';
+import { weather } from './materials';
 import { VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { sign } from './architecture/signage';
 
@@ -113,12 +115,18 @@ const shared = {
   amber: new THREE.MeshStandardMaterial({ name: 'indicator', color: '#e39a34', emissive: '#a35a00', emissiveIntensity: .2, roughness: .2 }),
   canopy: new THREE.MeshStandardMaterial({ name: 'canopy', color: '#f1eee6', roughness: .55 }),
 };
+const lens = new THREE.MeshPhysicalMaterial({ name: 'smoked lens', color: '#91a6a8', roughness: .17, metalness: .18, clearcoat: .8, transparent: true, opacity: .49, depthWrite: false });
+const grille = new THREE.MeshStandardMaterial({ name: 'radiator grille', color: '#333a3c', roughness: .46, metalness: .6 });
 const LIVERIES: Record<string, { paint: string; accent: string; metallic: number }> = {
+  'getaway-compact': { paint: '#607268', accent: '#222b26', metallic: .48 },
+  'getaway-shuttle': { paint: '#c2b6a0', accent: '#526966', metallic: .15 },
+  'getaway-cart': { paint: '#876640', accent: '#ddd4bc', metallic: .19 },
   'courtyard-car': { paint: '#eceeed', accent: '#1f5a43', metallic: .15 },
   car0: { paint: '#9ea3a8', accent: '#25292c', metallic: .75 }, car1: { paint: '#1f3a5c', accent: '#25292c', metallic: .65 }, car2: { paint: '#7d1f22', accent: '#25292c', metallic: .6 },
   shuttle: { paint: '#f2f1ec', accent: '#1f5a43', metallic: .1 }, cart0: { paint: '#1f5a43', accent: '#e8e2d2', metallic: .2 }, cart1: { paint: '#e9e4d6', accent: '#1f5a43', metallic: .1 },
 };
 function livery(id: string, type: VehicleType) {
+  if (id.startsWith('getaway-unit-')) return { paint: '#d9d9cc', accent: '#273a49', metallic: .24 };
   if (LIVERIES[id]) return LIVERIES[id];
   const h = [...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   return type === 'shuttle' ? LIVERIES.shuttle : LIVERIES[`${type}${h % (type === 'car' ? 3 : 2)}`];
@@ -193,7 +201,7 @@ function wheelParts(radius: number, width: number, rimRadius: number, style: 'al
 }
 
 // ------------------------------------------------------------------ body profiles
-function carProfile(): Profile {
+function carProfile(marked = false): Profile {
   const L = VEHICLE_TYPES.car.length, h = L / 2, wb = VEHICLE_TYPES.car.wheelbase / 2, r = VEHICLE_TYPES.car.wheelRadius;
   const top = curve([[-h, .74], [-h + .05, .92], [-h + .16, 1.0], [-1.86, 1.06], [-1.66, 1.33], [-1.42, 1.45], [-1.0, 1.49], [-.2, 1.5], [.08, 1.46], [.5, 1.2], [.92, .98], [1.2, .95], [1.7, .89], [1.98, .8], [h - .05, .68], [h, .54]]);
   const belt = curve([[-h, .7], [-1.9, .98], [-1.2, .97], [0, .94], [.9, .92]]);
@@ -202,6 +210,7 @@ function carProfile(): Profile {
   const roof = curve([[-1.9, .78], [-1.4, .68], [0, .66], [.4, .7], [.95, .8]]);
   const stations: number[] = [];
   for (let z = -h; z <= h + 1e-6; z += .045) stations.push(+z.toFixed(4));
+  stations.push(h);
   for (const s of [-1.27, -.38, .86]) stations.push(s - .008, s + .008);
   for (const e of [-h + .02, -h + .035, h - .02, h - .035]) stations.push(e);
   return {
@@ -213,6 +222,7 @@ function carProfile(): Profile {
         if (y < .34 && !between(z, -1.85, 1.85)) return 'trim'; // bumper lower valance
         if (between(z, -1.88, 1.7) && y < .3) return 'trim'; // sill / side skirt
         for (const seam of [-1.27, -.38, .86]) if (Math.abs(z - seam) < .009 && y > .3) return 'trim';
+        if (marked && kind === 'side' && between(y, .66, .82) && between(z, -1.8, 1.5)) return 'accent';
         return kind === 'belt' && between(z, -1.9, .95) ? 'chrome' : 'paint';
       }
       if (kind === 'window') {
@@ -267,7 +277,11 @@ function shuttleProfile(): Profile {
 }
 
 // ------------------------------------------------------------------ assembly
-export interface VehicleModel { root: THREE.Group; body: THREE.Group; wheels: { pivot: THREE.Group; spin: THREE.Group; front: boolean }[]; tail: THREE.MeshStandardMaterial; reverse: THREE.MeshStandardMaterial; radius: number }
+export interface VehicleModel {
+  root: THREE.Group; body: THREE.Group; wheels: { pivot: THREE.Group; spin: THREE.Group; front: boolean }[];
+  tail: THREE.MeshStandardMaterial; reverse: THREE.MeshStandardMaterial; head: THREE.MeshStandardMaterial; radius: number;
+  finish?: { coat: THREE.MeshPhysicalMaterial; color: THREE.Color; roughness: number };
+}
 
 function addWheels(model: VehicleModel, type: VehicleType, track: number, style: 'alloy' | 'steel' | 'cart', width: number, rimRadius: number) {
   const t = VEHICLE_TYPES[type], parts = wheelParts(t.wheelRadius, width, rimRadius, style);
@@ -279,8 +293,10 @@ function addWheels(model: VehicleModel, type: VehicleType, track: number, style:
     model.root.add(pivot); model.wheels.push({ pivot, spin, front: z > 0 });
   }
 }
-function lights() {
+function lights(freight: boolean) {
   return {
+    head: freight ? new THREE.MeshStandardMaterial({ name: 'projector emitter', color: '#dddcce', roughness: .23,
+      metalness: .34, emissive: '#fff2ce', emissiveIntensity: .23 }) : shared.head,
     tail: new THREE.MeshStandardMaterial({ name: 'taillamp', color: '#7a0f12', emissive: '#ff1a12', emissiveIntensity: .25, roughness: .15 }),
     reverse: new THREE.MeshStandardMaterial({ name: 'reverseLamp', color: '#dcdcdc', emissive: '#ffffff', emissiveIntensity: 0, roughness: .15 }),
   };
@@ -291,28 +307,62 @@ function liner(parts: Parts, z: number, r: number, x0: number, x1: number) {
   parts.add(shared.liner, g, [(x0 + x1) / 2, 0, z]);
 }
 
+function fleetCoat(id: string, look: { paint: string; metallic: number }, model: VehicleModel) {
+  const base = paint(look.paint, look.metallic);
+  if (!isGetawayVehicle(id)) return base;
+  const coat = base.clone();
+  coat.roughness = .34;
+  coat.clearcoatRoughness = .14;
+  // Road film accumulates around the wheel wells and sill. The body still reflects the same HDR as the campus.
+  weather(coat, { grime: .48, grimeHeight: .72, streaks: .14, macro: .07 });
+  model.finish = { coat, color: coat.color.clone(), roughness: coat.roughness };
+  return coat;
+}
+
+function projector(parts: Parts, head: THREE.Material, x: number, y: number, z: number, width: number, height: number) {
+  parts.box(shared.trim, [width, height, .097], [x, y, z], [0, 0, 0], .034);
+  for (const s of [-1, 1]) {
+    const at: [number, number, number] = [x + width * .22 * s, y + .005, z + .045];
+    parts.cylinder(shared.chrome, height * .30, .017, at, [Math.PI / 2, 0, 0], 12);
+    parts.cylinder(head, height * .219, .018, [at[0], at[1], at[2] + .011], [Math.PI / 2, 0, 0], 12);
+  }
+  parts.box(lens, [width * .92, height * .83, .024], [x, y, z + .074], [0, 0, 0], .019);
+}
+
 function buildCar(id: string): VehicleModel {
-  const t = VEHICLE_TYPES.car, L = t.length, h = L / 2, look = livery(id, 'car'), { tail, reverse } = lights();
+  const t = VEHICLE_TYPES.car, L = t.length, h = L / 2, look = livery(id, 'car');
+  const freight = isGetawayVehicle(id), response = id.startsWith('getaway-unit-'), lamps = lights(freight);
+  const { head, tail, reverse } = lamps;
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const model: VehicleModel = { root, body, wheels: [], tail, reverse, radius: t.wheelRadius };
-  const shell = new THREE.Mesh(loft(carProfile()), [paint(look.paint, look.metallic), shared.trim, shared.glass, shared.trim, shared.chrome]);
+  const model: VehicleModel = { root, body, wheels: [], ...lamps, radius: t.wheelRadius };
+  const coat = fleetCoat(id, look, model);
+  const shell = new THREE.Mesh(loft(carProfile(response)), [coat, response ? paint(look.accent, .43) : shared.trim, shared.glass, shared.trim, shared.chrome]);
   shell.castShadow = true; shell.receiveShadow = true; body.add(shell);
   const p = new Parts(), wb = t.wheelbase / 2, W = .89;
   for (const z of [-wb, wb]) for (const s of [-1, 1]) liner(p, z, t.wheelRadius + .06, s * (W - .02), s * (W - .42));
   // Lamps, grille and bumpers.
   for (const s of [-1, 1]) {
-    p.box(shared.head, [.34, .1, .08], [s * .6, .74, h - .07], [-.25, s * .32, 0], .03);
-    p.box(shared.trim, [.36, .12, .06], [s * .6, .74, h - .09], [-.25, s * .32, 0], .03);
+    if (freight) projector(p, head, s * .58, .737, h - .116, .365, .131);
+    else {
+      p.box(head, [.34, .1, .08], [s * .6, .74, h - .07], [-.25, s * .32, 0], .03);
+      p.box(shared.trim, [.36, .12, .06], [s * .6, .74, h - .09], [-.25, s * .32, 0], .03);
+    }
     p.box(shared.amber, [.06, .05, .06], [s * .78, .72, h - .13], [0, s * .6, 0], .02);
     p.box(tail, [.32, .11, .07], [s * .62, .96, -h + .1], [.15, -s * .35, 0], .03);
     p.box(reverse, [.1, .05, .05], [s * .3, .52, -h + .03], [0, 0, 0], .015);
     p.box(shared.trim, [.05, .12, .2], [s * (W + .07), 1.02, .72], [0, 0, 0], .02); // mirror arm + housing
-    p.box(paint(look.paint, look.metallic), [.07, .13, .2], [s * (W + .1), 1.05, .7], [0, 0, 0], .03);
+    p.box(coat, [.07, .13, .2], [s * (W + .1), 1.05, .7], [0, 0, 0], .03);
     p.box(shared.chrome, [.14, .025, .02], [s * (W + .005), .86, .22], [0, 0, 0], .008); // door handles
     p.box(shared.chrome, [.14, .025, .02], [s * (W + .002), .88, -.75], [0, 0, 0], .008);
   }
   p.box(shared.trim, [.82, .16, .05], [0, .62, h - .03], [0, 0, 0], .03); // grille
   p.box(shared.chrome, [.84, .02, .055], [0, .7, h - .025]);
+  if (freight) {
+    for (const y of [.571, .603, .636, .669]) p.box(grille, [.74, .008, .014], [0, y, h - .002]);
+    p.box(shared.chrome, [.065, .038, .019], [0, .65, h + .009], [0, 0, 0], .009);
+    for (const side of [-1, 1]) p.box(shared.trim, [.034, .032, 2.31], [side * .865, .361, -.04]);
+    p.box(grille, [.59, .018, .28], [0, .958, .858], [-.15, 0, 0], .007); // cowl vent
+  }
   p.box(shared.trim, [1.2, .1, .05], [0, .38, h - .02], [0, 0, 0], .03); // lower intake
   p.box(shared.trim, [.9, .08, .04], [0, 1.0, -h + .1], [.6, 0, 0], .02); // spoiler lip
   for (const s of [-1, 1]) p.box(shared.trim, [.55, .015, .02], [s * .28, .99, .9], [0, s * .12, 0], .006); // wipers
@@ -324,31 +374,39 @@ function buildCar(id: string): VehicleModel {
   p.box(shared.fabric, [1.3, .12, .5], [0, t.seatHeight - .06, t.seats[2][1] + .04], [0, 0, 0], .05); p.box(shared.fabric, [1.3, .58, .12], [0, t.seatHeight + .28, t.seats[2][1] - .27], [-.2, 0, 0], .05);
   p.box(shared.cabin, [1.55, .05, 3.0], [0, .3, -.35], [0, 0, 0], .02); // floor pan
   p.build(body);
-  const front = plate('OR 214 CMP'); front.position.set(0, .43, h + .006); body.add(front);
-  const rear = plate('OR 214 CMP'); rear.rotation.y = Math.PI; rear.position.set(0, .62, -h - .006); body.add(rear);
+  const registration = response ? 'OR 806 RSP' : freight ? 'OR 624 FRG' : 'OR 214 CMP';
+  const front = plate(registration); front.position.set(0, .43, h + .006); body.add(front);
+  const rear = plate(registration); rear.rotation.y = Math.PI; rear.position.set(0, .62, -h - .006); body.add(rear);
   addWheels(model, 'car', W - .085, 'alloy', .2, .2);
   return model;
 }
 
 function buildShuttle(id: string): VehicleModel {
-  const t = VEHICLE_TYPES.shuttle, h = t.length / 2, look = livery(id, 'shuttle'), { tail, reverse } = lights(), W = t.width / 2;
+  const t = VEHICLE_TYPES.shuttle, h = t.length / 2, look = livery(id, 'shuttle'), W = t.width / 2, freight = isGetawayVehicle(id);
+  const lamps = lights(freight), { head, tail, reverse } = lamps;
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const model: VehicleModel = { root, body, wheels: [], tail, reverse, radius: t.wheelRadius };
-  const shell = new THREE.Mesh(loft(shuttleProfile()), [paint(look.paint, look.metallic), paint(look.accent, .3), shared.glass, shared.trim, shared.chrome]);
+  const model: VehicleModel = { root, body, wheels: [], ...lamps, radius: t.wheelRadius };
+  const coat = fleetCoat(id, look, model);
+  const shell = new THREE.Mesh(loft(shuttleProfile()), [coat, paint(look.accent, .3), shared.glass, shared.trim, shared.chrome]);
   shell.castShadow = true; shell.receiveShadow = true; body.add(shell);
   const p = new Parts(), wb = t.wheelbase / 2;
   for (const z of [-wb, wb]) for (const s of [-1, 1]) liner(p, z, t.wheelRadius + .08, s * (W - .02), s * (W - .45));
   for (const s of [-1, 1]) {
-    p.box(shared.head, [.3, .16, .06], [s * .72, .86, h - .01], [0, 0, 0], .04); p.box(shared.trim, [.36, .22, .04], [s * .72, .86, h - .025], [0, 0, 0], .04);
+    if (freight) projector(p, head, s * .72, .86, h - .034, .36, .18);
+    else { p.box(head, [.3, .16, .06], [s * .72, .86, h - .01], [0, 0, 0], .04); p.box(shared.trim, [.36, .22, .04], [s * .72, .86, h - .025], [0, 0, 0], .04); }
     p.box(shared.amber, [.1, .08, .05], [s * .95, .86, h - .03], [0, 0, 0], .02);
     p.box(tail, [.14, .34, .06], [s * .92, 1.05, -h + .01], [0, 0, 0], .03); p.box(reverse, [.12, .08, .05], [s * .92, .8, -h + .01], [0, 0, 0], .02);
     p.box(shared.trim, [.05, .05, .5], [s * (W + .05), 2.0, h - .3], [0, s * -.2, 0], .02); // mirror arms reach forward
     p.box(shared.trim, [.08, .38, .16], [s * (W + .12), 1.78, h + .02], [0, 0, 0], .03);
   }
   p.box(shared.trim, [1.0, .3, .05], [0, .78, h - .015], [0, 0, 0], .04); // grille
+  if (freight) {
+    for (let n = 0; n < 7; n++) p.box(grille, [.9, .012, .025], [0, .662 + n * .039, h + .012]);
+    for (const s of [-1, 1]) p.box(grille, [.13, .09, 2.64], [s * (W - .093), 2.68, -.13], [0, 0, 0], .02);
+  }
   p.box(shared.trim, [2.05, .22, .1], [0, .5, h + .01], [0, 0, 0], .05); p.box(shared.trim, [2.05, .22, .1], [0, .5, -h - .01], [0, 0, 0], .05); // bumpers
   p.box(shared.trim, [1.1, .02, .02], [0, 1.48, h + .005], [0, 0, 0], .008);
-  p.box(paint(look.paint, look.metallic), [1.0, .26, 1.4], [0, 2.75, -.6], [0, 0, 0], .08); // roof air-conditioning pod
+  p.box(coat, [1.0, .26, 1.4], [0, 2.75, -.6], [0, 0, 0], .08); // roof air-conditioning pod
   p.box(shared.trim, [.9, .2, .5], [0, 2.69, 2.3], [0, 0, 0], .05); // destination box
   for (const s of [-1, 1]) p.box(shared.chrome, [.04, .04, 5.2], [s * (W - .25), 2.66, -.3], [0, 0, 0], .015); // roof rails
   // Cabin: floor, driver's dash and wheel (left), and paired passenger seats behind.
@@ -361,10 +419,10 @@ function buildShuttle(id: string): VehicleModel {
   }
   p.build(body);
   for (const s of [-1, 1]) {
-    const label = sign({ text: 'ÒRÌṢUN UNIVERSITY · CAMPUS SHUTTLE', kind: 'panel', width: 3.4, height: .2, background: look.accent, color: '#f6efd9' });
+    const label = sign({ text: freight ? 'ORISUN FREIGHT  /  STAFF TRANSPORT' : 'ÒRÌṢUN UNIVERSITY · CAMPUS SHUTTLE', kind: 'panel', width: 3.4, height: .2, background: look.accent, color: '#f6efd9' });
     label.position.set(s * (W + .004), 1.045, -.4); label.rotation.y = s * Math.PI / 2; body.add(label);
   }
-  const dest = sign({ text: 'CAMPUS LOOP', kind: 'panel', width: .82, height: .15, background: '#101213', color: '#ffb547' }); dest.position.set(0, 2.69, 2.556); body.add(dest);
+  const dest = sign({ text: freight ? 'FREIGHT DEPOT' : 'CAMPUS LOOP', kind: 'panel', width: .82, height: .15, background: '#101213', color: '#ffb547' }); dest.position.set(0, 2.69, 2.556); body.add(dest);
   const front = plate('OR 102 SHT'); front.position.set(0, .66, h + .07); body.add(front);
   const rear = plate('OR 102 SHT'); rear.rotation.y = Math.PI; rear.position.set(0, .72, -h - .02); body.add(rear);
   addWheels(model, 'shuttle', W - .17, 'steel', .25, .25);
@@ -372,10 +430,11 @@ function buildShuttle(id: string): VehicleModel {
 }
 
 function buildCart(id: string): VehicleModel {
-  const t = VEHICLE_TYPES.cart, h = t.length / 2, look = livery(id, 'cart'), { tail, reverse } = lights(), W = t.width / 2;
+  const t = VEHICLE_TYPES.cart, h = t.length / 2, look = livery(id, 'cart'), lamps = lights(isGetawayVehicle(id)), W = t.width / 2;
+  const { head, tail, reverse } = lamps;
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const model: VehicleModel = { root, body, wheels: [], tail, reverse, radius: t.wheelRadius };
-  const p = new Parts(), coat = paint(look.paint, look.metallic), seatZ = t.seats[0][1];
+  const model: VehicleModel = { root, body, wheels: [], ...lamps, radius: t.wheelRadius };
+  const p = new Parts(), coat = fleetCoat(id, look, model), seatZ = t.seats[0][1];
   p.box(shared.trim, [W * 2 - .2, .1, t.length - .25], [0, .3, 0], [0, 0, 0], .03); // chassis
   p.box(shared.cabin, [W * 2 - .12, .04, 1.5], [0, .37, .25], [0, 0, 0], .015); // floor mat
   // Front cowl and nose, rear body under the seat, fenders.
@@ -396,7 +455,7 @@ function buildCart(id: string): VehicleModel {
   // Steering on the left, dash and lamps.
   p.cylinder(shared.trim, .02, .55, [t.seats[0][0], .85, seatZ + .48], [.75, 0, 0], 8);
   p.add(shared.trim, new THREE.TorusGeometry(.17, .02, 8, 24), [t.seats[0][0], 1.04, seatZ + .38], [-.85, 0, 0]);
-  for (const s of [-1, 1]) { p.box(shared.head, [.16, .08, .05], [s * .38, .66, h - .06], [-.15, 0, 0], .03); p.box(tail, [.1, .08, .04], [s * .45, .5, -h + .01], [0, 0, 0], .02); p.box(reverse, [.06, .04, .03], [s * .3, .48, -h + .01], [0, 0, 0], .01); }
+  for (const s of [-1, 1]) { p.box(head, [.16, .08, .05], [s * .38, .66, h - .06], [-.15, 0, 0], .03); p.box(tail, [.1, .08, .04], [s * .45, .5, -h + .01], [0, 0, 0], .02); p.box(reverse, [.06, .04, .03], [s * .3, .48, -h + .01], [0, 0, 0], .01); }
   p.build(body);
   addWheels(model, 'cart', W - .11, 'cart', .19, .14);
   return model;

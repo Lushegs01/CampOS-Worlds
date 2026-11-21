@@ -207,7 +207,13 @@ function Grass({ count, radius }: { count: number; radius: number }) {
     return { m, uniforms };
   }, [count, radius]);
   useFrame(({ camera }, dt) => {
-    mesh.uniforms.uCam.value.set(camera.position.x, camera.position.z);
+    const { x, z } = camera.position;
+    // No grass blade can be nonzero when its camera-relative tile is outside the lawn mask.
+    // Skip the buffer entirely in industrial districts and other parts of the open world.
+    mesh.m.visible = x + radius >= MASK.x0 && x - radius <= MASK.x0 + MASK.size
+      && z + radius >= MASK.z0 && z - radius <= MASK.z0 + MASK.size;
+    if (!mesh.m.visible) return;
+    mesh.uniforms.uCam.value.set(x, z);
     // Change the existing instance count gradually: no geometry rebuild or density pop.
     const g = mesh.m.geometry as THREE.InstancedBufferGeometry, target = count * (campusBudget.level >= 2 ? .35 : 1);
     g.instanceCount = Math.round(THREE.MathUtils.damp(g.instanceCount, target, 2, Math.min(dt, .1)));
