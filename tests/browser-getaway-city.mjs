@@ -20,7 +20,8 @@ const door = v => localPoint(v, VEHICLE_TYPES[v.type].width / 2 + 1.8, VEHICLE_T
 const PART = process.env.PART ?? 'full';
 const stack = await startStack({ name: 'browser-getaway-city', webPort: 5186, roomPort: 3286, supabasePort: 54843 });
 const browser = await launch(), errors = [];
-const evidence = process.env.GETAWAY_EVIDENCE ?? 'docs/screenshots/getaway-city';
+// (Runs write to an ignored folder; copy a run worth keeping into docs/screenshots/getaway-city.)
+const evidence = process.env.GETAWAY_EVIDENCE ?? 'test-results/getaway-city';
 await mkdir(evidence, { recursive: true });
 const view = { viewport: { width: 960, height: 560 }, query: '/?qa-scale=0.4&qa-norender' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
