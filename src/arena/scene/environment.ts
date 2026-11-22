@@ -9,6 +9,9 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { surface, type Library, type SurfaceKey, type PropKey } from './library';
 import type { ArenaQuality } from './world';
+import { fixtureTone, toneColor, type FoundryLook } from './foundry/look';
+import { brushedSteel, hazardStripes, type BakedSet } from './foundry/textures';
+import { WET_GROUND, foundryWet, weather } from './foundry/wet';
 
 type Box = { min: number[]; max: number[]; mat: string; thin?: boolean; kind?: string; alongZ?: boolean };
 type Map3 = { id: string; boxes: Box[]; deco?: Box[]; bounds: number[]; objectives: { x: number; z: number; r: number }[]; palette: Record<string, unknown> };
@@ -125,9 +128,44 @@ export function materials(lib: Library) {
     glow: new THREE.MeshStandardMaterial({ color: '#fffaf0', emissive: '#fff4dc', emissiveIntensity: 3, roughness: .4 }),
     container: (key: string) => key === 'container-red' ? surface(lib, 'paintedMetal', { gain: 1.25 }) : surface(lib, 'corrugated', { tint: CONTAINER_TINT[key] ?? '#8a7a62', gain: 1.5 }),
     containerFrame: (key: string) => painted(new THREE.Color(CONTAINER_TINT[key] ?? '#8a7a62').multiplyScalar(.8).getStyle(), 1.3),
+    /** Foundry night shift only (see industrialMaterials): hazard paint and the second fitting tone. */
+    hazard: null as THREE.MeshStandardMaterial | null, glowB: null as THREE.MeshStandardMaterial | null,
   };
 }
 export type Mats = ReturnType<typeof materials>;
+
+/** A PBR material from a baked set (procedural maps; world-space UVs like every arena surface). */
+function bakedMaterial(set: BakedSet, o: { tint?: string; metal?: number; rough?: number; normalScale?: number; name: string }) {
+  return new THREE.MeshStandardMaterial({
+    name: o.name, map: set.color, normalMap: set.normal, normalScale: new THREE.Vector2(o.normalScale ?? 1, o.normalScale ?? 1),
+    roughnessMap: set.arm, aoMap: set.arm, aoMapIntensity: .8, metalnessMap: set.arm, metalness: o.metal ?? 0, roughness: o.rough ?? 1,
+    color: new THREE.Color(o.tint ?? '#ffffff'),
+  });
+}
+/**
+ * Foundry night shift: the same roles with industrial PBR. Bare steel (trusses, columns, frames, machine housings) is
+ * brushed metal (metalness 0.85, roughness ~0.28); catwalk and stair plate is worn diamond plate read as metal; edges
+ * that people trip on carry yellow/black hazard paint; fittings glow emerald or amber; concrete, brick and cover pick
+ * up grime, damp and streaks.
+ */
+function industrialMaterials(lib: Library, look: FoundryLook, baked: { steel: BakedSet; hazard: BakedSet }): Mats {
+  const m = materials(lib);
+  const steel = bakedMaterial(baked.steel, { name: 'brushedSteel', tint: '#c4c9ce', metal: .85, rough: 1 });
+  const darkSteel = bakedMaterial(baked.steel, { name: 'gunmetal', tint: '#5d6268', metal: .85, rough: 1.15 });
+  const machine = bakedMaterial(baked.steel, { name: 'machineSteel', tint: '#4f7378', metal: .55, rough: 1.4 });
+  const hazard = bakedMaterial(baked.hazard, { name: 'hazard', metal: 1, rough: 1 });
+  const glow = (c: THREE.Color) => new THREE.MeshStandardMaterial({ color: '#0a0a0a', emissive: c, emissiveIntensity: look.glow, roughness: .4, name: 'fixture' });
+  for (const k of ['brick', 'concrete', 'precast', 'plaster', 'stone'] as const) weather(m[k], 1);
+  // Hessian soaks dark in the wet; the dry daylight tint made the bags read as bright blocks under the floods.
+  const sandbag = weather(surface(lib, 'sandbag', { tint: '#8f8670', gain: .95, normalScale: 1.7, name: 'wetSandbag' }), .7);
+  weather(steel, .35); weather(darkSteel, .35); weather(machine, .6);
+  return {
+    ...m, steel, darkSteel, machine, hazard, sandbag,
+    plate: surface(lib, 'metalPlate', { metal: .85, rough: .62, gain: 1.05, name: 'catwalkPlate' }),
+    wire: new THREE.MeshStandardMaterial({ color: '#9a9ea3', metalness: .85, roughness: .3 }),
+    glow: glow(toneColor(look, 0)), glowB: glow(toneColor(look, 1)),
+  };
+}
 
 // ---------------------------------------------------------------- element builders
 /** A shipping container fitted to a box: corrugated walls (real geometry), frame, castings and door gear. */
@@ -190,7 +228,7 @@ function railing(b: Builder, m: Mats, box: Box) {
   const posts = Math.max(1, Math.ceil(L / 1.2));
   for (let i = 0; i <= posts; i++) b.cyl(at(i * L / posts, y0), at(i * L / posts, y1), .024, m.yellow, 8);
   b.cyl(at(0, y1 - .02), at(L, y1 - .02), .028, m.yellow, 10); b.cyl(at(0, y0 + (y1 - y0) * .5), at(L, y0 + (y1 - y0) * .5), .02, m.yellow, 8);
-  b.box(alongX ? x0 : c - .05, y0, alongX ? c - .05 : z0, alongX ? x1 : c + .05, y0 + .1, alongX ? c + .05 : z1, m.yellow, 1);
+  b.box(alongX ? x0 : c - .05, y0, alongX ? c - .05 : z0, alongX ? x1 : c + .05, y0 + .1, alongX ? c + .05 : z1, m.hazard ?? m.yellow, m.hazard ? .8 : 1);
 }
 
 /** Precast perimeter panels with joints, a cap, and razor wire coiled along the top. */
@@ -229,7 +267,8 @@ function roof(b: Builder, m: Mats, box: Box, lights: THREE.Vector3[]) {
     const mid = (s0 + s1) / 2;
     for (const off of [-3, 3]) { const p = alongX ? new THREE.Vector3(t, y0 - .5, mid + off) : new THREE.Vector3(mid + off, y0 - .5, t); lights.push(p); }
   }
-  for (const p of lights) b.box(p.x - .65, p.y - .04, p.z - .08, p.x + .65, p.y, p.z + .08, m.glow, 1);
+  // (Foundry night shift: the fittings alternate emerald and amber, the same tone their light and cone take.)
+  for (const p of lights) b.box(p.x - .65, p.y - .04, p.z - .08, p.x + .65, p.y, p.z + .08, m.glowB && fixtureTone(p) ? m.glowB : m.glow, 1);
 }
 
 /** Steel stairs: concrete body with a diamond-plate tread and a yellow nosing on every step. */
@@ -237,13 +276,15 @@ function step(b: Builder, m: Mats, box: Box) {
   const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max;
   b.box(x0, y0, z0, x1, y1 - .04, z1, m.concrete, 2);
   b.box(x0, y1 - .04, z0, x1, y1, z1, m.plate, .8);
+  // Hazard-painted nosing band under the tread (a few millimetres proud, so it never fights the concrete).
+  if (m.hazard) b.box(x0 - .004, y1 - .1, z0 - .004, x1 + .004, y1 - .04, z1 + .004, m.hazard, .8);
 }
 
 /** An industrial press machine within its box. */
 function machine(b: Builder, m: Mats, box: Box) {
   const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = x1 - x0, d = z1 - z0;
   if (y0 < .1) {
-    b.box(x0, y0, z0, x1, y0 + .2, z1, m.darkSteel, 1);
+    b.box(x0, y0, z0, x1, y0 + .2, z1, m.hazard ?? m.darkSteel, m.hazard ? .8 : 1);
     b.box(x0 + .1, y0 + .2, z0 + .1, x1 - .1, y1 - .15, z1 - .1, m.machine, 1.2);
     b.box(x0 + .05, y1 - .15, z0 + .05, x1 - .05, y1, z1 - .05, m.darkSteel, 1);
     for (const sx of [-1, 1]) b.box(cx + sx * (w / 2 - .02) - .01, y0 + .3, cz - d / 2 + .2, cx + sx * (w / 2 - .02) + .01, y0 + .45, cz + d / 2 - .2, m.yellow, .5);
@@ -259,6 +300,8 @@ function column(b: Builder, m: Mats, box: Box) {
   const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = (x1 - x0) / 2;
   b.box(x0, y0, z0, x1, y0 + .03, z1, m.darkSteel, 1);
   b.box(x0, y0, z0, x1, y1, z0 + .04, m.steel, 1); b.box(x0, y0, z1 - .04, x1, y1, z1, m.steel, 1); b.box(cx - .02, y0, z0, cx + .02, y1, z1, m.steel, 1);
+  // Foundry: a hazard-striped column guard around the foot (2 cm proud of the column's own box).
+  if (m.hazard && y0 < .1) b.box(x0 - .02, y0, z0 - .02, x1 + .02, y0 + Math.min(1, y1 - y0), z1 + .02, m.hazard, .8);
   void cz; void w;
 }
 
@@ -338,22 +381,52 @@ function splatTexture(map: Map3) {
  * linear filtering it fades over about a metre, and it dims sky and ambient light on covered ground
  * (a cheap, all-profile stand-in for ambient occlusion under the sheds).
  */
-function shelterTexture(map: Map3) {
-  const [bx0, bz0, bx1, bz1] = map.bounds, pad = 4, w = Math.ceil(bx1 - bx0 + pad * 2), h = Math.ceil(bz1 - bz0 + pad * 2);
+/**
+ * The same texture carries, in RGB, the Foundry night shift's practical light on the floor: a soft pool under every
+ * roof fitting and wall lamp in its tone (clipped to its roof, so light does not leak through the shed walls). Added
+ * to the ground's diffuse light (and as a sheen on standing water), it lights the yard on every profile, Low included,
+ * where only a few fittings nearest the player carry real lights. (Alpha: shelter; one texture unit for both.)
+ */
+function shelterTexture(map: Map3, glow: { look: FoundryLook; fixtures: THREE.Vector3[] } | null = null) {
+  const [bx0, bz0, bx1, bz1] = map.bounds, pad = 4, res = glow ? 2 : 1, w = Math.ceil(bx1 - bx0 + pad * 2) * res, h = Math.ceil(bz1 - bz0 + pad * 2) * res;
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d')!;
   g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff';
+  const X = (x: number) => (x - bx0 + pad) * res, Z = (z: number) => (z - bz0 + pad) * res;
+  const roofs: Box[] = [];
   for (const b of map.boxes as Box[]) {
     const roofed = b.mat === 'roof' || (b.min[1] > 2.2 && b.max[1] - b.min[1] < 1.2 && (b.max[0] - b.min[0]) * (b.max[2] - b.min[2]) > 6);
-    if (roofed) g.fillRect(b.min[0] - bx0 + pad + .4, b.min[2] - bz0 + pad + .4, b.max[0] - b.min[0] - .8, b.max[2] - b.min[2] - .8);
+    if (roofed) g.fillRect(X(b.min[0] + .4), Z(b.min[2] + .4), (b.max[0] - b.min[0] - .8) * res, (b.max[2] - b.min[2] - .8) * res);
+    if (b.mat === 'roof') roofs.push(b);
   }
-  const tex = new THREE.CanvasTexture(c); tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  return { tex, origin: new THREE.Vector2(bx0 - pad, bz0 - pad), size: new THREE.Vector2(w, h) };
+  const shelter = g.getImageData(0, 0, w, h).data, data = new Uint8Array(w * h * 4);
+  if (glow) {
+    g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'lighter';
+    for (const p of glow.fixtures) {
+      if (p.y >= 9) continue; // (floodlights are real lights)
+      const col = toneColor(glow.look, fixtureTone(p)), m = Math.max(col.r, col.g, col.b), r = (p.y > 5 ? 3.4 : 5.5) * res; // (tight under the roof bays, so neighbouring tones stay apart)
+      const roof = roofs.find(b => p.x > b.min[0] && p.x < b.max[0] && p.z > b.min[2] && p.z < b.max[2] && b.min[1] > p.y);
+      const grad = g.createRadialGradient(X(p.x), Z(p.z), 0, X(p.x), Z(p.z), r), rgb = (a: number) => `rgba(${Math.round(col.r / m * 255)},${Math.round(col.g / m * 255)},${Math.round(col.b / m * 255)},${a})`;
+      grad.addColorStop(0, rgb(.5)); grad.addColorStop(.4, rgb(.22)); grad.addColorStop(1, rgb(0));
+      g.save(); if (roof) { g.beginPath(); g.rect(X(roof.min[0] + .3), Z(roof.min[2] + .3), (roof.max[0] - roof.min[0] - .6) * res, (roof.max[2] - roof.min[2] - .6) * res); g.clip(); }
+      g.fillStyle = grad; g.fillRect(X(p.x) - r, Z(p.z) - r, r * 2, r * 2); g.restore();
+    }
+    const light = g.getImageData(0, 0, w, h).data;
+    for (let i = 0; i < w * h * 4; i += 4) { data[i] = light[i]; data[i + 1] = light[i + 1]; data[i + 2] = light[i + 2]; }
+  }
+  for (let i = 0; i < w * h * 4; i += 4) data[i + 3] = shelter[i];
+  // (A data texture, rows in canvas order, as the splat map: a canvas texture is flipped on upload, which mirrored the
+  // shelter in z.)
+  const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat); tex.flipY = false;
+  tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true;
+  return { tex, origin: new THREE.Vector2(bx0 - pad, bz0 - pad), size: new THREE.Vector2(w / res, h / res) };
 }
 
-function ground(lib: Library, map: Map3, q: ArenaQuality) {
+function ground(lib: Library, map: Map3, q: ArenaQuality, look: FoundryLook | null = null, fixtures: THREE.Vector3[] = []) {
   const s = lib.surfaces, splat = splatTexture(map);
-  const shelter = shelterTexture(map);
-  const m = new THREE.MeshStandardMaterial({ map: s.concreteFloor.color, normalMap: s.concreteFloor.normal, roughnessMap: s.concreteFloor.arm, aoMap: s.concreteFloor.arm, roughness: 1, metalness: 0, envMapIntensity: .7 });
+  const shelter = shelterTexture(map, look ? { look, fixtures } : null);
+  // (Roughness is read from the AO/roughness/metal map bound as aoMap: one texture unit fewer for the lights' shadows.)
+  const m = new THREE.MeshStandardMaterial({ map: s.concreteFloor.color, normalMap: s.concreteFloor.normal, aoMap: s.concreteFloor.arm, roughness: 1, metalness: 0, envMapIntensity: look ? 1.6 : .7 });
+  const wet = !!look;
   const uniforms = {
     tSplat: { value: splat.tex }, uOrigin: { value: splat.origin }, uSize: { value: splat.size },
     tShelter: { value: shelter.tex }, uShOrigin: { value: shelter.origin }, uShSize: { value: shelter.size },
@@ -361,13 +434,13 @@ function ground(lib: Library, map: Map3, q: ArenaQuality) {
     nRoad: { value: s.road.normal }, nGravel: { value: s.gravel.normal }, nDirt: { value: s.dirt.normal },
   };
   m.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, uniforms);
+    Object.assign(shader.uniforms, uniforms, wet ? foundryWet : {});
     shader.vertexShader = 'varying vec3 vGround;\n' + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvGround = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = `varying vec3 vGround;
 uniform sampler2D tSplat, tRoad, tGravel, tDirt, nRoad, nGravel, nDirt, tShelter; uniform vec2 uOrigin, uSize, uShOrigin, uShSize;
 vec4 splatAt() { return texture2D(tSplat, (vGround.xz - uOrigin) / uSize); }
 float gnoise(vec2 p) { return fract(sin(dot(floor(p), vec2(12.9898, 78.233))) * 43758.5453); }
-` + shader.fragmentShader
+` + (wet ? WET_GROUND.pars : '') + shader.fragmentShader
       .replace('#include <map_fragment>', `
 vec4 sp = splatAt(); vec2 wuv = vGround.xz;
 float macro = mix(.88, 1.08, gnoise(wuv * .05) * .5 + gnoise(wuv * .13) * .5);
@@ -376,20 +449,25 @@ vec3 cRoad = texture2D(tRoad, wuv / 4.0).rgb, cGravel = texture2D(tGravel, wuv /
 float wR = smoothstep(.15, .85, sp.r), wG = smoothstep(.2, .9, sp.g) * (1.0 - wR), wD = smoothstep(.25, .8, sp.b) * (1.0 - wR * .7);
 vec3 albedo = mix(mix(mix(cBase, cRoad, wR), cGravel, wG), cDirt, wD);
 albedo = mix(albedo, vec3(.78, .62, .16), sp.a * .85 * (1.0 - wD));
-diffuseColor.rgb *= albedo;`)
+diffuseColor.rgb *= albedo;
+${wet ? WET_GROUND.mask : ''}`)
       .replace('#include <roughnessmap_fragment>', `
-float roughnessFactor = roughness * mix(mix(mix(texture2D(roughnessMap, wuv / 3.0).g, .78, wR), .92, wG), .95, wD);
-roughnessFactor = mix(roughnessFactor, .55, sp.a * .7);`)
+float roughnessFactor = roughness * mix(mix(mix(texture2D(aoMap, wuv / 3.0).g, .78, wR), .92, wG), .95, wD);
+roughnessFactor = mix(roughnessFactor, .55, sp.a * .7);
+${wet ? WET_GROUND.rough : ''}`)
       .replace('#include <normal_fragment_maps>', `
 vec3 tn = mix(mix(mix(texture2D(normalMap, wuv / 3.0).xyz, texture2D(nRoad, wuv / 4.0).xyz, wR), texture2D(nGravel, wuv / 2.5).xyz, wG), texture2D(nDirt, wuv / 3.0).xyz, wD) * 2.0 - 1.0;
 tn.xy *= 1.15;
+${wet ? WET_GROUND.normal : ''}
 normal = normalize((viewMatrix * vec4(normalize(vec3(tn.x, tn.z, tn.y)), 0.0)).xyz);`)
       .replace('#include <aomap_fragment>', `float ambientOcclusion = mix(texture2D(aoMap, wuv / 3.0).r, 1.0, max(wR, wG));
-ambientOcclusion *= 1.0 - .74 * texture2D(tShelter, (vGround.xz - uShOrigin) / uShSize).r;
-reflectedLight.indirectDiffuse *= ambientOcclusion; reflectedLight.indirectSpecular *= ambientOcclusion;`);
+ambientOcclusion *= 1.0 - .74 * texture2D(tShelter, (vGround.xz - uShOrigin) / uShSize).a;
+reflectedLight.indirectDiffuse *= ambientOcclusion; reflectedLight.indirectSpecular *= ambientOcclusion;
+${wet ? WET_GROUND.reflect : ''}`);
   };
   const [bx0, bz0, bx1, bz1] = map.bounds, size = Math.max(bx1 - bx0, bz1 - bz0) + 260;
   const geo = new THREE.PlaneGeometry(size, size, 1, 1); geo.rotateX(-Math.PI / 2);
+  if (wet) m.customProgramCacheKey = () => 'foundry-wet-ground';
   const mesh = new THREE.Mesh(geo, m); mesh.position.set((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2); mesh.receiveShadow = true; mesh.name = 'ground';
   void q;
   return mesh;
@@ -416,7 +494,9 @@ function backdrop(b: Builder, m: Mats, props: Props, map: Map3, lights: THREE.Ve
   for (const [x, z] of [[bx0 - 3, bz0 - 3], [bx1 + 3, bz0 - 3], [bx0 - 3, bz1 + 3], [bx1 + 3, bz1 + 3]]) {
     b.cyl(new THREE.Vector3(x, 0, z), new THREE.Vector3(x, 15, z), .18, m.steel, 10);
     b.box(x - 1.4, 15, z - .25, x + 1.4, 15.15, z + .25, m.darkSteel, 1);
-    for (const o of [-1, -.35, .35, 1]) { b.box(x + o - .22, 15.15, z - .16, x + o + .22, 15.5, z + .16, m.darkSteel, 1); b.box(x + o - .18, 15.2, z + (z > 0 ? -.19 : .16), x + o + .18, 15.45, z + (z > 0 ? -.16 : .19), m.glow, 1); }
+    // (Foundry night shift: the lamp heads take their floodlight's tone, by diagonal as in foundry/lighting.ts.)
+    const head = m.glowB && (x < (bx0 + bx1) / 2) !== (z < (bz0 + bz1) / 2) ? m.glowB : m.glow;
+    for (const o of [-1, -.35, .35, 1]) { b.box(x + o - .22, 15.15, z - .16, x + o + .22, 15.5, z + .16, m.darkSteel, 1); b.box(x + o - .18, 15.2, z + (z > 0 ? -.19 : .16), x + o + .18, 15.45, z + (z > 0 ? -.16 : .19), head, 1); }
     lights.push(new THREE.Vector3(x, 15.2, z));
   }
   // Parked equipment outside the gates.
@@ -426,7 +506,7 @@ function backdrop(b: Builder, m: Mats, props: Props, map: Map3, lights: THREE.Ve
 
 // ---------------------------------------------------------------- dressing inside the map (never in walkable space)
 /** Small props against walls and on top of cover: lamps, power boxes, ammo, jerrycans. Purely decorative and flush with existing volumes. */
-function dressing(props: Props, map: Map3, detail: number) {
+function dressing(props: Props, map: Map3, detail: number, fixtures: THREE.Vector3[] | null = null) {
   for (const box of map.boxes) {
     const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, h = y1 - y0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     if ((box.mat === 'crate' || box.mat === 'barrier') && y0 < .1 && h < 1.5 && hash(cx, cz) > (detail ? .45 : .75)) {
@@ -438,14 +518,19 @@ function dressing(props: Props, map: Map3, detail: number) {
         const inward = alongX ? (cz > 0 ? -1 : 1) : (cx > 0 ? -1 : 1);
         const px = alongX ? x0 + t : (inward > 0 ? x1 : x0), pz = alongX ? (inward > 0 ? z1 : z0) : z0 + t;
         props.place('wallLamp', px, 4.3, pz, alongX ? (inward > 0 ? 0 : Math.PI) : (inward > 0 ? Math.PI / 2 : -Math.PI / 2), 1, 1, 1);
+        // (Foundry night shift: each wall lamp is also a practical fitting, a metre out from the wall: a point light
+        // closer than that burns a blown-out hot spot into the wall beside it.)
+        if (fixtures) fixtures.push(alongX ? new THREE.Vector3(px, 4.1, pz + inward * 1.05) : new THREE.Vector3(px + inward * 1.05, 4.1, pz));
       }
     }
   }
 }
 
 /** Build the whole environment. Returns objects to add to the scene and the positions of light fittings. */
-export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality) {
-  const b = new Builder(lib), m = materials(lib), props = new Props(), lights: THREE.Vector3[] = [], bags: THREE.Matrix4[] = [];
+export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality, look: FoundryLook | null = null) {
+  // Foundry night shift: procedural brushed steel and hazard paint, baked once per build (released with the world).
+  const baked = look ? { steel: brushedSteel(q.detail ? 512 : 256), hazard: hazardStripes(q.detail ? 512 : 256) } : null;
+  const b = new Builder(lib), m = look && baked ? industrialMaterials(lib, look, baked) : materials(lib), props = new Props(), lights: THREE.Vector3[] = [], bags: THREE.Matrix4[] = [];
   for (const box of map.boxes) {
     const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, h = y1 - y0;
     switch (box.mat) {
@@ -454,7 +539,7 @@ export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality) {
       case 'stone': masonry(b, m, box, m.stone); break;
       case 'concrete': masonry(b, m, box, m.concrete); break;
       case 'roof': roof(b, m, box, lights); break;
-      case 'grate': b.box(x0, y0, z0, x1, y1, z1, m.plate, .9); b.box(x0, y0 - .22, z0, x1, y0, z0 + .12, m.steel, 1); b.box(x0, y0 - .22, z1 - .12, x1, y0, z1, m.steel, 1); break;
+      case 'grate': b.box(x0, y0, z0, x1, y1, z1, m.plate, .9); b.box(x0, y0 - .22, z0, x1, y0, z0 + .12, m.hazard ?? m.steel, m.hazard ? .8 : 1); b.box(x0, y0 - .22, z1 - .12, x1, y0, z1, m.hazard ?? m.steel, m.hazard ? .8 : 1); break;
       case 'rail': railing(b, m, box); break;
       case 'metal': case 'timber': if (h < 4.1 && (x1 - x0 < 1.7 || z1 - z0 < 1.7) && box.mat === 'metal') step(b, m, box); else b.box(x0, y0, z0, x1, y1, z1, box.mat === 'timber' ? m.planks : m.plate, 1.2); break;
       case 'crate': {
@@ -483,11 +568,11 @@ export function buildEnvironment(lib: Library, map: Map3, q: ArenaQuality) {
     }
   }
   for (const d of map.deco ?? []) frame(b, m, d);
-  dressing(props, map, q.detail);
+  dressing(props, map, q.detail, look ? lights : null);
   backdrop(b, m, props, map, lights);
   // Cover props are in the library already; set dressing arrives later and is added by `decor()`.
   const present = new Set(Object.keys(lib.props));
-  const objects: THREE.Object3D[] = [...b.meshes(q.shadows), ...props.meshes(lib, q.shadows, k => present.has(k)), ground(lib, map, q)];
+  const objects: THREE.Object3D[] = [...b.meshes(q.shadows), ...props.meshes(lib, q.shadows, k => present.has(k)), ground(lib, map, q, look, lights)];
   const decor = (keys: PropKey[]) => props.meshes(lib, q.shadows, k => keys.includes(k) && !present.has(k));
   if (bags.length) {
     const inst = new THREE.InstancedMesh(bagGeometry(q.detail), m.sandbag, bags.length);

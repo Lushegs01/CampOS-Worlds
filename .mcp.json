@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "threejs-devtools": {
+      "command": "npx",
+      "args": ["-y", "threejs-devtools-mcp"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--headless"]
+    }
+  }
+}

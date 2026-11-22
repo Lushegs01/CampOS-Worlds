@@ -17,7 +17,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   // about mid-grey sent everything below ~0.1 to black: at 1.1, 0.05 became 0.005).
   vec3 lo = .5 * pow(c * 2., vec3(contrast)), hi = 1. - .5 * pow(max(2. - c * 2., 0.), vec3(contrast));
   c = mix(lo, hi, step(.5, c));
-  float n = fract(sin(dot(uv * 1024. + time, vec2(12.9898, 78.233))) * 43758.5453) - .5;
+  // (A sin() hash of large arguments aliases into diagonal streaks; this arithmetic hash stays uniform.)
+  vec3 p3 = fract(vec3(gl_FragCoord.xyx + time * vec3(1.37, 2.71, 1.37)) * .1031); p3 += dot(p3, p3.yzx + 33.33);
+  float n = fract((p3.x + p3.y) * p3.z) - .5;
   c += n * grain * (1. - l * .6);
   outputColor = vec4(clamp(c, 0., 1.), inputColor.a);
 }`;

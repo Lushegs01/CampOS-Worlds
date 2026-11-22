@@ -1,0 +1,262 @@
+{
+  "label": "after",
+  "look": "night",
+  "when": "2026-11-22T07:18:04.182Z",
+  "renderer": "SwiftShader (software WebGL, no GPU): frame rates are NOT representative of real devices",
+  "errors": [],
+  "views": {
+    "yard-high": {
+      "world": 0,
+      "calls": 197,
+      "triangles": 619137,
+      "textures": 213,
+      "geometries": 90,
+      "fps": 1
+    },
+    "interior-high": {
+      "world": 0,
+      "calls": 176,
+      "triangles": 589038,
+      "textures": 213,
+      "geometries": 90,
+      "fps": 1
+    },
+    "hall-high": {
+      "world": 0,
+      "calls": 197,
+      "triangles": 619137,
+      "textures": 213,
+      "geometries": 90,
+      "fps": 1
+    },
+    "lane-high": {
+      "world": 0,
+      "calls": 210,
+      "triangles": 668009,
+      "textures": 213,
+      "geometries": 90,
+      "fps": 1
+    },
+    "floor-high": {
+      "world": 0,
+      "calls": 192,
+      "triangles": 631440,
+      "textures": 221,
+      "geometries": 90,
+      "fps": 1
+    },
+    "squad-high": {
+      "world": 0,
+      "calls": 205,
+      "triangles": 637125,
+      "textures": 221,
+      "geometries": 90,
+      "fps": 1
+    },
+    "reload-high": {
+      "world": 0,
+      "calls": 207,
+      "triangles": 637127,
+      "textures": 222,
+      "geometries": 91,
+      "fps": 1,
+      "phase": "reload"
+    },
+    "focus-high": {
+      "world": 0,
+      "calls": 207,
+      "triangles": 637127,
+      "textures": 222,
+      "geometries": 91,
+      "fps": 1,
+      "lens": {
+        "size": [
+          768,
+          432
+        ],
+        "depth": [
+          18.75,
+          2.87,
+          4.21,
+          1199
+        ],
+        "motion": false,
+        "focus": true,
+        "wanted": true,
+        "focusAmount": 1,
+        "gun": 1
+      }
+    },
+    "sprint-high": {
+      "world": 0,
+      "calls": 230,
+      "triangles": 797588,
+      "textures": 222,
+      "geometries": 91,
+      "fps": 1
+    },
+    "yard-medium": {
+      "world": 0,
+      "calls": 130,
+      "triangles": 375174,
+      "textures": 180,
+      "geometries": 81,
+      "fps": 1
+    },
+    "interior-medium": {
+      "world": 0,
+      "calls": 178,
+      "triangles": 600209,
+      "textures": 180,
+      "geometries": 81,
+      "fps": 1
+    },
+    "hall-medium": {
+      "world": 0,
+      "calls": 198,
+      "triangles": 644165,
+      "textures": 180,
+      "geometries": 81,
+      "fps": 1
+    },
+    "lane-medium": {
+      "world": 0,
+      "calls": 130,
+      "triangles": 375174,
+      "textures": 180,
+      "geometries": 81,
+      "fps": 2
+    },
+    "floor-medium": {
+      "world": 0,
+      "calls": 124,
+      "triangles": 368273,
+      "textures": 188,
+      "geometries": 81,
+      "fps": 1
+    },
+    "squad-medium": {
+      "world": 0,
+      "calls": 212,
+      "triangles": 680137,
+      "textures": 209,
+      "geometries": 86,
+      "fps": 2
+    },
+    "reload-medium": {
+      "world": 0,
+      "calls": 140,
+      "triangles": 393164,
+      "textures": 210,
+      "geometries": 87,
+      "fps": 1,
+      "phase": "reload"
+    },
+    "focus-medium": {
+      "world": 0,
+      "calls": 140,
+      "triangles": 393164,
+      "textures": 210,
+      "geometries": 87,
+      "fps": 1,
+      "lens": {
+        "size": [
+          768,
+          432
+        ],
+        "depth": [
+          18.75,
+          2.87,
+          4.21,
+          1199
+        ],
+        "motion": false,
+        "focus": true,
+        "wanted": true,
+        "focusAmount": 1,
+        "gun": 1
+      }
+    },
+    "sprint-medium": {
+      "world": 0,
+      "calls": 173,
+      "triangles": 564227,
+      "textures": 210,
+      "geometries": 87,
+      "fps": 1
+    },
+    "yard-low": {
+      "world": 164993,
+      "calls": 79,
+      "triangles": 213841,
+      "textures": 141,
+      "geometries": 79,
+      "fps": 1
+    },
+    "interior-low": {
+      "world": 118596,
+      "calls": 58,
+      "triangles": 167444,
+      "textures": 141,
+      "geometries": 79,
+      "fps": 1
+    },
+    "hall-low": {
+      "world": 164503,
+      "calls": 78,
+      "triangles": 213351,
+      "textures": 141,
+      "geometries": 79,
+      "fps": 1
+    },
+    "lane-low": {
+      "world": 164503,
+      "calls": 78,
+      "triangles": 213351,
+      "textures": 141,
+      "geometries": 79,
+      "fps": 1
+    },
+    "floor-low": {
+      "world": 157604,
+      "calls": 73,
+      "triangles": 206452,
+      "textures": 149,
+      "geometries": 79,
+      "fps": 1
+    },
+    "squad-low": {
+      "world": 185129,
+      "calls": 85,
+      "triangles": 233977,
+      "textures": 170,
+      "geometries": 84,
+      "fps": 1
+    },
+    "reload-low": {
+      "world": 185619,
+      "calls": 86,
+      "triangles": 234467,
+      "textures": 170,
+      "geometries": 84,
+      "fps": 1,
+      "phase": "reload"
+    },
+    "focus-low": {
+      "world": 185619,
+      "calls": 86,
+      "triangles": 234467,
+      "textures": 170,
+      "geometries": 84,
+      "fps": 1
+    },
+    "sprint-low": {
+      "world": 121036,
+      "calls": 62,
+      "triangles": 169884,
+      "textures": 170,
+      "geometries": 84,
+      "fps": 1
+    }
+  }
+}

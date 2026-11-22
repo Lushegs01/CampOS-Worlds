@@ -36,6 +36,11 @@ import { GradeEffect, SharpenEffect, installToneGrade } from './scene/grade';
 import { cinematicFinish } from './scene/cinematic';
 import { ShaftsPass } from './scene/shafts';
 import { buildEnvironment, surfaceOf } from './scene/environment';
+import { foundryLook } from './scene/foundry/look';
+import { createFoundryRig } from './scene/foundry/lighting';
+import { bakeIndustrialEnvironment, nightSky } from './scene/foundry/environment';
+import { foundryWet, configureWet } from './scene/foundry/wet';
+import { WorldDepthPass, MotionBlurEffect, FocusBlurEffect, spring } from './scene/lens';
 import { weaponModel, disposeWeapon, FirstPersonArms, preloadArms, preloadWeapon, releaseWeapons, weaponResources } from './scene/weapons';
 import { loadSoldiers, Soldier, StandInSoldier, soldierModelFor, prefetchRemainingWeapons, releaseSoldiers, standInResources, type SoldierLike } from './scene/soldiers';
 import { forgetAssets, cachedAssets } from '../world/assets';
@@ -151,6 +156,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const cityLight = atmo ? { strength: atmo.sun, env: atmo.env } : null;
   // Metropolis: the cinematic finish over its weather's grade and exposure (scene/cinematic.ts).
   const fin = useMemo(() => (atmo ? cinematicFinish(atmo) : null), [atmo]);
+  // Foundry Yard: the industrial night-shift look (scene/foundry); null on every other map.
+  const look = useMemo(() => foundryLook(mapId), [mapId]);
   // Low (no post stack): the same grade, folded into the tone mapper (scene/grade.ts). Set before anything compiles.
   const toneGraded = useMemo(() => { const on = !q.compatibility && !q.post && !!fin; installToneGrade(on ? fin : null); return on; }, [q.post, q.compatibility, fin]);
   const citySun = useMemo(() => atmo ? { dir: new THREE.Vector3(...atmo.sunDir).normalize(), color: new THREE.Color(...atmo.sunColor) } : null, [atmo]);
@@ -188,15 +195,18 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   // ---------------------------------------------------------------- environment, sky and lighting
   const world = useMemo(() => {
     if (!lib) return null;
-    const group = new THREE.Group(), env = mapId === 'metropolis' ? buildMetropolis(lib, map as Parameters<typeof buildMetropolis>[1], q, variant) : buildEnvironment(lib, map, q);
+    const group = new THREE.Group(), env = mapId === 'metropolis' ? buildMetropolis(lib, map as Parameters<typeof buildMetropolis>[1], q, variant) : buildEnvironment(lib, map, q, look);
+    if (look) configureWet(look, q.lights);
     for (const o of env.objects) group.add(o);
     // Door leaves (every map): they follow the shared world's door state (server authority, shared/arena/doors.mjs).
     const leaves = createDoorLeaves(doorsOf(map as Parameters<typeof doorsOf>[0]), q.shadows); group.add(leaves.group);
-    const sky = atmo ? createSky(atmo, lib, q.skyOctaves) : skyDome(lib); sky.layers.enable(REFLECTED); group.add(sky);
+    const sky = atmo ? createSky(atmo, lib, q.skyOctaves) : look ? nightSky(look) : skyDome(lib); sky.layers.enable(REFLECTED); group.add(sky);
     const [bx0, bz0, bx1, bz1] = map.bounds, cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2, half = Math.max(bx1 - bx0, bz1 - bz0) / 2 + 8;
     const sun = new THREE.DirectionalLight(lib.sun.color.clone().multiply(new THREE.Color(1, .95, .86)), lib.sun.irradiance * .95);
     sun.position.set(cx, 0, cz).addScaledVector(lib.sun.dir, 110); sun.target.position.set(cx, 0, cz);
     if (atmo && citySun) { sun.color.copy(citySun.color); sun.intensity = atmo.sun; sun.position.set(cx, 0, cz).addScaledVector(citySun.dir, 110); }
+    // Foundry night shift: the 'sun' is a cool, dim moon (it keeps the main shadow map: players and cover).
+    if (look) { sun.color.copy(look.moonColor); sun.intensity = look.moon; sun.position.set(cx, 0, cz).addScaledVector(look.moonDir, 110); }
     if (q.shadows) {
       // Overcast light comes from the whole sky: its 'sun' shadow is wide and faint.
       sun.castShadow = true; sun.shadow.mapSize.set(q.shadowSize, q.shadowSize); sun.shadow.radius = (q.shadowSize >= 2048 ? 3 : 2) * (atmo?.shadowSoft ?? 1); sun.shadow.intensity = atmo && atmo.shadowSoft > 3 ? .45 : 1;
@@ -207,22 +217,31 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
     }
     // The image-based light carries the sky; the hemisphere fill only adds the bounce between buildings it misses.
-    const fill = atmo ? new THREE.HemisphereLight(new THREE.Color(...atmo.fillSky), new THREE.Color(...atmo.fillGround), atmo.fill) : new THREE.HemisphereLight('#cfdcec', '#8a7c62', 1.1);
-    group.add(sun, sun.target, fill);
+    // (Foundry: the rig's own slate hemisphere replaces the daylight fill.)
+    const fill = look ? null : atmo ? new THREE.HemisphereLight(new THREE.Color(...atmo.fillSky), new THREE.Color(...atmo.fillGround), atmo.fill) : new THREE.HemisphereLight('#cfdcec', '#8a7c62', 1.1);
+    group.add(sun, sun.target); if (fill) group.add(fill);
+    // Foundry: emerald/amber floodlights and practicals, light cones and dust (scene/foundry/lighting.ts).
+    const rig = look ? createFoundryRig(look, q, map, env.lights) : null; if (rig) group.add(rig.group);
     // Warm fittings under roofs (unshadowed point lights), nearest the middle of the map first.
-    const lamps = [...env.lights].filter(p => p.y < 9).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)).slice(0, q.lights).map(p => { const l = new THREE.PointLight('#ffe2b4', 55, 15, 2); l.position.copy(p).y -= .2; group.add(l); return l; });
+    const lamps = (rig ? [] : [...env.lights]).filter(p => p.y < 9).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)).slice(0, q.lights).map(p => { const l = new THREE.PointLight('#ffe2b4', 55, 15, 2); l.position.copy(p).y -= .2; group.add(l); return l; });
     void lamps;
     // Lights apply only to cameras that share their layer: the street's reflection must be lit like the street.
     group.traverse(o => { if ((o as THREE.Light).isLight) o.layers.enable(REFLECTED); });
-    return { group, sun, sky, leaves, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null, city: 'onPaneBreak' in env ? env as ReturnType<typeof buildMetropolis> : null };
-  }, [lib, map, q, variant]);
+    // Foundry's puddles mirror the whole yard (walls, roofs, fittings, cones), but not the floor itself or the dust.
+    if (rig) group.traverse(o => { if ((o as THREE.Mesh).isMesh && o.name !== 'ground') o.layers.enable(REFLECTED); });
+    return { group, sun, sky, leaves, rig, decor: env.decor, update: 'update' in env ? env.update as ReturnType<typeof buildMetropolis>['update'] : null, city: 'onPaneBreak' in env ? env as ReturnType<typeof buildMetropolis> : null };
+  }, [lib, map, q, variant, look]);
   useEffect(() => {
     if (!world || !lib) return;
     // Metropolis: the image-based light is baked from the variant's own sky, so reflections and shade match it.
     const cityEnv = atmo && !q.compatibility ? bakeEnvironment(gl, world.sky, q.envSize) : null;
-    scene.add(world.group); scene.environment = cityEnv?.texture ?? lib.env; scene.environmentIntensity = atmo?.env ?? 1.5;
-    vm.vmScene.environment = cityEnv?.texture ?? lib.env;
-    const fog = atmo ? new THREE.Color(...atmo.fog) : lib.horizon.clone().multiplyScalar(1.05); scene.fog = q.compatibility ? null : new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
+    // Foundry: a procedural industrial interior (emerald/amber strips, slate shell) baked through PMREM.
+    const foundryEnv = look && !q.compatibility ? bakeIndustrialEnvironment(gl, look) : null;
+    const envTex = cityEnv?.texture ?? foundryEnv?.texture ?? lib.env;
+    scene.add(world.group); scene.environment = envTex; scene.environmentIntensity = atmo?.env ?? (look ? look.env : 1.5);
+    vm.vmScene.environment = envTex;
+    const fog = atmo ? new THREE.Color(...atmo.fog) : look ? look.fogColor.clone() : lib.horizon.clone().multiplyScalar(1.05);
+    scene.fog = q.compatibility ? null : look ? new THREE.FogExp2(fog, look.fogDensity) : new THREE.Fog(fog, atmo ? 1e4 : 55, atmo ? 2e4 : q.fogFar * 3.2); scene.background = atmo ? new THREE.Color(...atmo.horizon) : fog;
     setHeightFog(q.compatibility ? null : atmo);
     if (q.compatibility) world.sky.visible = false;
     graphics.preparing(); setCompiled(false); useArena.getState().set({ sceneReady: false }); sceneLoaded(false);
@@ -231,13 +250,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     deadline(gl.compileAsync(scene, camera), 45000, 'shader compile').then(() => { if (on) setCompiled(true); }).catch(error => { if (on) graphics.fail(error); });
     // Set dressing streams in once the match is playable (priority 2); a static sun shadow is redrawn once for it.
     const ctrl = new AbortController();
-    const decorate = () => loadDecor(lib, ctrl.signal, mapId === 'metropolis' ? CITY_DECOR : undefined).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) world.group.add(m); world.sun.shadow.needsUpdate = true; });
+    const decorate = () => loadDecor(lib, ctrl.signal, mapId === 'metropolis' ? CITY_DECOR : undefined).then(keys => { if (!on || !keys.length) return; for (const m of world.decor(keys)) { if (world.rig) m.layers.enable(REFLECTED); world.group.add(m); } world.sun.shadow.needsUpdate = true; world.rig?.refreshShadows(); });
     const waitPlayable = () => { if (!on) return; if (useArena.getState().sceneReady) { void decorate(); void loadSurfaceDetail(lib, ctrl.signal); } else setTimeout(waitPlayable, 500); };
     waitPlayable();
     return () => {
       on = false; ctrl.abort();
       releaseGpu(world.group);
-      cityEnv?.dispose(); setHeightFog(null);
+      cityEnv?.dispose(); foundryEnv?.dispose(); world.rig?.dispose(); setHeightFog(null);
       scene.remove(world.group); scene.environment = null; scene.fog = null; vm.vmScene.environment = null;
       clearMaterialCache();
     };
@@ -321,9 +340,9 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   useEffect(() => {
     const city = world?.city;
     setEffectsGround(city ? (x, y, z) => { const h = city.sampleHeight(x, z); return h <= y + .3 ? h : y >= 1 ? 1 : 0; } : null);
-    fx.effects.setAmbient(ambientOf(atmo));
+    fx.effects.setAmbient(look ? look.ambient : ambientOf(atmo));
     return () => setEffectsGround(null);
-  }, [world, fx, atmo]);
+  }, [world, fx, atmo, look]);
   // A pane the server broke: fragments burst both ways from where it stood (its sound is played by the network layer).
   useEffect(() => { world?.city?.onPaneBreak(hit => { for (const s of [1, -1]) for (let k = 0; k < 3; k++) fx.effects.impact(v1.copy(hit.at).add(v3.set((Math.random() - .5) * hit.size * .6, (Math.random() - .5) * .8, (Math.random() - .5) * hit.size * .6)), v2.copy(hit.normal).multiplyScalar(s), 'metal', false); }); return () => world?.city?.onPaneBreak(null); }, [world, fx]);
   // (Mount and unmount may repeat — React's development checks do — so the city's shared weather state is set on mount.)
@@ -369,7 +388,10 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   const vm = useMemo(() => {
     const vmScene = new THREE.Scene(), vmCam = new THREE.PerspectiveCamera(56, 1, .01, 6);
     const sun = new THREE.DirectionalLight('#fff0d8', 3.2), fill = new THREE.HemisphereLight('#cdd9e8', '#5a5348', .5);
-    vmScene.add(sun, sun.target, fill);
+    // A dedicated rim light from above and behind the weapon: a thin highlight along the receiver, rail and hands that
+    // separates the gunmetal from a dark background (tinted by the Foundry's practicals; neutral and faint elsewhere).
+    const rim = new THREE.DirectionalLight('#cfe2ff', .45); rim.target.position.set(.05, -.17, -.38); rim.position.set(.85, .75, -1.35);
+    vmScene.add(sun, sun.target, fill, rim, rim.target);
     // Self-shadowing (Medium and up): the hands, optic and furniture shade the rest of the weapon, as the key light
     // falls across it. A tight orthographic map around the viewmodel (under a metre across), redrawn with it each frame.
     if (q.post && q.shadows) {
@@ -383,13 +405,13 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     const anim = new ViewmodelAnimator();
     const casings = new Casings(q.casings); vmScene.add(casings.mesh);
     return {
-      vmScene, vmCam, holder, sun, fill, muzzle, anim, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
+      vmScene, vmCam, holder, sun, fill, rim, muzzle, anim, casings, gun: null as THREE.Group | null, gunId: '', skin: '', arms: null as FirstPersonArms | null, armsSrc: null as THREE.Group | null, armsTeam: -1,
       bob: 0, lastYaw: 0, lastPitch: 0, land: 0, landV: 0, flashAt: 0, sunSeen: 1, indoor: 0, probeAt: 0,
       handR: new THREE.Vector3(.2, -.3, .1), handL: new THREE.Vector3(-.2, -.3, .1),
     };
   }, [q]);
   // Barrel smoke takes the same light level as the world's smoke.
-  useEffect(() => { vm.muzzle.setAmbient(ambientOf(atmo)); }, [vm, atmo]);
+  useEffect(() => { vm.muzzle.setAmbient(look ? look.ambient : ambientOf(atmo)); }, [vm, atmo, look]);
   useEffect(() => { if (lib) { if (!vm.vmScene.environment) vm.vmScene.environment = lib.env; vm.vmScene.environmentIntensity = .9; vm.gunId = ''; } }, [lib, vm]);
   // The arms are drawn with the weapon; if they cannot be downloaded the weapon is drawn on its own (retried on Retry).
   useEffect(() => { let on = true; preloadArms(P1).then(src => { if (on) { vm.armsSrc = src; vm.armsTeam = -1; } }).catch(e => console.warn('Arena arms could not load.', e?.message ?? e)); return () => { on = false; }; }, [vm, attempt]);
@@ -399,6 +421,8 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     if (!q.post) return null;
     const c = new EffectComposer(gl, { frameBufferType: THREE.HalfFloatType, multisampling: 0 });
     c.addPass(new RenderPass(scene, camera));
+    // The world's depth, saved before the weapon pass clears it (motion blur and depth of field read it: scene/lens.ts).
+    const depthSave = new WorldDepthPass(camera as THREE.PerspectiveCamera); c.addPass(depthSave);
     // Light shafts read the world's depth, so they run before anything else replaces it (see scene/shafts.ts).
     const shafts = atmo && citySun && atmo.shafts > 0 ? new ShaftsPass(camera as THREE.PerspectiveCamera, citySun.dir, atmo.shafts) : null;
     if (shafts) c.addPass(shafts);
@@ -409,20 +433,35 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       ao.setQualityMode(q.aoMode ?? (q.aoHigh ? 'High' : 'Medium')); c.addPass(ao);
     }
     const weapon = new RenderPass(vm.vmScene, vm.vmCam); weapon.clearPass.color = false; weapon.clearPass.depth = true; weapon.skipShadowMapUpdate = !vm.sun.castShadow; c.addPass(weapon);
+    // Lens: velocity motion blur (movement, sprinting, turning) and the focus pull during reloads and inspection. Both keep
+    // the weapon and hands sharp, and each pass is switched off (no cost) while its effect is at rest.
+    const motion = new MotionBlurEffect(depthSave.target.texture), focus = new FocusBlurEffect(depthSave.target.texture);
+    const motionPass = new EffectPass(camera, motion), focusPass = new EffectPass(camera, focus);
+    motionPass.enabled = focusPass.enabled = false; c.addPass(motionPass); c.addPass(focusPass);
     const fxs = [
-      ...(q.bloom ? [new BloomEffect({ luminanceThreshold: atmo?.bloomThreshold ?? 2.6, luminanceSmoothing: .5, intensity: fin?.bloom ?? .42, mipmapBlur: true, radius: atmo && atmo.bloomThreshold < 2.6 ? .72 : .62 })] : []),
+      ...(q.bloom ? [look ? new BloomEffect({ luminanceThreshold: look.bloomThreshold, luminanceSmoothing: .35, intensity: look.bloomIntensity, mipmapBlur: true, radius: look.bloomRadius })
+        : new BloomEffect({ luminanceThreshold: atmo?.bloomThreshold ?? 2.6, luminanceSmoothing: .5, intensity: fin?.bloom ?? .42, mipmapBlur: true, radius: atmo && atmo.bloomThreshold < 2.6 ? .72 : .62 })] : []),
       ...(shafts ? [shafts.effect] : []),
       new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
-      ...(fin ? [new GradeEffect({ saturation: fin.saturation, contrast: fin.contrast, lift: fin.lift, gain: fin.gain, grain: fin.grain })] : [new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 })]),
-      new VignetteEffect({ darkness: fin?.vignette ?? .42, offset: fin?.vignetteOffset ?? .3 }),
+      ...(fin ? [new GradeEffect({ saturation: fin.saturation, contrast: fin.contrast, lift: fin.lift, gain: fin.gain, grain: fin.grain })]
+        // Foundry: teal-slate shadows, warm highlights, a firmer curve and fine grain (the haze would band without it).
+        : look ? [new GradeEffect({ saturation: 1.06, contrast: 1.12, lift: [.95, 1.0, 1.04], gain: [1.05, 1.0, .95], grain: .005 })]
+        : [new BrightnessContrastEffect({ brightness: -.012, contrast: .06 }), new HueSaturationEffect({ saturation: -.06 })]),
+      new VignetteEffect({ darkness: fin?.vignette ?? (look ? .52 : .42), offset: fin?.vignetteOffset ?? .3 }),
     ];
     c.addPass(new EffectPass(camera, ...fxs));
     c.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
     if (fin) c.addPass(new EffectPass(camera, new SharpenEffect(fin.sharpen)));
-    return { c, weapon, shafts, ao };
-  }, [gl, scene, camera, q, vm, atmo, fin]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { c, weapon, shafts, ao, depthSave, motion, focus, motionPass, focusPass };
+  }, [gl, scene, camera, q, vm, atmo, fin, look]); // eslint-disable-line react-hooks/exhaustive-deps
   // The street's reflection in the rain (High, Ultra), drawn before the frame.
-  const reflection = useMemo(() => (atmo && atmo.wet > 0 && q.reflections > 0 && !(QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect')) ? createStreetReflection(5, q.reflections) : null), [atmo, q]);
+  // (Foundry: the same mirror, in the yard floor at y = 0, read by the wet ground's puddles.)
+  const reflection = useMemo(() => {
+    if (q.reflections <= 0 || (QA_HOOKS && new URLSearchParams(location.search).has('qa-no-reflect'))) return null;
+    if (atmo && atmo.wet > 0) return createStreetReflection(5, q.reflections);
+    if (look) return createStreetReflection(0, q.reflections, foundryWet);
+    return null;
+  }, [atmo, look, q]);
   useEffect(() => { reflection?.attach(); return () => reflection?.dispose(); }, [reflection]);
   useEffect(() => {
     if (!QA_HOOKS || !reflection) return;
@@ -437,10 +476,11 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
   }, [reflection, gl]);
   const adapt = useMemo(() => createAdaptation((atmo?.exposure ?? .82) * (fin?.exposure ?? 1)), [atmo, fin]);
   useEffect(() => {
-    if (!composer) { gl.toneMapping = toneGraded ? THREE.CustomToneMapping : THREE.ACESFilmicToneMapping; gl.toneMappingExposure = .82; return () => { gl.toneMapping = THREE.ACESFilmicToneMapping; installToneGrade(null); }; }
-    const before = gl.toneMapping; gl.toneMapping = THREE.NoToneMapping; gl.toneMappingExposure = .82;
+    const exposure = look?.exposure ?? .82;
+    if (!composer) { gl.toneMapping = toneGraded ? THREE.CustomToneMapping : THREE.ACESFilmicToneMapping; gl.toneMappingExposure = exposure; return () => { gl.toneMapping = THREE.ACESFilmicToneMapping; installToneGrade(null); }; }
+    const before = gl.toneMapping; gl.toneMapping = THREE.NoToneMapping; gl.toneMappingExposure = exposure;
     return () => { composer.c.dispose(); gl.toneMapping = before; };
-  }, [composer, gl, toneGraded]);
+  }, [composer, gl, toneGraded, look]);
   useEffect(() => { composer?.c.setSize(size.width, size.height); }, [composer, size, dprNow]);
   // Change the R3F DPR as well as the renderer so QA captures include full-resolution postprocessing.
   useEffect(() => {
@@ -558,6 +598,12 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       if (Math.abs(cam.fov - settings.fov) > .01) { cam.fov = settings.fov; cam.updateProjectionMatrix(); }
     }
     cam.updateMatrixWorld();
+    // Foundry: the practical pool follows the camera; puddle ripples and the overcast drift.
+    if (world?.rig) {
+      world.rig.update(dt, cam.position, gl.domElement.height || size.height, q.shadows && !!q.shadowEvery && !qaStaticShadows && budget() < 2);
+      foundryWet.uWetTime.value = (foundryWet.uWetTime.value + dt) % 1000;
+      const su = (world.sky.material as THREE.ShaderMaterial).uniforms?.uTime; if (su) su.value += dt;
+    }
     cam.getWorldDirection(fwd); setListener(cam.position, fwd);
     ambienceFrame([cam.position.x, cam.position.y, cam.position.z]);
     if (frameNo.current % 600 === 0 && live.loadout) trimBanks([live.loadout.primary, live.loadout.secondary]);
@@ -747,7 +793,22 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     // Arms: two-bone IK from the shoulders to the hand targets the animator placed.
     if (vm.arms && show) vm.arms.pose(gun.userData.hold ?? 'rifle', o.handR, o.handL, vm.holder.quaternion, o.reachL);
     // Light on the weapon follows the world: the sun in camera space, dimmed in shade.
-    if (lib) {
+    if (lib && look && world?.rig) {
+      // Foundry: the weapon is keyed by whichever practical or floodlight dominates where the player stands (so it
+      // turns emerald or amber walking under the bays), over a faint moon; the rim takes the complementary tone.
+      const smp = world.rig.sample(camera.position);
+      v1.copy(smp.dir).transformDirection(camera.matrixWorldInverse);
+      vm.sun.color.copy(look.moonColor).lerp(smp.color, Math.min(1, smp.intensity / 2));
+      vm.sun.target.position.set(.05, -.17, -.38); vm.sun.position.copy(v1).multiplyScalar(3).add(vm.sun.target.position);
+      // (Never below a soft key, so the weapon reads in the dark between pools.)
+      const want = 1.6 + Math.min(4, smp.intensity * .7) + (now - vm.flashAt < 60 ? 2.5 : 0);
+      vm.sun.intensity += (want - vm.sun.intensity) * Math.min(1, dt * 6);
+      vm.fill.color.copy(look.fillSky).multiplyScalar(2.2); vm.fill.groundColor.copy(look.fillGround); vm.fill.intensity = .9;
+      vm.rim.color.copy(smp.color.g > smp.color.r ? look.amber : look.emerald); vm.rim.intensity = 1.1;
+      vm.vmScene.environmentIntensity = look.weaponEnv;
+      vm.vmScene.environmentRotation.setFromQuaternion(q1.copy(camera.quaternion).invert());
+    } else if (lib) {
+      vm.fill.color.set('#cdd9e8'); vm.fill.groundColor.set('#5a5348'); vm.rim.color.set('#cfe2ff'); vm.rim.intensity = .45 * (vm.sunSeen ? 1 : .6);
       v1.copy(citySun?.dir ?? lib.sun.dir).transformDirection(camera.matrixWorldInverse);
       vm.sun.color.copy(citySun?.color ?? lib.sun.color);
       // (Aimed at the middle of the viewmodel, so its shadow map's tight frustum covers the weapon and both hands.)
@@ -762,6 +823,37 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
     vm.vmCam.aspect = size.width / size.height; vm.vmCam.fov = o.vfov; vm.vmCam.updateProjectionMatrix();
   }
 
+  // ---------------------------------------------------------------- lens (motion blur, focus pull)
+  const focusSpring = useMemo(() => spring(70), []);
+  // QA builds: `__arenaLens({ motion, focus, raw })` forces the lens amounts (raw: no shutter normalisation) for captures.
+  const lensQa = useRef<{ motion?: number; focus?: number; raw?: boolean }>({});
+  useEffect(() => { if (!QA_HOOKS) return; const w = window as unknown as Record<string, unknown>; w.__arenaLens = (o: { motion?: number; focus?: number; raw?: boolean }) => { lensQa.current = o ?? {}; }; return () => { delete w.__arenaLens; }; }, []);
+  // QA builds: the lens state and the saved world depth (metres) at a few points of the screen.
+  useEffect(() => {
+    if (!QA_HOOKS || !composer) return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__arenaLensProbe = () => {
+      const t = composer.depthSave.target, buf = new Uint16Array(4), px: number[] = [];
+      for (const [fx, fy] of [[.5, .5], [.2, .3], [.8, .3], [.5, .9]]) { gl.readRenderTargetPixels(t, Math.floor(t.width * fx), Math.floor(t.height * fy), 1, 1, buf as unknown as Uint8Array); px.push(+THREE.DataUtils.fromHalfFloat(buf[0]).toFixed(2)); }
+      return { size: [t.width, t.height], depth: px, motion: composer.motionPass.enabled, focus: composer.focusPass.enabled, wanted: composer.depthSave.wanted, focusAmount: composer.focus.uniforms.get('uAmount')!.value, gun: composer.focus.uniforms.get('uGun')!.value };
+    };
+    return () => { delete w.__arenaLensProbe; };
+  }, [composer, gl]);
+  /** Drive the lens effects from what the player is doing this frame (scene/lens.ts). */
+  function lens(cmp: NonNullable<typeof composer>, dt: number, r: THREE.WebGLRenderer) {
+    const s = live.sim, alive = !!s && live.alive;
+    cmp.motion.gun = cmp.focus.gun = vm.holder.visible;
+    // Motion blur: faint while walking and turning, stronger when sprinting, none while aiming down sights; off for
+    // players who asked for reduced motion and while adaptive performance is shedding load.
+    const speed = s ? Math.hypot(s.vx, s.vz) : 0;
+    cmp.motion.amount = !s || !alive || useGame.getState().reducedMotion || budget() >= 2 ? 0 : (.22 + .55 * (s.sprint ? Math.min(1, speed / 6) : 0)) * (1 - s.ads);
+    if (lensQa.current.motion != null) cmp.motion.amount = lensQa.current.motion;
+    cmp.motionPass.enabled = cmp.motion.frame(camera as THREE.PerspectiveCamera, dt, !!lensQa.current.raw) > .01;
+    // Depth of field: the world behind the weapon softens while reloading or inspecting (a critically damped pull).
+    const a = lensQa.current.focus ?? focusSpring.step(s && alive && (s.phase === 'reload' || s.phase === 'inspect') ? 1 : 0, dt);
+    cmp.focus.amount = a; cmp.focus.setHeight(r.domElement.height); cmp.focusPass.enabled = a > .01;
+    cmp.depthSave.wanted = cmp.motionPass.enabled || cmp.focusPass.enabled;
+  }
   const passes = useMemo(() => ({ world: 0 }), []);
   // The world, then the weapon over a cleared depth buffer (through the post stack when it is on).
   // QA builds only: `?qa-norender` keeps the frame loop (simulation, animation, sound) but draws nothing, so timing
@@ -778,16 +870,16 @@ function World({ mapId, q }: { mapId: string; q: ArenaQuality }) {
       if ((inputPaused(useArena.getState()) || portraitBlocked() || document.hidden) && renderElapsed.current < .1) return;
       dt = Math.min(renderElapsed.current, .5); renderElapsed.current = 0;
       if (composer?.ao) composer.ao.enabled = budget() === 0;
-      if (reflection) cityWeather.uReflect.value = budget() === 0 ? 1 : 0;
+      if (reflection) reflection.uniforms.uReflect.value = budget() === 0 ? 1 : 0;
       if (!graphics.beginFrame()) return;
       r.info.reset();
       // Exposure follows the eye: opening up indoors and in the station, closing again outside.
       // (Up to half a second per frame, so a slow frame still adapts at the eye's pace rather than stalling.)
-      r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : .82;
+      r.toneMappingExposure = atmo ? adapt(Math.min(dt, .5), vm.indoor, camera.position.y < 4.6) : look?.exposure ?? .82;
       // (High redraws it every second frame — a puddle's image lagging one frame is invisible; Ultra every frame. On the
       // frames the sun's shadow is not redrawn, so the two passes never land together.)
-      if (!budget() && reflection && world?.city && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city.rainGroup, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
-      if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; composer.c.render(dt); }
+      if (!budget() && reflection && (world?.city || world?.rig) && (q.aoHigh || frameNo.current % 2 === 1)) reflection.render(r, scene, camera as THREE.PerspectiveCamera, [world.city?.rainGroup, world.rig?.dust, fx.effects.group, objectives.g].filter(Boolean) as THREE.Object3D[]);
+      if (composer) { composer.weapon.enabled = vm.holder.visible; if (composer.shafts) composer.shafts.effect.gun = vm.holder.visible; lens(composer, dt, r); composer.c.render(dt); }
       else { r.autoClear = true; r.render(scene, camera); passes.world = r.info.render.triangles; if (vm.holder.visible) { r.autoClear = false; r.clearDepth(); r.render(vm.vmScene, vm.vmCam); r.autoClear = true; } }
       graphics.frameRendered();
     } catch (error) { graphics.fail(error); return; }

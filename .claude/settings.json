@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Edit",
+      "Write",
+      "mcp__threejs-devtools__*",
+      "mcp__playwright__*"
+    ]
+  },
+  "enabledMcpjsonServers": ["threejs-devtools", "playwright"]
+}
