@@ -2,6 +2,15 @@ import { createGetaway, atContact, combatInput, missionStep, missionInteract, ge
 import { isGetawayVehicle } from '../../shared/getaway.mjs';
 
 const clock=()=>Date.now()/1000;
+// Room-time fields of the police and street simulations (moved on by a pause, so nothing fires early).
+const TIMES=new Set(['seenAt','dispatchAt','hostileAt','warnedAt','wantedAt','commandAt','lastShotAt','radioAt','searchStart','due','made','plan','lastSeen','born','reverseUntil','stuckAt','searchAt','nextShot','peekUntil','coverAt','lookAt','until','shaken','honk']);
+function shiftClock(o,delta,seen=new Set()){
+  if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);
+  for(const [k,v] of Object.entries(o)){
+    if(typeof v==='number'&&Number.isFinite(v)&&(TIMES.has(k)||k==='at'&&!('id' in o&&'kind' in o)))o[k]=v+delta;
+    else if(v&&typeof v==='object')shiftClock(v,delta,seen);
+  }
+}
 const accountOf=c=>c.account?.id??null;
 const principal=c=>accountOf(c)??c.token;
 export function createMissionService({ accounts, send, place, fleet, release, time=clock }) {
@@ -91,7 +100,7 @@ export function createMissionService({ accounts, send, place, fleet, release, ti
     }
     if(a==='closeBrief'){c.getawayBrief=null;rawSend(c,{brief:false});return;}
     if(a==='accept'){
-      if(m||c.duel||c.run||c.y>.1||!atContact(c)||c.getawayBrief==null||now-c.getawayBrief>180)return notify(c,'Talk to Sade at the freight gate to begin.');
+      if(m||c.duel||c.run||c.y>.1||!atContact(c)||c.getawayBrief==null||now-c.getawayBrief>180)return notify(c,'Talk to Sade outside Saltworks Café in Metropolitan City to begin.');
       if(pendingRewards.has(accountOf(c)))return notify(c,'Your last delivery is still saving.');
       c.getawayBrief=null;c.getawayResume=null; suspended.delete(principal(c));
       rawSend(c,{brief:false,resume:null});activate(c);save(c,c.getaway);return;
@@ -105,9 +114,10 @@ export function createMissionService({ accounts, send, place, fleet, release, ti
       return;
     }
     if(!m)return;
-    if(a==='fire'||a==='equip'||a==='reload'){
+    if(a==='fire'||a==='equip'||a==='reload'||a==='aim'){
       combatInput(m,c,a,command,now);return;
     }
+    if(a==='surrender'){if(!missionInteract(m,c,'surrender',now))notify(c,'There is no officer close enough to surrender to.');return;}
     if(a==='pickup'||a==='deliver'){
       const cp=m.checkpoint;
       if(!missionInteract(m,c,a==='pickup'?'package':'deliver',now))return notify(c,'Move closer to the objective and try again.');
@@ -121,7 +131,7 @@ export function createMissionService({ accounts, send, place, fleet, release, ti
         for(const key of ['reloadAt','blastAt','lastFire','nextShot','lostAt','policeAt','vitalsAt','damageAt'])
           if(m[key]!=null)m[key]+=delta;
         for(const actor of m.actors)for(const key of ['nextShot','decision','seen','searchUntil','routeAt','hitAt'])actor[key]+=delta;
-        for(const unit of m.police)for(const key of ['plan','lastSeen','age','reverseUntil','stuckAt'])if(unit[key]!=null)unit[key]+=delta;
+        shiftClock(m.pd,delta);shiftClock(m.streets,delta);for(const key of ['firedAt'])m[key]+=delta;
         m.pauseAt=null;
       }
     }else if(a==='retry'&&m.stage<O.commit){

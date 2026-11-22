@@ -1,12 +1,15 @@
 import { blocked, collidersIn, moveWithCollisions } from '../../shared/campus.mjs';
 import { createWorld, raycast, raySphere, lineOfSight } from '../../shared/arena/physics.mjs';
 import { damageAt, WEAPON_BY_ID, TICK_RATE } from '../../shared/arena/weapons.mjs';
-import { advance, createFleet, localPoint, vehicleBlocked } from '../../shared/vehicles.mjs';
-import { roadRoute } from '../../shared/expansion.mjs';
+import { createFleet, VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { CONTACT, WAREHOUSE, PACKAGE, BARREL, EXIT, SAFEHOUSE, GETAWAY_CARS, VEHICLE_BAY,
   INDUSTRIAL_SOLIDS, LOADOUT, REWARD, O, distance, inDistrict } from '../../shared/getaway.mjs';
+import { METRO, METRO_SHIFT, inMetro } from '../../shared/metro.mjs';
+import { unit as policeUnit, createPolice, stepPolice, viewPolice, crime, alert, clearWanted, shootOfficers, blastPolice, surrender as policeSurrender } from './police.mjs';
+import { createStreets, stepStreets, viewStreets, streetEvent } from './streets.mjs';
 
-const bounds = [110, -50, 306, 79];
+// Line of sight and bullets use every static collider in Metropolitan City (the freight yard included).
+const bounds = [METRO.x0 - 30, METRO.z0 - 30, METRO.x1 + 30, METRO.z1 + 30];
 const collisionSolids = collidersIn(...bounds);
 const collision = createWorld(collisionSolids.map(b => ({
   min: [b.x-b.w/2, 0, b.z-b.d/2], max: [b.x+b.w/2, b.h, b.z+b.d/2],
@@ -20,23 +23,21 @@ const clamp = (n, min, max) => Math.min(max, Math.max(min,n));
 const angle = n => Math.atan2(Math.sin(n), Math.cos(n));
 const facing = (a,b) => Math.atan2(b.x-a.x,b.z-a.z);
 const point = (x,z) => ({x,z});
+// Patrol routes were authored in the freight yard's local frame.
+const at = (x,z) => point(x+METRO_SHIFT.x, z+METRO_SHIFT.z);
 const GUARDS = [
-  { id: 'guard-1', kind: 'guard', hp: 77, path: [point(185,14),point(188,11),point(181,14)] },
-  { id: 'guard-2', kind: 'guard', hp: 77, path: [point(200,12),point(199,6),point(192,10)] },
-  { id: 'operative', kind: 'operative', hp: 106, path: [point(190,6),point(186,5),point(190,13)] },
+  { id: 'guard-1', kind: 'guard', hp: 77, path: [at(185,14),at(188,11),at(181,14)] },
+  { id: 'guard-2', kind: 'guard', hp: 77, path: [at(200,12),at(199,6),at(192,10)] },
+  { id: 'operative', kind: 'operative', hp: 106, path: [at(190,6),at(186,5),at(190,13)] },
 ];
 const AMBUSH = [
-  { id: 'reinforcement-1', kind: 'guard', hp: 72, path: [point(171,36),point(184,34),point(198,32)] },
-  { id: 'reinforcement-2', kind: 'operative', hp: 88, path: [point(221,34),point(213,35),point(199,34)] },
+  { id: 'reinforcement-1', kind: 'guard', hp: 72, path: [at(171,36),at(184,34),at(198,32)] },
+  { id: 'reinforcement-2', kind: 'operative', hp: 88, path: [at(221,34),at(213,35),at(199,34)] },
 ];
-const POLICE_START = [
-  { id:'getaway-unit-1', x:286, z:54, yaw:-Math.PI/2 }, { id:'getaway-unit-2', x:151, z:-24, yaw:Math.PI/2 },
-  { id:'getaway-unit-3', x:111, z:57, yaw:Math.PI/2 },
-];
-const OFFICER_EXIT = .48;
-const COVER = INDUSTRIAL_SOLIDS.filter(b => b.kind === 'crate' || b.kind === 'container')
+const YARD = INDUSTRIAL_SOLIDS.filter(b => inDistrict(b.x, b.z, 20));
+const COVER = YARD.filter(b => b.kind === 'crate' || b.kind === 'container')
   .flatMap(b => [point(b.x-b.w/2-.75,b.z),point(b.x+b.w/2+.75,b.z),point(b.x,b.z-b.d/2-.75),point(b.x,b.z+b.d/2+.75)]);
-const CORNERS = INDUSTRIAL_SOLIDS.flatMap(b => [-1,1].flatMap(x => [-1,1].map(z =>
+const CORNERS = YARD.flatMap(b => [-1,1].flatMap(x => [-1,1].map(z =>
   point(b.x+x*(b.w/2+.68), b.z+z*(b.d/2+.68))))).filter(p=>!blocked(p.x,p.z,.4));
 const walkClear = (a,b) => {
   const steps = Math.ceil(distance(a,b)/.5);
@@ -47,7 +48,7 @@ const walkClear = (a,b) => {
 let links;
 function pathTo(a,b) {
   if(walkClear(a,b)) return [b];
-  links ??= CORNERS.map((p,i)=>CORNERS.flatMap((q,j)=>j!==i&&walkClear(p,q)?[[j,distance(p,q)]]:[]));
+  links ??= CORNERS.map((p,i)=>CORNERS.flatMap((q,j)=>j!==i&&distance(p,q)<70&&walkClear(p,q)?[[j,distance(p,q)]]:[]));
   const end = CORNERS.length, scores = new Map(), parents = new Map(), open = new Set();
   CORNERS.forEach((p,i)=>{if(walkClear(a,p)){open.add(i);scores.set(i,distance(a,p));}});
   const seen = new Set();
@@ -77,22 +78,37 @@ function actors(list, now) {
 
 export function createGetaway({ now, checkpoint=O.warehouse, stats, random=Math.random, externalVehicles=()=>[] }) {
   const m = {
-    stage:checkpoint, checkpoint, started:now, checkpointStats:stats, elapsed:stats?.duration??0, actors:[], police:[],
+    stage:checkpoint, checkpoint, started:now, checkpointStats:stats, elapsed:stats?.duration??0, actors:[],
     events:[], health:100, paused:false, pauseAt:null, failed:null, defeated:stats?.defeated??0, carried:checkpoint>=O.ambush,
     exploded:checkpoint>=O.vehicle, ambushed:false, barrelHp:30, blastAt:null, blastKills:stats?.blastKills??0,
     arm:0, guns:LOADOUT.map(id=>{const w=WEAPON_BY_ID.get(id);return {id,mag:w.mag,reserve:w.reserve};}),
-    reloadAt:null, nextShot:0, recoil:0, lastFire:-Infinity, wanted:checkpoint>=O.pursuit?2:0,
+    reloadAt:null, nextShot:0, recoil:0, lastFire:-Infinity, wanted:0, aiming:false, firedAt:-Infinity,
     spotted:false, lostAt:null, pursuitDistance:0, drivingDistance:stats?.distance??0, topSpeed:stats?.topSpeed??0,
-    crashes:stats?.crashes??0, vitalsAt:now, policeAt:now+.7, lastDrive:null, heat:0, damageAt:null,
+    crashes:stats?.crashes??0, vitalsAt:now, lastDrive:null, damageAt:null,
     report:null, random, externalVehicles, eventId:0, nextPush:0, saveError:false,
   };
   const damageVehicle = (v, amount) => { if(v.condition>0)v.condition=Math.max(0,v.condition-amount); };
   m.damageVehicle=damageVehicle;
-  m.fleet=createFleet(GETAWAY_CARS,{obstacles:()=>[...externalVehicles(),...m.police],onImpact:(v,speed)=>{
+  // Metro Police (server/mission/police.mjs) and the streets around the player (server/mission/streets.mjs).
+  m.pd=createPolice({now,random,los:(a,b,ha=1.45,hb=ha)=>clear(a,b,ha,hb)});
+  m.streets=createStreets({now,random});
+  m.fleet=createFleet(GETAWAY_CARS,{obstacles:()=>[...externalVehicles(),...m.pd.units,...m.streets.cars],onImpact:(v,speed)=>{
     if(speed<3.9||v.impactAt&&m.now-v.impactAt<.4)return;
-    v.impactAt=m.now; damageVehicle(v,(speed-3)*2.9);m.crashes++;event(m,'crash',v);
+    v.impactAt=m.now; damageVehicle(v,(speed-3)*2.9*1500/(VEHICLE_TYPES[v.type].mass??1500));m.crashes++;event(m,'crash',v);
+    // Who did we hit? A police car is a crime the officers see; anything else may be reported.
+    const other=[...m.pd.units,...m.streets.cars].find(o=>distance(o,v)<6.5);
+    if(other?.police)crime(m.pd,'ram',v,m.now,'police');
+    else if(inMetro(v.x,v.z)&&speed>7)crime(m.pd,'crash',v,m.now,'civilian');
+    if(other&&!other.police)other.shaken=m.now;
+    streetEvent(m.streets,'crash',v,m.now,speed>9?1:.6);
   }});
   for(const v of m.fleet.vehicles)v.condition=100;
+  // Resumed from the pursuit checkpoint: the response is already under way.
+  if(checkpoint===O.pursuit){
+    // (The unit that answered the freight yard's alarm is arriving at the east gate.)
+    m.pd.units.push(policeUnit(m.pd,'response',-246,1757.5,-Math.PI/2,now));
+    alert(m.pd,2,VEHICLE_BAY,now,'suspectVehicle');
+  }
   return m;
 }
 export const resultOf = (m, now) => ({
@@ -129,6 +145,9 @@ function explode(m,p) {
   if(m.exploded)return;
   m.exploded=true; m.blastAt=null;
   event(m,'blast',{...BARREL,y:.85});
+  crime(m.pd,'explosion',BARREL,m.now,'civilian');
+  streetEvent(m.streets,'explosion',BARREL,m.now,1);
+  blastPolice(m.pd,BARREL,19,(a,b)=>clear(a,b,.9,1.2));
   const d=distance(p,BARREL);
   if(d<10&&clear(BARREL,p,.9))hurt(m,p,Math.round(65*(1-d/10)));
   for(const a of m.actors)if(near(a,BARREL,9)&&clear(BARREL,a,.9))hitActor(m,a,105*(1-distance(a,BARREL)/12),true);
@@ -140,7 +159,11 @@ function explode(m,p) {
 }
 
 export function combatInput(m,p,action,command,now) {
-  if(m.paused||m.failed||p.vehicle||p.dorm||!inDistrict(p.x,p.z)||![O.combat,O.package,O.ambush].includes(m.stage))return;
+  // Armed in the freight yard during the operation, and anywhere in the city on foot while the police are after you.
+  const yard=inDistrict(p.x,p.z)&&[O.combat,O.package,O.ambush].includes(m.stage);
+  const street=inMetro(p.x,p.z)&&m.stage>=O.vehicle&&m.stage<=O.deliver;
+  if(action==='aim'){m.aiming=command.on===true&&!p.vehicle&&(yard||street);return;}
+  if(m.paused||m.failed||p.vehicle||p.dorm||!(yard||street))return;
   const gun=m.guns[m.arm], w=WEAPON_BY_ID.get(gun.id);
   if(action==='equip'){
     if(Number.isInteger(command.slot)&&m.guns[command.slot]&&m.arm!==command.slot){
@@ -168,6 +191,8 @@ export function combatInput(m,p,action,command,now) {
     const dx=Math.sin(y)*Math.cos(a),dy=Math.sin(a),dz=Math.cos(y)*Math.cos(a);
     const wall=raycast(collision,origin.x,origin.y,origin.z,dx,dy,dz,w.range);
     let max=wall?.t??w.range, target=null, head=false;
+    const cop=shootOfficers(m.pd,origin,[dx,dy,dz],max,damageAt(w,10),raySphere,now,[...m.pd.units,...m.fleet.vehicles,...m.streets.cars]);
+    if(cop){max=cop.t;}
     for(const enemy of m.actors){
       if(enemy.hp<=0)continue;
       for(const [height,radius,isHead] of [[.52,.37,false],[1.13,.44,false],[1.65,.24,true]]){
@@ -182,7 +207,8 @@ export function combatInput(m,p,action,command,now) {
     if(i===0){
       end=[origin.x+dx*max,origin.y+dy*max,origin.z+dz*max];impact=!!(wall||target||fuel>=0);
       if(fuel>=0){surface='metal';normal=[end[0]-BARREL.x,0,end[2]-BARREL.z];}
-      else if(target){surface='actor';}
+      else if(target||cop?.officer){surface='actor';}
+      else if(cop?.blocked){surface='metal';}
       else if(wall){
         normal=wall.normal;
         const kind=collisionSolids[wall.box?.i]?.kind;
@@ -191,6 +217,13 @@ export function combatInput(m,p,action,command,now) {
     }
   }
   event(m,'shot',origin,{end,weapon:w.id,impact,normal,surface});
+  m.firedAt=now;
+  // Gunfire: anyone nearby may report it; officers who can see you treat you as a threat.
+  if(inMetro(p.x,p.z)){
+    crime(m.pd,'gunfire',p,now,m.pd.units.some(u=>distance(u,p)<60&&clear(u,p,1.35,1.3))?'police':'civilian');
+    if(m.pd.wanted&&m.pd.units.some(u=>distance(u,p)<70))m.pd.hostileAt=now;
+    streetEvent(m.streets,'gunfire',p,now,1);
+  }
   m.recoil=Math.min(w.recoil.max,m.recoil+w.recoil.kick*(aiming?w.recoil.adsRecoil:1));m.lastFire=now;
   for(const a of m.actors)if(a.hp&&near(a,p,29)){
     a.remember=point(p.x,p.z);
@@ -254,112 +287,10 @@ function guardStep(m,a,p,dt,now) {
     if(hit)hurt(m,p,a.kind==='operative'?9:7);
   }
 }
-function dispatch(m,now) {
-  const spawn=POLICE_START[m.police.length];
-  if(!spawn)return;
-  m.police.push({...spawn,type:'car',speed:0,wheel:0,steering:0,occupants:[null,null,null,null],
-    route:[],plan:0,mode:'dispatch',last:EXIT,lastSeen:-Infinity,age:now,stuckAt:null,reverseUntil:0});
-  event(m,'dispatch',spawn);
-}
-function dismount(unit,now) {
-  const officers = [-1,1].flatMap(side => {
-    const seat = localPoint(unit,side*.39,-.02);
-    const door = localPoint(unit,side*1.49,-.12);
-    const cover = localPoint(unit,side*2.1,side>0?1.63:-1.15);
-    if(blocked(door.x,door.z,.4)||!walkClear(door,cover))return [];
-    return [{id:unit.id+'-officer-'+side,side,...door,door,seat,cover,
-      yaw:unit.yaw+side*Math.PI/2,mode:'dismount',at:now}];
-  });
-  if(!officers.length)return false;
-  unit.speed=0;unit.officers=officers;unit.mode='containment';unit.releaseAt=now+1.35;
-  return true;
-}
-function stepOfficers(unit,p,dt,now,holding) {
-  if(holding)unit.releaseAt=now+1.35;
-  const returning=now>=unit.releaseAt;
-  let nearPlayer=false, boarded=0;
-  for(const officer of unit.officers){
-    if(officer.mode==='dismount'&&now-officer.at<OFFICER_EXIT)continue;
-    const target=returning?officer.door:officer.cover;
-    const d=distance(officer,target);
-    if(d<.12){
-      officer.mode=returning?'returning':'cover';
-      officer.yaw=returning?facing(officer,officer.seat):facing(officer,p);
-      if(returning)boarded++;
-    }else{
-      officer.mode=returning?'returning':'deploy';
-      officer.yaw=facing(officer,target);
-      const step=Math.min(d,dt*2.05);
-      Object.assign(officer,moveWithCollisions(officer.x,officer.z,Math.sin(officer.yaw)*step,Math.cos(officer.yaw)*step));
-    }
-    if(!returning&&officer.mode==='cover'&&distance(officer,p)<9&&clear(officer,p,1.25,1.25))nearPlayer=true;
-  }
-  if(returning&&boarded===unit.officers.length){unit.officers=null;unit.plan=0;unit.mode='search';}
-  return nearPlayer;
-}
-function chase(m,p,dt,now) {
-  if(now>=m.policeAt&&m.police.length<m.wanted){
-    dispatch(m,now);m.policeAt=now+4.5;
-  }
-  let visible=false, closest=Infinity;
-  const vehicle=m.fleet.find(p.vehicle);
-  const traffic=[...m.fleet.vehicles,...m.police,...m.externalVehicles()];
-  let officersNear = false;
-  const containment = m.stage === O.pursuit && (!vehicle || Math.abs(vehicle.speed) < 1.7);
-  for(const unit of m.police){
-    const d=distance(unit,p);
-    closest=Math.min(closest,d);
-    const sees=d<61&&clear(unit,p,1.55,vehicle?1.35:1.3);
-    if(sees){visible=true;unit.last=point(p.x,p.z);unit.lastSeen=now;}
-    if(unit.officers){
-      officersNear = stepOfficers(unit,p,dt,now,containment && d<19 && sees) || officersNear;
-      if(unit.officers)continue;
-    }
-    if(sees)unit.mode='pursuit';
-    else if(unit.mode==='pursuit'&&now-unit.lastSeen>1)unit.mode='search';
-    if(containment && sees && d<14.5 && d>4.5 && Math.abs(unit.speed)<.4 && dismount(unit,now))continue;
-    if(now>=unit.plan){
-      unit.plan=now+(sees?.85:2.8);
-      const route=roadRoute(unit,unit.last);
-      // Leave the road only for a nearby target on the apron. Long trips use district junctions.
-      const direct=distance(unit,unit.last)<20&&clear(unit,unit.last,1.25);
-      unit.route=direct?[unit.last]:route.points.filter((q,i)=>i>0||distance(unit,q)>6);
-      if(unit.route.length===0||distance(unit.route.at(-1),unit.last)>3)unit.route.push(unit.last);
-    }
-    while(unit.route.length>1&&near(unit,unit.route[0],7))unit.route.shift();
-    const next=unit.route[0]??unit.last,dest=distance(unit,next),turn=angle(facing(unit,next)-unit.yaw);
-    const done=dest<3.4||d<(containment?11.5:4.3)&&sees;
-    const desired=done?0:clamp(18-Math.abs(turn)*8,4,18);
-    if(!done&&Math.abs(unit.speed)<.45){
-      unit.stuckAt??=now;
-      if(now-unit.stuckAt>1.3){unit.reverseUntil=now+1;unit.stuckAt=null;}
-    } else unit.stuckAt=null;
-    if(unit.reverseUntil>now){
-      advance(unit,{throttle:-.68,steer:-Math.sign(turn),brake:false},dt,traffic);
-    }else{
-      advance(unit,{throttle:desired>Math.abs(unit.speed)?.98:0,steer:clamp(turn*1.65,-1,1),brake:desired<Math.abs(unit.speed)-1},dt,traffic);
-    }
-  }
-  m.closest=closest;
-  m.spotted=visible;
-  if(m.stage!==O.pursuit)return;
-  if(visible){
-    m.lostAt=null;m.heat+=dt;
-    if(m.heat>=17&&m.wanted===2){m.wanted=3;m.policeAt=Math.min(m.policeAt,now+.7);event(m,'dispatch',p);}
-  }else if(closest>42&&m.police.length&&m.pursuitDistance>=75){
-    m.lostAt??=now;
-    if(now-m.lostAt>=8){
-      m.wanted=0;m.police=[];m.closest=Infinity;advanceTo(m,O.safehouse,p);
-    }
-  }else m.lostAt=null;
-  if(visible&&(closest<6||officersNear)&&(!vehicle||Math.abs(vehicle.speed)<1.3))m.capture=(m.capture??0)+dt;
-  else m.capture=0;
-  if(m.capture>7)fail(m,'Police boxed you in. Retry from the motor pool.',p);
-}
 export function missionStep(m,p,dt,now) {
   m.now=now;
   if(m.failed||m.paused||m.stage>=O.commit)return;
-  if(m.stage===O.warehouse&&near(p,WAREHOUSE,8)&&p.z<23.7&&Math.abs(p.x-WAREHOUSE.x)<6&&!p.vehicle){
+  if(m.stage===O.warehouse&&near(p,WAREHOUSE,8)&&p.z<WAREHOUSE.z+2.7&&Math.abs(p.x-WAREHOUSE.x)<6&&!p.vehicle){
     m.actors=actors(GUARDS,now);advanceTo(m,O.combat,p);
   }
   if(m.reloadAt&&now>=m.reloadAt){
@@ -369,8 +300,8 @@ export function missionStep(m,p,dt,now) {
   }
   if(m.stage===O.ambush&&!m.ambushed&&distance(p,PACKAGE)>19){
     m.ambushed=true;m.actors=actors(AMBUSH,now);m.blastAt=now+9;
-    // The break-in alarm provides a real point for responding units to investigate.
-    m.wanted=1;m.policeAt=now+3;event(m,'alarm',EXIT);
+    // The break-in alarm is a real report: a unit comes to investigate the freight yard.
+    crime(m.pd,'alarm',EXIT,now,'alarm');event(m,'alarm',EXIT);
   }
   if(m.blastAt&&now>=m.blastAt)explode(m,p);
   if(m.stage===O.combat||m.stage===O.ambush){
@@ -380,11 +311,15 @@ export function missionStep(m,p,dt,now) {
       else if(m.exploded)advanceTo(m,O.vehicle,p);
     }
   }
-  if(m.stage>=O.combat&&m.stage<=O.pursuit&&!inDistrict(p.x,p.z, m.stage===O.pursuit?270:85)){
+  if(m.stage>=O.combat&&m.stage<O.vehicle&&!inDistrict(p.x,p.z,85)){
     fail(m,'You left the operation area. Retry from the last checkpoint.',p);
   }
+  if(m.stage>=O.vehicle&&m.stage<=O.deliver&&!inMetro(p.x,p.z,60)){
+    fail(m,'You left Metropolitan City with the case. Retry from the last checkpoint.',p);
+  }
   if(m.stage===O.vehicle&&m.fleet.find(p.vehicle)&&p.vehicleSeat===0){
-    advanceTo(m,O.pursuit,p);m.wanted=2;checkpointAt(m,O.pursuit,now);m.policeAt=Math.min(now+.8,m.policeAt);event(m,'dispatch',p);
+    // Shots, a blast and a stolen vehicle at Orisun Freight: dispatch puts out the vehicle and sends units.
+    advanceTo(m,O.pursuit,p);checkpointAt(m,O.pursuit,now);alert(m.pd,2,VEHICLE_BAY,now,'suspectVehicle');event(m,'dispatch',p);
   }
   if(m.stage===O.pursuit&&m.fleet.find(p.vehicle)){
     const v=m.fleet.find(p.vehicle);
@@ -394,7 +329,22 @@ export function missionStep(m,p,dt,now) {
     }
     m.lastDrive=point(v.x,v.z);m.topSpeed=Math.max(m.topSpeed,Math.abs(v.speed));
   }else m.lastDrive=null;
-  if(m.wanted)chase(m,p,dt,now);
+  // The city: police, traffic and pedestrians around the player.
+  const vehicle=m.fleet.find(p.vehicle)??null;
+  if(inMetro(p.x,p.z,200)){
+    const se=[];
+    stepStreets(m.streets,p,dt,now,{vehicles:[...m.fleet.vehicles,...m.pd.units,...m.externalVehicles()],sirens:m.pd.units.filter(u=>u.siren),players:[p],events:se,police:m.pd,clear});
+    for(const e of se)event(m,e.kind,e,e);
+    const pe=[];
+    const r=stepPolice(m.pd,p,dt,now,{vehicle,moving:!!p.moving,aiming:m.aiming,firedAt:m.firedAt,vehicles:[...m.fleet.vehicles,...m.streets.cars,...m.externalVehicles()],players:[p],events:pe,
+      hurt:(n,where)=>{if(where==='vehicle'&&vehicle){m.damageVehicle(vehicle,n*.35);if(m.random()<.4)hurt(m,p,Math.round(n*.5));}else hurt(m,p,n);}});
+    for(const e of pe)event(m,e.kind,e,e);
+    m.spotted=r.visible;
+  }
+  m.wanted=m.pd.wanted;
+  m.closest=m.pd.units.reduce((d,u)=>Math.min(d,distance(u,p)),Infinity);
+  if(m.pd.arrested)fail(m,'Arrested. Metro Police took the case. Retry from the last checkpoint.',p);
+  if(m.stage===O.pursuit&&m.wanted===0&&m.pursuitDistance>=75&&!m.failed){advanceTo(m,O.safehouse,p);}
   if(m.stage===O.safehouse&&near(p,SAFEHOUSE,7)){advanceTo(m,O.deliver,p);checkpointAt(m,O.deliver,now);}
   if(now-m.vitalsAt>1.5){
     m.vitalsAt=now;
@@ -402,6 +352,13 @@ export function missionStep(m,p,dt,now) {
   }
 }
 export function missionInteract(m,p,action,now) {
+  // Giving up to the police works on foot or in a stopped car.
+  if(action==='surrender'&&!m.failed&&!m.paused&&m.pd.wanted>0){
+    const v=m.fleet.find(p.vehicle);
+    if(v&&Math.abs(v.speed)>.8)return false;
+    if(policeSurrender(m.pd,p,now)){m.aiming=false;event(m,'surrender',p);return true;}
+    return false;
+  }
   if(m.failed||m.paused||p.vehicle||p.dorm||p.seat||p.ball)return false;
   if(action==='package'&&m.stage===O.package&&near(p,PACKAGE)&&clear(p,PACKAGE,1.42,1)){
     m.carried=true;advanceTo(m,O.ambush,p);checkpointAt(m,O.ambush,now);event(m,'pickup',PACKAGE);return true;
@@ -413,18 +370,19 @@ export function missionInteract(m,p,action,now) {
 }
 export const atContact = p => !p.vehicle&&!p.dorm&&!p.seat&&!p.ball&&near(p,CONTACT,3.15)&&clear(p,CONTACT);
 export const getSpawn = checkpoint => ({
-  ...(checkpoint===O.deliver?point(271,-33):checkpoint===O.pursuit?point(VEHICLE_BAY.x,40):checkpoint===O.ambush?point(PACKAGE.x,PACKAGE.z+2):point(CONTACT.x+1,CONTACT.z)),
+  ...(checkpoint===O.deliver?point(SAFEHOUSE.x+3,SAFEHOUSE.z+1.5):checkpoint===O.pursuit?point(VEHICLE_BAY.x,VEHICLE_BAY.z-4):checkpoint===O.ambush?point(PACKAGE.x,PACKAGE.z+2):point(CONTACT.x+1,CONTACT.z)),
   yaw:checkpoint===O.ambush?0:Math.PI/2,
 });
 export function viewMission(m,now) {
-  const gun=m.guns[m.arm];
+  const gun=m.guns[m.arm], police=viewPolice(m.pd,now), streets=viewStreets(m.streets);
   const mark=[CONTACT,WAREHOUSE,WAREHOUSE,PACKAGE,EXIT,VEHICLE_BAY,SAFEHOUSE,SAFEHOUSE,SAFEHOUSE,null,null][m.stage];
   return {stage:m.stage,checkpoint:m.checkpoint,paused:m.paused,failed:m.failed,health:m.health,carried:m.carried,
     ambushed:m.ambushed,exploded:m.exploded,wanted:m.wanted,spotted:m.spotted,closest:Number.isFinite(m.closest)?Math.round(m.closest):null,
-    escape:m.lostAt===null?0:clamp((now-m.lostAt)/8,0,1),gun,slot:m.arm,reloading:m.reloadAt?Math.max(0,m.reloadAt-now):0,mark,
-    officers:m.police.flatMap(v=>(v.officers??[]).map(({id,side,x,z,yaw,mode,seat,at})=>({id,side,x,z,yaw,mode,seat,age:now-at}))),
+    escape:police.escape,police:{level:police.level,contained:police.contained,surrender:police.surrender,searching:police.searching,lastKnown:police.lastKnown},
+    gun,slot:m.arm,reloading:m.reloadAt?Math.max(0,m.reloadAt-now):0,mark,
+    officers:police.officers,civilians:streets.civilians,
     actors:m.actors.map(({id,kind,x,z,yaw,hp,maxHp,mode})=>({id,kind,x,z,yaw,hp,maxHp,mode})),
-    vehicles:[...m.fleet.snapshot().map(v=>({...v,available:m.stage>=O.vehicle&&m.stage<=O.deliver})),...m.police.map(({id,type,x,z,yaw,speed,wheel,steering,occupants,mode})=>({id,type,x,z,yaw,speed,wheel,steering,occupants,police:true,mode,condition:100}))],
+    vehicles:[...m.fleet.snapshot().map(v=>({...v,available:m.stage>=O.vehicle&&m.stage<=O.deliver})),...police.units,...streets.cars],
     report:m.report, reward:m.reward??null, saveError:m.saveError, events:m.events.splice(0)};
 }
 export { O, REWARD };

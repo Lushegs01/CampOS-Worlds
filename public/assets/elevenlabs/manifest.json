@@ -1,6 +1,19 @@
 {
   "clips": {
     "sfx/freight-ambience": "sfx/freight-ambience-b31b2ebda098f0a7.mp3",
-    "voice/sade/briefing": "voice/sade/briefing-eaa97f0d4a0f7afc.mp3"
+    "voice/sade/briefing": "voice/sade/briefing-eaa97f0d4a0f7afc.mp3",
+    "voice/dispatch/suspectVehicle": "voice/dispatch/suspectVehicle-74e0ca5c1e6615ea.mp3",
+    "voice/dispatch/visual": "voice/dispatch/visual-8cc5ace9cbe12d4e.mp3",
+    "voice/dispatch/backup": "voice/dispatch/backup-cdc25bf5a4bac6f3.mp3",
+    "voice/dispatch/roadblock": "voice/dispatch/roadblock-80a751093ba4b958.mp3",
+    "voice/dispatch/contained": "voice/dispatch/contained-d3f5fecab0bf91aa.mp3",
+    "voice/dispatch/breakout": "voice/dispatch/breakout-fd87dcd6247d6bff.mp3",
+    "voice/dispatch/searchOver": "voice/dispatch/searchOver-180a469ef9728f57.mp3",
+    "voice/officer/stepOut-0": "voice/officer/stepOut-0-35982b757456a411.mp3",
+    "voice/officer/engineOff-0": "voice/officer/engineOff-0-4ff39d1a29883f53.mp3",
+    "voice/officer/handsOnWheel-0": "voice/officer/handsOnWheel-0-00cf832472665e92.mp3",
+    "voice/officer/dropWeapon-0": "voice/officer/dropWeapon-0-2c395d22a51dd5de.mp3",
+    "voice/officer/finalWarning-0": "voice/officer/finalWarning-0-2e115cedf0bd1983.mp3",
+    "voice/officer/getDown-0": "voice/officer/getDown-0-2a756f34699c584b.mp3"
   }
 }

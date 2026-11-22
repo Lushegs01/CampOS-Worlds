@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { useShallow } from 'zustand/react/shallow';
 import * as THREE from 'three';
 import { CONTACT, BARREL, PACKAGE, SAFEHOUSE, O } from '../../shared/getaway.mjs';
+import { METRO_SHIFT } from '../../shared/metro.mjs';
 import { player, useGame } from '../state';
 import Avatar, { type AvatarMotion } from '../avatar/Avatar';
 import { AvatarBoundary } from '../avatar/AvatarBoundary';
@@ -46,7 +47,7 @@ function YardAlarm(){
     const live=(useGetaway.getState().mission?.wanted??0)>0;
     lamps.current.visible=live&&(useGame.getState().reducedMotion||Math.floor(clock.elapsedTime*3)%2===0);
   });
-  return <group ref={lamps} visible={false}>{[-1,1].map(side=><mesh key={side} position={[191+side*5.31,2.23,24.634]}><planeGeometry args={[.124,.124]}/><meshBasicMaterial color="#ff633e" toneMapped={false}/></mesh>)}</group>;
+  return <group ref={lamps} visible={false}>{[-1,1].map(side=><mesh key={side} position={[191+METRO_SHIFT.x+side*5.31,2.23,24.634+METRO_SHIFT.z]}><planeGeometry args={[.124,.124]}/><meshBasicMaterial color="#ff633e" toneMapped={false}/></mesh>)}</group>;
 }
 export default function GetawayScene({ lib }: { lib: Materials }) {
   const stage=useGetaway(s=>s.mission?.stage??null), blast=useGetaway(s=>s.mission?.exploded??false);

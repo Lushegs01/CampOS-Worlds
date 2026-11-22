@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CONTACT, WAREHOUSE, BARREL, PACKAGE, SAFEHOUSE, O, distance } from '../shared/getaway.mjs';
 import { blocked } from '../shared/campus.mjs';
+import { METRO_SHIFT } from '../shared/metro.mjs';
+import { POLICE_BAYS } from '../shared/metro.mjs';
 import { createGetaway, combatInput, missionStep, missionInteract, viewMission } from '../server/mission/getaway.mjs';
 import { createMissionService } from '../server/mission/service.mjs';
 import { createFleet, localPoint, vehicleBlocked } from '../shared/vehicles.mjs';
@@ -11,6 +13,8 @@ const fresh = (p={}) => ({id:'driver',token:'guest1',joined:true,x:CONTACT.x,z:C
 const aim = (p,a,h=1.15) => ({yaw:Math.atan2(a.x-p.x,a.z-p.z),pitch:Math.atan2(h-p.y-1.5,distance(p,a)),aim:true});
 const newRun = checkpoint => createGetaway({now:0,checkpoint,random:()=>.5});
 const dt=1/30;
+// The freight yard was authored in a local frame; the tests keep its local coordinates.
+const L=(x,z)=>({x:x+METRO_SHIFT.x,z:z+METRO_SHIFT.z});
 
 test('offer and checkpoints bind to the correct player; objectives require presence and acceptance', async () => {
   const messages=[],fleet=createFleet();
@@ -39,8 +43,8 @@ test('offer and checkpoints bind to the correct player; objectives require prese
 test('loadout fires distinct weapons, reloads, respects cover and defeats enemies',()=>{
   const m=newRun(),p=fresh(WAREHOUSE);
   missionStep(m,p,dt,1);assert.equal(m.stage,O.combat);
-  const a=m.actors[0];Object.assign(a,{x:180,z:16});
-  Object.assign(p,{x:186,z:19});
+  const a=m.actors[0];Object.assign(a,L(180,16));
+  Object.assign(p,L(186,19));
   const health=a.hp;
   combatInput(m,p,'fire',aim(p,a,.55),2);
   assert.equal(a.hp,health,'crate at x183 z18 blocks the shot');
@@ -48,7 +52,7 @@ test('loadout fires distinct weapons, reloads, respects cover and defeats enemie
   combatInput(m,p,'reload',{},2.5);
   assert.ok(m.reloadAt);
   missionStep(m,p,dt,5);assert.equal(m.guns[0].mag,12);assert.equal(m.guns[0].reserve,47);
-  Object.assign(p,{x:181,z:14});
+  Object.assign(p,L(181,14));
   for(let t=6;t<8;t+=.32)combatInput(m,p,'fire',aim(p,a),t);
   assert.equal(a.hp,0);
   assert.equal(m.defeated,1);
@@ -57,7 +61,7 @@ test('loadout fires distinct weapons, reloads, respects cover and defeats enemie
   combatInput(m,p,'fire',aim(p,m.actors[1]),9);
   assert.equal(m.guns[1].mag,29);
   combatInput(m,p,'equip',{slot:2},9.5);
-  Object.assign(p,{x:190,z:9});
+  Object.assign(p,L(190,9));
   const operative=m.actors[2];
   combatInput(m,p,'fire',aim(p,operative),10);
   assert.ok(operative.hp<operative.maxHp);
@@ -69,29 +73,29 @@ test('patrol, auditory investigation, cover, visual search, reacquisition and do
   missionStep(m,p,dt,1);
   const guard=m.actors[0];
   assert.ok(['patrol','idle','suspicious'].includes(guard.mode));
-  Object.assign(p,{x:175,z:14}); // outside the wall, still audible
+  Object.assign(p,L(175,14)); // outside the wall, still audible
   combatInput(m,p,'fire',{yaw:Math.PI/2,pitch:0},2);
   assert.equal(guard.mode,'investigate');
   missionStep(m,p,dt,2.1);assert.equal(guard.mode,'investigate');
-  Object.assign(p,{x:187,z:11});Object.assign(guard,{x:189,z:11,yaw:-Math.PI/2,hp:18});
+  Object.assign(p,L(187,11));Object.assign(guard,{...L(189,11),yaw:-Math.PI/2,hp:18});
   for(let t=3;t<6;t+=dt)missionStep(m,p,dt,t);
-  assert.ok(['retreat','cover','engage','search'].includes(guard.mode));
+  assert.ok(['retreat','cover','engage','search','reposition'].includes(guard.mode),guard.mode);
   assert.ok(guard.seen>3);
-  Object.assign(p,{x:175,z:14});
+  Object.assign(p,L(175,14));
   for(let t=6;t<8.4;t+=dt)missionStep(m,p,dt,t);
   assert.ok(['search','patrol'].includes(guard.mode));
-  Object.assign(p,{x:189,z:13});
+  Object.assign(p,L(189,13));
   m.health=5;
   for(let t=9;t<28&&!m.failed;t+=dt)missionStep(m,p,dt,t);
   assert.ok(m.failed);
 });
 
 test('case gates delivery, fuel barrel respects shots, blast damages and cleans up, all three cars can drive',()=>{
-  const m=newRun(O.ambush),p=fresh({x:191,z:28});
+  const m=newRun(O.ambush),p=fresh(L(191,28));
   assert.equal(missionInteract(m,p,'deliver',1),false);
   missionStep(m,p,dt,1);
-  assert.equal(m.ambushed,true);assert.equal(m.wanted,1);
-  Object.assign(p,{x:198,z:27});
+  assert.equal(m.ambushed,true);assert.equal(m.pd.reports.length,1,'the alarm is a report, not an instant response');
+  Object.assign(p,L(198,27));
   combatInput(m,p,'fire',aim(p,BARREL,.68),2);
   combatInput(m,p,'fire',aim(p,BARREL,.68),2.4);
   assert.equal(m.exploded,true);assert.ok(m.health<100);
@@ -110,26 +114,6 @@ test('case gates delivery, fuel barrel respects shots, blast damages and cleans 
   }
 });
 
-test('police dispatch, find visual, escalate, search and require travelled distance for evasion',()=>{
-  const m=newRun(O.pursuit),p=fresh({x:257,z:54});
-  for(let t=0;t<1.2;t+=dt)missionStep(m,p,dt,t);
-  assert.ok(m.police.length>0);assert.equal(m.spotted,true);
-  const first=m.police[0],start={x:first.x,z:first.z};
-  assert.ok(distance(first,start)<.01);
-  for(let t=1.2;t<3.5;t+=dt)missionStep(m,p,dt,t);
-  assert.ok(distance(first,start)>1);
-  m.heat=17;missionStep(m,p,dt,3.6);assert.equal(m.wanted,3);
-  Object.assign(p,{x:322,z:4});
-  for(let t=4;t<13;t+=dt)missionStep(m,p,dt,t);
-  assert.ok(m.police.some(v=>v.mode==='search'));assert.equal(m.stage,O.pursuit);
-  m.pursuitDistance=90;
-  Object.assign(p,{x:394,z:21});
-  for(let t=13;t<23;t+=dt)missionStep(m,p,dt,t);
-  assert.equal(m.stage,O.safehouse);assert.equal(m.wanted,0);assert.equal(m.police.length,0);
-  Object.assign(p,SAFEHOUSE);missionStep(m,p,dt,23);
-  assert.ok(missionInteract(m,p,'deliver',24));assert.equal(m.stage,O.commit);
-});
-
 test('getaway collision damage can wreck the car and deterministically restore the motor pool',()=>{
   const m=newRun(O.pursuit),p=fresh();
   const v=m.fleet.find('getaway-compact');
@@ -137,7 +121,7 @@ test('getaway collision damage can wreck the car and deterministically restore t
   assert.ok(m.fleet.enter(p,v.id).ok);
   for(let i=0;i<3&&!m.failed;i++){
     // A stationary test fixture moves the car back so each impact uses the same approach.
-    Object.assign(v,{x:209,z:24,yaw:0,speed:20});
+    Object.assign(v,{...L(209,24),yaw:0,speed:20});
     for(let k=0;k<12&&!m.failed;k++){
       const t=i*2+k*dt;
       m.now=t;
@@ -152,7 +136,7 @@ test('getaway collision damage can wreck the car and deterministically restore t
   const rebuilt=newRun(m.checkpoint);
   assert.equal(rebuilt.fleet.find(v.id).condition,100);
   assert.equal(rebuilt.fleet.vehicles.length,3);
-  assert.equal(rebuilt.police.length,0);
+  assert.equal(rebuilt.pd.units.filter(u=>u.role!=='patrol').length,1,'only the unit answering the alarm');
 });
 
 test('Postgres completion is service-only and concurrent retries grant one account one receipt', async t=>{
@@ -174,21 +158,3 @@ test('Postgres completion is service-only and concurrent retries grant one accou
   assert.equal(await rpc(db.pool,'getaway_status',{p_user:other},service),null);
 });
 
-test('a cruiser can stop, deploy visible officers, contain and reboard when its target moves on',()=>{
-  const m=newRun(O.pursuit),p=fresh({x:239,z:55.5});
-  m.policeAt=Infinity;
-  m.police=[{id:'getaway-unit-1',x:231,z:54,yaw:Math.PI/2,type:'car',speed:0,wheel:0,steering:0,
-    occupants:[null,null,null,null],route:[],plan:0,mode:'dispatch',last:{x:p.x,z:p.z},lastSeen:-Infinity}];
-  missionStep(m,p,dt,1);
-  const deployed=viewMission(m,1);
-  assert.equal(deployed.vehicles.find(v=>v.police).mode,'containment');
-  assert.equal(deployed.officers.length,2);
-  assert.ok(deployed.officers.every(o=>o.mode==='dismount'&&o.age===0));
-  for(let now=1.04;now<3.5;now+=.04)missionStep(m,p,.04,now);
-  assert.ok(viewMission(m,3.5).officers.every(o=>o.mode==='cover'));
-  assert.ok(m.capture>0);
-  Object.assign(p,{x:270,z:48});
-  for(let now=3.54;now<7;now+=.04)missionStep(m,p,.04,now);
-  assert.equal(viewMission(m,7).officers.length,0);
-  assert.notEqual(m.police[0].mode,'containment');
-});

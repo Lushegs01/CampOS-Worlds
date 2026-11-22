@@ -1,7 +1,8 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { CONTACT, INDUSTRIAL_SOLIDS, inDistrict } from '../../shared/getaway.mjs';
+import { INDUSTRIAL_SOLIDS_LOCAL as INDUSTRIAL_SOLIDS, inDistrict } from '../../shared/getaway.mjs';
+import { METRO_SHIFT } from '../../shared/metro.mjs';
 import { player, useGame } from '../state';
 import { sign } from '../world/architecture/signage';
 import { weather, type Materials } from '../world/materials';
@@ -61,7 +62,7 @@ function useDistance(enabled: (x: number, z: number, active: boolean) => boolean
   return active;
 }
 const districtRange = (x: number, z: number, active: boolean) => inDistrict(x, z, active ? 110 : 92);
-const lightingRange = (x: number, z: number, active: boolean) => Math.abs(x - 191) < (active ? 25 : 22) && z > -5 && z < (active ? 36 : 32);
+const lightingRange = (wx: number, wz: number, active: boolean) => { const x = wx - METRO_SHIFT.x, z = wz - METRO_SHIFT.z; return Math.abs(x - 191) < (active ? 25 : 22) && z > -5 && z < (active ? 36 : 32); };
 
 // Two unshadowed practicals below the exported housings. Their finite reach keeps the loading apron daylight-lit.
 function WarehouseLights({ detailed, low }: { detailed: boolean; low: boolean }) {
@@ -151,7 +152,8 @@ export default memo(function IndustrialDistrict({ lib }: { lib: Materials }) {
   const surfaces = useMemo(() => makeSurfaces(lib), [lib]);
   useEffect(() => () => Object.values(surfaces).forEach(material => material.dispose()), [surfaces]);
   if (!active) return null;
-  return <group name="industrial:yard">
+  // Authored in the freight yard's local frame; placed in Metropolitan City's Industrial District.
+  return <group name="industrial:yard" position={[METRO_SHIFT.x, 0, METRO_SHIFT.z]}>
     <group position={ORIGIN}>
       <MeshAsset file="getaway/freightGround.glb" cast={false} surfaces={surfaces}>
         <mesh position={[16.995, .014, 3.39]}

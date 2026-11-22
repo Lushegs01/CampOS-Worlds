@@ -1,5 +1,6 @@
 import GetawayHud, { MissionButton } from './mission/Hud';
 import { initMission, useGetaway } from './mission/client';
+import { initRadio } from './mission/radio';
 import Orientation from './mobile/Orientation';
 import { enterLandscape } from './mobile/orientation';
 import { ClassPrompt } from './ui/Classes';
@@ -85,7 +86,7 @@ function toggleFullscreen(){const d=document as Document&{webkitFullscreenElemen
 const locate=()=>({heart:Math.abs(player.x)<14&&Math.abs(player.z)<15,district:districtAt(player.x,player.z)??null});
 export default function App(){
  const [sceneFailed,setSceneFailed]=useState(false), getaway=useGetaway(s=>!!s.mission);
- useEffect(initMission,[]);
+ useEffect(initMission,[]);useEffect(initRadio,[]);
  // Only what this component shows: the frame-rate readout and other frequent store writes must not
  // re-render the whole interface (and reconcile the 3D scene's React tree) every time.
  const s=useGame(useShallow(g=>({phase:g.phase,panel:g.panel,ready:g.ready,status:g.status,connectionLagging:g.connectionLagging,count:g.count,tour:g.tour,tourStep:g.tourStep,destination:g.destination,toast:g.toast,reducedMotion:g.reducedMotion,set:g.set,notify:g.notify})));useNetwork();useEffect(()=>{void initAccount();initShop();initSocial();initDuels();initChallenges();initActivities();},[]);const keepsakes=useKeepsakes(),accountStatus=useAccount(a=>a.status),communityOpen=useCommunity(c=>c.open),socialOpen=useSocial(c=>c.open),socialUnread=useSocial(c=>c.unread.requests+c.unread.messages),partySize=useSocial(c=>c.party?.members.length??0),duelLive=useDuel(d=>!!d.duel&&(d.duel.state==='ready'||d.duel.state==='playing'));const next=LOCATIONS.find(l=>l.id===(s.destination||TOUR[s.tourStep]));

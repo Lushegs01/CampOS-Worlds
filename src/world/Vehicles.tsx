@@ -76,7 +76,7 @@ export function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
   return <group ref={group} name={`vehicle:${id}`} matrixAutoUpdate={false}>
     <primitive object={model.root} />
     {freight && <Headlights id={id} type={type}/>}
-    {id.startsWith('getaway-unit-') && <Lightbar/>}
+    {id.startsWith('getaway-unit-') && <Lightbar id={id}/>}
   </group>;
 }
 
@@ -97,14 +97,16 @@ function Headlights({ id, type }: { id: string; type: VehicleType }) {
   return <primitive object={rig}/>;
 }
 
-function Lightbar() {
+function Lightbar({ id }: { id: string }) {
   const red = useRef<THREE.Mesh>(null!), blue = useRef<THREE.Mesh>(null!);
   const flareR = useRef<THREE.Sprite>(null!), flareB = useRef<THREE.Sprite>(null!);
   const flare = useMemo(softTexture, []);
   useFrame(({ clock }) => {
+    // Lights run only on a response (patrol cruisers drive dark).
+    const live = missionVehicleInfo(id)?.siren !== false;
     const reduced = useGame.getState().reducedMotion, phase = clock.elapsedTime % .8;
-    const r = reduced ? .32 : (phase < .085 || phase > .149 && phase < .221) ? 2.2 : .11;
-    const b = reduced ? .32 : (phase > .4 && phase < .485 || phase > .549 && phase < .621) ? 2.2 : .11;
+    const r = !live ? .06 : reduced ? .32 : (phase < .085 || phase > .149 && phase < .221) ? 2.2 : .11;
+    const b = !live ? .06 : reduced ? .32 : (phase > .4 && phase < .485 || phase > .549 && phase < .621) ? 2.2 : .11;
     (red.current.material as THREE.MeshStandardMaterial).emissiveIntensity = r;
     (blue.current.material as THREE.MeshStandardMaterial).emissiveIntensity = b;
     flareR.current.material.opacity = r > 1 ? .42 : 0;

@@ -146,7 +146,7 @@ export function tickMissionSound(m: Mission | null) {
   }
   const pursuing = enabled && m && !m.paused && !m.failed && m.wanted;
   const car = pursuing ? m.vehicles.reduce<(typeof m.vehicles)[number] | undefined>((nearest, v) => {
-    if (!v.police) return nearest;
+    if (!v.police || v.siren === false) return nearest;
     return !nearest || Math.hypot(v.x-player.x, v.z-player.z) < Math.hypot(nearest.x-player.x, nearest.z-player.z) ? v : nearest;
   }, undefined) : undefined;
   if (!car || !heard(car, 100)) {

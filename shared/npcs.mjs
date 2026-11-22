@@ -15,6 +15,7 @@ import { LOCKED_ACCENTS } from './achievements.mjs';
 import { LAB_STATIONS } from './economic-lab.mjs';
 import { DORM_OUTSIDE, inDormRoom } from './dorm.mjs';
 import { WORLD_LIMIT } from './expansion.mjs';
+import { WORLD_SOUTH } from './metro.mjs';
 import { BUILDING_BY_ID, createBuildingState } from './buildings.mjs';
 import { validateOrder, ORDER_READY_S } from './cafe.mjs';
 
@@ -159,7 +160,7 @@ export const npcKey = id => `npc:${id}`;
 const boxHit = (b, x, z, r) => Math.abs(x - b.x) < b.w / 2 + r && Math.abs(z - b.z) < b.d / 2 + r;
 /** Free standing for a body of radius r, whatever the doors are doing (a doorway never counts as free). */
 export function standable(x, z, r = PLAYER_RADIUS) {
-  if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || Math.abs(z) > WORLD_LIMIT) return false;
+  if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || z < -WORLD_LIMIT || z > WORLD_SOUTH) return false;
   for (const b of collidersIn(x - r, z - r, x + r, z + r)) if (boxHit(b, x, z, r)) return false;
   return !DOORS.some(d => boxHit(d.collider, x, z, r));
 }

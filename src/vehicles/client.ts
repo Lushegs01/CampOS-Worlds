@@ -14,7 +14,7 @@ export const vehicleVisuals=new Map<string,Vehicle>(localFleet.snapshot().map(v=
 export const driving={throttle:0,steer:0,brake:false};
 export const useVehicle=create<{id:string|null;seat:number|null;near:string|null;revision:number}>(()=>({id:null,seat:null,near:null,revision:0}));
 export function currentVehicle(){return vehicleVisuals.get(useVehicle.getState().id??'');}
-const missionVehicles=new Map<string,Vehicle & {condition?:number;police?:boolean;available?:boolean}>();
+const missionVehicles=new Map<string,Vehicle & {condition?:number;police?:boolean;siren?:boolean;available?:boolean}>();
 export const missionVehicleInfo=(id:string)=>missionVehicles.get(id);
 const vehicleTarget={...localFleet.snapshot()[0]},tracks=new Map<string,ReturnType<typeof createVehicleTrack>>();
 const trackOf=(id:string)=>{let t=tracks.get(id);if(!t)tracks.set(id,t=createVehicleTrack());return t;};
@@ -39,7 +39,7 @@ export function receiveVehicles(list:(Vehicle&{ts?:number})[],at?:number){if(!li
   const track=trackOf(v.id);if(at!==undefined)track.push(typeof v.ts==='number'?v.ts:at,v,at);else if(!track.length)track.push(0,v);
   const present=vehicleVisuals.get(v.id);if(present){present.occupants=v.occupants;present.speed=v.speed;present.steering=v.steering;}else vehicleVisuals.set(v.id,{...v});}
  useVehicle.setState(s=>({revision:s.revision+1}));}
-export function receiveMissionVehicles(list:(Vehicle&{condition:number;police?:boolean;available?:boolean})[],at?:number) {
+export function receiveMissionVehicles(list:(Vehicle&{condition:number;police?:boolean;siren?:boolean;available?:boolean})[],at?:number) {
  const ids=new Set(list.map(v=>v.id));
  for(const id of missionVehicles.keys())if(!ids.has(id)){
   missionVehicles.delete(id);tracks.delete(id);vehicleVisuals.delete(id);vehicleLift.delete(id);

@@ -10,6 +10,7 @@ import { DormFurniture } from './Dorm';
 import { mySpace } from '../dorm/client';
 import Expansion from './Expansion';
 import HarbourDistrict from './Harbour';
+import MetroCity from './MetroCity';
 import Npcs from '../npc/Npcs';
 import Vehicles from './Vehicles';
 import { QA_HOOKS } from '../qa';
@@ -264,7 +265,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
   return <>
     <CompileGate post={quality.post} onReady={reveal}>
     <Ground surfaces={surfaces} quality={quality} />
-    <primitive object={campus.group} /><Expansion lib={lib} /><HarbourDistrict lib={lib}/><DormFurniture lib={lib} /><Vehicles />
+    <primitive object={campus.group} /><Expansion lib={lib} /><HarbourDistrict lib={lib}/><MetroCity lib={lib}/><DormFurniture lib={lib} /><Vehicles />
     <Water reduced={reduced} />
     <Flags placements={campus.context.props} reduced={reduced} />
     <Props placements={campus.context.props} quality={quality} />

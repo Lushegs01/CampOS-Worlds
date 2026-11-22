@@ -2,6 +2,7 @@ import { HARBOUR_BUILDINGS, HARBOUR_PARKING, HARBOUR_TRAFFIC, harbourTrafficInpu
 import { blocked, FOOTPRINTS } from './campus.mjs';
 import { BUILDINGS, DISTRICTS, COURTYARD_PARKING } from './expansion.mjs';
 import { DORM_ROOM } from './dorm.mjs';
+import { METRO_BUILDINGS } from './metro.mjs';
 import { COURT } from './ball.mjs';
 import { DRIVE_VERSION, validDrive, driveInput } from './driving.mjs';
 export const VEHICLE_TYPES = {
@@ -10,6 +11,10 @@ export const VEHICLE_TYPES = {
  car:{name:'Campus Compact',length:4.3,width:1.78,wheelbase:2.6,height:1.5,wheelRadius:.31,maxSpeed:23,reverse:6,accel:4.8,brake:10,steer:.55,seats:[[.37,-.02],[-.37,-.02],[.37,-.86],[-.37,-.86]],seatHeight:.5},
  shuttle:{name:'Òrìṣun Shuttle',length:6.6,width:2.2,wheelbase:3.9,height:2.65,wheelRadius:.38,maxSpeed:17,reverse:4,accel:2.8,brake:8,steer:.43,seats:[[.55,2.3],[-.55,1.2],[.55,1.2],[-.55,.1],[.55,.1],[-.55,-1],[.55,-1],[-.55,-2.1]],seatHeight:1.05},
  cart:{name:'Garden Cart',length:2.75,width:1.3,wheelbase:1.7,height:1.9,wheelRadius:.24,maxSpeed:11,reverse:4,accel:3.8,brake:8,steer:.65,seats:[[.3,-.12],[-.3,-.12]],seatHeight:.62},
+ // Getaway variants: a heavy SUV (slow to accelerate and stop, rolls into corners, shrugs off knocks) and a light
+ // sports coupé (quick, grippy and fragile). mass (kg) scales collision damage; grip (g) caps cornering.
+ suv:{name:'Ranger SUV',length:4.3,width:1.78,wheelbase:2.6,height:1.85,wheelRadius:.36,maxSpeed:21,reverse:6,accel:3.6,brake:8,steer:.47,seats:[[.37,-.02],[-.37,-.02],[.37,-.86],[-.37,-.86]],seatHeight:.7,mass:2300,grip:.72},
+ sports:{name:'Vela Coupé',length:4.3,width:1.78,wheelbase:2.6,height:1.25,wheelRadius:.31,maxSpeed:31,reverse:6,accel:7.4,brake:12.5,steer:.6,seats:[[.37,-.02],[-.37,-.02]],seatHeight:.4,mass:1300,grip:1.05},
 };
 // Parked nose-out in marked bays so drivers pull straight out onto the road.
 /** @type {{id:string,type:keyof typeof VEHICLE_TYPES,x:number,z:number,yaw:number}[]} */
@@ -21,7 +26,7 @@ export function vehicleContains(v,x,z,pad=.3){const dx=x-v.x,dz=z-v.z,t=VEHICLE_
 // districts. Walls, trees, fences and people block them; they never enter a building (or your room), and
 // stay off the fenced basketball court, where a parked car would block a game.
 const span_=r=>({x:(r.x0+r.x1)/2,z:(r.z0+r.z1)/2,w:r.x1-r.x0,d:r.z1-r.z0});
-export const NO_DRIVE=[...FOOTPRINTS.map(span_),...BUILDINGS,...HARBOUR_BUILDINGS,span_(DORM_ROOM),span_(COURT)];
+export const NO_DRIVE=[...FOOTPRINTS.map(span_),...BUILDINGS,...HARBOUR_BUILDINGS,...METRO_BUILDINGS,span_(DORM_ROOM),span_(COURT)];
 /** False where any part of a vehicle `pad` metres round this point would be inside a building or on the court. */
 export function drivable(x,z,pad=0){return !NO_DRIVE.some(r=>Math.abs(x-r.x)<r.w/2+pad&&Math.abs(z-r.z)<r.d/2+pad);}
 const fail=reason=>({ok:false,reason});
@@ -33,7 +38,10 @@ export function advance(v,i,dt,vehicles,players=[],onImpact=null){
   const old=v.speed;v.speed+=accel*h;if(i.brake&&old*v.speed<0)v.speed=0;
   v.speed*=Math.exp(-h*(i.throttle&&!i.brake?.035:.7));v.speed=Math.max(-t.reverse,Math.min(t.maxSpeed,v.speed));if(Math.abs(v.speed)<.015)v.speed=0;
   v.steering+=(i.steer*t.steer/(1+Math.abs(v.speed)/18)-v.steering)*Math.min(1,h*7);
-  const yaw=v.yaw+v.speed/t.wheelbase*Math.tan(v.steering)*h,q={...v,yaw,x:v.x+Math.sin(yaw)*v.speed*h,z:v.z+Math.cos(yaw)*v.speed*h};
+  // Tyre grip: the turn rate can never ask for more lateral acceleration than the tyres hold (a·g / v).
+  let rate=v.speed/t.wheelbase*Math.tan(v.steering);const limit=(t.grip??.9)*9.81/Math.max(1,Math.abs(v.speed));
+  if(Math.abs(rate)>limit){rate=Math.sign(rate)*limit;v.speed*=1-Math.min(.5,h*.9);v.sliding=true;}else v.sliding=false;
+  const yaw=v.yaw+rate*h,q={...v,yaw,x:v.x+Math.sin(yaw)*v.speed*h,z:v.z+Math.cos(yaw)*v.speed*h};
   if(vehicleBlocked(q,vehicles,players)){if(Math.abs(v.speed)>2)onImpact?.(v,Math.abs(v.speed));v.speed=0;}else{v.x=q.x;v.z=q.z;v.yaw=Math.atan2(Math.sin(yaw),Math.cos(yaw));v.wheel+=v.speed*h/.32;}
  }
 }

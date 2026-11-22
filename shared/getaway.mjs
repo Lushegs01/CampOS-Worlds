@@ -1,21 +1,31 @@
-// The campus scene, movement and the mission simulation share these coordinates.
-export const CONTACT = { x: 136, z: 48, yaw: Math.PI };
-export const WAREHOUSE = { x: 191, z: 21 };
-export const PACKAGE = { x: 191, z: 5 };
-export const EXIT = { x: 191, z: 39 };
-export const SAFEHOUSE = { x: 274, z: -35 };
-export const BARREL = { x: 198, z: 32 };
-export const VEHICLE_BAY = { x: 215, z: 44 };
-export const DISTRICT = { x: 211, z: 14, w: 166, d: 105 };
-export const INDUSTRIAL_LOCATION = { id: 'industrial-contact', name: 'Industrial District', type: 'Shadow Protocol', ...CONTACT, icon: 'compass', description: 'Meet Sade at the west freight gate.' };
+// The Getaway's Industrial District (Orisun Freight) in Metropolitan City. Coordinates were authored in a local
+// frame beside the old campus hub; `at` places them in the city (METRO_SHIFT). Renderers that draw the authored
+// GLBs use the *_LOCAL data inside a group at METRO_SHIFT.
+import { METRO_SHIFT, SAFEHOUSE_PLOT } from './metro.mjs';
+const at = (x, z, extra = {}) => ({ x: x + METRO_SHIFT.x, z: z + METRO_SHIFT.z, ...extra });
+/** Sade's meeting point: outside Saltworks Café in the Commercial District (Harbour Exchange). */
+export const CONTACT = { x: -27, z: 1690.8, yaw: 0 };
+/** The freight yard's staff gate (where Sade used to wait). */
+export const FREIGHT_GATE = at(136, 48, { yaw: Math.PI });
+export const WAREHOUSE = at(191, 21);
+export const PACKAGE = at(191, 5);
+export const EXIT = at(191, 39);
+/** The lock-up on Baobab Close (Residential District), where the case is handed over. */
+export const SAFEHOUSE = { x: -225, z: 2011.5 };
+export const SAFEHOUSE_LOT = SAFEHOUSE_PLOT;
+export const BARREL = at(198, 32);
+export const VEHICLE_BAY = at(215, 44);
+export const DISTRICT = at(211, 14, { w: 166, d: 105 });
+export const INDUSTRIAL_LOCATION = { id: 'industrial-contact', name: 'The Getaway · Contact', type: 'Shadow Protocol', ...CONTACT, icon: 'compass', description: 'Meet Sade outside Saltworks Café, Harbour Exchange, Metropolitan City.' };
 /** @type {{id:string,type:'car'|'shuttle'|'cart',x:number,z:number,yaw:number}[]} */
 export const GETAWAY_CARS = [
-  { id: 'getaway-compact', type: 'car', x: 209, z: 46, yaw: 0 },
-  { id: 'getaway-shuttle', type: 'shuttle', x: 215, z: 45, yaw: 0 },
-  { id: 'getaway-cart', type: 'cart', x: 221, z: 46, yaw: 0 },
+  at(209, 46, { id: 'getaway-compact', type: 'car', yaw: 0 }),
+  at(215, 46, { id: 'getaway-suv', type: 'suv', yaw: 0 }),
+  at(221, 46, { id: 'getaway-sports', type: 'sports', yaw: 0 }),
 ];
 const piece = (kind, x, z, w, d, h) => ({ kind, x, z, w, d, h });
-export const INDUSTRIAL_SOLIDS = [
+/** Authored local frame (renderers). */
+export const INDUSTRIAL_SOLIDS_LOCAL = [
   piece('wall', 191, 1, 29, .6, 7), piece('wall', 177, 12.5, .6, 23, 7),
   piece('wall', 205, 12.5, .6, 23, 7),
   piece('front', 181.6, 24, 9.2, .6, 7), piece('front', 200.4, 24, 9.2, .6, 7),
@@ -35,23 +45,27 @@ export const INDUSTRIAL_SOLIDS = [
   piece('equipment', 182.1, 1.74, 5.78, .92, 3.35),
   piece('equipment', 199.45, 1.74, 5.78, .92, 3.35),
 ];
+export const INDUSTRIAL_SOLIDS = [
+  ...INDUSTRIAL_SOLIDS_LOCAL.map(b => ({ ...b, ...at(b.x, b.z) })),
+  { kind: 'safehouse', ...SAFEHOUSE_LOT },
+];
 export const INDUSTRIAL_NODES = [
-  { id: 'freight-west', x: 151, z: 55.55 }, { id: 'freight-east', x: 265, z: 55.55 },
-  { id: 'freight-north', x: 151, z: -24 }, { id: 'freight-service', x: 265, z: -24 },
+  at(151, 55.55, { id: 'freight-west' }), at(265, 55.55, { id: 'freight-east' }),
+  at(151, -24, { id: 'freight-north' }), at(265, -24, { id: 'freight-service' }),
 ];
 export const INDUSTRIAL_LINKS = [
-  ['freight-west', 'freight-east'], ['freight-east', 'e'],
+  ['freight-west', 'freight-east'],
   ['freight-west', 'freight-north'], ['freight-north', 'freight-service'], ['freight-service', 'freight-east'],
 ];
 export const OBJECTIVES = [
-  ['Meet the contact', 'Talk to Sade at the west freight gate and accept the job.'],
-  ['Reach the warehouse', 'Use the open loading doors at Bay 04.'],
+  ['Meet the contact', 'Drive out through the South Gate to Metropolitan City. Sade waits outside Saltworks Café, Harbour Exchange.'],
+  ['Reach the warehouse', 'Orisun Freight, Industrial District. Use the open loading doors at Bay 04.'],
   ['Survive the encounter', 'Clear the guards and the tactical operative. Use the cargo stacks for cover.'],
   ['Secure the package', 'Pick up the marked case inside the warehouse.'],
   ['Survive the ambush', 'Deal with the reinforcements at the loading yard. The fuel drum is unstable.'],
   ['Find a getaway vehicle', 'Take the wheel of a vehicle in the east motor pool.'],
-  ['Escape the police', 'Break line of sight and maintain your distance. The north service road gives you another route.'],
-  ['Reach the safehouse', 'Head for the shuttered maintenance office off the north service road.'],
+  ['Lose the police', 'Break line of sight, get out of the search area and stay hidden until the search is called off.'],
+  ['Reach the safehouse', 'Head for the lock-up on Baobab Close in the Residential District.'],
   ['Deliver the package', 'Stop, get out, and hand the case to Sade.'],
   ['Complete the mission', 'Commit the delivery and open the debrief.'],
 ];

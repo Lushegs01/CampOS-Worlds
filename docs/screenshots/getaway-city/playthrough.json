@@ -1,0 +1,36 @@
+{
+  "part": "journey",
+  "log": [
+    {
+      "t": 12,
+      "what": "on campus",
+      "at": [
+        0,
+        36
+      ],
+      "region": "campus"
+    },
+    {
+      "t": 19,
+      "what": "screenshot 01-campus-briefing",
+      "at": [
+        0,
+        36
+      ],
+      "region": "campus"
+    }
+  ],
+  "errors": [],
+  "bugs": [
+    {
+      "what": "playthrough stopped",
+      "detail": "page.evaluate: TypeError: Cannot read properties of null (reading 'dispatchEvent')\n    at eval (eval at evaluate (:290:30), <anonymous>:5:27)\n    at async <anonymous>:316:30",
+      "at": {
+        "at": [
+          null,
+          null
+        ]
+      }
+    }
+  ]
+}
