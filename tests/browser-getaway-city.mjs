@@ -56,7 +56,15 @@ async function walk(x, z, { radius = 1.3, timeout = 30000, sprint = true } = {})
   if (sprint) await page.keyboard.down('Shift');
   try {
     await look(x, z, -.02); await page.keyboard.down('w');
-    await until(async () => { if (distance(self(), { x, z }) < radius) return true; if (mission()?.failed) throw Error(mission().failed); await look(x, z, -.02); return false; }, `walk to ${x},${z} ${JSON.stringify(snapshot())}`, timeout);
+    // Like a player: if something is in the way (a parked car, a bin), sidestep and carry on.
+    let last = { x: self().x, z: self().z, at: Date.now() }, side = 'a';
+    await until(async () => {
+      const p = self();
+      if (distance(p, { x, z }) < radius) return true; if (mission()?.failed) throw Error(mission().failed);
+      if (distance(p, last) > .6) last = { x: p.x, z: p.z, at: Date.now() };
+      else if (Date.now() - last.at > 1500) { await page.keyboard.down(side); await sleep(900); await page.keyboard.up(side); side = side === 'a' ? 'd' : 'a'; last.at = Date.now(); }
+      await look(x, z, -.02); return false;
+    }, `walk to ${x},${z} ${JSON.stringify(snapshot())}`, timeout);
   } finally { await page.keyboard.up('w'); if (sprint) await page.keyboard.up('Shift'); }
   await sleep(170);
 }
