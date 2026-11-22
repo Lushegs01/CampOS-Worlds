@@ -1,3 +1,4 @@
+import { WORLD_SOUTH } from '../../shared/metro.mjs';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { COLLIDERS, TREES } from '../../shared/campus.mjs';
@@ -64,7 +65,8 @@ export function layoutMask() {
 
 /** Terrain height: the campus is graded flat; hills and a forested ridge rise beyond the walls. */
 export function terrainHeight(x: number, z: number) {
-  const ox = Math.max(0, Math.abs(x) - 1420), oz = Math.max(0, Math.abs(z) - 1420), d = Math.hypot(ox, oz);
+  // Flat across the campus square and south to Metropolitan City's limits (the city and expressway are graded).
+  const ox = Math.max(0, Math.abs(x) - 1420), oz = Math.max(0, -z - 1420, z - (WORLD_SOUTH + 60)), d = Math.hypot(ox, oz);
   if (d <= 0) return 0;
   const ramp = Math.min(1, d / 90), n = Math.sin(x * .021) * Math.cos(z * .017) * .5 + Math.sin(x * .047 + z * .031) * .3 + Math.sin((x - z) * .011) * .6;
   return ramp * ramp * (14 + 16 * n) + Math.min(d, 6) * .12;
@@ -73,13 +75,14 @@ export function terrainHeight(x: number, z: number) {
 export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: QualityProfile }) {
   const geometry = useMemo(() => {
     // Dense in the campus (1 m), coarser beyond; positions in metres with world-space UVs.
-    const g = new THREE.PlaneGeometry(3600, 3600, quality.terrainSegments, quality.terrainSegments); g.rotateX(-Math.PI / 2);
+    // (4,500 m north–south: the campus square plus the expressway and Metropolitan City to the south.)
+    const g = new THREE.PlaneGeometry(3600, 4500, quality.terrainSegments, Math.round(quality.terrainSegments * 1.25)); g.rotateX(-Math.PI / 2);
     const p = g.getAttribute('position') as THREE.BufferAttribute, uv = g.getAttribute('uv') as THREE.BufferAttribute;
     for (let i = 0; i < p.count; i++) {
       let x = p.getX(i), z = p.getZ(i);
       // Pull vertices towards the centre so the campus area gets most of the resolution.
-      const f = (v: number) => v * (.35 + .65 * Math.abs(v) / 1800);
-      x = f(x); z = f(z);
+      const f = (v: number, half: number) => v * (.35 + .65 * Math.abs(v) / half);
+      x = f(x, 1800); z = f(z, 2250) + 450;
       p.setXYZ(i, x, terrainHeight(x, z) - .002, z); uv.setXY(i, x, -z);
     }
     g.computeVertexNormals();

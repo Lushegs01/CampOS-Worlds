@@ -1,7 +1,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { HARBOUR, HARBOUR_BLOCKS, HARBOUR_BUILDINGS, HARBOUR_NODES, HARBOUR_PARKING, inHarbour } from '../../shared/harbour.mjs';
+import { HARBOUR, HARBOUR_BLOCKS, HARBOUR_BUILDINGS, HARBOUR_NODES, HARBOUR_PARKING, inHarbour } from '../../shared/harbour-local.mjs';
+import { METRO_SHIFT } from '../../shared/metro.mjs';
 import { player, roomPlayback, useGame } from '../state';
 import Avatar, { type AvatarMotion } from '../avatar/Avatar';
 import { AvatarBoundary } from '../avatar/AvatarBoundary';
@@ -130,14 +131,15 @@ export default function HarbourDistrict({ lib }: { lib: Materials }) {
     check.current -= dt;
     if (check.current > 0) return;
     check.current = .3;
-    const {x,z} = player;
+    // (Local frame: the Exchange was authored beside the old campus hub and is drawn shifted into the city.)
+    const x = player.x - METRO_SHIFT.x, z = player.z - METRO_SHIFT.z;
     const range = quality === 'low' ? 100 : 175;
     const bits = inHarbour(x,z,range) ? HARBOUR_BLOCKS.reduce((mask,b,i) =>
       Math.hypot(b.x-x,b.z-z) < range + ((active.current & (1<<i)) ? 20 : 0) ? mask | 1<<i : mask, 0) : 0;
     if (bits !== active.current) { active.current = bits; setVisible(bits); }
   });
   if (visible <= 0) return null;
-  return <group name="harbour:district">
+  return <group name="harbour:district" position={[METRO_SHIFT.x, 0, METRO_SHIFT.z]}>
     <StreetDetail lib={lib}/>
     {HARBOUR_BLOCKS.map((b,i) => (visible & (1<<i)) ? <Parcel key={b.id} data={b} lib={lib} low={quality === 'low'}/> : null)}
     {HARBOUR_NODES.filter(n => n.z > -1).map(n => <Signal key={n.id} x={n.x+5.2} z={n.z-5.2} heading={n.z > 10 ? Math.PI/2 : 0}/>)}

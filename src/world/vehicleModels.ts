@@ -123,6 +123,7 @@ const LIVERIES: Record<string, { paint: string; accent: string; metallic: number
   'getaway-compact': { paint: '#607268', accent: '#222b26', metallic: .48 },
   'getaway-shuttle': { paint: '#c2b6a0', accent: '#526966', metallic: .15 },
   'getaway-cart': { paint: '#876640', accent: '#ddd4bc', metallic: .19 },
+  'getaway-suv': { paint: '#2b2f2c', accent: '#151717', metallic: .55 }, 'getaway-sports': { paint: '#a3261f', accent: '#151515', metallic: .82 },
   'courtyard-car': { paint: '#eceeed', accent: '#1f5a43', metallic: .15 },
   car0: { paint: '#9ea3a8', accent: '#25292c', metallic: .75 }, car1: { paint: '#1f3a5c', accent: '#25292c', metallic: .65 }, car2: { paint: '#7d1f22', accent: '#25292c', metallic: .6 },
   shuttle: { paint: '#f2f1ec', accent: '#1f5a43', metallic: .1 }, cart0: { paint: '#1f5a43', accent: '#e8e2d2', metallic: .2 }, cart1: { paint: '#e9e4d6', accent: '#1f5a43', metallic: .1 },
@@ -131,7 +132,7 @@ function livery(id: string, type: VehicleType) {
   if (id.startsWith('getaway-unit-')) return { paint: '#d9d9cc', accent: '#273a49', metallic: .24 };
   if (LIVERIES[id]) return LIVERIES[id];
   const h = [...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-  return type === 'shuttle' ? LIVERIES.shuttle : LIVERIES[`${type}${h % (type === 'car' ? 3 : 2)}`];
+  return type === 'shuttle' ? LIVERIES.shuttle : LIVERIES[`${type === 'car' || type === 'cart' ? type : 'car'}${h % (type === 'cart' ? 2 : 3)}`];
 }
 const paints = new Map<string, THREE.MeshPhysicalMaterial>();
 function paint(color: string, metallic: number) {
@@ -489,6 +490,9 @@ function buildCart(id: string): VehicleModel {
 
 export function buildVehicleModel(id: string, type: VehicleType): VehicleModel {
   const model = type === 'shuttle' ? buildShuttle(id) : type === 'cart' ? buildCart(id) : buildCar(id);
+  // The SUV and the coupé share the sedan's lofted body, re-proportioned: taller and boxier, or low and wide.
+  if (type === 'suv') model.body.scale.set(1.02, 1.24, 1.0);
+  if (type === 'sports') model.body.scale.set(1.04, .82, 1.0);
   model.root.name = `vehicle-model:${type}`;
   return model;
 }

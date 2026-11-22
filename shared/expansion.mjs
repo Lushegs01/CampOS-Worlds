@@ -1,5 +1,6 @@
 import { HARBOUR_BLOCKS, HARBOUR_LINKS, HARBOUR_NODES, inHarbour } from './harbour.mjs';
 import { INDUSTRIAL_NODES, INDUSTRIAL_LINKS, inDistrict } from './getaway.mjs';
+import { METRO_STREETS, METRO_BUILDINGS, inMetro } from './metro.mjs';
 // Metres; +X east, +Z south. Stable authored data is used by rendering, maps and physics.
 export const WORLD_LIMIT = 1400;
 export const DISTRICTS = [
@@ -17,8 +18,27 @@ export const ROAD_NODES = [
  {id:'east-village',x:760,z:55.55},{id:'east-park',x:760,z:650},{id:'gate-east',x:160,z:1250},
  {id:'north',x:0,z:-80},{id:'gate',x:0,z:1250}, ...INDUSTRIAL_NODES, ...HARBOUR_NODES,
 ];
+// Metropolitan City's street grid: a node wherever two streets meet (existing Exchange and freight nodes are
+// reused), and an edge between consecutive nodes along each street.
+const METRO_EDGES=(()=>{
+ const key=(x,z)=>Math.round(x*100)+':'+Math.round(z*100),byKey=new Map(ROAD_NODES.map(n=>[key(n.x,n.z),n]));
+ const nodeAt=(x,z)=>{const k=key(x,z);let n=byKey.get(k);if(!n){n={id:`metro-${Math.round(x)}-${Math.round(z)}`,x,z};byKey.set(k,n);ROAD_NODES.push(n);}return n;};
+ const on=(st,x,z)=>st[0]==='h'?Math.abs(z-st[1])<.01&&x>=Math.min(st[2],st[3])-.01&&x<=Math.max(st[2],st[3])+.01:Math.abs(x-st[1])<.01&&z>=Math.min(st[2],st[3])-.01&&z<=Math.max(st[2],st[3])+.01;
+ const out=[];
+ for(const st of METRO_STREETS){
+  const pts=[];const push=(x,z)=>{if(on(st,x,z)&&!pts.some(p=>Math.abs(p[0]-x)<.01&&Math.abs(p[1]-z)<.01))pts.push([x,z]);};
+  if(st[0]==='h'){push(st[2],st[1]);push(st[3],st[1]);}else{push(st[1],st[2]);push(st[1],st[3]);}
+  for(const o of METRO_STREETS){if(o===st||o[0]===st[0])continue;if(st[0]==='h')push(o[1],st[1]);else push(st[1],o[1]);}
+  for(const n of [...ROAD_NODES])push(n.x,n.z);
+  pts.sort((a,b)=>st[0]==='h'?a[0]-b[0]:a[1]-b[1]);
+  for(let i=1;i<pts.length;i++){const a=nodeAt(...pts[i-1]),b=nodeAt(...pts[i]);if(!out.some(([p,q])=>p===a.id&&q===b.id||p===b.id&&q===a.id))out.push([a.id,b.id]);}
+ }
+ return out;
+})();
 const roadNode=id=>{const node=ROAD_NODES.find(n=>n.id===id);if(!node)throw Error('Unknown road node '+id);return node;};
-const edges=[['nw','na'],['na','nc'],['nc','ne'],['nw','w'],['w','sw'],['ne','e'],['e','se'],['sw','sc'],['sc','se'],['w','hub'],['hub','freight-west'],['hub','sc'],['sc','gate'],['nc','north'],['e','east-village'],['se','east-park'],['gate','gate-east'],...INDUSTRIAL_LINKS.filter(([a,b])=>a!=='freight-east'||b!=='e'),...HARBOUR_LINKS];
+const edges=[['nw','na'],['na','nc'],['nc','ne'],['nw','w'],['w','sw'],['ne','e'],['e','se'],['sw','sc'],['sc','se'],['w','hub'],['hub','sc'],['sc','gate'],['nc','north'],['e','east-village'],['se','east-park'],['gate','gate-east'],...INDUSTRIAL_LINKS,...HARBOUR_LINKS];
+// (Metro streets that duplicate an Exchange or freight road are left out.)
+for(const [a,b] of METRO_EDGES)if(!edges.some(([p,q])=>p===a&&q===b||p===b&&q===a))edges.push([a,b]);
 // Two-lane carriageways, 8 m kerb to kerb. The hub road continues the courtyard's own road (z 51.6–59.5).
 export const ROAD_WIDTH=8;
 export const ROADS=edges.map(([a,b],i)=>({id:`road-${i}`,a:roadNode(a),b:roadNode(b),width:ROAD_WIDTH}));
@@ -66,7 +86,7 @@ export const ROADSIDE_TREES=(()=>{
   const avenue=!horizontal&&c===0&&lo>=55;
   for(const side of [-1,1])for(let t=lo+16+(side>0?0:12);t<hi-14;t+=24){
    const x=horizontal?t:c+side*(r.width/2+4.2),z=horizontal?c+side*(r.width/2+4.2):t;
-   if(inDistrict(x,z,5)||inHarbour(x,z,2)||Math.abs(x)<100&&z>35&&z<75)continue;
+   if(inDistrict(x,z,5)||inHarbour(x,z,2)||near(x,z,METRO_BUILDINGS,3.5)||inMetro(x,z)&&z<1810&&x>-8||Math.abs(x)<100&&z>35&&z<75)continue;
    if(ROAD_NODES.some(n=>Math.hypot(n.x-x,n.z-z)<16)||transportSurface(x,z,-2.5))continue;
    if(near(x,z,BUILDINGS,4)||near(x,z,PARKING,4)||near(x,z,pitch,2)||STOPS.some(p=>Math.hypot(p.x-x,p.z-z)<7))continue;
    if(DISTRICTS.some(d=>Math.abs(x-(d.x+48))<4&&Math.abs(z-d.z)<12))continue;

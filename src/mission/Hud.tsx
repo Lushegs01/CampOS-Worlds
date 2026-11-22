@@ -4,7 +4,9 @@ import { INDUSTRIAL_LOCATION, OBJECTIVES, O, distance } from '../../shared/getaw
 import { WEAPON_BY_ID } from '../../shared/arena/weapons.mjs';
 import { input, player, useGame } from '../state';
 import { currentVehicle, useVehicle } from '../vehicles/client';
-import { activeCombat, command, equip, heldFire, openMissionJournal, setAim, useGetaway, type Point, type Report } from './client';
+import { activeCombat, command, equip, heldFire, openMissionJournal, setAim, surrender, useGetaway, type Point, type Report } from './client';
+import { RadioCaptions } from './radio';
+import { IncomingBrief, RegionBanner } from './Briefing';
 import { SpokenLine } from '../audio/SpokenLine';
 import { SADE } from './dialogue';
 import './mission.css';
@@ -76,16 +78,18 @@ export default function GetawayHud() {
       <div className="getaway-hud-header"><span>SHADOW PROTOCOL</span><button aria-label="Open mission journal" onClick={() => openMissionJournal()}><ClipboardList size={17}/></button></div>
       <h2>{OBJECTIVES[stage][0]}</h2><p>{OBJECTIVES[stage][1]}</p>
       {mission.mark && <Guide target={mission.mark}/>}
-      {mission.wanted > 0 && <div className="getaway-wanted">
-        <span aria-label={`Wanted level ${mission.wanted}`}>{[1,2,3].map(i => <Shield key={i} size={17} fill={mission.wanted >= i ? 'currentColor' : 'none'} opacity={mission.wanted >= i ? 1 : .28}/>)}</span>
-        <b>{mission.wanted === 1 ? 'Alarm reported' : mission.spotted ? 'Police have visual' : mission.escape > 0 ? 'Evading police' : 'Police searching'}</b>
+      {mission.wanted > 0 && <div className={`getaway-wanted${mission.spotted ? ' seen' : ''}`}>
+        <span aria-label={`Wanted level ${mission.wanted} of 5: ${mission.police?.level ?? ''}`}>{[1,2,3,4,5].map(i => <Shield key={i} size={16} fill={mission.wanted >= i ? 'currentColor' : 'none'} opacity={mission.wanted >= i ? 1 : .28}/>)}</span>
+        <b>{mission.police?.level}</b>
+        <small>{mission.police?.surrender ? 'Surrendering · officers approaching' : mission.police?.contained ? 'Surrounded · break out, fight, or surrender' : mission.spotted ? 'Police have visual' : mission.police?.searching ? 'Out of sight · police searching the area' : 'Units responding to reports'}</small>
         {mission.closest !== null && <small>Nearest unit · {mission.closest} m</small>}
-        {mission.escape > 0 && <progress aria-label="Evasion progress" value={mission.escape} max={1}/>}
+        {mission.escape > 0 && !mission.spotted && <progress aria-label="Search called off progress" value={mission.escape} max={1}/>}
       </div>}
       {mission.carried && <small className="getaway-case-status"><Check size={12}/> Case secured</small>}
     </aside>}
-    {!dialogue && mission?.officers?.some(o => o.mode === 'deploy' || o.mode === 'cover') &&
-      <p className="getaway-police-command" role="status"><b>Police</b> Stop. Stay where you are.</p>}
+    {!dialogue && <RadioCaptions/>}<RegionBanner/>{!dialogue && !mission && <IncomingBrief/>}
+    {!dialogue && mission?.police?.contained && !mission.police.surrender &&
+      <button className="getaway-surrender" onClick={() => surrender()}><kbd>H</kbd> Surrender</button>}
     {mission && !dialogue && (activeCombat(mission) || !!vehicle) && <div className="getaway-vitals">
       <span><b>{mission.health}</b> HP</span><progress aria-label="Health" value={mission.health} max={100}/>
       {activeCombat(mission) && !vehicle && <><b>{WEAPON_BY_ID.get(mission.gun.id)?.name}</b><span><b>{mission.gun.mag}</b> / {mission.gun.reserve}{mission.reloading > 0 && ' · Reloading'}</span></>}
@@ -109,19 +113,19 @@ export default function GetawayHud() {
         {mission?.failed ? <p className="getaway-error" role="alert">{mission.failed}</p>
           : mission?.paused ? <p>Paused at {OBJECTIVES[stage][0].toLowerCase()}.</p>
           : history ? <p>Completed · {history.xp} campaign XP · {history.credits} credits · {history.milestone}</p>
-          : <p>A freight pickup turns into an escape through the Industrial District.</p>}
+          : <p>Leave Òrìṣun University through the South Gate, meet Sade in Metropolitan City, and recover a case from a freight yard in the Industrial District.</p>}
         <ol className="getaway-objectives">{OBJECTIVES.map(([title], index) => <li key={title} aria-current={index === stage ? 'step' : undefined}>
           {(index < stage || !mission && !!history) ? <Check size={15}/> : <Circle size={12}/>} {title}</li>)}</ol>
         {!mission && history && <Statistics report={history.report}/>}
         {mission && <p>{OBJECTIVES[stage][1]} Optional objective · Defeat a reinforcement with the fuel drum.</p>}
-        {mission && <p className="getaway-keys"><kbd>1–3</kbd> Equip <kbd>R</kbd> Reload <kbd>Left click</kbd> Fire <kbd>Right click</kbd> Aim <kbd>Space</kbd> Brake</p>}
+        {mission && <p className="getaway-keys"><kbd>1–3</kbd> Equip <kbd>R</kbd> Reload <kbd>Left click</kbd> Fire <kbd>Right click</kbd> Aim <kbd>Space</kbd> Brake <kbd>H</kbd> Surrender when surrounded</p>}
         <footer>{mission ? <>
           {!mission.failed && <button className="primary" onClick={close}>Resume</button>}
           <button className={mission.failed ? 'primary' : undefined} onClick={() => activate('retry')}>Retry checkpoint</button>
           <button onClick={() => activate('abandon')}>Abandon run</button>
         </> : <>
           {resume !== null && <button className="primary" onClick={() => activate('resume')}>Resume checkpoint</button>}
-          <button className={resume === null ? 'primary' : undefined} onClick={() => { useGame.getState().set({ destination: INDUSTRIAL_LOCATION.id }); close(); }}><MapPin size={15}/> {history ? 'Find Sade to replay' : 'Mark the freight gate'}</button>
+          <button className={resume === null ? 'primary' : undefined} onClick={() => { useGame.getState().set({ destination: INDUSTRIAL_LOCATION.id }); close(); }}><MapPin size={15}/> {history ? 'Find Sade to replay' : 'Set route to Sade'}</button>
         </>}</footer>
         {!mission && status !== 'connected' && <small>Connect to the campus room to play.</small>}
       </>}

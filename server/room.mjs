@@ -615,7 +615,7 @@ export function createRoom({port=3001,host='127.0.0.1',origins=['http://localhos
  // (shared/movement.mjs); vehicles block walking into them, never walking out of one's footprint.
  const footAllowed=(c,x,z,fx,fz)=>{
   const overlaps=v=>vehicleContains(v,x,z)&&!vehicleContains(v,fx,fz);
-  return !fleet.vehicles.some(overlaps)&&!c.getaway?.fleet.vehicles.some(overlaps)&&!c.getaway?.police.some(overlaps)&&furnitureAllows(layoutOf(c),x,z,fx,fz);
+  return !fleet.vehicles.some(overlaps)&&!c.getaway?.fleet.vehicles.some(overlaps)&&!c.getaway?.pd.units.some(overlaps)&&!c.getaway?.streets.cars.some(overlaps)&&furnitureAllows(layoutOf(c),x,z,fx,fz);
  };
  const walk=(c,t)=>advanceWalker(c,c.input,c.lastInput,t,(x,z,fx,fz)=>footAllowed(c,x,z,fx,fz));
  let last=performance.now(),tick=0;

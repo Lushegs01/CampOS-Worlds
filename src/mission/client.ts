@@ -9,8 +9,10 @@ import { receiveMissionVehicles, useVehicle, type Vehicle } from '../vehicles/cl
 import { portraitBlocked } from '../mobile/orientation';
 
 export type Point = { x: number; z: number };
-export type MissionCar = Vehicle & { condition: number; police?: boolean; mode?: string };
-export type Officer = Point & { id: string; side: number; yaw: number; mode: 'dismount' | 'deploy' | 'cover' | 'returning'; seat: Point; age: number };
+export type MissionCar = Vehicle & { condition: number; police?: boolean; mode?: string; siren?: boolean; traffic?: boolean; livery?: string };
+export type Officer = Point & { id: string; side: number; yaw: number; mode: 'dismount' | 'deploy' | 'cover' | 'aim' | 'fire' | 'board' | 'seated' | 'search' | 'arrest' | 'down'; seat: Point; age: number; hp: number; weapon?: string };
+export type Civilian = Point & { id: string; model: string; yaw: number; mode: string; speed: number };
+export type PoliceState = { level: string; contained: boolean; surrender: boolean; searching: boolean; lastKnown: (Point & { r: number }) | null };
 export type Actor = Point & { id: string; kind: 'guard' | 'operative'; yaw: number; hp: number; maxHp: number; mode: string };
 export type MissionEvent = Point & { id: number; y: number; kind: string; end?: [number, number, number]; weapon?: string; impact?: boolean; normal?: [number, number, number]; surface?: 'metal' | 'wood' | 'concrete' | 'actor'; stage?: number };
 export type Report = { duration: number; defeated: number; distance: number; topSpeed: number; crashes: number; blastKills: number };
@@ -19,13 +21,14 @@ export type Mission = {
   stage: number; checkpoint: number; paused: boolean; failed: string | null; health: number;
   carried: boolean; ambushed: boolean; exploded: boolean; wanted: number; spotted: boolean;
   closest: number | null; escape: number; gun: { id: string; mag: number; reserve: number };
-  slot: number; reloading: number; mark: Point | null; actors: Actor[]; officers?: Officer[]; vehicles: MissionCar[];
+  slot: number; reloading: number; mark: Point | null; actors: Actor[]; officers?: Officer[]; civilians?: Civilian[]; police?: PoliceState; vehicles: MissionCar[];
   events: MissionEvent[]; report: Report | null; reward: { saved: boolean; first?: boolean; completion?: Receipt } | null; saveError: boolean;
 };
 type State = { mission: Mission | null; history: Receipt | null; resume: number | null; brief: boolean; journal: boolean; aim: boolean };
 export const useGetaway = create<State>(() => ({ mission: null, history: null, resume: null, brief: false, journal: false, aim: false }));
 export const command = (action: string, data = {}) => send({ type: 'getaway', action, ...data });
-export const activeCombat = (m = useGetaway.getState().mission) => !!m && (m.stage === O.combat || m.stage === O.package || m.stage === O.ambush);
+/** Weapons out: in the freight yard during the operation, and on foot in the city while the police are after you. */
+export const activeCombat = (m = useGetaway.getState().mission) => !!m && (m.stage === O.combat || m.stage === O.package || m.stage === O.ambush || m.stage >= O.vehicle && m.stage <= O.deliver && m.wanted > 0);
 const getWeapon = () => WEAPON_BY_ID.get(useGetaway.getState().mission?.gun.id ?? '');
 export const combatView = { blend: 0 };
 export const shotInput = { held: false, next: 0, started: 0, kick: 0, recoilAt: -Infinity };
@@ -36,8 +39,12 @@ export function resetMissionControls() {
 }
 const canFire = () => activeCombat() && !useVehicle.getState().id && !isMissionOverlay() && !useGame.getState().panel && !document.hidden && !portraitBlocked();
 export function setAim(aim: boolean) {
-  if (!aim || canFire()) useGetaway.setState({ aim });
+  if (aim && !canFire()) return;
+  if (aim !== useGetaway.getState().aim && (useGetaway.getState().mission?.wanted ?? 0) > 0) command('aim', { on: aim });
+  useGetaway.setState({ aim });
 }
+/** Give up to the police (on foot, or in a stopped car). */
+export function surrender() { if ((useGetaway.getState().mission?.wanted ?? 0) > 0) command('surrender'); }
 export function fire(fromPress = false) {
   const w = getWeapon();
   if (!w || !canFire()) return;
@@ -117,6 +124,7 @@ export function initMission() {
   const key = (e: KeyboardEvent) => {
     if (e.repeat || useGame.getState().phase !== 'playing' || useGame.getState().panel || (e.target as HTMLElement).matches('input,textarea,select')) return;
     if (e.code === 'KeyJ') { e.preventDefault(); openMissionJournal(!useGetaway.getState().journal); }
+    if (e.code === 'KeyH' && useGetaway.getState().mission?.police?.contained) { e.preventDefault(); surrender(); }
   };
   window.addEventListener('keydown', key);
   const reset = () => resetMissionControls();

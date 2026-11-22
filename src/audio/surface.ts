@@ -1,5 +1,6 @@
 import { inHarbour } from '../../shared/harbour.mjs';
 import { inDistrict } from '../../shared/getaway.mjs';
+import { METRO_SHIFT, inMetro, METRO_ROWS } from '../../shared/metro.mjs';
 import { inDormRoom } from '../../shared/dorm.mjs';
 import { BUILDINGS, DRIVEWAYS, EXPANSION_PATHS, PARKING } from '../../shared/expansion.mjs';
 import { FOOTPRINTS, PITCH, inRect, isLawn, onPath } from '../world/layout';
@@ -16,7 +17,9 @@ export function surfaceAt(x: number, z: number): Surface {
   if (inDormRoom(x, z)) return 'wood';
   // Inside the campus walls everything that is not lawn or the pitch is paved or a floor.
   if (inCourtyard(x, z)) return isLawn(x, z) || inRect(x, z, PITCH) ? 'grass' : 'hard';
-  if (inHarbour(x, z) || (inDistrict(x,z) && x > 155 && x < 261 && z > -20 && z < 51)) return 'hard';
+  if (inHarbour(x, z) || (inDistrict(x,z) && x - METRO_SHIFT.x > 155 && x - METRO_SHIFT.x < 261 && z - METRO_SHIFT.z > -20 && z - METRO_SHIFT.z < 51)) return 'hard';
+  // Metropolitan City is paved north of the Residential District (whose gardens fall through to grass below).
+  if (inMetro(x, z) && z < METRO_ROWS.res1 - 30) return 'hard';
   if (onPath(x, z) || inRect(x, z, courtyardLot) || roadsideHeight(x, z) > 0 || CARRIAGEWAY.some(r => inRect(x, z, r))) return 'hard';
   if (OPEN_WORLD_HARD.some(r => centred(r, x, z)) || BUILDINGS.some(b => centred(b, x, z, .5))) return 'hard';
   return 'grass';

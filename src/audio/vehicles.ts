@@ -51,7 +51,7 @@ export function vehicleSound(id: string, type: Type, v: { x: number; z: number; 
   const speed = Math.abs(v.speed), pace = Math.min(1, speed / VEHICLE_TYPES[type].maxSpeed), load = Math.max(0, Math.min(1, accel / 4));
   // Engine: idle once started, then pitch and level follow speed, pressing harder under acceleration.
   if (type !== 'cart') {
-    const spec = ENGINE[type];
+    const spec = ENGINE[type === 'suv' ? 'shuttle' : 'car'];
     if (s.running && now >= s.startAt && !s.engine) s.engine = loop('engine', { at, gain: spec.gain * .6, rate: spec.rate * .85, ref: 4 });
     if (s.engine) {
       s.engine.move(at);

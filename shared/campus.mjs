@@ -6,11 +6,12 @@ import { DOORS, TABLES } from './interactions.mjs';
 import { LOCKED_ACCENTS } from './achievements.mjs';
 import { SHOP_ITEMS, PREMIUM_MODELS, PREMIUM_ACCESSORIES } from './shop.mjs';
 import { DORM_WALLS } from './dorm.mjs';
+import { METRO_SOLIDS, METRO_PARKED_SOLIDS, METRO_LOCATIONS, WORLD_SOUTH } from './metro.mjs';
 export const BRAND = { name: 'CampOS', product: 'Worlds', campus: 'Òrìṣun Campus', subtitle: 'A new world. Your people.', room: 'The Courtyard' };
 // Spawn on the main avenue, facing north towards The Confluence and Horizon Auditorium.
 export const SPAWN = { x: 0, y: 0, z: 36 };
 export const LOCATIONS = [
- ...EXPANSION_LOCATIONS, LAB_LOCATION, INDUSTRIAL_LOCATION, HARBOUR_LOCATION,
+ ...EXPANSION_LOCATIONS, LAB_LOCATION, INDUSTRIAL_LOCATION, HARBOUR_LOCATION, ...METRO_LOCATIONS,
  {id:'orientation',name:'Welcome Pavilion',type:'Orientation',x:-12,z:26,icon:'compass',description:'Your first steps, made a little easier.'},
  {id:'landmark',name:'The Confluence',type:'Landmark',x:0,z:8,icon:'sparkles',description:'Different paths. A shared future.'},
  {id:'library',name:'Adunni Learning Commons',type:'Library',x:-24.5,z:-1.6,icon:'book',description:'Room for your next big idea.'},
@@ -63,6 +64,8 @@ const LIBRARY = [
 ];
 export const COLLIDERS = [
  ...EXPANSION_WALLS, ...LAB_WALLS, ...INDUSTRIAL_SOLIDS, ...HARBOUR_BUILDINGS, ...HARBOUR_FURNITURE,
+ // Metropolitan City (shared/metro.mjs): building shells and parked cars.
+ ...METRO_SOLIDS, ...METRO_PARKED_SOLIDS,
  ...LOGISTICS_SITES.map(s=>({x:s.x+.9,z:s.z,w:.55,d:.4,h:1.4})),
  // The residents' wing behind Palm House (shared/dorm.mjs).
  ...DORM_WALLS,
@@ -104,7 +107,7 @@ function hitsStatic(x,z,r){for(let ix=Math.floor((x-r)/32);ix<=Math.floor((x+r)/
 const seen=new Set(),found=[];
 /** Static colliders that may overlap the box [x0, x1] × [z0, z1]. Returns a shared array, valid until the next call. */
 export function collidersIn(x0,z0,x1,z1){seen.clear();found.length=0;for(let ix=Math.floor(x0/32);ix<=Math.floor(x1/32);ix++)for(let iz=Math.floor(z0/32);iz<=Math.floor(z1/32);iz++){const list=collisionGrid.get(cell(ix,iz));if(list)for(const b of list)if(!seen.has(b)){seen.add(b);found.push(b);}}return found;}
-export function blocked(x,z,r=PLAYER_RADIUS){return !Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>WORLD_LIMIT||Math.abs(z)>WORLD_LIMIT||hitsStatic(x,z,r)||DOORS.some(d=>!doorOpen[d.id]&&hit(d.collider,x,z,r));}
+export function blocked(x,z,r=PLAYER_RADIUS){return !Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>WORLD_LIMIT||z< -WORLD_LIMIT||z>WORLD_SOUTH||hitsStatic(x,z,r)||DOORS.some(d=>!doorOpen[d.id]&&hit(d.collider,x,z,r));}
 const SLIP=[.05,-.05,.1,-.1];
 export function moveWithCollisions(x,z,dx,dz){
  const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.18));

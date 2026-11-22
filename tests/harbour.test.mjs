@@ -5,14 +5,17 @@ import { Box3, Vector3 } from 'three';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
-import { HARBOUR_BLOCKS, HARBOUR_BUILDINGS, HARBOUR_LOCATION, HARBOUR_TRAFFIC } from '../shared/harbour.mjs';
+import { HARBOUR_BLOCKS, HARBOUR_BUILDINGS, HARBOUR_LOCATION, HARBOUR_TRAFFIC, HARBOUR_LOCAL } from '../shared/harbour.mjs';
 import { createFleet, vehicleBlocked } from '../shared/vehicles.mjs';
 import { roadRoute } from '../shared/expansion.mjs';
+import { METRO_SHIFT } from '../shared/metro.mjs';
 import { LOCATIONS, blocked } from '../shared/campus.mjs';
 
 test('Harbour Exchange connects to the existing road and map; the same parcels block movement',async()=>{
   assert.ok(LOCATIONS.includes(HARBOUR_LOCATION));
-  const route=roadRoute({x:136,z:55.55},HARBOUR_LOCATION);
+  // From the campus, through the South Gate and down the Gateway Expressway into Metropolitan City.
+  const route=roadRoute({x:0,z:55.55},HARBOUR_LOCATION);
+  assert.ok(route.points.some(p=>p.id==='gate'),'via the South Gate');
   assert.ok(Number.isFinite(route.distance)&&route.points.length>2);
   for(const b of HARBOUR_BUILDINGS){
     assert.ok(blocked(b.x,b.z));
@@ -21,7 +24,8 @@ test('Harbour Exchange connects to the existing road and map; the same parcels b
   await MeshoptDecoder.ready;
   const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.decoder':MeshoptDecoder});
   let total=0;
-  for(const p of HARBOUR_BLOCKS){
+  // (The GLBs are authored in the Exchange's local frame and drawn at METRO_SHIFT.)
+  for(const p of HARBOUR_LOCAL.HARBOUR_BLOCKS){
     const file=new URL('../public/assets/harbour/'+p.id+'.glb',import.meta.url);
     const asset=await io.read(file.pathname),bounds=new Box3();
     assert.ok(asset.getRoot().listMeshes().length<18);
@@ -48,7 +52,7 @@ test('Harbour Exchange connects to the existing road and map; the same parcels b
 });
 
 test('room traffic follows its route, yields to a pedestrian, and is reserved from player entry',()=>{
-  const f=createFleet(), driver={id:'guest',x:428,z:16,y:0,vehicle:null}, dt=.04;
+  const f=createFleet(), driver={id:'guest',x:428+METRO_SHIFT.x,z:16+METRO_SHIFT.z,y:0,vehicle:null}, dt=.04;
   const traffic=HARBOUR_TRAFFIC.map(r=>f.find(r.id));
   const start=traffic.map(({x,z})=>({x,z}));
   for(let i=0;i<750;i++) f.step(dt,[driver],1+i*40);
