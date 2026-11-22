@@ -1,0 +1,403 @@
+{
+  "part": "return",
+  "log": [
+    {
+      "t": 17,
+      "what": "on campus",
+      "at": [
+        0,
+        36
+      ],
+      "region": "campus"
+    },
+    {
+      "t": 24,
+      "what": "screenshot 01-campus-briefing",
+      "at": [
+        0,
+        36
+      ],
+      "region": "campus"
+    },
+    {
+      "t": 32,
+      "what": "took the courtyard car"
+    },
+    {
+      "t": 32,
+      "what": "driving",
+      "at": [
+        13,
+        63
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 0,
+      "waypoint": "1/4"
+    },
+    {
+      "t": 47,
+      "what": "driving",
+      "at": [
+        -2,
+        163
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 9.5,
+      "waypoint": "2/4"
+    },
+    {
+      "t": 62,
+      "what": "driving",
+      "at": [
+        -2,
+        313
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 11,
+      "waypoint": "2/4"
+    },
+    {
+      "t": 77,
+      "what": "driving",
+      "at": [
+        -2,
+        479
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 11.6,
+      "waypoint": "2/4"
+    },
+    {
+      "t": 92,
+      "what": "driving",
+      "at": [
+        -2,
+        630
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 9.2,
+      "waypoint": "2/4"
+    },
+    {
+      "t": 107,
+      "what": "driving",
+      "at": [
+        0,
+        795
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 9.4,
+      "waypoint": "3/4"
+    },
+    {
+      "t": 122,
+      "what": "driving",
+      "at": [
+        -1,
+        960
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 11.7,
+      "waypoint": "3/4"
+    },
+    {
+      "t": 137,
+      "what": "driving",
+      "at": [
+        -2,
+        1118
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 8.5,
+      "waypoint": "3/4"
+    },
+    {
+      "t": 148,
+      "what": "screenshot 02-south-gate",
+      "at": [
+        -2,
+        1231
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car"
+    },
+    {
+      "t": 149,
+      "what": "driving",
+      "at": [
+        -2,
+        1234
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 0,
+      "waypoint": "2/4"
+    },
+    {
+      "t": 164,
+      "what": "driving",
+      "at": [
+        0,
+        1371
+      ],
+      "region": "expressway",
+      "vehicle": "courtyard-car",
+      "speed": 8.6,
+      "waypoint": "3/4"
+    },
+    {
+      "t": 174,
+      "what": "screenshot 03-gateway-expressway",
+      "at": [
+        -2,
+        1472
+      ],
+      "region": "expressway",
+      "vehicle": "courtyard-car"
+    },
+    {
+      "t": 175,
+      "what": "driving",
+      "at": [
+        -1,
+        1475
+      ],
+      "region": "expressway",
+      "vehicle": "courtyard-car",
+      "speed": 2,
+      "waypoint": "2/6"
+    },
+    {
+      "t": 190,
+      "what": "driving",
+      "at": [
+        -2,
+        1623
+      ],
+      "region": "metro",
+      "vehicle": "courtyard-car",
+      "speed": 10,
+      "waypoint": "3/6"
+    },
+    {
+      "t": 204,
+      "what": "screenshot 04-metropolitan-city",
+      "at": [
+        -33,
+        1700
+      ],
+      "region": "metro",
+      "vehicle": "courtyard-car"
+    },
+    {
+      "t": 205,
+      "what": "arrived in Metropolitan City",
+      "at": [
+        -33,
+        1700
+      ],
+      "region": "metro",
+      "vehicle": "courtyard-car"
+    },
+    {
+      "t": 205,
+      "what": "heading to the next junction"
+    },
+    {
+      "t": 205,
+      "what": "driving",
+      "at": [
+        -33,
+        1700
+      ],
+      "region": "metro",
+      "vehicle": "courtyard-car",
+      "speed": 0,
+      "waypoint": "2/6"
+    },
+    {
+      "t": 220,
+      "what": "driving",
+      "at": [
+        -28,
+        1689
+      ],
+      "region": "metro",
+      "vehicle": "courtyard-car",
+      "speed": -0.9,
+      "waypoint": "2/6"
+    },
+    {
+      "t": 235,
+      "what": "driving",
+      "at": [
+        -16,
+        1698
+      ],
+      "region": "metro",
+      "vehicle": "courtyard-car",
+      "speed": 11.8,
+      "waypoint": "2/6"
+    },
+    {
+      "t": 250,
+      "what": "driving",
+      "at": [
+        2,
+        1570
+      ],
+      "region": "metro",
+      "vehicle": "courtyard-car",
+      "speed": 12.8,
+      "waypoint": "4/6"
+    },
+    {
+      "t": 265,
+      "what": "driving",
+      "at": [
+        3,
+        1424
+      ],
+      "region": "expressway",
+      "vehicle": "courtyard-car",
+      "speed": 9.1,
+      "waypoint": "5/6"
+    },
+    {
+      "t": 276,
+      "what": "screenshot 13a-leaving-the-city",
+      "at": [
+        2,
+        1309
+      ],
+      "region": "expressway",
+      "vehicle": "courtyard-car"
+    },
+    {
+      "t": 277,
+      "what": "driving",
+      "at": [
+        0,
+        1306
+      ],
+      "region": "expressway",
+      "vehicle": "courtyard-car",
+      "speed": 0.6,
+      "waypoint": "2/5"
+    },
+    {
+      "t": 292,
+      "what": "driving",
+      "at": [
+        0,
+        1157
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 13.2,
+      "waypoint": "3/5"
+    },
+    {
+      "t": 307,
+      "what": "driving",
+      "at": [
+        0,
+        993
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 11.6,
+      "waypoint": "3/5"
+    },
+    {
+      "t": 322,
+      "what": "driving",
+      "at": [
+        1,
+        832
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 11.3,
+      "waypoint": "3/5"
+    },
+    {
+      "t": 337,
+      "what": "driving",
+      "at": [
+        1,
+        675
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 10.9,
+      "waypoint": "3/5"
+    },
+    {
+      "t": 352,
+      "what": "driving",
+      "at": [
+        1,
+        521
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 10.6,
+      "waypoint": "4/5"
+    },
+    {
+      "t": 367,
+      "what": "driving",
+      "at": [
+        1,
+        376
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 10.1,
+      "waypoint": "4/5"
+    },
+    {
+      "t": 382,
+      "what": "driving",
+      "at": [
+        1,
+        222
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 11.7,
+      "waypoint": "4/5"
+    },
+    {
+      "t": 396,
+      "what": "screenshot 13-back-on-campus",
+      "at": [
+        2,
+        88
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car"
+    },
+    {
+      "t": 397,
+      "what": "back at the university",
+      "at": [
+        1,
+        86
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car"
+    }
+  ],
+  "errors": [],
+  "bugs": []
+}
