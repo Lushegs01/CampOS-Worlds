@@ -63,7 +63,7 @@ async function walk(x, z, { radius = 1.3, timeout = 30000, sprint = true } = {})
 const trigger = async () => page.keyboard.press('e');
 /** Drives (W/A/S/D/Space) through a list of points; reverses out when stuck. Returns when within radius of the last. */
 async function drive(points, { radius = 6, fast = 20, timeout = 240000, stopAtEnd = true, onTick = null } = {}) {
-  let forward = false, steering = '', braking = false, back = false, i = 0, stuckSince = null, reverseUntil = 0, last = null;
+  let startAt = null, forward = false, steering = '', braking = false, back = false, i = 0, stuckSince = null, reverseUntil = 0, last = null;
   const set = async (key, on) => on ? page.keyboard.down(key) : page.keyboard.up(key);
   try {
     await until(async () => {
@@ -74,14 +74,16 @@ async function drive(points, { radius = 6, fast = 20, timeout = 240000, stopAtEn
       while (i < points.length - 1 && distance(v, points[i]) < 9) i++;
       const q = points[i], d = distance(v, q);
       if (i === points.length - 1 && d < radius) return true;
-      // Keep right of the centre line, as traffic does.
-      const h = Math.atan2(q.x - v.x, q.z - v.z), aim = d > 14 ? { x: q.x - Math.cos(h) * 1.8, z: q.z + Math.sin(h) * 1.8 } : q;
+      // Follow the road line (pure pursuit, 14 m ahead), keeping 1.8 m right of the centre line as traffic does.
+      const p0 = i > 0 ? points[i - 1] : (startAt ??= { x: v.x, z: v.z }), sx = q.x - p0.x, sz = q.z - p0.z, sl = Math.hypot(sx, sz) || 1;
+      const ux = sx / sl, uz = sz / sl, along = Math.min(sl, Math.max(0, (v.x - p0.x) * ux + (v.z - p0.z) * uz) + 14);
+      const aim = d > 16 ? { x: p0.x + ux * along - uz * 1.8, z: p0.z + uz * along + ux * 1.8 } : q;
       const err = angle(Math.atan2(aim.x - v.x, aim.z - v.z) - v.yaw);
       const end = i === points.length - 1 && stopAtEnd ? Math.max(3, d * .7) : fast;
       const max = Math.min(end, Math.abs(err) > .75 ? 4 : Math.abs(err) > .3 ? 8 : fast);
       if (Math.abs(v.speed) < .4) { stuckSince ??= Date.now(); if (Date.now() - stuckSince > 2200) { reverseUntil = Date.now() + 1500; stuckSince = null; } } else stuckSince = null;
       const reversing = Date.now() < reverseUntil;
-      const next = reversing ? (err > 0 ? 'd' : 'a') : err > .1 ? 'a' : err < -.1 ? 'd' : '';
+      const next = reversing ? (err > 0 ? 'd' : 'a') : err > .035 ? 'a' : err < -.035 ? 'd' : '';
       const gas = !reversing && v.speed < max, slow = !reversing && v.speed > max + 1.5;
       if (next !== steering) { if (steering) await set(steering, false); steering = next; if (next) await set(next, true); }
       if (forward !== gas) { forward = gas; await set('w', gas); }
