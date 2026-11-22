@@ -15,7 +15,7 @@ import { collidersIn } from '../shared/campus.mjs';
 import { rayBox } from '../shared/arena/physics.mjs';
 import { localPoint, VEHICLE_TYPES } from '../shared/vehicles.mjs';
 /** The driver's door of a vehicle (left-hand drive: the seat's side, just outside the body). */
-const door = v => localPoint(v, VEHICLE_TYPES[v.type].width / 2 + .65, VEHICLE_TYPES[v.type].seats[0][1]);
+const door = v => localPoint(v, VEHICLE_TYPES[v.type].width / 2 + 1.8, VEHICLE_TYPES[v.type].seats[0][1]); // clear of the body, within reach of the door
 
 const PART = process.env.PART ?? 'full';
 const stack = await startStack({ name: 'browser-getaway-city', webPort: 5186, roomPort: 3286, supabasePort: 54843 });

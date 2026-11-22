@@ -1,5 +1,5 @@
 {
-  "part": "full",
+  "part": "return",
   "log": [
     {
       "t": 17,
@@ -39,12 +39,12 @@
       "t": 46,
       "what": "driving",
       "at": [
-        -2,
-        172
+        -3,
+        174
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.4,
+      "speed": 11.4,
       "waypoint": "2/4"
     },
     {
@@ -52,11 +52,11 @@
       "what": "driving",
       "at": [
         -2,
-        339
+        325
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 11,
+      "speed": 11.1,
       "waypoint": "2/4"
     },
     {
@@ -64,73 +64,73 @@
       "what": "driving",
       "at": [
         -2,
-        486
+        482
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 10.8,
+      "speed": 10.1,
       "waypoint": "2/4"
     },
     {
       "t": 91,
       "what": "driving",
       "at": [
-        -2,
-        634
+        -3,
+        626
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.6,
+      "speed": 9.5,
       "waypoint": "2/4"
     },
     {
       "t": 106,
       "what": "driving",
       "at": [
-        -2,
-        787
+        -1,
+        789
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.8,
+      "speed": 12.9,
       "waypoint": "3/4"
     },
     {
       "t": 121,
       "what": "driving",
       "at": [
-        -2,
-        948
+        -1,
+        958
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8,
+      "speed": 10.9,
       "waypoint": "3/4"
     },
     {
       "t": 136,
       "what": "driving",
       "at": [
-        -2,
-        1095
+        -1,
+        1112
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 12.5,
+      "speed": 11.1,
       "waypoint": "3/4"
     },
     {
-      "t": 150,
+      "t": 149,
       "what": "screenshot 02-south-gate",
       "at": [
-        0,
-        1231
+        -2,
+        1232
       ],
       "region": "campus",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 152,
+      "t": 150,
       "what": "driving",
       "at": [
         0,
@@ -142,19 +142,19 @@
       "waypoint": "2/4"
     },
     {
-      "t": 167,
+      "t": 165,
       "what": "driving",
       "at": [
-        -2,
-        1380
+        -1,
+        1390
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 12.3,
+      "speed": 13.4,
       "waypoint": "3/4"
     },
     {
-      "t": 175,
+      "t": 173,
       "what": "screenshot 03-gateway-expressway",
       "at": [
         -2,
@@ -164,51 +164,51 @@
       "vehicle": "courtyard-car"
     },
     {
-      "t": 175,
+      "t": 174,
       "what": "driving",
       "at": [
-        -1,
+        -2,
         1475
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 1.8,
+      "speed": 2.1,
       "waypoint": "2/6"
     },
     {
-      "t": 190,
+      "t": 189,
       "what": "driving",
       "at": [
         -2,
-        1616
+        1618
       ],
       "region": "metro",
       "vehicle": "courtyard-car",
-      "speed": 10.7,
+      "speed": 9.4,
       "waypoint": "3/6"
     },
     {
-      "t": 204,
+      "t": 203,
       "what": "screenshot 04-metropolitan-city",
       "at": [
-        -34,
+        -33,
         1700
       ],
       "region": "metro",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 206,
+      "t": 204,
       "what": "arrived in Metropolitan City",
       "at": [
-        -34,
+        -33,
         1700
       ],
       "region": "metro",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 212,
+      "t": 210,
       "what": "screenshot 05-contact-sade",
       "at": [
         -28,
@@ -218,343 +218,27 @@
       "vehicle": null
     },
     {
-      "t": 213,
+      "t": 211,
       "what": "assignment accepted"
-    },
-    {
-      "t": 265,
-      "what": "screenshot 06-industrial-district",
-      "at": [
-        -363,
-        1751
-      ],
-      "region": "metro",
-      "stage": 1,
-      "hp": 100,
-      "vehicle": null,
-      "wanted": 0,
-      "units": 2,
-      "officers": ""
-    },
-    {
-      "t": 273,
-      "what": "warehouse encounter"
-    },
-    {
-      "t": 276,
-      "what": "warehouse cleared",
-      "weapons": [
-        "sparrow",
-        "vanguard"
-      ]
-    },
-    {
-      "t": 277,
-      "what": "screenshot 07-warehouse-cleared",
-      "at": [
-        -334,
-        1720
-      ],
-      "region": "metro",
-      "stage": 3,
-      "hp": 93,
-      "vehicle": null,
-      "wanted": 0,
-      "units": 2,
-      "officers": ""
-    },
-    {
-      "t": 281,
-      "what": "case secured"
-    },
-    {
-      "t": 285,
-      "what": "screenshot 08-ambush-explosion",
-      "at": [
-        -334,
-        1729
-      ],
-      "region": "metro",
-      "stage": 4,
-      "hp": 82,
-      "vehicle": null,
-      "wanted": 1,
-      "units": 2,
-      "officers": ""
-    },
-    {
-      "t": 295,
-      "what": "pursuit begins",
-      "at": [
-        -316,
-        1746
-      ],
-      "region": "metro",
-      "stage": 6,
-      "hp": 59,
-      "vehicle": "getaway-compact",
-      "wanted": 3,
-      "units": 3,
-      "officers": ""
-    },
-    {
-      "t": 295,
-      "what": "driving",
-      "at": [
-        -316,
-        1746
-      ],
-      "region": "metro",
-      "stage": 6,
-      "hp": 59,
-      "vehicle": "getaway-compact",
-      "wanted": 3,
-      "units": 3,
-      "officers": "",
-      "speed": 0,
-      "waypoint": "1/3"
-    },
-    {
-      "t": 346,
-      "what": "contained: officers deployed",
-      "officers": [
-        "cover@85m",
-        "cover@85m"
-      ]
-    },
-    {
-      "t": 351,
-      "what": "screenshot 09-police-containment",
-      "at": [
-        -265,
-        1756
-      ],
-      "region": "metro",
-      "stage": 6,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 4,
-      "units": 4,
-      "officers": "cover,cover,aim,aim"
-    },
-    {
-      "t": 352,
-      "what": "breaking out",
-      "from": [
-        -88,
-        1742
-      ],
-      "to": [
-        -470,
-        2020
-      ]
-    },
-    {
-      "t": 354,
-      "what": "driving",
-      "at": [
-        -268,
-        1758
-      ],
-      "region": "metro",
-      "stage": 6,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 4,
-      "units": 4,
-      "officers": "cover,cover,aim,aim",
-      "speed": 0,
-      "waypoint": "2/8"
-    },
-    {
-      "t": 369,
-      "what": "driving",
-      "at": [
-        -372,
-        1756
-      ],
-      "region": "metro",
-      "stage": 6,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 4,
-      "units": 4,
-      "officers": "",
-      "speed": 8,
-      "waypoint": "3/8"
-    },
-    {
-      "t": 384,
-      "what": "driving",
-      "at": [
-        -470,
-        1814
-      ],
-      "region": "metro",
-      "stage": 6,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 4,
-      "units": 4,
-      "officers": "",
-      "speed": 8.8,
-      "waypoint": "4/8"
-    },
-    {
-      "t": 399,
-      "what": "driving",
-      "at": [
-        -471,
-        1970
-      ],
-      "region": "metro",
-      "stage": 6,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 4,
-      "units": 4,
-      "officers": "",
-      "speed": 7.9,
-      "waypoint": "6/8"
-    },
-    {
-      "t": 400,
-      "what": "police evaded",
-      "at": [
-        -470,
-        1973
-      ],
-      "region": "metro",
-      "stage": 7,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 0,
-      "units": 4,
-      "officers": ""
-    },
-    {
-      "t": 400,
-      "what": "screenshot 10-evaded",
-      "at": [
-        -470,
-        1973
-      ],
-      "region": "metro",
-      "stage": 7,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 0,
-      "units": 4,
-      "officers": ""
-    },
-    {
-      "t": 400,
-      "what": "driving",
-      "at": [
-        -471,
-        1977
-      ],
-      "region": "metro",
-      "stage": 7,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 0,
-      "units": 2,
-      "officers": "",
-      "speed": 2.7,
-      "waypoint": "2/5"
-    },
-    {
-      "t": 415,
-      "what": "driving",
-      "at": [
-        -377,
-        2022
-      ],
-      "region": "metro",
-      "stage": 7,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 0,
-      "units": 2,
-      "officers": "",
-      "speed": 13,
-      "waypoint": "3/5"
-    },
-    {
-      "t": 430,
-      "what": "driving",
-      "at": [
-        -221,
-        2020
-      ],
-      "region": "metro",
-      "stage": 7,
-      "hp": 100,
-      "vehicle": "getaway-compact",
-      "wanted": 0,
-      "units": 2,
-      "officers": "",
-      "speed": 3.5,
-      "waypoint": "5/5"
-    },
-    {
-      "t": 433,
-      "what": "screenshot 11-debrief",
-      "at": [
-        -224,
-        2013
-      ],
-      "region": "metro",
-      "stage": 10,
-      "hp": 100,
-      "vehicle": null,
-      "wanted": 0,
-      "units": 2,
-      "officers": ""
-    },
-    {
-      "t": 450,
-      "what": "screenshot 12-saved-after-reload",
-      "at": [
-        -224,
-        2013
-      ],
-      "region": "metro"
-    },
-    {
-      "t": 453,
-      "what": "reward persisted after reload",
-      "at": [
-        -224,
-        2013
-      ],
-      "region": "metro"
-    },
-    {
-      "t": 453,
-      "what": "return journey from",
-      "car": [
-        -34,
-        1700
-      ],
-      "player": [
-        -224,
-        2013
-      ]
     }
   ],
   "errors": [],
   "bugs": [
     {
       "what": "playthrough stopped",
-      "detail": "Timed out: walk to -34.83151049347919,1700.9441428759496 {\"at\":[-224,2013],\"region\":\"metro\"}",
+      "detail": "Timed out: walk to -34.17116622128494,1701.55 {\"at\":[-28,1692],\"region\":\"metro\",\"stage\":1,\"hp\":100,\"vehicle\":null,\"wanted\":0,\"units\":2,\"officers\":\"\"}",
       "at": {
         "at": [
-          -89,
-          1769
+          -32,
+          1699
         ],
-        "region": "metro"
+        "region": "metro",
+        "stage": 1,
+        "hp": 100,
+        "vehicle": null,
+        "wanted": 0,
+        "units": 2,
+        "officers": ""
       }
     }
   ]
