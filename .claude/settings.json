@@ -6,8 +6,9 @@
       "Edit",
       "Write",
       "mcp__threejs-devtools__*",
-      "mcp__playwright__*"
+      "mcp__playwright__*",
+      "mcp__chrome-devtools__*"
     ]
   },
-  "enabledMcpjsonServers": ["threejs-devtools", "playwright"]
+  "enabledMcpjsonServers": ["threejs-devtools", "playwright", "chrome-devtools", "blender"]
 }
