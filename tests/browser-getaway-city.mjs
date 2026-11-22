@@ -152,7 +152,8 @@ try {
   assert.equal(regionAt(self().x, self().z), 'metro');
   note('arrived in Metropolitan City', snapshot());
   await trigger(); await until(() => !self().vehicle, 'out of the car');
-  // ACT 2: Sade.
+  // ACT 2: Sade. (Round the front of the parked car to the sidewalk.)
+  { const v = stack.room.fleet.find('courtyard-car'), front = localPoint(v, 0, VEHICLE_TYPES[v.type].length / 2 + 1.6); await walk(front.x, front.z, { radius: 1, sprint: false }); }
   await walk(CONTACT.x, CONTACT.z + .9, { radius: 1.4, sprint: false });
   await page.getByRole('button', { name: 'Talk to Sade', exact: true }).waitFor({ timeout: 8000 });
   await trigger();
