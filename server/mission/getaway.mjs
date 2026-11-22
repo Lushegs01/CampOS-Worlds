@@ -97,7 +97,8 @@ export function createGetaway({ now, checkpoint=O.warehouse, stats, random=Math.
     v.impactAt=m.now; damageVehicle(v,(speed-3)*2.9*1500/(VEHICLE_TYPES[v.type].mass??1500));m.crashes++;event(m,'crash',v);
     // Who did we hit? A police car is a crime the officers see; anything else may be reported.
     const other=[...m.pd.units,...m.streets.cars].find(o=>distance(o,v)<6.5);
-    if(other?.police)crime(m.pd,'ram',v,m.now,'police');
+    // Ramming is a real impact: pushing against a car that boxes you in is not an attack on the officers.
+    if(other?.police&&speed>7)crime(m.pd,'ram',v,m.now,'police');
     else if(inMetro(v.x,v.z)&&speed>7)crime(m.pd,'crash',v,m.now,'civilian');
     if(other&&!other.police)other.shaken=m.now;
     streetEvent(m.streets,'crash',v,m.now,speed>9?1:.6);
