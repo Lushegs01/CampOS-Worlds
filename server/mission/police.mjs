@@ -26,7 +26,7 @@ export const WANTED = [
   { level: 2, name: 'Pursuit', units: 2, heat: 2.5 },
   { level: 3, name: 'Aggressive pursuit', units: 3, heat: 5, intercept: true, roadblock: true },
   { level: 4, name: 'Tactical containment', units: 4, heat: 8, intercept: true, roadblock: true },
-  { level: 5, name: 'Maximum response', units: 5, heat: 12, intercept: true, roadblock: true, tactical: true },
+  { level: 5, name: 'Maximum response', units: 5, heat: 16, intercept: true, roadblock: true, tactical: true },
 ];
 /** Heat added by each kind of crime (summed; the level follows the total). */
 export const SEVERITY = { alarm: 1, gunfire: 1.6, explosion: 3, theft: 1.2, crash: .5, ram: 2.2, assault: 2, killing: 3, aiming: 1.5, officerShot: 4, officerKilled: 7, evading: 1 };
@@ -321,7 +321,8 @@ export function stepPolice(pd, p, dt, now, ctx) {
   // Escalation from what officers see.
   if (pd.wanted > 0 && visible && pd.identified) {
     if (pd.wanted === 1 && (playerSpeed > 7 || now - pd.hostileAt < 3)) { pd.wanted = 2; pd.heat = Math.max(pd.heat, WANTED[2].heat); say(pd, 'radio', 'pursuit', p, { level: 2 }); }
-    if (pd.wanted >= 2) pd.heat += dt * (playerSpeed > 6 ? .1 : .03);
+    // Sustained pursuit escalates slowly (minutes, not seconds); maximum response stays a consequence of violence.
+    if (pd.wanted >= 2) pd.heat += dt * (playerSpeed > 6 ? .05 : .015);
     const level = WANTED.reduce((l, w) => pd.heat >= (w.heat ?? Infinity) ? w.level : l, 0);
     if (level > pd.wanted && pd.wanted >= 2) { pd.wanted = Math.min(5, level); pd.dispatchAt = Math.min(pd.dispatchAt, now + 1); say(pd, 'radio', pd.wanted === 3 ? 'backup' : pd.wanted === 4 ? 'tactical' : 'maximum', p, { level: pd.wanted }); }
   }

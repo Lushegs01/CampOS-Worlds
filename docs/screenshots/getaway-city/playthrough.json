@@ -40,11 +40,11 @@
       "what": "driving",
       "at": [
         -2,
-        172
+        163
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 7.9,
+      "speed": 7.7,
       "waypoint": "2/4"
     },
     {
@@ -52,11 +52,11 @@
       "what": "driving",
       "at": [
         -2,
-        330
+        317
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.9,
+      "speed": 12.6,
       "waypoint": "2/4"
     },
     {
@@ -64,11 +64,11 @@
       "what": "driving",
       "at": [
         -3,
-        481
+        473
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 9.2,
+      "speed": 11.9,
       "waypoint": "2/4"
     },
     {
@@ -76,23 +76,23 @@
       "what": "driving",
       "at": [
         -2,
-        638
+        622
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 9,
+      "speed": 8.2,
       "waypoint": "2/4"
     },
     {
       "t": 105,
       "what": "driving",
       "at": [
-        -3,
-        799
+        -2,
+        762
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 10.6,
+      "speed": 12.5,
       "waypoint": "3/4"
     },
     {
@@ -100,41 +100,53 @@
       "what": "driving",
       "at": [
         -2,
-        958
+        911
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 10.9,
+      "speed": 8,
       "waypoint": "3/4"
     },
     {
       "t": 135,
       "what": "driving",
       "at": [
-        -1,
-        1118
+        -2,
+        1067
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 11.3,
+      "speed": 12.1,
       "waypoint": "3/4"
     },
     {
-      "t": 148,
+      "t": 150,
+      "what": "driving",
+      "at": [
+        -2,
+        1228
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 9.6,
+      "waypoint": "3/4"
+    },
+    {
+      "t": 151,
       "what": "screenshot 02-south-gate",
       "at": [
         -2,
-        1232
+        1231
       ],
       "region": "campus",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 149,
+      "t": 152,
       "what": "driving",
       "at": [
-        -1,
-        1235
+        1,
+        1236
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
@@ -142,73 +154,73 @@
       "waypoint": "2/4"
     },
     {
-      "t": 164,
+      "t": 167,
       "what": "driving",
       "at": [
-        -1,
-        1375
+        -2,
+        1378
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 12.9,
+      "speed": 9.7,
       "waypoint": "3/4"
     },
     {
-      "t": 173,
+      "t": 176,
       "what": "screenshot 03-gateway-expressway",
       "at": [
-        0,
-        1471
+        -1,
+        1472
       ],
       "region": "expressway",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 174,
+      "t": 177,
       "what": "driving",
       "at": [
-        -1,
-        1477
+        1,
+        1476
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 2.7,
+      "speed": 2.1,
       "waypoint": "2/6"
     },
     {
-      "t": 189,
+      "t": 192,
       "what": "driving",
       "at": [
-        -1,
-        1634
+        -2,
+        1627
       ],
       "region": "metro",
       "vehicle": "courtyard-car",
-      "speed": 12.6,
+      "speed": 12.2,
       "waypoint": "3/6"
     },
     {
-      "t": 201,
+      "t": 206,
       "what": "screenshot 04-metropolitan-city",
       "at": [
-        -35,
+        -34,
         1700
       ],
       "region": "metro",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 202,
+      "t": 207,
       "what": "arrived in Metropolitan City",
       "at": [
-        -35,
+        -34,
         1700
       ],
       "region": "metro",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 208,
+      "t": 213,
       "what": "screenshot 05-contact-sade",
       "at": [
         -28,
@@ -218,11 +230,11 @@
       "vehicle": null
     },
     {
-      "t": 209,
+      "t": 214,
       "what": "assignment accepted"
     },
     {
-      "t": 261,
+      "t": 269,
       "what": "screenshot 06-industrial-district",
       "at": [
         -363,
@@ -237,11 +249,11 @@
       "officers": ""
     },
     {
-      "t": 269,
+      "t": 277,
       "what": "warehouse encounter"
     },
     {
-      "t": 272,
+      "t": 280,
       "what": "warehouse cleared",
       "weapons": [
         "sparrow",
@@ -249,7 +261,7 @@
       ]
     },
     {
-      "t": 272,
+      "t": 281,
       "what": "screenshot 07-warehouse-cleared",
       "at": [
         -334,
@@ -257,18 +269,18 @@
       ],
       "region": "metro",
       "stage": 3,
-      "hp": 84,
+      "hp": 93,
       "vehicle": null,
       "wanted": 0,
       "units": 2,
       "officers": ""
     },
     {
-      "t": 276,
+      "t": 285,
       "what": "case secured"
     },
     {
-      "t": 281,
+      "t": 288,
       "what": "screenshot 08-ambush-explosion",
       "at": [
         -334,
@@ -276,14 +288,14 @@
       ],
       "region": "metro",
       "stage": 4,
-      "hp": 73,
+      "hp": 82,
       "vehicle": null,
       "wanted": 1,
       "units": 2,
       "officers": ""
     },
     {
-      "t": 290,
+      "t": 297,
       "what": "pursuit begins",
       "at": [
         -316,
@@ -291,14 +303,14 @@
       ],
       "region": "metro",
       "stage": 6,
-      "hp": 66,
+      "hp": 73,
       "vehicle": "getaway-compact",
       "wanted": 3,
       "units": 3,
       "officers": ""
     },
     {
-      "t": 290,
+      "t": 297,
       "what": "driving",
       "at": [
         -316,
@@ -306,7 +318,7 @@
       ],
       "region": "metro",
       "stage": 6,
-      "hp": 66,
+      "hp": 73,
       "vehicle": "getaway-compact",
       "wanted": 3,
       "units": 3,
@@ -315,15 +327,15 @@
       "waypoint": "1/3"
     },
     {
-      "t": 311,
+      "t": 312,
       "what": "contained: officers deployed",
       "officers": [
-        "cover@86m",
-        "cover@86m"
+        "deploy@13m",
+        "cover@15m"
       ]
     },
     {
-      "t": 315,
+      "t": 317,
       "what": "screenshot 09-police-containment",
       "at": [
         -265,
@@ -335,22 +347,22 @@
       "vehicle": "getaway-compact",
       "wanted": 4,
       "units": 4,
-      "officers": "cover,cover,aim,aim"
+      "officers": "aim,aim"
     },
     {
-      "t": 317,
+      "t": 318,
       "what": "breaking out",
       "from": [
-        -90,
-        1755
+        -102,
+        1735
       ],
       "to": [
-        470,
+        -470,
         2020
       ]
     },
     {
-      "t": 319,
+      "t": 320,
       "what": "driving",
       "at": [
         -272,
@@ -362,79 +374,79 @@
       "vehicle": "getaway-compact",
       "wanted": 4,
       "units": 4,
-      "officers": "cover,cover,aim,aim",
+      "officers": "aim,aim",
       "speed": -6,
-      "waypoint": "2/15"
+      "waypoint": "2/8"
     },
     {
-      "t": 334,
+      "t": 335,
       "what": "driving",
       "at": [
-        -189,
-        1758
+        -363,
+        1754
       ],
       "region": "metro",
       "stage": 6,
-      "hp": 88,
+      "hp": 100,
       "vehicle": "getaway-compact",
-      "wanted": 5,
-      "units": 5,
-      "officers": "cover,fire,fire,fire,fire,cover,deploy,deploy",
-      "speed": 0,
-      "waypoint": "3/15"
+      "wanted": 4,
+      "units": 4,
+      "officers": "",
+      "speed": 10.5,
+      "waypoint": "2/8"
     },
     {
-      "t": 349,
+      "t": 350,
       "what": "driving",
       "at": [
-        -189,
-        1758
+        -470,
+        1794
       ],
       "region": "metro",
       "stage": 6,
-      "hp": 76,
+      "hp": 100,
       "vehicle": "getaway-compact",
-      "wanted": 5,
-      "units": 5,
-      "officers": "fire,fire,fire,fire,fire,cover,fire,fire",
-      "speed": 0,
-      "waypoint": "3/15"
+      "wanted": 4,
+      "units": 4,
+      "officers": "",
+      "speed": 12.5,
+      "waypoint": "4/8"
     },
     {
-      "t": 364,
+      "t": 365,
       "what": "driving",
       "at": [
-        -189,
-        1758
+        -470,
+        1944
       ],
       "region": "metro",
       "stage": 6,
-      "hp": 68,
+      "hp": 100,
       "vehicle": "getaway-compact",
       "wanted": 5,
       "units": 5,
-      "officers": "cover,fire,cover,fire,fire,fire,cover,fire",
-      "speed": 0,
-      "waypoint": "3/15"
+      "officers": "",
+      "speed": 12.1,
+      "waypoint": "6/8"
     }
   ],
   "errors": [],
   "bugs": [
     {
       "what": "playthrough stopped",
-      "detail": "Your getaway vehicle is wrecked. Retry from the motor pool.",
+      "detail": "Timed out: police lost",
       "at": {
         "at": [
-          -189,
-          1758
+          -472,
+          2028
         ],
         "region": "metro",
         "stage": 6,
-        "hp": 52,
+        "hp": 100,
         "vehicle": "getaway-compact",
         "wanted": 5,
         "units": 5,
-        "officers": "cover,fire,fire,fire,cover,fire,fire,cover"
+        "officers": "fire,cover"
       }
     }
   ]

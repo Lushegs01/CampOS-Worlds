@@ -227,7 +227,15 @@ try {
   note('breaking out', { from: [Math.round(cx), Math.round(cz)], to: [far.x, far.z] });
   await page.keyboard.down('s'); await sleep(1800); await page.keyboard.up('s');
   await drive(routeTo(car(), far), { radius: 15, fast: 23, stopAtEnd: false, timeout: 200000, onTick: () => mission().stage >= O.safehouse });
-  if (mission().stage === O.pursuit) await drive(routeTo(car(), { x: -470, z: 2020 }), { radius: 15, fast: 23, stopAtEnd: false, timeout: 200000, onTick: () => mission().stage >= O.safehouse });
+  // Keep moving away from wherever the units are until the search is called off (as a player would).
+  for (let leg = 0; leg < 10 && mission().stage === O.pursuit; leg++) {
+    const us = mission().pd.units, p = self();
+    const ux = us.reduce((n, u) => n + u.x, 0) / Math.max(1, us.length), uz = us.reduce((n, u) => n + u.z, 0) / Math.max(1, us.length);
+    const corners = [{ x: -470, z: 2020 }, { x: 470, z: 2020 }, { x: -470, z: 1540 }, { x: 470, z: 1540 }, { x: 0, z: 2020 }, { x: 300, z: 1840 }, { x: -300, z: 1930 }].filter(c => distance(c, p) > 120);
+    const next = corners.sort((a, b) => { const d = q => ((q.x - p.x) * (ux - p.x) + (q.z - p.z) * (uz - p.z)) / (distance(q, p) || 1); return d(a) - d(b); })[0];
+    note('evading', { leg, to: [next.x, next.z], wanted: mission().pd.wanted, seen: mission().spotted });
+    await drive(routeTo(car(), next), { radius: 15, fast: 23, stopAtEnd: false, timeout: 150000, onTick: () => mission().stage >= O.safehouse });
+  }
   await until(() => mission().stage >= O.safehouse, 'police lost', 120000);
   note('police evaded', snapshot());
   await proof('10-evaded');
