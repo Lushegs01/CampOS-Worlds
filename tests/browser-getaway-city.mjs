@@ -221,7 +221,9 @@ try {
   // Break out and evade.
   // Break out away from the units: back off, then take the corner of the city furthest from them.
   const units = mission().pd.units, cx = units.reduce((n, u) => n + u.x, 0) / units.length, cz = units.reduce((n, u) => n + u.z, 0) / units.length;
-  const far = [{ x: -470, z: 2020 }, { x: 470, z: 2020 }, { x: -470, z: 1540 }, { x: 470, z: 1540 }].sort((a, b) => distance(b, { x: cx, z: cz }) - distance(a, { x: cx, z: cz }))[0];
+  const far = [{ x: -470, z: 2020 }, { x: 470, z: 2020 }, { x: -470, z: 1540 }, { x: 470, z: 1540 }]
+    // (Away from them as seen from the player: the corner whose direction is most opposite to the units.)
+    .sort((a, b) => { const p = self(), d = q => ((q.x - p.x) * (cx - p.x) + (q.z - p.z) * (cz - p.z)) / (distance(q, p) || 1); return d(a) - d(b); })[0];
   note('breaking out', { from: [Math.round(cx), Math.round(cz)], to: [far.x, far.z] });
   await page.keyboard.down('s'); await sleep(1800); await page.keyboard.up('s');
   await drive(routeTo(car(), far), { radius: 15, fast: 23, stopAtEnd: false, timeout: 200000, onTick: () => mission().stage >= O.safehouse });
