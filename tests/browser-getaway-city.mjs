@@ -258,7 +258,7 @@ try {
   // Return journey: the courtyard car is still in the city; drive it back through the South Gate.
   const back = stack.room.fleet.find('courtyard-car');
   note('return journey from', { car: [Math.round(back.x), Math.round(back.z)], player: snapshot().at });
-  { const d = door(back); await walk(d.x, d.z, { radius: 1.2, timeout: 120000 }); }
+  { const d = door(back); for (const q of routeTo(self(), d).slice(1, -1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 }); await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); }
   await trigger(); await until(() => self().vehicle === 'courtyard-car', 'in the car again');
   await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 23, timeout: 260000 });
   assert.equal(regionAt(self().x, self().z), 'campus');
