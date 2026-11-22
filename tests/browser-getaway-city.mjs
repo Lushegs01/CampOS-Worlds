@@ -78,7 +78,9 @@ async function walkToDoor(v) {
     const ends = [localPoint(v, 0, t.length / 2 + 1.8), localPoint(v, 0, -t.length / 2 - 1.8)].sort((a, b) => distance(a, p) - distance(b, p));
     await walk(ends[0].x, ends[0].z, { radius: 1, sprint: false, timeout: 30000 });
   }
-  await walk(d.x, d.z, { radius: 1.1, sprint: false, timeout: 30000 });
+  // Like a player: once the game offers to drive (the door is in reach), stop walking and get in.
+  const offered = () => page.getByText('Drive', { exact: true }).isVisible().catch(() => false);
+  await walk(d.x, d.z, { radius: 1.1, sprint: false, timeout: 30000 }).catch(async e => { if (!(await offered())) throw e; });
 }
 /** Drives (W/A/S/D/Space) through a list of points; reverses out when stuck. Returns when within radius of the last. */
 async function drive(points, { radius = 6, fast = 20, timeout = 240000, stopAtEnd = true, onTick = null } = {}) {
