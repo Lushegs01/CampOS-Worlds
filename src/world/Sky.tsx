@@ -36,7 +36,10 @@ export function SkyDome({ quality }: { quality: QualityProfile }) {
       }`,
     side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: true,
   }), [texture, info]);
-  return <mesh material={material} renderOrder={-1000} frustumCulled={false} scale={1000}><sphereGeometry args={[1, 48, 24]} /></mesh>;
+  // Centred on the camera: the world now reaches Metropolitan City, ~2 km from the campus origin, outside a fixed dome.
+  const dome = useRef<THREE.Mesh>(null!);
+  useFrame(({ camera }) => { dome.current?.position.set(camera.position.x, 0, camera.position.z); });
+  return <mesh ref={dome} material={material} renderOrder={-1000} frustumCulled={false} scale={1000}><sphereGeometry args={[1, 48, 24]} /></mesh>;
 }
 
 /** Image-based lighting from the sun-removed HDRI plus a matching directional sun. */

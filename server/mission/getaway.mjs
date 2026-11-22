@@ -331,12 +331,14 @@ export function missionStep(m,p,dt,now) {
   }else m.lastDrive=null;
   // The city: police, traffic and pedestrians around the player.
   const vehicle=m.fleet.find(p.vehicle)??null;
+  // (A held aim does not survive getting into a car.)
+  if(p.vehicle)m.aiming=false;
   if(inMetro(p.x,p.z,200)){
     const se=[];
     stepStreets(m.streets,p,dt,now,{vehicles:[...m.fleet.vehicles,...m.pd.units,...m.externalVehicles()],sirens:m.pd.units.filter(u=>u.siren),players:[p],events:se,police:m.pd,clear});
     for(const e of se)event(m,e.kind,e,e);
     const pe=[];
-    const r=stepPolice(m.pd,p,dt,now,{vehicle,moving:!!p.moving,aiming:m.aiming,firedAt:m.firedAt,vehicles:[...m.fleet.vehicles,...m.streets.cars,...m.externalVehicles()],players:[p],events:pe,
+    const r=stepPolice(m.pd,p,dt,now,{vehicle,moving:!!p.moving,aiming:m.aiming&&!p.vehicle,firedAt:m.firedAt,vehicles:[...m.fleet.vehicles,...m.streets.cars,...m.externalVehicles()],players:[p],events:pe,
       hurt:(n,where)=>{if(where==='vehicle'&&vehicle){m.damageVehicle(vehicle,n*.35);if(m.random()<.4)hurt(m,p,Math.round(n*.5));}else hurt(m,p,n);}});
     for(const e of pe)event(m,e.kind,e,e);
     m.spotted=r.visible;

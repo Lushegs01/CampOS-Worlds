@@ -130,6 +130,8 @@ async function sweep(points, stage) {
       if (m.failed) throw Error(m.failed);
     }
   }
+  // Lower the weapon (right button up), as a player does after a fight.
+  await page.evaluate(() => dispatchEvent(new PointerEvent('pointerup', { pointerType: 'mouse', button: 2 })));
   return [...used];
 }
 

@@ -150,3 +150,14 @@ test('mission: leaving the motor pool puts out the vehicle, and the alarm unit f
   assert.ok(Math.hypot(VEHICLE_BAY.x - car.x, VEHICLE_BAY.z - car.z) < 20);
   void combatInput;
 });
+
+test('a held aim does not follow the player into a car (police would read a driver as a gunman)', () => {
+  const m = createGetaway({ now: 0, checkpoint: O.pursuit, random: seeded(4) });
+  const car = m.fleet.vehicles[0], p = { id: 'p', x: car.x + 1.6, z: car.z, y: 0, yaw: 0, vehicle: null, vehicleSeat: null };
+  m.aiming = true;
+  assert.ok(m.fleet.enter(p, car.id, 0).ok);
+  missionStep(m, p, dt, 0);
+  assert.equal(m.aiming, false);
+  combatInput(m, p, 'aim', { on: true }, .1);
+  assert.equal(m.aiming, false, 'cannot aim from the driver’s seat');
+});
