@@ -174,6 +174,16 @@ try {
   await proof('04-metropolitan-city');
   assert.equal(regionAt(self().x, self().z), 'metro');
   note('arrived in Metropolitan City', snapshot());
+  if (PART === 'return') {
+    // The return journey: without getting out, turn round and drive back up the expressway, through the South Gate.
+    await drive(routeTo(car(), { x: 0, z: 1300 }), { radius: 10, fast: 22, stopAtEnd: false });
+    await proof('13a-leaving-the-city');
+    await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 22, timeout: 260000 });
+    assert.equal(regionAt(self().x, self().z), 'campus');
+    await proof('13-back-on-campus');
+    note('back at the university', snapshot());
+    await writeFile(`${evidence}/playthrough-return.json`, JSON.stringify({ part: PART, log, errors, bugs }, null, 2)); process.exit(0);
+  }
   await trigger(); await until(() => !self().vehicle, 'out of the car');
   // ACT 2: Sade. (Round the front of the parked car to the sidewalk.)
   { const v = stack.room.fleet.find('courtyard-car'), front = localPoint(v, 0, VEHICLE_TYPES[v.type].length / 2 + 1.6); await walk(front.x, front.z, { radius: 1, sprint: false }); }
@@ -185,19 +195,6 @@ try {
   await page.getByRole('button', { name: 'Accept assignment' }).click();
   await until(() => mission()?.stage === O.warehouse, 'mission accepted');
   note('assignment accepted');
-  if (PART === 'return') {
-    // The return journey on its own: back out of the city in the same car, through the South Gate to the courtyard.
-    const v = stack.room.fleet.find('courtyard-car'), d = door(v);
-    await walkToDoor(v); await trigger();
-    await until(() => self().vehicle === 'courtyard-car', 'back in the car');
-    await drive(routeTo(car(), { x: 0, z: 1300 }), { radius: 10, fast: 22, stopAtEnd: false });
-    await proof('13a-leaving-the-city');
-    await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 22, timeout: 260000 });
-    assert.equal(regionAt(self().x, self().z), 'campus');
-    await proof('13-back-on-campus');
-    note('back at the university', snapshot());
-    await writeFile(`${evidence}/playthrough-return.json`, JSON.stringify({ part: PART, log, errors, bugs }, null, 2)); process.exit(0);
-  }
   if (PART === 'journey') { await writeFile(`${evidence}/playthrough.json`, JSON.stringify({ part: PART, log, errors, bugs }, null, 2)); process.exit(0); }
   // ACT 3: to the Industrial District on foot along the streets (300 m; the drive in was the journey above).
   for (const q of routeTo(self(), L(162, 50)).slice(1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 });
