@@ -172,6 +172,21 @@ try {
   await page.getByRole('button', { name: 'Accept assignment' }).click();
   await until(() => mission()?.stage === O.warehouse, 'mission accepted');
   note('assignment accepted');
+  if (PART === 'return') {
+    // The return journey on its own: back out of the city in the same car, through the South Gate to the courtyard.
+    await page.keyboard.press('Escape').catch(() => {});
+    const v = stack.room.fleet.find('courtyard-car'), d = door(v);
+    for (const q of routeTo(self(), d).slice(1, -1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 });
+    await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); await trigger();
+    await until(() => self().vehicle === 'courtyard-car', 'back in the car');
+    await drive(routeTo(car(), { x: 0, z: 1300 }), { radius: 10, fast: 22, stopAtEnd: false });
+    await proof('13a-leaving-the-city');
+    await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 22, timeout: 260000 });
+    assert.equal(regionAt(self().x, self().z), 'campus');
+    await proof('13-back-on-campus');
+    note('back at the university', snapshot());
+    await writeFile(`${evidence}/playthrough-return.json`, JSON.stringify({ part: PART, log, errors, bugs }, null, 2)); process.exit(0);
+  }
   if (PART === 'journey') { await writeFile(`${evidence}/playthrough.json`, JSON.stringify({ part: PART, log, errors, bugs }, null, 2)); process.exit(0); }
   // ACT 3: to the Industrial District on foot along the streets (300 m; the drive in was the journey above).
   for (const q of routeTo(self(), L(162, 50)).slice(1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 });
@@ -256,10 +271,12 @@ try {
   await page.keyboard.press('Escape');
   note('reward persisted after reload', snapshot());
   // Return journey: the courtyard car is still in the city; drive it back through the South Gate.
-  const back = stack.room.fleet.find('courtyard-car');
+  // (An idle communal car drives itself home after five minutes: take the nearest one still in the city.)
+  const back = stack.room.fleet.vehicles.filter(v => !v.id.includes('traffic') && !v.occupants.some(Boolean) && regionAt(v.x, v.z) === 'metro' && v.type !== 'shuttle')
+    .sort((a, b) => distance(a, self()) - distance(b, self()))[0] ?? stack.room.fleet.find('courtyard-car');
   note('return journey from', { car: [Math.round(back.x), Math.round(back.z)], player: snapshot().at });
   { const d = door(back); for (const q of routeTo(self(), d).slice(1, -1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 }); await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); }
-  await trigger(); await until(() => self().vehicle === 'courtyard-car', 'in the car again');
+  await trigger(); await until(() => self().vehicle === back.id, 'in the car again');
   await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 23, timeout: 260000 });
   assert.equal(regionAt(self().x, self().z), 'campus');
   await proof('13-back-on-campus');
