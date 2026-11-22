@@ -13,6 +13,9 @@ import { METRO_SHIFT, regionAt } from '../shared/metro.mjs';
 import { roadRoute } from '../shared/expansion.mjs';
 import { collidersIn } from '../shared/campus.mjs';
 import { rayBox } from '../shared/arena/physics.mjs';
+import { localPoint, VEHICLE_TYPES } from '../shared/vehicles.mjs';
+/** The driver's door of a vehicle (left-hand drive: the seat's side, just outside the body). */
+const door = v => localPoint(v, VEHICLE_TYPES[v.type].width / 2 + .65, VEHICLE_TYPES[v.type].seats[0][1]);
 
 const PART = process.env.PART ?? 'full';
 const stack = await startStack({ name: 'browser-getaway-city', webPort: 5186, roomPort: 3286, supabasePort: 54843 });
@@ -132,7 +135,7 @@ try {
   const campusCar = stack.room.fleet.find('courtyard-car');
   // Out through the courtyard gateway (the boundary wall has one opening, between the pylons).
   await walk(0, 46, { radius: 1.2 }); await walk(0, 56, { radius: 1.2 });
-  await walk(campusCar.x + 1.6, campusCar.z - .1, { radius: .9 });
+  { const d = door(campusCar); await walk(d.x, d.z, { radius: 1.2 }); }
   await trigger();
   await until(() => self().vehicle === 'courtyard-car', 'in the campus car');
   note('took the courtyard car');
@@ -159,7 +162,7 @@ try {
   if (PART === 'journey') { await writeFile(`${evidence}/playthrough.json`, JSON.stringify({ part: PART, log, errors, bugs }, null, 2)); process.exit(0); }
   // ACT 3: drive to the Industrial District.
   const parked = stack.room.fleet.find('courtyard-car');
-  await walk(parked.x + 1.6, parked.z, { radius: 1.1 });
+  { const d = door(parked); await walk(d.x, d.z, { radius: 1.2 }); }
   await look(parked.x, parked.z); await trigger();
   await until(() => self().vehicle === 'courtyard-car', 'back in the car');
   await drive(routeTo(car(), L(162, 50)), { radius: 6, fast: 18 });
@@ -194,7 +197,7 @@ try {
   // ACT 7: the getaway vehicle and the police.
   const compact = mission().fleet.find('getaway-compact');
   await walk(...Object.values(L(211, 40)));
-  await walk(compact.x + 1.6, compact.z - .15, { radius: .8 }); await trigger();
+  { const d = door(compact); await walk(d.x, d.z, { radius: 1.1 }); } await trigger();
   await until(() => mission()?.stage === O.pursuit, 'getaway car taken');
   note('pursuit begins', snapshot());
   await drive(routeTo(car(), L(265, 55.55)), { radius: 8, fast: 16, stopAtEnd: false });
@@ -234,7 +237,7 @@ try {
   // Return journey: the courtyard car is still in the city; drive it back through the South Gate.
   const back = stack.room.fleet.find('courtyard-car');
   note('return journey from', { car: [Math.round(back.x), Math.round(back.z)], player: snapshot().at });
-  await walk(back.x + 1.6, back.z, { radius: 1, timeout: 120000 });
+  { const d = door(back); await walk(d.x, d.z, { radius: 1.2, timeout: 120000 }); }
   await trigger(); await until(() => self().vehicle === 'courtyard-car', 'in the car again');
   await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 23, timeout: 260000 });
   assert.equal(regionAt(self().x, self().z), 'campus');

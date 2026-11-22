@@ -24,12 +24,13 @@
   "bugs": [
     {
       "what": "playthrough stopped",
-      "detail": "page.evaluate: TypeError: Cannot read properties of null (reading 'dispatchEvent')\n    at eval (eval at evaluate (:290:30), <anonymous>:5:27)\n    at async <anonymous>:316:30",
+      "detail": "Timed out: walk to 15.1,62.9 {\"at\":[0,56],\"region\":\"campus\"}",
       "at": {
         "at": [
-          null,
-          null
-        ]
+          12,
+          62
+        ],
+        "region": "campus"
       }
     }
   ]
