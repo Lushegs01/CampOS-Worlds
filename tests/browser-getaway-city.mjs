@@ -174,7 +174,6 @@ try {
   note('assignment accepted');
   if (PART === 'return') {
     // The return journey on its own: back out of the city in the same car, through the South Gate to the courtyard.
-    await page.keyboard.press('Escape').catch(() => {});
     const v = stack.room.fleet.find('courtyard-car'), d = door(v);
     for (const q of routeTo(self(), d).slice(1, -1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 });
     await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); await trigger();
