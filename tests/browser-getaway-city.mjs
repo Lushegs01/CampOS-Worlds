@@ -13,7 +13,7 @@ import { METRO_SHIFT, regionAt } from '../shared/metro.mjs';
 import { roadRoute } from '../shared/expansion.mjs';
 import { collidersIn } from '../shared/campus.mjs';
 import { rayBox } from '../shared/arena/physics.mjs';
-import { localPoint, VEHICLE_TYPES } from '../shared/vehicles.mjs';
+import { localPoint, VEHICLE_TYPES, vehicleContains } from '../shared/vehicles.mjs';
 /** The driver's door of a vehicle (left-hand drive: the seat's side, just outside the body). */
 const door = v => localPoint(v, VEHICLE_TYPES[v.type].width / 2 + 1.8, VEHICLE_TYPES[v.type].seats[0][1]); // clear of the body, within reach of the door
 
@@ -70,6 +70,16 @@ async function walk(x, z, { radius = 1.3, timeout = 30000, sprint = true } = {})
   await sleep(170);
 }
 const trigger = async () => page.keyboard.press('e');
+/** Walk to a vehicle's driver door, round the nearer end of the car when the straight line would cross its body. */
+async function walkToDoor(v) {
+  const d = door(v), p = self(), t = VEHICLE_TYPES[v.type];
+  const crosses = Array.from({ length: 20 }, (_, i) => ({ x: p.x + (d.x - p.x) * i / 19, z: p.z + (d.z - p.z) * i / 19 })).some(q => vehicleContains(v, q.x, q.z, .4));
+  if (crosses) {
+    const ends = [localPoint(v, 0, t.length / 2 + 1.8), localPoint(v, 0, -t.length / 2 - 1.8)].sort((a, b) => distance(a, p) - distance(b, p));
+    await walk(ends[0].x, ends[0].z, { radius: 1, sprint: false, timeout: 30000 });
+  }
+  await walk(d.x, d.z, { radius: 1.1, sprint: false, timeout: 30000 });
+}
 /** Drives (W/A/S/D/Space) through a list of points; reverses out when stuck. Returns when within radius of the last. */
 async function drive(points, { radius = 6, fast = 20, timeout = 240000, stopAtEnd = true, onTick = null } = {}) {
   let startAt = null, forward = false, steering = '', braking = false, back = false, i = 0, stuckSince = null, reverseUntil = 0, last = null;
@@ -176,8 +186,7 @@ try {
   if (PART === 'return') {
     // The return journey on its own: back out of the city in the same car, through the South Gate to the courtyard.
     const v = stack.room.fleet.find('courtyard-car'), d = door(v);
-    // (The car is a few metres away: straight to its door; the route's road point would be under the car.)
-    await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); await trigger();
+    await walkToDoor(v); await trigger();
     await until(() => self().vehicle === 'courtyard-car', 'back in the car');
     await drive(routeTo(car(), { x: 0, z: 1300 }), { radius: 10, fast: 22, stopAtEnd: false });
     await proof('13a-leaving-the-city');
@@ -275,7 +284,7 @@ try {
   const back = stack.room.fleet.vehicles.filter(v => !v.id.includes('traffic') && !v.occupants.some(Boolean) && regionAt(v.x, v.z) === 'metro' && v.type !== 'shuttle')
     .sort((a, b) => distance(a, self()) - distance(b, self()))[0] ?? stack.room.fleet.find('courtyard-car');
   note('return journey from', { car: [Math.round(back.x), Math.round(back.z)], player: snapshot().at });
-  { const d = door(back); for (const q of routeTo(self(), d).slice(1, -1).filter(q => distance(q, back) > 6)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 }); await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); }
+  { const d = door(back); for (const q of routeTo(self(), d).slice(1, -1).filter(q => distance(q, back) > 6)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 }); await walkToDoor(back); }
   await trigger(); await until(() => self().vehicle === back.id, 'in the car again');
   await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 23, timeout: 260000 });
   assert.equal(regionAt(self().x, self().z), 'campus');
