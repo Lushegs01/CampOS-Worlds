@@ -10,7 +10,7 @@ import { startStack } from './support/stack.mjs';
 import { open, launch, account, signIn, roomPlayer } from './support/browser.mjs';
 import { CONTACT, PACKAGE, SAFEHOUSE, BARREL, O, distance } from '../shared/getaway.mjs';
 import { METRO_SHIFT, regionAt } from '../shared/metro.mjs';
-import { roadRoute } from '../shared/expansion.mjs';
+import { roadRoute, ROAD_NODES } from '../shared/expansion.mjs';
 import { collidersIn } from '../shared/campus.mjs';
 import { rayBox } from '../shared/arena/physics.mjs';
 import { localPoint, VEHICLE_TYPES, vehicleContains } from '../shared/vehicles.mjs';
@@ -175,7 +175,9 @@ try {
   assert.equal(regionAt(self().x, self().z), 'metro');
   note('arrived in Metropolitan City', snapshot());
   if (PART === 'return') {
-    // The return journey: without getting out, turn round and drive back up the expressway, through the South Gate.
+    // The return journey: carry on to the next junction ahead (no U-turn on a narrow street), then route home.
+    { const v = car(), ahead = ROAD_NODES.filter(n => ((n.x - v.x) * Math.sin(v.yaw) + (n.z - v.z) * Math.cos(v.yaw)) > 25 && Math.abs((n.x - v.x) * Math.cos(v.yaw) - (n.z - v.z) * Math.sin(v.yaw)) < 6).sort((a, b) => distance(a, v) - distance(b, v))[0];
+      note('heading to the next junction', { at: ahead && [ahead.x, ahead.z] }); if (ahead) await drive([{ x: ahead.x, z: ahead.z }], { radius: 8, fast: 12, stopAtEnd: false }); }
     await drive(routeTo(car(), { x: 0, z: 1300 }), { radius: 10, fast: 22, stopAtEnd: false });
     await proof('13a-leaving-the-city');
     await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 22, timeout: 260000 });
