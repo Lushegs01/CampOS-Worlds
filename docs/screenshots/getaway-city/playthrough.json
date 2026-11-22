@@ -11,7 +11,7 @@
       "region": "campus"
     },
     {
-      "t": 21,
+      "t": 22,
       "what": "screenshot 01-campus-briefing",
       "at": [
         0,
@@ -40,11 +40,11 @@
       "what": "driving",
       "at": [
         -2,
-        176
+        169
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.4,
+      "speed": 8,
       "waypoint": "2/4"
     },
     {
@@ -52,11 +52,11 @@
       "what": "driving",
       "at": [
         -2,
-        323
+        332
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.1,
+      "speed": 11.9,
       "waypoint": "2/4"
     },
     {
@@ -64,11 +64,11 @@
       "what": "driving",
       "at": [
         -3,
-        466
+        485
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.7,
+      "speed": 12.1,
       "waypoint": "2/4"
     },
     {
@@ -76,51 +76,51 @@
       "what": "driving",
       "at": [
         -2,
-        617
+        640
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 8.4,
+      "speed": 9,
       "waypoint": "2/4"
     },
     {
       "t": 104,
       "what": "driving",
       "at": [
-        -1,
-        767
+        -2,
+        798
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 11,
+      "speed": 12.1,
       "waypoint": "3/4"
     },
     {
       "t": 119,
       "what": "driving",
       "at": [
-        -1,
-        912
+        -2,
+        950
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 9.8,
+      "speed": 12.4,
       "waypoint": "3/4"
     },
     {
       "t": 134,
       "what": "driving",
       "at": [
-        -2,
-        1081
+        -3,
+        1117
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 13.5,
+      "speed": 9.7,
       "waypoint": "3/4"
     },
     {
-      "t": 148,
+      "t": 146,
       "what": "screenshot 02-south-gate",
       "at": [
         0,
@@ -130,11 +130,11 @@
       "vehicle": "courtyard-car"
     },
     {
-      "t": 149,
+      "t": 147,
       "what": "driving",
       "at": [
-        -1,
-        1236
+        1,
+        1233
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
@@ -142,29 +142,29 @@
       "waypoint": "2/4"
     },
     {
-      "t": 164,
+      "t": 162,
       "what": "driving",
       "at": [
-        -2,
-        1386
+        -1,
+        1371
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 12.8,
+      "speed": 10.6,
       "waypoint": "3/4"
     },
     {
       "t": 173,
       "what": "screenshot 03-gateway-expressway",
       "at": [
-        -1,
-        1472
+        -2,
+        1471
       ],
       "region": "expressway",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 174,
+      "t": 173,
       "what": "driving",
       "at": [
         -1,
@@ -172,7 +172,7 @@
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 2,
+      "speed": 1.5,
       "waypoint": "2/6"
     },
     {
@@ -180,35 +180,35 @@
       "what": "driving",
       "at": [
         -1,
-        1618
+        1623
       ],
       "region": "metro",
       "vehicle": "courtyard-car",
-      "speed": 12.6,
+      "speed": 9.4,
       "waypoint": "3/6"
     },
     {
-      "t": 204,
+      "t": 203,
       "what": "screenshot 04-metropolitan-city",
       "at": [
-        -35,
+        -34,
         1700
       ],
       "region": "metro",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 205,
+      "t": 204,
       "what": "arrived in Metropolitan City",
       "at": [
-        -35,
+        -34,
         1700
       ],
       "region": "metro",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 211,
+      "t": 210,
       "what": "screenshot 05-contact-sade",
       "at": [
         -28,
@@ -218,7 +218,7 @@
       "vehicle": null
     },
     {
-      "t": 212,
+      "t": 211,
       "what": "assignment accepted"
     }
   ],
@@ -226,11 +226,11 @@
   "bugs": [
     {
       "what": "playthrough stopped",
-      "detail": "Timed out: walk to -36.596561817274164,1701.55 {\"at\":[-28,1692],\"region\":\"metro\",\"stage\":1,\"hp\":100,\"vehicle\":null,\"wanted\":0,\"units\":2,\"officers\":\"\"}",
+      "detail": "Timed out: walk to -35.5822191962948,1701.55 {\"at\":[-28,1692],\"region\":\"metro\",\"stage\":1,\"hp\":100,\"vehicle\":null,\"wanted\":0,\"units\":2,\"officers\":\"\"}",
       "at": {
         "at": [
-          -28,
-          1692
+          -33,
+          1699
         ],
         "region": "metro",
         "stage": 1,

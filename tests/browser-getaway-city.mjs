@@ -175,7 +175,7 @@ try {
   if (PART === 'return') {
     // The return journey on its own: back out of the city in the same car, through the South Gate to the courtyard.
     const v = stack.room.fleet.find('courtyard-car'), d = door(v);
-    for (const q of routeTo(self(), d).slice(1, -1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 });
+    // (The car is a few metres away: straight to its door; the route's road point would be under the car.)
     await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); await trigger();
     await until(() => self().vehicle === 'courtyard-car', 'back in the car');
     await drive(routeTo(car(), { x: 0, z: 1300 }), { radius: 10, fast: 22, stopAtEnd: false });
@@ -274,7 +274,7 @@ try {
   const back = stack.room.fleet.vehicles.filter(v => !v.id.includes('traffic') && !v.occupants.some(Boolean) && regionAt(v.x, v.z) === 'metro' && v.type !== 'shuttle')
     .sort((a, b) => distance(a, self()) - distance(b, self()))[0] ?? stack.room.fleet.find('courtyard-car');
   note('return journey from', { car: [Math.round(back.x), Math.round(back.z)], player: snapshot().at });
-  { const d = door(back); for (const q of routeTo(self(), d).slice(1, -1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 }); await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); }
+  { const d = door(back); for (const q of routeTo(self(), d).slice(1, -1).filter(q => distance(q, back) > 6)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 }); await walk(d.x, d.z, { radius: 1.2, timeout: 60000 }); }
   await trigger(); await until(() => self().vehicle === back.id, 'in the car again');
   await drive(routeTo(car(), { x: 0, z: 80 }), { radius: 10, fast: 23, timeout: 260000 });
   assert.equal(regionAt(self().x, self().z), 'campus');
