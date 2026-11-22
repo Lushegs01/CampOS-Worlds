@@ -1,8 +1,8 @@
 {
-  "part": "journey",
+  "part": "full",
   "log": [
     {
-      "t": 12,
+      "t": 13,
       "what": "on campus",
       "at": [
         0,
@@ -11,7 +11,7 @@
       "region": "campus"
     },
     {
-      "t": 19,
+      "t": 20,
       "what": "screenshot 01-campus-briefing",
       "at": [
         0,
@@ -20,11 +20,11 @@
       "region": "campus"
     },
     {
-      "t": 26,
+      "t": 27,
       "what": "took the courtyard car"
     },
     {
-      "t": 26,
+      "t": 27,
       "what": "driving",
       "at": [
         13,
@@ -36,71 +36,83 @@
       "waypoint": "1/4"
     },
     {
-      "t": 41,
+      "t": 42,
       "what": "driving",
       "at": [
         -2,
-        171
+        164
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 12.6,
+      "speed": 11.4,
       "waypoint": "2/4"
     },
     {
-      "t": 56,
+      "t": 57,
       "what": "driving",
       "at": [
         -2,
-        331
+        318
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 10.5,
+      "speed": 13.2,
       "waypoint": "2/4"
     },
     {
-      "t": 71,
+      "t": 72,
       "what": "driving",
       "at": [
-        -2,
-        489
+        -3,
+        475
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 11.5,
+      "speed": 12.1,
       "waypoint": "2/4"
     },
     {
-      "t": 86,
+      "t": 87,
       "what": "driving",
       "at": [
-        -2,
-        642
+        -1,
+        643
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 9.2,
+      "speed": 8.3,
       "waypoint": "3/4"
     },
     {
-      "t": 101,
+      "t": 102,
       "what": "driving",
       "at": [
-        -2,
-        784
+        -3,
+        788
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
-      "speed": 12,
+      "speed": 9.7,
       "waypoint": "3/4"
     },
     {
-      "t": 116,
+      "t": 117,
       "what": "driving",
       "at": [
         -2,
-        937
+        949
+      ],
+      "region": "campus",
+      "vehicle": "courtyard-car",
+      "speed": 11.4,
+      "waypoint": "3/4"
+    },
+    {
+      "t": 132,
+      "what": "driving",
+      "at": [
+        -2,
+        1102
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
@@ -108,33 +120,21 @@
       "waypoint": "3/4"
     },
     {
-      "t": 131,
-      "what": "driving",
-      "at": [
-        -3,
-        1085
-      ],
-      "region": "campus",
-      "vehicle": "courtyard-car",
-      "speed": 12.3,
-      "waypoint": "3/4"
-    },
-    {
-      "t": 146,
+      "t": 144,
       "what": "screenshot 02-south-gate",
       "at": [
-        -1,
-        1232
+        -2,
+        1231
       ],
       "region": "campus",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 147,
+      "t": 145,
       "what": "driving",
       "at": [
         -1,
-        1235
+        1234
       ],
       "region": "campus",
       "vehicle": "courtyard-car",
@@ -142,53 +142,53 @@
       "waypoint": "2/4"
     },
     {
-      "t": 162,
+      "t": 160,
       "what": "driving",
       "at": [
-        -2,
-        1373
+        -1,
+        1378
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 9.8,
+      "speed": 11.8,
       "waypoint": "3/4"
     },
     {
-      "t": 171,
+      "t": 168,
       "what": "screenshot 03-gateway-expressway",
       "at": [
-        -2,
+        0,
         1471
       ],
       "region": "expressway",
       "vehicle": "courtyard-car"
     },
     {
-      "t": 172,
+      "t": 169,
       "what": "driving",
       "at": [
-        0,
-        1475
+        -1,
+        1477
       ],
       "region": "expressway",
       "vehicle": "courtyard-car",
-      "speed": 4.9,
+      "speed": 6.2,
       "waypoint": "2/6"
     },
     {
-      "t": 187,
+      "t": 184,
       "what": "driving",
       "at": [
         0,
-        1641
+        1625
       ],
       "region": "metro",
       "vehicle": "courtyard-car",
-      "speed": 7.7,
-      "waypoint": "4/6"
+      "speed": 9.7,
+      "waypoint": "3/6"
     },
     {
-      "t": 199,
+      "t": 197,
       "what": "screenshot 04-metropolitan-city",
       "at": [
         -34,
@@ -198,7 +198,7 @@
       "vehicle": "courtyard-car"
     },
     {
-      "t": 200,
+      "t": 198,
       "what": "arrived in Metropolitan City",
       "at": [
         -34,
@@ -208,7 +208,7 @@
       "vehicle": "courtyard-car"
     },
     {
-      "t": 206,
+      "t": 204,
       "what": "screenshot 05-contact-sade",
       "at": [
         -28,
@@ -218,10 +218,28 @@
       "vehicle": null
     },
     {
-      "t": 207,
+      "t": 205,
       "what": "assignment accepted"
     }
   ],
   "errors": [],
-  "bugs": []
+  "bugs": [
+    {
+      "what": "playthrough stopped",
+      "detail": "Timed out: walk to -35.15861179654184,1700.8534126678858 {\"at\":[-28,1692],\"region\":\"metro\",\"stage\":1,\"hp\":100,\"vehicle\":null,\"wanted\":0,\"units\":2,\"officers\":\"\"}",
+      "at": {
+        "at": [
+          -33,
+          1699
+        ],
+        "region": "metro",
+        "stage": 1,
+        "hp": 100,
+        "vehicle": null,
+        "wanted": 0,
+        "units": 2,
+        "officers": ""
+      }
+    }
+  ]
 }

@@ -171,13 +171,8 @@ try {
   await until(() => mission()?.stage === O.warehouse, 'mission accepted');
   note('assignment accepted');
   if (PART === 'journey') { await writeFile(`${evidence}/playthrough.json`, JSON.stringify({ part: PART, log, errors, bugs }, null, 2)); process.exit(0); }
-  // ACT 3: drive to the Industrial District.
-  const parked = stack.room.fleet.find('courtyard-car');
-  { const d = door(parked); await walk(d.x, d.z, { radius: 1.2 }); }
-  await look(parked.x, parked.z); await trigger();
-  await until(() => self().vehicle === 'courtyard-car', 'back in the car');
-  await drive(routeTo(car(), L(162, 50)), { radius: 6, fast: 18 });
-  await stop(); await trigger(); await until(() => !self().vehicle, 'parked at the freight yard');
+  // ACT 3: to the Industrial District on foot along the streets (300 m; the drive in was the journey above).
+  for (const q of routeTo(self(), L(162, 50)).slice(1)) await walk(q.x, q.z, { radius: 2.5, timeout: 60000 });
   await proof('06-industrial-district');
   // ACT 4: the warehouse.
   await walk(...Object.values(L(171, 42)));
