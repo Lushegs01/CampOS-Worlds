@@ -1,0 +1,91 @@
+{
+  "label": "before",
+  "look": "day",
+  "when": "2026-11-22T07:11:09.507Z",
+  "renderer": "SwiftShader (software WebGL, no GPU): frame rates are NOT representative of real devices",
+  "errors": [],
+  "views": {
+    "yard-high": {
+      "world": 0,
+      "calls": 125,
+      "triangles": 378343,
+      "textures": 181,
+      "geometries": 81,
+      "fps": 2
+    },
+    "interior-high": {
+      "world": 0,
+      "calls": 175,
+      "triangles": 610511,
+      "textures": 181,
+      "geometries": 81,
+      "fps": 1
+    },
+    "hall-high": {
+      "world": 0,
+      "calls": 194,
+      "triangles": 653735,
+      "textures": 181,
+      "geometries": 81,
+      "fps": 1
+    },
+    "lane-high": {
+      "world": 0,
+      "calls": 194,
+      "triangles": 653735,
+      "textures": 181,
+      "geometries": 81,
+      "fps": 2
+    },
+    "floor-high": {
+      "world": 0,
+      "calls": 119,
+      "triangles": 371394,
+      "textures": 189,
+      "geometries": 81,
+      "fps": 2
+    },
+    "squad-high": {
+      "world": 0,
+      "calls": 208,
+      "triangles": 690493,
+      "textures": 213,
+      "geometries": 87,
+      "fps": 2
+    },
+    "reload-high": {
+      "world": 0,
+      "calls": 135,
+      "triangles": 396726,
+      "textures": 213,
+      "geometries": 87,
+      "fps": 1,
+      "phase": "reload"
+    },
+    "focus-high": {
+      "world": 0,
+      "calls": 210,
+      "triangles": 690495,
+      "textures": 213,
+      "geometries": 87,
+      "fps": 1,
+      "lens": {
+        "size": [
+          768,
+          432
+        ],
+        "depth": [
+          18.75,
+          2.87,
+          4.21,
+          1199
+        ],
+        "motion": false,
+        "focus": true,
+        "wanted": true,
+        "focusAmount": 1,
+        "gun": 1
+      }
+    }
+  }
+}

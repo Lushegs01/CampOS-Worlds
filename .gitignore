@@ -4,7 +4,8 @@ dist/
 .env.local
 .env.*
 !.env.example
-.claude/
+.claude/*
+!.claude/settings.json
 *.tsbuildinfo
 .reference/
 test-results/

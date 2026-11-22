@@ -38,7 +38,7 @@ try {
   for (const quality of QUALITIES) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); page.setDefaultTimeout(90000);
     page.on('pageerror', e => console.error('pageerror', e.message)); page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONN|Failed to load resource/.test(m.text())) console.error('console', m.text().slice(0, 300)); });
-    await page.addInitScript(q => { localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: 'Capture', reducedMotion: true }, version: 1 })); localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: q, showFps: true, fov: 78 })); }, quality);
+    await page.addInitScript(q => { localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: 'low', name: 'Capture', reducedMotion: true }, version: 1 })); localStorage.setItem('campos-arena-settings', JSON.stringify({ quality: q, qualityChosen: true, showFps: true, fov: 78 })); }, quality);
     await page.goto(`http://127.0.0.1:5181/?qa-scale=${process.env.SCALE || 1}`);
     await page.waitForFunction(() => { const b = document.querySelector('.enter-button'); return b && !b.disabled; }, null, { timeout: 240000 });
     await page.getByRole('button', { name: 'Enter campus', exact: true }).click();

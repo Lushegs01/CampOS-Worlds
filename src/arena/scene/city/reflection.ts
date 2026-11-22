@@ -12,7 +12,11 @@ import { cityWeather } from './surfaces';
 /** Objects drawn in the reflection. */
 export const REFLECTED = 2;
 
-export function createStreetReflection(street: number, scale: number) {
+/** The uniforms a reflecting material reads (Metropolis' street layers by default; Foundry's wet floor passes its own). */
+export interface ReflectionUniforms { uReflectMap: { value: THREE.Texture | null }; uReflectMatrix: { value: THREE.Matrix4 }; uReflect: { value: number } }
+
+export function createStreetReflection(street: number, scale: number, uniforms: ReflectionUniforms = cityWeather) {
+  const u = uniforms;
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true, samples: 0 });
   target.texture.minFilter = THREE.LinearFilter; target.texture.generateMipmaps = false;
   const virtual = new THREE.PerspectiveCamera(); virtual.layers.set(REFLECTED);
@@ -21,13 +25,13 @@ export function createStreetReflection(street: number, scale: number) {
   const bias = new THREE.Matrix4().set(.5, 0, 0, .5, 0, .5, 0, .5, 0, 0, .5, .5, 0, 0, 0, 1);
   const size = new THREE.Vector2();
   /** Point the street materials at this reflection (from an effect: React may mount, unmount and mount again). */
-  const attach = () => { cityWeather.uReflectMap.value = target.texture; };
+  const attach = () => { u.uReflectMap.value = target.texture; };
   attach();
 
   /** Draw the reflection for this camera. Returns false (and turns the effect off) when the eye is below the street. */
   const render = (gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, hide: THREE.Object3D[]) => {
     camPos.setFromMatrixPosition(camera.matrixWorld);
-    if (camPos.y < street + .2) { cityWeather.uReflect.value = 0; return false; }
+    if (camPos.y < street + .2) { u.uReflect.value = 0; return false; }
     gl.getDrawingBufferSize(size);
     const w = Math.max(64, Math.round(size.x * scale)), h = Math.max(64, Math.round(size.y * scale));
     if (target.width !== w || target.height !== h) target.setSize(w, h);
@@ -38,7 +42,7 @@ export function createStreetReflection(street: number, scale: number) {
     virtual.position.copy(view); virtual.up.set(0, 1, 0).applyMatrix4(rot).reflect(normal); virtual.lookAt(target3);
     virtual.far = camera.far; virtual.near = camera.near; virtual.updateMatrixWorld();
     virtual.projectionMatrix.copy(camera.projectionMatrix);
-    cityWeather.uReflectMatrix.value.copy(bias).multiply(virtual.projectionMatrix).multiply(virtual.matrixWorldInverse);
+    u.uReflectMatrix.value.copy(bias).multiply(virtual.projectionMatrix).multiply(virtual.matrixWorldInverse);
     // Oblique near plane: clip everything below the street.
     // (A few centimetres above the street, so the pavement's own top faces are not drawn into its reflection.)
     plane.setFromNormalAndCoplanarPoint(normal, clipAt).applyMatrix4(virtual.matrixWorldInverse);
@@ -49,17 +53,17 @@ export function createStreetReflection(street: number, scale: number) {
     e[2] = clip.x; e[6] = clip.y; e[10] = clip.z + 1; e[14] = clip.w;
     virtual.projectionMatrixInverse.copy(virtual.projectionMatrix).invert();
     // Draw (without reading itself, without re-drawing shadows, without the rain).
-    const map = cityWeather.uReflectMap.value, strength = cityWeather.uReflect.value;
-    cityWeather.uReflectMap.value = null; cityWeather.uReflect.value = 0;
+    const map = u.uReflectMap.value, strength = u.uReflect.value;
+    u.uReflectMap.value = null; u.uReflect.value = 0;
     const shadows = gl.shadowMap.autoUpdate, before = gl.getRenderTarget(), seen = hide.map(o => o.visible);
     hide.forEach(o => { o.visible = false; });
     gl.shadowMap.autoUpdate = false; gl.setRenderTarget(target); gl.state.buffers.depth.setMask(true); gl.clear();
     gl.render(scene, virtual);
     gl.setRenderTarget(before); gl.shadowMap.autoUpdate = shadows;
     hide.forEach((o, i) => { o.visible = seen[i]; });
-    cityWeather.uReflectMap.value = map; cityWeather.uReflect.value = strength || 1;
+    u.uReflectMap.value = map; u.uReflect.value = strength || 1;
     return true;
   };
-  const dispose = () => { target.dispose(); cityWeather.uReflectMap.value = null; cityWeather.uReflect.value = 0; };
-  return { render, dispose, attach, target };
+  const dispose = () => { target.dispose(); u.uReflectMap.value = null; u.uReflect.value = 0; };
+  return { render, dispose, attach, target, uniforms };
 }
