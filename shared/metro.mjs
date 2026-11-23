@@ -125,6 +125,11 @@ add({ id: 'out-store-1', district: 'outskirts', kind: 'shed', name: 'Ringway Sto
 export const METRO_BUILDINGS = out;
 /** Street trees in planters along the building line of Downtown and the Security District (between buildings,
  *  clear of the sidewalk): shared, so their trunks collide on clients and the room alike. */
+/** True inside the square paved area where a vertical and a horizontal Metro street cross. */
+function onJunctionPad(x, z, half = 9.6) {
+  return METRO_STREETS.some(([o, c, a, b]) => o === 'v' && Math.abs(x - c) < half && z > Math.min(a, b) - half && z < Math.max(a, b) + half
+    && METRO_STREETS.some(([o2, c2, a2, b2]) => o2 === 'h' && Math.abs(z - c2) < half && c > Math.min(a2, b2) - half && c < Math.max(a2, b2) + half));
+}
 export const METRO_PLANTERS = (() => {
   const list = [];
   for (const b of out) {
@@ -134,6 +139,8 @@ export const METRO_PLANTERS = (() => {
       // Only in a real gap between buildings, and not twice in the same gap.
       if (out.some(o => o !== b && Math.abs(o.x - x) < o.w / 2 + 1.2 && Math.abs(o.z - z) < o.d / 2 + 1.2)) continue;
       if (list.some(p => Math.hypot(p.x - x, p.z - z) < 3)) continue;
+      // Never in a junction's flared corner (8 m carriageway + 5 m curb returns each side, plus a trunk's margin).
+      if (onJunctionPad(x, z)) continue;
       list.push({ x, z, species: list.length % 3 === 0 ? 'neem' : 'terminalia', s: .62 });
     }
   }
