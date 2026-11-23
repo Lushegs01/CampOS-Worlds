@@ -1,11 +1,11 @@
 {
-  "date": "2026-11-23T13:39:31.115Z",
+  "date": "2026-11-23T14:01:01.355Z",
   "quality": "medium",
   "renderer": "software (SwiftShader)",
   "districts": {
     "downtown": {
-      "vehicles": 26,
-      "moving": 13,
+      "vehicles": 24,
+      "moving": 11,
       "parked": 7,
       "people": 40,
       "classes": [
@@ -20,12 +20,12 @@
         "bus"
       ],
       "fps": 1,
-      "drawCalls": 310,
-      "triangles": 628522
+      "drawCalls": 292,
+      "triangles": 516824
     },
     "commercial": {
       "vehicles": 24,
-      "moving": 9,
+      "moving": 12,
       "parked": 2,
       "people": 43,
       "classes": [
@@ -33,53 +33,53 @@
         "suv",
         "moto",
         "taxi",
+        "van",
         "hatch",
-        "truck",
-        "pickup"
+        "truck"
       ],
       "fps": 1,
-      "drawCalls": 140,
-      "triangles": 369100
+      "drawCalls": 146,
+      "triangles": 376058
     },
     "residential": {
-      "vehicles": 21,
-      "moving": 19,
+      "vehicles": 18,
+      "moving": 18,
       "parked": 0,
       "people": 10,
       "classes": [
-        "taxi",
+        "van",
+        "sedan",
+        "pickup",
         "moto",
         "hatch",
-        "suv",
-        "pickup",
-        "sedan",
-        "sports"
+        "taxi",
+        "sports",
+        "suv"
       ],
       "fps": 1,
-      "drawCalls": 250,
-      "triangles": 490612
+      "drawCalls": 248,
+      "triangles": 503530
     },
     "industrial": {
-      "vehicles": 11,
-      "moving": 9,
+      "vehicles": 6,
+      "moving": 6,
       "parked": 0,
       "people": 6,
       "classes": [
-        "truck",
         "moto",
-        "pickup",
+        "truck",
         "sedan",
-        "bus"
+        "hatch"
       ],
       "fps": 1,
-      "drawCalls": 154,
-      "triangles": 516052
+      "drawCalls": 162,
+      "triangles": 535196
     },
     "security": {
-      "vehicles": 28,
-      "moving": 9,
+      "vehicles": 33,
+      "moving": 13,
       "parked": 15,
-      "people": 15,
+      "people": 14,
       "classes": [
         "sedan",
         "suv",
@@ -91,39 +91,43 @@
       ],
       "fps": 1,
       "drawCalls": 178,
-      "triangles": 531336
+      "triangles": 530836
     },
     "entrance": {
-      "vehicles": 19,
+      "vehicles": 21,
       "moving": 10,
       "parked": 3,
       "people": 15,
       "classes": [
         "sedan",
         "suv",
-        "taxi",
+        "van",
+        "moto",
         "truck",
         "hatch",
-        "pickup"
+        "pickup",
+        "taxi"
       ],
       "fps": 1,
       "drawCalls": 130,
-      "triangles": 425264
+      "triangles": 429788
     },
     "expressway": {
-      "vehicles": 7,
-      "moving": 2,
+      "vehicles": 8,
+      "moving": 4,
       "parked": 0,
-      "people": 2,
+      "people": 1,
       "classes": [
-        "taxi",
         "sedan",
         "truck",
-        "hatch"
+        "van",
+        "hatch",
+        "taxi",
+        "moto"
       ],
       "fps": 1,
-      "drawCalls": 294,
-      "triangles": 750438
+      "drawCalls": 267,
+      "triangles": 608536
     }
   },
   "checks": {
@@ -131,82 +135,82 @@
       "ok": true,
       "downtown": 40,
       "industrial": 6,
-      "expressway": 2
+      "expressway": 1
     },
     "traffic in every district": {
       "ok": true,
-      "downtown": 26,
+      "downtown": 24,
       "commercial": 24,
-      "residential": 21,
-      "industrial": 11,
-      "security": 28,
-      "entrance": 19,
-      "expressway": 7
+      "residential": 18,
+      "industrial": 6,
+      "security": 33,
+      "entrance": 21,
+      "expressway": 8
     },
     "trafficSamples": [
       {
         "n": 161,
         "offLane": 0,
-        "worstLateral": 1.7,
+        "worstLateral": 0.14,
         "overlaps": 0,
-        "moving": 78,
-        "stopped": 52
+        "moving": 87,
+        "stopped": 43
       },
       {
         "n": 161,
         "offLane": 0,
-        "worstLateral": 0.37,
-        "overlaps": 0,
-        "moving": 69,
-        "stopped": 61
-      },
-      {
-        "n": 160,
-        "offLane": 0,
-        "worstLateral": 0.21,
-        "overlaps": 0,
-        "moving": 75,
-        "stopped": 55
-      },
-      {
-        "n": 160,
-        "offLane": 0,
         "worstLateral": 1.7,
         "overlaps": 0,
-        "moving": 77,
-        "stopped": 51
+        "moving": 85,
+        "stopped": 44
       },
       {
-        "n": 161,
+        "n": 163,
         "offLane": 0,
         "worstLateral": 0.09,
-        "overlaps": 1,
-        "moving": 65,
-        "stopped": 65
+        "overlaps": 0,
+        "moving": 89,
+        "stopped": 41
+      },
+      {
+        "n": 163,
+        "offLane": 0,
+        "worstLateral": 1.7,
+        "overlaps": 0,
+        "moving": 81,
+        "stopped": 50
+      },
+      {
+        "n": 162,
+        "offLane": 0,
+        "worstLateral": 0.28,
+        "overlaps": 0,
+        "moving": 57,
+        "stopped": 73
+      },
+      {
+        "n": 161,
+        "offLane": 0,
+        "worstLateral": 0.17,
+        "overlaps": 0,
+        "moving": 74,
+        "stopped": 56
+      },
+      {
+        "n": 160,
+        "offLane": 0,
+        "worstLateral": 0.24,
+        "overlaps": 0,
+        "moving": 77,
+        "stopped": 55
       },
       {
         "n": 158,
         "offLane": 0,
-        "worstLateral": 0.13,
-        "overlaps": 1,
-        "moving": 73,
-        "stopped": 57
-      },
-      {
-        "n": 156,
-        "offLane": 0,
-        "worstLateral": 0.15,
-        "overlaps": 1,
-        "moving": 70,
-        "stopped": 59
-      },
-      {
-        "n": 154,
-        "offLane": 0,
-        "worstLateral": 0.14,
-        "overlaps": 3,
-        "moving": 56,
-        "stopped": 73
+        "worstLateral": 0.2,
+        "overlaps": 0,
+        "moving": 71,
+        "stopped": 61
       }
     ],
     "vehicles stay on their lanes (incl. overtakes, < 4.3 m)": {
@@ -214,169 +218,84 @@
       "worst": 1.7
     },
     "no two ambient vehicles overlap": {
-      "ok": false,
+      "ok": true,
       "overlaps": [
         0,
         0,
         0,
         0,
-        1,
-        1,
-        1,
-        3
+        0,
+        0,
+        0,
+        0
       ],
-      "pairs": [
-        [
-          {
-            "id": "cv39",
-            "cls": "truck",
-            "x": -145.03,
-            "z": 1755.88,
-            "yaw": 1.571,
-            "v": 0,
-            "state": "crashed",
-            "why": "near",
-            "seg": 22,
-            "brake": true,
-            "ind": 0
-          },
-          {
-            "id": "cv43",
-            "cls": "truck",
-            "x": -146.69,
-            "z": 1757.55,
-            "yaw": 1.571,
-            "v": 0,
-            "state": "crashed",
-            "why": "",
-            "seg": 22,
-            "brake": false,
-            "ind": 0
-          }
-        ],
-        [
-          {
-            "id": "cv39",
-            "cls": "truck",
-            "x": -145.03,
-            "z": 1755.88,
-            "yaw": 1.571,
-            "v": 0,
-            "state": "crashed",
-            "why": "near",
-            "seg": 22,
-            "brake": true,
-            "ind": 0
-          },
-          {
-            "id": "cv43",
-            "cls": "truck",
-            "x": -146.69,
-            "z": 1757.55,
-            "yaw": 1.571,
-            "v": 0,
-            "state": "crashed",
-            "why": "",
-            "seg": 22,
-            "brake": false,
-            "ind": 0
-          }
-        ],
-        [
-          {
-            "id": "cv39",
-            "cls": "truck",
-            "x": -145.03,
-            "z": 1755.88,
-            "yaw": 1.571,
-            "v": 0,
-            "state": "crashed",
-            "why": "near",
-            "seg": 22,
-            "brake": true,
-            "ind": 0
-          },
-          {
-            "id": "cv43",
-            "cls": "truck",
-            "x": -146.69,
-            "z": 1757.55,
-            "yaw": 1.571,
-            "v": 0,
-            "state": "crashed",
-            "why": "",
-            "seg": 22,
-            "brake": false,
-            "ind": 0
-          }
-        ]
-      ]
+      "pairs": []
     },
     "junction entries on red: none": {
       "ok": true,
-      "entries": 720,
+      "entries": 752,
       "redRuns": 0
     },
     "vehicles stop at red lights": {
       "ok": true,
-      "redStops": 200
+      "redStops": 183
     },
     "traffic keeps flowing (2 min)": {
       "ok": true,
-      "moving": 56,
-      "total": 154
+      "moving": 71,
+      "total": 158
     },
     "parking and garages are used": {
       "ok": true,
-      "parkings": 14,
-      "departures": 43
+      "parkings": 13,
+      "departures": 38
     },
     "population within budget": {
       "ok": true,
-      "total": 154
+      "total": 158
     },
     "a car stops for a player standing in its lane": {
       "ok": true,
-      "closest": 4.91,
-      "stoppedAt": 6.53,
+      "closest": 6.82,
+      "stoppedAt": 6.84,
       "trace": [
         [
-          23.2,
-          7.5,
+          23.9,
+          7.6,
           ""
         ],
         [
-          8.8,
-          2.4,
+          9.3,
+          2.9,
           "obstacle"
         ],
         [
-          6.3,
-          0.2,
-          "obstacle"
-        ],
-        [
-          5.8,
-          0.2,
-          "obstacle"
-        ],
-        [
-          5.4,
-          0.2,
-          "obstacle"
-        ],
-        [
-          4.9,
+          6.8,
           0,
           "obstacle"
         ],
         [
-          4.9,
+          6.8,
           0,
           "obstacle"
         ],
         [
-          4.9,
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
           0,
           "obstacle"
         ]
@@ -384,20 +303,20 @@
     },
     "pedestrians flee or take cover from gunfire": {
       "ok": true,
-      "fleeing": 14,
-      "near": 17
+      "fleeing": 11,
+      "near": 15
     },
     "no pedestrian inside a building collider": {
       "ok": true,
-      "n": 145,
+      "n": 146,
       "inside": 0
     },
     "people cross streets and use buildings": {
       "ok": true,
-      "crossed": 252,
-      "entered": 39,
-      "exited": 84,
-      "conversations": 5
+      "crossed": 231,
+      "entered": 36,
+      "exited": 83,
+      "conversations": 7
     },
     "no page errors": {
       "ok": true,
@@ -405,18 +324,18 @@
     }
   },
   "performance": {
-    "loadToPlayableMs": 26349,
+    "loadToPlayableMs": 30355,
     "sim": {
-      "msPerSimStep": 0.63,
+      "msPerSimStep": 0.558,
       "note": "traffic + pedestrians, one 1/30 s step, whole city"
     },
     "frame": {
       "fps": 1,
-      "drawCalls": 387,
-      "triangles": 827380,
+      "drawCalls": 389,
+      "triangles": 849776,
       "geometries": 704,
       "textures": 243,
-      "heapMB": 419
+      "heapMB": 360
     }
   },
   "errors": []

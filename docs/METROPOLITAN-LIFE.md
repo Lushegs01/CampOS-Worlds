@@ -67,7 +67,7 @@ node tests/browser-cinema.mjs            # in-game cinematics on the full local 
 
 The results are in `docs/city-life-results*.json` and `docs/cinema-results.json`. Screenshots are in `docs/screenshots/city-life/` and `docs/screenshots/cinema/`.
 
-### Headless (`tests/city-life.test.mjs`, 6/6 pass)
+### Headless (`tests/city-life.test.mjs`, 8/8 pass)
 
 - The network is connected, and lane and junction curves never enter a building.
 - Crossing signal approaches never both show non-red, and pedestrians walk only while traffic on the arm they cross is held.
@@ -76,19 +76,24 @@ The results are in `docs/city-life-results*.json` and `docs/cinema-results.json`
 - No pedestrian ever stands inside a building collider. Pedestrians cross streets, use doors and react to gunfire. Downtown holds more than twice the pedestrians of the Industrial District.
 - The ten-minute investigations behind these tests used four random seeds × 400 s plus a 10-minute flow run at high density.
 
-### In-game (`tests/browser-city-life.mjs`, medium profile, 14/14 checks pass)
+### In-game (`tests/browser-city-life.mjs`, 14/14 checks pass on both profiles)
 
-The suite visits all seven districts and fast-forwards the live in-game simulation for two minutes. It records:
+The suite visits all seven districts and fast-forwards the live in-game simulation for two minutes.
 
-- 742 junction entries with **0** on red, and 192 stops at red lights.
-- Worst lateral deviation from the lane 3.8 m, which happens while overtaking.
-- 0 overlaps (one earlier run showed a single transient overlap before the manoeuvre fixes below).
-- A car stopping 6.6 m short of the player standing in its lane.
-- Pedestrians fleeing gunfire, 0 pedestrians inside buildings, and 225 street crossings.
+| | Medium (`docs/city-life-results.json`) | Low (`docs/city-life-results-low.json`) |
+|---|---|---|
+| Junction entries / on red | 752 / **0** | 509 / **0** |
+| Stops at red lights | 183 | 127 |
+| Vehicle overlaps (8 samples) | **0** | **0** |
+| Worst lateral offset from lane | 1.7 m | 0.36 m |
+| Car stops short of a player in its lane | at 6.8 m | at 6.8 m |
+| Street crossings / doors entered and left | 231 / 36 and 83 | 135 / 19 and 53 |
+| Pedestrians inside buildings | 0 | 0 |
+| Population (vehicles) | 158 | 97 |
 
 ### Cinematics in-game (`tests/browser-cinema.mjs`, full stack with room and accounts)
 
-These sequences played from real room state: `city-reveal` (3 shots), `meet-contact` (5 shots, 6 subtitle cards), `warehouse-arrival` (skipped mid-scene; mission stage unchanged), `explosion` (2 shots, after the room's own ambush blast), `safehouse-arrival` and `delivery` (4 shots, voiced). Each scene logged start, shot and end events, and the camera and controls came back afterwards.
+The final run passes. These sequences played from real room state: `city-reveal` (3 shots), `meet-contact` (5 shots, 6 subtitle cards), `warehouse-arrival` (skipped mid-scene; mission stage unchanged), `explosion` (2 shots, after the room's own ambush blast), `safehouse-arrival` and `delivery` (4 shots, voiced). Each scene logged start, shot and end events, and the camera and controls came back afterwards.
 
 To reach each beat in minutes, the harness moves the player and, where noted in the test, sets a mission stage or stands down the ambush. The scenes themselves are triggered by the room's own logic.
 
@@ -115,6 +120,9 @@ All browser numbers here come from **software WebGL (SwiftShader) in a 4-core co
 | HUD, the Sade label and the first-person weapon visible in scenes | — | Hidden while a scene plays |
 | Scenes ran 10× long on slow frames | Clamped frame time | Scenes run on real time |
 | Planters on the sidewalk walking line | Pre-existing render-only planters | Moved to the building line, with collidable trees |
+| Two street trees on junction squares (CI: "trees never stand on a road") | The planter generator only checked buildings | Planters keep clear of carriageways, sidewalks and junction squares (39 trees) |
+| Trucks piled into each other on a Harbour Exchange lane | The room's scripted Harbour Exchange loops drive fixed routes, some against the lane direction, and yield to nobody; they rear-ended and head-butted ambient cars | Ambient traffic never routes along or spawns on those 8 lanes (regression test reproduces 39 crashes without the fix) |
+| An overtaking car could close on the obstruction before pulling out | Overtakes forced acceleration from the start | Pull out first, accelerate only once clear of the lane |
 
 ## 8. Outstanding work and blockers
 

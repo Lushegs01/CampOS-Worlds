@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-23T13:36:47.515Z",
+  "date": "2026-11-23T13:48:41.345Z",
   "sequences": {
     "city-reveal": {
       "started": {
@@ -18,21 +18,21 @@
         {
           "shot": "aerial reveal",
           "at": 1,
-          "file": "docs/screenshots/cinema/city-reveal-01.jpg",
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/city-reveal-01.jpg",
           "letterbox": "65.0938px",
           "subtitle": null
         },
         {
           "shot": "vehicle tracking",
-          "at": 5.23,
-          "file": "docs/screenshots/cinema/city-reveal-02.jpg",
+          "at": 5.12,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/city-reveal-02.jpg",
           "letterbox": "65.0938px",
           "subtitle": null
         },
         {
           "shot": "low chase",
-          "at": 8.08,
-          "file": "docs/screenshots/cinema/city-reveal-03.jpg",
+          "at": 8.22,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/city-reveal-03.jpg",
           "letterbox": "0px",
           "subtitle": null
         }
@@ -41,33 +41,33 @@
       "log": [
         {
           "id": "city-reveal",
-          "at": 53505,
+          "at": 53026,
           "event": "start",
           "detail": "3 shots, 10.6 s"
         },
         {
           "id": "city-reveal",
-          "at": 53505,
+          "at": 53026,
           "event": "shot",
           "detail": "aerial reveal"
         },
         {
           "id": "city-reveal",
-          "at": 58930,
+          "at": 58310,
           "event": "shot",
           "detail": "vehicle tracking"
         },
         {
           "id": "city-reveal",
-          "at": 62607,
+          "at": 62258,
           "event": "shot",
           "detail": "low chase"
         },
         {
           "id": "city-reveal",
-          "at": 66168,
+          "at": 65731,
           "event": "end",
-          "detail": "t=11.04"
+          "detail": "t=10.72"
         }
       ],
       "cameraRestored": {
@@ -97,35 +97,35 @@
         {
           "shot": "establishing two-shot",
           "at": 1,
-          "file": "docs/screenshots/cinema/meet-contact-01.jpg",
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/meet-contact-01.jpg",
           "letterbox": "65.0938px",
           "subtitle": null
         },
         {
           "shot": "over the shoulder: player → Sade",
           "at": 5.5,
-          "file": "docs/screenshots/cinema/meet-contact-02.jpg",
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/meet-contact-02.jpg",
           "letterbox": "65.0938px",
           "subtitle": "Orisun Freight, out in the Industrial District, used to move university equipment."
         },
         {
           "shot": "close-up: Sade",
           "at": 10.5,
-          "file": "docs/screenshots/cinema/meet-contact-03.jpg",
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/meet-contact-03.jpg",
           "letterbox": "65.0938px",
           "subtitle": "I need the one with the amber latch."
         },
         {
           "shot": "reverse: Sade → player",
-          "at": 18.23,
-          "file": "docs/screenshots/cinema/meet-contact-04.jpg",
+          "at": 18.43,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/meet-contact-04.jpg",
           "letterbox": "65.0938px",
           "subtitle": "If the yard lights turn red, get to the motor pool and take a car."
         },
         {
           "shot": "close-up: Sade (instruction)",
-          "at": 22.73,
-          "file": "docs/screenshots/cinema/meet-contact-05.jpg",
+          "at": 22.93,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/meet-contact-05.jpg",
           "letterbox": "0px",
           "subtitle": "Lose anyone following you, then bring the case to the lock-up on Baobab Close."
         }
@@ -139,45 +139,45 @@
       "log": [
         {
           "id": "meet-contact",
-          "at": 73996,
+          "at": 75523,
           "event": "start",
           "detail": "5 shots, 25.9 s"
         },
         {
           "id": "meet-contact",
-          "at": 73996,
+          "at": 75523,
           "event": "shot",
           "detail": "establishing two-shot"
         },
         {
           "id": "meet-contact",
-          "at": 78098,
+          "at": 79938,
           "event": "shot",
           "detail": "over the shoulder: player → Sade"
         },
         {
           "id": "meet-contact",
-          "at": 88959,
+          "at": 91608,
           "event": "shot",
           "detail": "close-up: Sade"
         },
         {
           "id": "meet-contact",
-          "at": 97333,
+          "at": 100589,
           "event": "shot",
           "detail": "reverse: Sade → player"
         },
         {
           "id": "meet-contact",
-          "at": 103739,
+          "at": 106990,
           "event": "shot",
           "detail": "close-up: Sade (instruction)"
         },
         {
           "id": "meet-contact",
-          "at": 109027,
+          "at": 112481,
           "event": "end",
-          "detail": "t=26.06"
+          "detail": "t=26.28"
         }
       ],
       "cameraRestored": {
@@ -191,7 +191,7 @@
     "warehouse-arrival": {
       "started": {
         "id": "warehouse-arrival",
-        "t": 1.93,
+        "t": 1.95,
         "shot": 0,
         "shotName": "yard establishing",
         "total": 5.4
@@ -202,30 +202,30 @@
       "log": [
         {
           "id": "warehouse-arrival",
-          "at": 125198,
+          "at": 132576,
           "event": "start",
           "detail": "2 shots, 5.4 s"
         },
         {
           "id": "warehouse-arrival",
-          "at": 125198,
+          "at": 132576,
           "event": "shot",
           "detail": "yard establishing"
         },
         {
           "id": "warehouse-arrival",
-          "at": 128447,
+          "at": 135599,
           "event": "skip"
         },
         {
           "id": "warehouse-arrival",
-          "at": 128454,
+          "at": 135607,
           "event": "shot",
           "detail": "approach"
         },
         {
           "id": "warehouse-arrival",
-          "at": 128981,
+          "at": 136281,
           "event": "skip",
           "detail": "t=5.55"
         }
@@ -241,7 +241,7 @@
     "explosion": {
       "started": {
         "id": "explosion",
-        "t": 0.45,
+        "t": 0.5,
         "shot": 0,
         "shotName": "low-angle blast",
         "total": 2.5
@@ -252,8 +252,8 @@
       "frames": [
         {
           "shot": "low-angle blast",
-          "at": 0.95,
-          "file": "docs/screenshots/cinema/explosion-01.jpg",
+          "at": 1,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/explosion-01.jpg",
           "letterbox": "0px",
           "subtitle": null
         }
@@ -262,27 +262,27 @@
       "log": [
         {
           "id": "explosion",
-          "at": 142898,
+          "at": 151669,
           "event": "start",
           "detail": "2 shots, 2.5 s"
         },
         {
           "id": "explosion",
-          "at": 142898,
+          "at": 151669,
           "event": "shot",
           "detail": "low-angle blast"
         },
         {
           "id": "explosion",
-          "at": 144522,
+          "at": 153028,
           "event": "shot",
           "detail": "reaction"
         },
         {
           "id": "explosion",
-          "at": 146295,
+          "at": 154957,
           "event": "end",
-          "detail": "t=2.84"
+          "detail": "t=2.86"
         }
       ],
       "cameraRestored": {
@@ -292,10 +292,144 @@
         "fov": 52
       },
       "active": null
+    },
+    "safehouse-arrival": {
+      "started": {
+        "id": "safehouse-arrival",
+        "t": 0.39,
+        "shot": 0,
+        "shotName": "lock-up establishing",
+        "total": 3.2
+      },
+      "shots": [
+        "lock-up establishing"
+      ],
+      "frames": [
+        {
+          "shot": "lock-up establishing",
+          "at": 0.89,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/safehouse-arrival-01.jpg",
+          "letterbox": "0px",
+          "subtitle": null
+        }
+      ],
+      "subtitles": [],
+      "log": [
+        {
+          "id": "safehouse-arrival",
+          "at": 162204,
+          "event": "start",
+          "detail": "1 shots, 3.2 s"
+        },
+        {
+          "id": "safehouse-arrival",
+          "at": 162204,
+          "event": "shot",
+          "detail": "lock-up establishing"
+        },
+        {
+          "id": "safehouse-arrival",
+          "at": 170680,
+          "event": "end",
+          "detail": "t=3.30"
+        }
+      ],
+      "cameraRestored": {
+        "x": -221,
+        "y": 2.8755527679237614,
+        "z": 2009.2340097247422,
+        "fov": 52
+      },
+      "active": null
+    },
+    "delivery": {
+      "started": {
+        "id": "delivery",
+        "t": 0.29,
+        "shot": 0,
+        "shotName": "handover: player → Sade",
+        "total": 12.954545454545455
+      },
+      "shots": [
+        "handover: player → Sade",
+        "close-up: Sade reads",
+        "reverse: Sade → player"
+      ],
+      "frames": [
+        {
+          "shot": "handover: player → Sade",
+          "at": 0.62,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/delivery-01.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": null
+        },
+        {
+          "shot": "close-up: Sade reads",
+          "at": 5.12,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/delivery-02.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": "Same university seal, different signatures."
+        },
+        {
+          "shot": "reverse: Sade → player",
+          "at": 9.07,
+          "file": "/tmp/claude-0/-home-user-CampOS-Worlds/bd96a93b-faa8-588e-9895-ddc5a7431212/scratchpad/final/cinema/delivery-03.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": "The next transfer is scheduled for tonight, under the auditorium."
+        }
+      ],
+      "subtitles": [
+        "Sade: Same university seal, different signatures.",
+        "Sade: The next transfer is scheduled for tonight, under the auditorium."
+      ],
+      "log": [
+        {
+          "id": "delivery",
+          "at": 175240,
+          "event": "start",
+          "detail": "4 shots, 13.0 s"
+        },
+        {
+          "id": "delivery",
+          "at": 175240,
+          "event": "shot",
+          "detail": "handover: player → Sade"
+        },
+        {
+          "id": "delivery",
+          "at": 178340,
+          "event": "shot",
+          "detail": "close-up: Sade reads"
+        },
+        {
+          "id": "delivery",
+          "at": 193766,
+          "event": "shot",
+          "detail": "reverse: Sade → player"
+        },
+        {
+          "id": "delivery",
+          "at": 195921,
+          "event": "shot",
+          "detail": "close-up: the reveal"
+        },
+        {
+          "id": "delivery",
+          "at": 199949,
+          "event": "end",
+          "detail": "t=13.04"
+        }
+      ],
+      "cameraRestored": {
+        "x": -225,
+        "y": 2.722257116009215,
+        "z": 2007.9687583633847,
+        "fov": 52
+      },
+      "active": null
     }
   },
   "errors": [],
   "controlsAfterSkip": 1747,
-  "ok": false,
-  "failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(blast.shots.length >= 2)\n\n    at file:///home/user/CampOS-Worlds/tests/browser-cinema.mjs:93:10"
+  "ok": true
 }
