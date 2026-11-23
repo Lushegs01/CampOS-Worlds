@@ -101,3 +101,21 @@ test('pedestrians: inside no building, cross streets, use doors and seats, flee 
   assert.ok(peopleSummary(p).fleeing > 3, 'people react');
   assert.ok(t.list.some(v => v.flee), 'drivers react');
 });
+
+test('a driver overtakes a disabled vehicle without touching it (or waits behind it)', () => {
+  let checked = 0;
+  for (const seed of [3, 7, 11, 19]) {
+    const t = createTraffic({ seed, quality: 'high' });
+    // A broken-down truck mid-block, with traffic behind it on the same lane.
+    const stuck = t.list.find(v => v.state === 'drive' && SEGMENTS[v.seg].kind === 'lane' && v.s > 40 && SEGMENTS[v.seg].len - v.s > 40 && t.list.some(o => o !== v && o.seg === v.seg && o.s < v.s && o.s > v.s - 35));
+    if (!stuck) continue;
+    stuck.state = 'disabled'; stuck.v = 0; stuck.hazard = true; stuck.until = Infinity;
+    for (let i = 0; i < 30 * 40; i++) {
+      stepTraffic(t, 1 / 30, { players: [{ x: stuck.x, z: stuck.z, yaw: 0 }] });
+      for (const o of t.list) if (o !== stuck && Math.abs(o.x - stuck.x) < 12 && Math.abs(o.z - stuck.z) < 12)
+        assert.ok(!obb(o.x, o.z, o.yaw, o.len / 2 - .1, o.wid / 2 - .05, stuck.x, stuck.z, stuck.yaw, stuck.len / 2 - .1, stuck.wid / 2 - .05), `seed ${seed}: ${o.id} (${o.state}, lat ${o.lat?.toFixed(2)}) touched the disabled vehicle`);
+    }
+    checked++;
+  }
+  assert.ok(checked >= 2, 'scenarios ran');
+});

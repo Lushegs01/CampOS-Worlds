@@ -420,7 +420,9 @@ function stepVehicle(t, v, dt, ctx) {
     if (!oncoming) { v.overtaking = v.s + 22; v.latT = -LANE_OFFSET * 2 + .2; t.stats.overtakes++; v.ind = -1; }
   }
   if (v.overtaking) {
-    a = Math.max(a, Math.min(1.2, idm(v, 6, Infinity, 0)));
+    // Pull out first, then pass: only once the car is clear of its own lane may it ignore the obstruction ahead.
+    if (Math.abs(v.lat) > 2.9) a = Math.max(a, Math.min(1.2, idm(v, 6, Infinity, 0)));
+    else a = Math.min(a, v.v > 1.5 ? -2.5 : (1.4 - v.v) * 1.5);
     if (v.s > v.overtaking || seg.kind !== 'lane' || dEnd < 14) { v.overtaking = 0; v.latT = 0; v.ind = 0; }
   }
   // Still stuck: turn round and route another way (and let the city know the lane is blocked for a while).

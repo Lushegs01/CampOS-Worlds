@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-23T13:26:06.544Z",
+  "date": "2026-11-23T13:36:47.515Z",
   "sequences": {
     "city-reveal": {
       "started": {
@@ -24,14 +24,14 @@
         },
         {
           "shot": "vehicle tracking",
-          "at": 5.5,
+          "at": 5.23,
           "file": "docs/screenshots/cinema/city-reveal-02.jpg",
           "letterbox": "65.0938px",
           "subtitle": null
         },
         {
           "shot": "low chase",
-          "at": 9.9,
+          "at": 8.08,
           "file": "docs/screenshots/cinema/city-reveal-03.jpg",
           "letterbox": "0px",
           "subtitle": null
@@ -41,33 +41,33 @@
       "log": [
         {
           "id": "city-reveal",
-          "at": 88967,
+          "at": 53505,
           "event": "start",
           "detail": "3 shots, 10.6 s"
         },
         {
           "id": "city-reveal",
-          "at": 88967,
+          "at": 53505,
           "event": "shot",
           "detail": "aerial reveal"
         },
         {
           "id": "city-reveal",
-          "at": 97444,
+          "at": 58930,
           "event": "shot",
           "detail": "vehicle tracking"
         },
         {
           "id": "city-reveal",
-          "at": 101946,
+          "at": 62607,
           "event": "shot",
           "detail": "low chase"
         },
         {
           "id": "city-reveal",
-          "at": 105643,
+          "at": 66168,
           "event": "end",
-          "detail": "t=10.90"
+          "detail": "t=11.04"
         }
       ],
       "cameraRestored": {
@@ -117,14 +117,14 @@
         },
         {
           "shot": "reverse: Sade → player",
-          "at": 18.5,
+          "at": 18.23,
           "file": "docs/screenshots/cinema/meet-contact-04.jpg",
           "letterbox": "65.0938px",
           "subtitle": "If the yard lights turn red, get to the motor pool and take a car."
         },
         {
           "shot": "close-up: Sade (instruction)",
-          "at": 23,
+          "at": 22.73,
           "file": "docs/screenshots/cinema/meet-contact-05.jpg",
           "letterbox": "0px",
           "subtitle": "Lose anyone following you, then bring the case to the lock-up on Baobab Close."
@@ -139,45 +139,45 @@
       "log": [
         {
           "id": "meet-contact",
-          "at": 122211,
+          "at": 73996,
           "event": "start",
           "detail": "5 shots, 25.9 s"
         },
         {
           "id": "meet-contact",
-          "at": 122211,
+          "at": 73996,
           "event": "shot",
           "detail": "establishing two-shot"
         },
         {
           "id": "meet-contact",
-          "at": 128434,
+          "at": 78098,
           "event": "shot",
           "detail": "over the shoulder: player → Sade"
         },
         {
           "id": "meet-contact",
-          "at": 147610,
+          "at": 88959,
           "event": "shot",
           "detail": "close-up: Sade"
         },
         {
           "id": "meet-contact",
-          "at": 163392,
+          "at": 97333,
           "event": "shot",
           "detail": "reverse: Sade → player"
         },
         {
           "id": "meet-contact",
-          "at": 174025,
+          "at": 103739,
           "event": "shot",
           "detail": "close-up: Sade (instruction)"
         },
         {
           "id": "meet-contact",
-          "at": 182720,
+          "at": 109027,
           "event": "end",
-          "detail": "t=26.00"
+          "detail": "t=26.06"
         }
       ],
       "cameraRestored": {
@@ -191,19 +191,69 @@
     "warehouse-arrival": {
       "started": {
         "id": "warehouse-arrival",
-        "t": 0.5,
+        "t": 1.93,
         "shot": 0,
         "shotName": "yard establishing",
         "total": 5.4
       },
+      "shots": [],
+      "frames": [],
+      "subtitles": [],
+      "log": [
+        {
+          "id": "warehouse-arrival",
+          "at": 125198,
+          "event": "start",
+          "detail": "2 shots, 5.4 s"
+        },
+        {
+          "id": "warehouse-arrival",
+          "at": 125198,
+          "event": "shot",
+          "detail": "yard establishing"
+        },
+        {
+          "id": "warehouse-arrival",
+          "at": 128447,
+          "event": "skip"
+        },
+        {
+          "id": "warehouse-arrival",
+          "at": 128454,
+          "event": "shot",
+          "detail": "approach"
+        },
+        {
+          "id": "warehouse-arrival",
+          "at": 128981,
+          "event": "skip",
+          "detail": "t=5.55"
+        }
+      ],
+      "cameraRestored": {
+        "x": -330,
+        "y": 2.775552767923761,
+        "z": 1741.7340097247422,
+        "fov": 52
+      },
+      "active": null
+    },
+    "explosion": {
+      "started": {
+        "id": "explosion",
+        "t": 0.45,
+        "shot": 0,
+        "shotName": "low-angle blast",
+        "total": 2.5
+      },
       "shots": [
-        "yard establishing"
+        "low-angle blast"
       ],
       "frames": [
         {
-          "shot": "yard establishing",
-          "at": 2,
-          "file": "docs/screenshots/cinema/warehouse-arrival-01.jpg",
+          "shot": "low-angle blast",
+          "at": 0.95,
+          "file": "docs/screenshots/cinema/explosion-01.jpg",
           "letterbox": "0px",
           "subtitle": null
         }
@@ -211,40 +261,41 @@
       "subtitles": [],
       "log": [
         {
-          "id": "warehouse-arrival",
-          "at": 225516,
+          "id": "explosion",
+          "at": 142898,
           "event": "start",
-          "detail": "2 shots, 5.4 s"
+          "detail": "2 shots, 2.5 s"
         },
         {
-          "id": "warehouse-arrival",
-          "at": 225516,
+          "id": "explosion",
+          "at": 142898,
           "event": "shot",
-          "detail": "yard establishing"
+          "detail": "low-angle blast"
         },
         {
-          "id": "warehouse-arrival",
-          "at": 232335,
+          "id": "explosion",
+          "at": 144522,
           "event": "shot",
-          "detail": "approach"
+          "detail": "reaction"
         },
         {
-          "id": "warehouse-arrival",
-          "at": 236332,
+          "id": "explosion",
+          "at": 146295,
           "event": "end",
-          "detail": "t=5.50"
+          "detail": "t=2.84"
         }
       ],
       "cameraRestored": {
-        "x": -330,
-        "y": 2.7755514134646737,
-        "z": 1741.734015690659,
+        "x": -334,
+        "y": 1.5,
+        "z": 1727,
         "fov": 52
       },
       "active": null
     }
   },
   "errors": [],
+  "controlsAfterSkip": 1747,
   "ok": false,
-  "failure": "AssertionError [ERR_ASSERTION]: skipped\n    at file:///home/user/CampOS-Worlds/tests/browser-cinema.mjs:79:10"
+  "failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(blast.shots.length >= 2)\n\n    at file:///home/user/CampOS-Worlds/tests/browser-cinema.mjs:93:10"
 }

@@ -60,7 +60,7 @@ try {
   await place(0, 1180, Math.PI); await sleep(1500);
   await place(0, 1305, Math.PI);
   const reveal = await capture('city-reveal');
-  assert.ok(reveal.shots.length >= 3, 'reveal shots');
+  assert.ok(reveal.log.filter(e => e.event === 'shot').length >= 3, 'reveal shots');
   assert.ok(reveal.log.some(e => e.event === 'end'));
 
   // 3–4. Meeting Sade: walk up, press E. The briefing panel waits for the scene; the subtitles follow her lines.
@@ -68,7 +68,7 @@ try {
   await page.getByRole('button', { name: 'Talk to Sade', exact: true }).waitFor({ timeout: 15000 });
   await page.keyboard.press('e');
   const meet = await capture('meet-contact');
-  assert.ok(meet.shots.length >= 4 && meet.subtitles.length >= 3, JSON.stringify(meet.shots));
+  assert.ok(meet.log.filter(e => e.event === 'shot').length >= 4 && meet.subtitles.length >= 3, JSON.stringify(meet.shots));
   await page.getByRole('button', { name: 'Accept assignment' }).waitFor({ timeout: 15000 });
   await page.getByRole('button', { name: 'Accept assignment' }).click();
   await until(() => mission()?.stage === O.warehouse, 'mission accepted');
@@ -90,7 +90,7 @@ try {
   await until(() => mission().ambushed, 'ambush begins', 15000);
   const blast = await capture('explosion');
   assert.ok(mission().exploded, 'the room reports the blast');
-  assert.ok(blast.shots.length >= 2);
+  assert.ok(blast.log.filter(e => e.event === 'shot').length >= 2, 'both blast shots played');
 
   // Stand the ambush down so the run can continue to Baobab Close (the beats after the escape are what follow).
   for (const a of mission().actors) a.hp = 0;
@@ -102,7 +102,7 @@ try {
   await place(SAFEHOUSE.x + 4, SAFEHOUSE.z + 3, Math.PI);
   await until(() => mission().stage === O.deliver, 'arrived at the lock-up ' + JSON.stringify({ stage: mission().stage, failed: mission().failed, at: [self().x, self().z], wanted: mission().wanted }), 15000);
   const arrival = await capture('safehouse-arrival');
-  assert.ok(arrival.shots.length >= 1);
+  assert.ok(arrival.log.some(e => e.event === 'shot'));
   await place(SAFEHOUSE.x, SAFEHOUSE.z + 1.5, Math.PI); // (south of it: a street light stands 1 m to its east)
   await page.getByRole('button', { name: 'Hand the case to Sade', exact: true }).waitFor({ timeout: 20000 }).catch(async e => { throw Error('no handover prompt ' + JSON.stringify({ stage: mission().stage, carried: mission().carried, wanted: mission().wanted, at: [self().x, self().z], client: await page.evaluate(() => window.__campusDebug.state().x + ',' + window.__campusDebug.state().z) })); });
   const mark = await page.evaluate(() => Math.round(performance.now()));
