@@ -2,6 +2,7 @@ import { player, useGame } from '../state';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { env } from './environment';
 import { WORLD_VEHICLE_SPAWNS, VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { vehicleVisuals, vehicleLift, tickVehicles, missionVehicleInfo, useVehicle } from '../vehicles/client';
 import { surfaceHeight } from './layout';
@@ -63,7 +64,7 @@ export function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
     model.tail.emissiveIntensity = .25 + m.brake * 2.4; model.reverse.emissiveIntensity = v.speed < -.1 ? 1.6 : 0;
     if (freight) {
       const data = missionVehicleInfo(id), condition = data?.condition ?? 100;
-      model.head.emissiveIntensity = driven || data?.police ? 1.5 : .23;
+      model.head.emissiveIntensity = driven || data?.police ? 1.5 + 2.5 * env.lights : .23;
       if (model.finish && m.condition !== condition) {
         const { coat, color, roughness } = model.finish, damage = 1 - condition / 100;
         coat.color.copy(color).multiplyScalar(1 - damage * .43);

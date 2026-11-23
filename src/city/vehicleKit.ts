@@ -3,6 +3,7 @@
 // Per-vertex tags: paint (1 = takes the instance's paint colour), lamp kind (lights driven per instance),
 // roughness and metalness. Glass is a separate, transparent geometry so the drivers inside can be seen.
 import * as THREE from 'three';
+import { environmentLayer } from '../world/environment';
 import { Builder } from './geom';
 import { CITY_CLASSES } from '../../shared/city/vehicles.mjs';
 
@@ -224,5 +225,7 @@ ${kind === 'body' ? `{
 }` : ''}`);
   };
   m.customProgramCacheKey = () => 'city-vehicle-' + kind;
+  // Rain beads on the paint and glass: wet cars are darker and glossier (./../world/environment.ts).
+  environmentLayer(m, { porosity: .15 });
   return { material: m, uniforms };
 }

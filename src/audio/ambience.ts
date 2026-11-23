@@ -29,4 +29,31 @@ export function tickAmbience(x: number, z: number) {
 }
 
 /** Leaving the campus (back to the welcome screen): fade the soundscape out. */
-export function stopAmbience() { for (const l of [birds, wind, water]) l?.stop(1); birds = wind = water = null; }
+export function stopAmbience() { for (const l of [birds, wind, water]) l?.stop(1); birds = wind = water = null; rainLevel(0); }
+
+// Rain: band-passed noise on the ambience bus (so it is muffled indoors with everything else) at the rain's
+// intensity; synthesized, so no download. Birdsong falls silent in heavy rain.
+let rain: { source: AudioBufferSourceNode; gain: GainNode } | null = null, rainBuffer: AudioBuffer | null = null;
+function rainLevel(level: number) {
+  const m = audio(); if (!m) return;
+  const t = m.ctx.currentTime;
+  if (level <= .01) { if (rain) { const r = rain; r.gain.gain.setTargetAtTime(0, t, .6); setTimeout(() => { try { r.source.stop(); } catch { /* already stopped */ } }, 3000); rain = null; } return; }
+  if (!rain) {
+    if (!rainBuffer) { rainBuffer = m.ctx.createBuffer(1, m.ctx.sampleRate * 3, m.ctx.sampleRate); const d = rainBuffer.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const source = m.ctx.createBufferSource(); source.buffer = rainBuffer; source.loop = true;
+    const band = m.ctx.createBiquadFilter(); band.type = 'bandpass'; band.frequency.value = 2400; band.Q.value = .5;
+    const low = m.ctx.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 400; low.gain.value = 6;
+    const gain = m.ctx.createGain(); gain.gain.value = 0;
+    source.connect(band).connect(low).connect(gain).connect(m.ambience); source.start();
+    rain = { source, gain };
+  }
+  rain.gain.gain.setTargetAtTime(.06 + .22 * level, t, .8);
+}
+let lastRain = -1;
+/** Each frame from the rain renderer: the rain's intensity where you are (0 under a roof is handled by the muffle). */
+export function tickRain(level: number) {
+  if (!useGame.getState().ambience || useGame.getState().phase !== 'playing') level = 0;
+  if (Math.abs(level - lastRain) < .02 && !(level === 0 && lastRain !== 0)) return;
+  lastRain = level; rainLevel(level);
+  birds?.gain.setTargetAtTime(.5 * (1 - Math.min(1, level * 1.5)), audio()?.ctx.currentTime ?? 0, 1);
+}

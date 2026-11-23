@@ -25,3 +25,10 @@ test('valid progress survives hydration while invalid IDs, duplicates and out-of
 test('all four graphics preferences survive hydration', () => {
   for (const quality of ['low', 'medium', 'high', 'ultra']) assert.equal(preferences({ quality }, defaults).quality, quality);
 });
+
+test('open-world time and weather settings survive hydration; invalid values fall back to the live cycle', () => {
+  const current = { ...defaults, timeOfDay: 'live', weather: 'live' };
+  assert.deepEqual([preferences({ timeOfDay: 'night', weather: 'storm' }, current).timeOfDay, preferences({ timeOfDay: 'night', weather: 'storm' }, current).weather], ['night', 'storm']);
+  assert.deepEqual([preferences({ timeOfDay: 'teatime', weather: { rain: 1 } }, current).timeOfDay, preferences({ timeOfDay: 'teatime', weather: { rain: 1 } }, current).weather], ['live', 'live']);
+  assert.equal(preferences({}, current).timeOfDay, 'live');
+});

@@ -1,5 +1,6 @@
 import { sanitizeAvatar, LOCATIONS, TOKENS, TOUR } from '../shared/campus.mjs';
 import { STEERING } from './vehicles/steering.mjs';
+import { sanitizeTime, sanitizeWeather } from '../shared/environment.mjs';
 
 // Storage can contain an older schema or incomplete values. Only persisted preferences may hydrate
 // the store: invalid quality/arrays used to crash rendering, and saved keys could replace live methods.
@@ -17,6 +18,8 @@ export function preferences(saved, current) {
     dialogueVolume: finite(s.dialogueVolume, current.dialogueVolume, 0, 1),
     ambience: finite(s.ambience, current.ambience, 0, 1),
     steering: finite(s.steering, current.steering, STEERING.min, STEERING.max),
+    ...(typeof current.timeOfDay === 'string' ? { timeOfDay: s.timeOfDay === undefined ? current.timeOfDay : sanitizeTime(s.timeOfDay) } : {}),
+    ...(typeof current.weather === 'string' ? { weather: s.weather === undefined ? current.weather : sanitizeWeather(s.weather) } : {}),
     reducedMotion: typeof s.reducedMotion === 'boolean' ? s.reducedMotion : current.reducedMotion,
     ...(typeof current.firstPerson==='boolean'?{firstPerson:typeof s.firstPerson==='boolean'?s.firstPerson:current.firstPerson}:{}),
     discovered: strings(s.discovered, current.discovered, new Set(LOCATIONS.map(l => l.id))),

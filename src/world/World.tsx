@@ -36,7 +36,9 @@ import { cached, initLoaders, suspend, pendingAssetLoads } from './assets';
 import { QUALITY, type QualityProfile } from './quality';
 import { STALL } from './resolution.mjs';
 import { loadSurfaces, createMaterials, type Materials } from './materials';
-import { SkyDome, Lighting, LIGHTING, loadSkyInfo } from './Sky';
+import { SkyDome, Lighting, LIGHTING } from './Sky';
+import { env } from './environment';
+import Weather from './Weather';
 import { Ground } from './Ground';
 import { buildCampus, Props, Flags, Water, DistanceCull } from './Campus';
 import { Vegetation, setSunDirection } from './Vegetation';
@@ -257,11 +259,11 @@ function Campus({ quality }: { quality: QualityProfile }) {
   const reduced = useGame(s => s.reducedMotion);
   suspend(cached('fonts', signFontsReady));
   const surfaces = suspend(cached(`surfaces:${quality.materialDetail}`, () => loadSurfaces(quality.materialDetail).then(s => { if (QA_HOOKS) console.info(`surfaces ready at ${Math.round(performance.now())} ms`); return s; })));
-  const info = suspend(loadSkyInfo());
   // Built once per session: this component can re-render many times before it commits.
   const lib: Materials = suspend(cached(`materials:${quality.materialDetail}`, async () => createMaterials(surfaces, quality.materialDetail)));
   const campus = suspend(cached(`campus:${quality.materialDetail}`, async () => { const t = performance.now(); const c = buildCampus(lib); if (QA_HOOKS) console.info(`campus built in ${Math.round(performance.now() - t)} ms (at ${Math.round(performance.now())} ms)`); return c; }));
-  useEffect(() => { setSunDirection(new THREE.Vector3(...info.sunDirection)); }, [info]);
+  // Leaf translucency follows the sun (or moon) as it moves.
+  useFrame(() => setSunDirection(env.key));
   // The welcome screen's "Enter campus" waits for the textured campus, not just a canvas.
   const reveal = useMemo(() => () => { graphics.resourcesReady(); if (QA_HOOKS) console.info(`campus resources ready at ${Math.round(performance.now())} ms`); }, [graphics]);
   return <>
@@ -273,7 +275,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
     <Props placements={campus.context.props} quality={quality} />
     <DistanceCull object={campus.books} centre={LIBRARY_CENTRE} distance={Math.min(60, quality.detailDistance)} />
     <Doors lib={lib} distance={quality.detailDistance + 12} /><Chairs distance={quality.detailDistance} post={quality.post} /><Computers /><Balls />
-    <Collectibles /><Waypoint /><Player /><GetawayScene lib={lib} /><Peers /><Npcs /><CityLife /><Director />
+    <Collectibles /><Waypoint /><Weather quality={quality} reduced={reduced} /><Player /><GetawayScene lib={lib} /><Peers /><Npcs /><CityLife /><Director />
     </CompileGate>
     <Suspense fallback={null}><CompileGate post={quality.post}><Vegetation lib={lib} quality={quality} reduced={reduced} /></CompileGate></Suspense>
   </>;
