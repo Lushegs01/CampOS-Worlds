@@ -1,0 +1,245 @@
+{
+  "date": "2026-11-23T17:48:45.056Z",
+  "label": "hero-after",
+  "quality": "high",
+  "renderer": "software (SwiftShader), 1280x720, qa-scale 0.6",
+  "views": {
+    "hero-bank-golden:clear": {
+      "drawCalls": [
+        424,
+        424
+      ],
+      "triangles": [
+        801318,
+        807070
+      ],
+      "textures": 217,
+      "geometries": 573,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 7
+      }
+    },
+    "hero-bank-night:clear": {
+      "drawCalls": [
+        436,
+        440
+      ],
+      "triangles": [
+        799076,
+        805802
+      ],
+      "textures": 240,
+      "geometries": 598,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 22.5,
+        "weather": "clear",
+        "night": 1,
+        "lights": 1,
+        "wet": 0,
+        "exposure": 1.85,
+        "keyIntensity": 0.22,
+        "probeRevision": 8
+      }
+    },
+    "hero-bank-afternoon:heavyRain": {
+      "drawCalls": [
+        442,
+        442
+      ],
+      "triangles": [
+        850382,
+        851118
+      ],
+      "textures": 240,
+      "geometries": 600,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 15.2,
+        "weather": "heavyRain",
+        "night": 0,
+        "lights": 0.1,
+        "wet": 1,
+        "exposure": 1.21,
+        "keyIntensity": 0.82,
+        "probeRevision": 9
+      }
+    },
+    "hero-shopfront-golden:clear": {
+      "drawCalls": [
+        417,
+        420
+      ],
+      "triangles": [
+        777246,
+        782998
+      ],
+      "textures": 240,
+      "geometries": 600,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 10
+      }
+    },
+    "hero-shopfront-night:clear": {
+      "drawCalls": [
+        430,
+        433
+      ],
+      "triangles": [
+        804204,
+        808928
+      ],
+      "textures": 240,
+      "geometries": 600,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 22.5,
+        "weather": "clear",
+        "night": 1,
+        "lights": 1,
+        "wet": 0,
+        "exposure": 1.85,
+        "keyIntensity": 0.22,
+        "probeRevision": 11
+      }
+    },
+    "hero-shopfront-afternoon:heavyRain": {
+      "drawCalls": [
+        416,
+        420
+      ],
+      "triangles": [
+        804242,
+        810968
+      ],
+      "textures": 240,
+      "geometries": 600,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 15.2,
+        "weather": "heavyRain",
+        "night": 0,
+        "lights": 0.1,
+        "wet": 1,
+        "exposure": 1.21,
+        "keyIntensity": 0.82,
+        "probeRevision": 12
+      }
+    },
+    "hero-car-golden:clear": {
+      "drawCalls": [
+        383,
+        560
+      ],
+      "triangles": [
+        856044,
+        1235408
+      ],
+      "textures": 255,
+      "geometries": 797,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 13
+      }
+    },
+    "hero-car-night:clear": {
+      "drawCalls": [
+        577,
+        581
+      ],
+      "triangles": [
+        1280200,
+        1290938
+      ],
+      "textures": 255,
+      "geometries": 797,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 22.5,
+        "weather": "clear",
+        "night": 1,
+        "lights": 1,
+        "wet": 0,
+        "exposure": 1.85,
+        "keyIntensity": 0.22,
+        "probeRevision": 14
+      }
+    },
+    "hero-car-afternoon:heavyRain": {
+      "drawCalls": [
+        586,
+        586
+      ],
+      "triangles": [
+        1367444,
+        1367444
+      ],
+      "textures": 255,
+      "geometries": 805,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 15.2,
+        "weather": "heavyRain",
+        "night": 0,
+        "lights": 0.1,
+        "wet": 1,
+        "exposure": 1.21,
+        "keyIntensity": 0.82,
+        "probeRevision": 15
+      }
+    }
+  },
+  "errors": [],
+  "loadToPlayableMs": 46238,
+  "environmentHook": true
+}

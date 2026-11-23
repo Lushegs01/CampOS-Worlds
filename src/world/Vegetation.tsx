@@ -2,6 +2,7 @@ import { campusBudget } from './rendering';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { env } from './environment';
 import { TREES } from '../../shared/campus.mjs';
 import { ROADSIDE_TREES, BELT_TREES } from '../../shared/expansion.mjs';
 import { growTree, growPalm, type Species, type TreeGeometry } from './vegetation/trees';
@@ -161,7 +162,8 @@ export function Vegetation({ lib, quality, reduced }: { lib: Materials; quality:
   useEffect(() => () => meshes.forEach(m => { const mesh = m as THREE.InstancedMesh; if (mesh.isInstancedMesh) mesh.dispose(); mesh.customDepthMaterial?.dispose(); }), [meshes]);
   const cellRange = quality.foliage < .5 ? 560 : quality.foliage < 1 ? 760 : 900;
   useFrame(({ camera }, dt) => {
-    if (!reduced) wind.uTime.value += dt;
+    // Gusts quicken the sway in wind and storms (./environment.ts).
+    if (!reduced) wind.uTime.value += dt * (.7 + 1.3 * env.wind);
     // Cells beyond the fog are skipped entirely (the fog is opaque by ~950 m); Low draws a tighter ring.
     for (const m of meshes) { const c = m.userData.cell as THREE.Vector2 | undefined; if (c) m.visible = Math.hypot(camera.position.x - c.x, camera.position.z - c.y) < cellRange; }
   });

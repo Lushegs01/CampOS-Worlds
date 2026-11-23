@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { loadTexture } from './assets';
+import { environmentLayer, registerLamp, type EnvLayer } from './environment';
 
 // One coherent PBR library for the whole campus. Geometry carries UVs in metres, so `tile`
 // is simply "metres per texture repeat". Surface sets are CC0 scans from Poly Haven.
@@ -115,6 +116,16 @@ export function createMaterials(s: SurfaceSets, detail = true) {
     breezePanel: new THREE.MeshStandardMaterial({ name: 'breezePanel', ...set(s.stucco, 3.2), color: '#ecdcb9', alphaMap: breezeAlpha(), alphaTest: .5, side: THREE.DoubleSide, metalness: detail ? 1 : 0, roughness: 1 }),
     soil: paint('soil', '#5a3b2a', .95), mulch: paint('mulch', '#4a3426', .95), poolTile: paint('poolTile', '#3e7c84', .3),
   };
+  // Rain and night (./environment.ts): porous surfaces darken and smooth when wet, flat paving holds puddles,
+  // glazing shows lit rooms after dark, lamp lenses brighten with the street lights.
+  const layer = (keys: (keyof typeof lib)[], o: EnvLayer) => { for (const k of keys) environmentLayer(lib[k], o); };
+  layer(['asphalt'], { porosity: 1, puddles: true, road: true });
+  layer(['pavers', 'paversGrey', 'hexPaving', 'granite'], { porosity: .7, puddles: true });
+  layer(['stucco', 'stuccoCream', 'stuccoOchre', 'stuccoGreen', 'stuccoTint', 'plaster', 'concrete', 'ribbed', 'brick', 'breezePanel', 'roofRed', 'roofGreen', 'soil', 'mulch'], { porosity: .8 });
+  layer(['brushed', 'aluminium', 'steel', 'darkMetal', 'bronzeFrame', 'chrome', 'bronze', 'paintDark', 'paintWhite', 'paintGreen', 'paintTerracotta', 'paintYellow', 'lineWhite', 'rubber', 'courtBlue', 'courtGreen', 'courtRed', 'fabricShade', 'fabricTerracotta'], { porosity: .2 });
+  layer(['glass'], { windows: 'office' });
+  layer(['glassClear'], { windows: 'shop' });
+  registerLamp(lib.emissiveWarm, .9, 4);
   return lib;
 }
 export type Materials = ReturnType<typeof createMaterials>;

@@ -1,6 +1,7 @@
 import { WORLD_SOUTH } from '../../shared/metro.mjs';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { environmentLayer } from './environment';
 import { COLLIDERS, TREES } from '../../shared/campus.mjs';
 import { NOISE_GLSL, type SurfaceSets } from './materials';
 import { PATHS, PLAZA, PITCH, COURT, FOOTPRINTS, BEDS, HEDGES, inRect } from './layout';
@@ -173,7 +174,7 @@ export function Ground({ surfaces, quality }: { surfaces: SurfaceSets; quality: 
     };
     m.customProgramCacheKey = () => 'ground' + (quality.groundLayers ? 'L' : '');
     m.defines = quality.groundLayers ? { GROUND_LAYERS: '' } : {};
-    return m;
+    environmentLayer(m, { porosity: .7 }); return m;
   }, [surfaces, quality.groundLayers]);
   useEffect(() => () => material.dispose(), [material]);
   return <mesh geometry={geometry} material={material} receiveShadow name="ground" matrixAutoUpdate={false} />;

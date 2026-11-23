@@ -13,7 +13,9 @@ test('every selectable character has its model, portrait and manifest entry, and
     assert.ok(manifest.characters.some(c => c.id === id), `${id} is in the manifest`);
     assert.ok(existsSync(`${dir}/${id}.glb`) && existsSync(`${dir}/${id}.webp`), `${id}.glb and ${id}.webp exist`);
   }
-  assert.deepEqual(manifest.characters.map(c => c.id).sort(), [...MODELS].sort());
+  // Ambient characters (`npc`, e.g. the Commercial District hero pedestrian) ship with the cast but are never selectable.
+  assert.deepEqual(manifest.characters.filter(c => !c.npc).map(c => c.id).sort(), [...MODELS].sort());
+  for (const c of manifest.characters.filter(c => c.npc)) { assert.ok(!MODELS.includes(c.id), `${c.id} is not selectable`); assert.equal(sanitizeAvatar({ model: c.id }).model, MODELS[0], `${c.id} cannot be chosen`); }
   for (const c of manifest.characters) assert.ok(/^https:\/\/github\.com\/microsoft\/Microsoft-Rocketbox\//.test(c.source), `${c.id} is a Rocketbox (MIT) character`);
 });
 

@@ -1,0 +1,147 @@
+{
+  "quality": "high",
+  "renderer": "software (SwiftShader), 1280x720, qa-scale 0.6",
+  "results": {
+    "walking": {
+      "ped": {
+        "action": "walk",
+        "phase": null,
+        "emote": null,
+        "gaze": 0,
+        "waves": 0,
+        "x": 424.35,
+        "z": -9.05,
+        "period": 144.18590501313474
+      },
+      "drawCalls": 426,
+      "anim": {
+        "averageMs": 0.8477272725325417,
+        "poses": 85,
+        "contacts": 0,
+        "skipped": 203,
+        "hands": 0,
+        "feet": 0
+      }
+    },
+    "atm": {
+      "ped": {
+        "action": "documents",
+        "phase": null,
+        "emote": "documents",
+        "gaze": 0,
+        "waves": 0,
+        "x": 427.6,
+        "z": -12.2,
+        "period": 144.18590501313474
+      },
+      "drawCalls": 418,
+      "anim": {
+        "averageMs": 1.0499999998137355,
+        "poses": 7,
+        "contacts": 0,
+        "skipped": 29,
+        "hands": 0,
+        "feet": 0
+      }
+    },
+    "sit-down": {
+      "ped": {
+        "action": "sit",
+        "phase": null,
+        "emote": null,
+        "gaze": 0.3,
+        "waves": 0,
+        "x": 425.45,
+        "z": -4.9,
+        "period": 144.18590501313474
+      },
+      "drawCalls": 462,
+      "anim": {
+        "averageMs": 0.8733333331843217,
+        "poses": 46,
+        "contacts": 0,
+        "skipped": 146,
+        "hands": 0,
+        "feet": 0
+      }
+    },
+    "seated-gaze": {
+      "ped": {
+        "action": "sit",
+        "phase": "seated",
+        "emote": null,
+        "gaze": 0.39,
+        "waves": 0,
+        "x": 425.45,
+        "z": -5.45,
+        "period": 144.18590501313474
+      },
+      "drawCalls": 695,
+      "anim": {
+        "averageMs": 0.8181818180124868,
+        "poses": 100,
+        "contacts": 0,
+        "skipped": 308,
+        "hands": 0,
+        "feet": 0
+      }
+    },
+    "stand-up": {
+      "ped": {
+        "action": "sit",
+        "phase": "up",
+        "emote": null,
+        "gaze": 0.39,
+        "waves": 0,
+        "x": 425.45,
+        "z": -5.45,
+        "period": 144.18590501313474
+      },
+      "drawCalls": 689,
+      "anim": {
+        "averageMs": 0.7630434782122788,
+        "poses": 134,
+        "contacts": 0,
+        "skipped": 430,
+        "hands": 0,
+        "feet": 0
+      }
+    },
+    "phone": {
+      "ped": {
+        "action": "phone",
+        "phase": null,
+        "emote": "phone",
+        "gaze": -0.2,
+        "waves": 1,
+        "x": 456,
+        "z": -9.05,
+        "period": 144.18590501313474
+      },
+      "drawCalls": 588,
+      "anim": {
+        "averageMs": 1.011764705674175,
+        "poses": 79,
+        "contacts": 0,
+        "skipped": 169,
+        "hands": 0,
+        "feet": 0
+      }
+    },
+    "wave": {
+      "waved": true,
+      "ped": {
+        "action": "documents",
+        "phase": null,
+        "emote": "documents",
+        "gaze": -0.14,
+        "waves": 2,
+        "x": 427.6,
+        "z": -12.2,
+        "period": 144.18590501313474
+      }
+    }
+  },
+  "errors": [],
+  "note": "Her round was pinned and frozen at each moment (__heroPedestrian({at, freeze:true})) so the software renderer (~1 FPS) could catch up; the wave is captured once the avatar reported it."
+}

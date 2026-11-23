@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-23T17:32:05.944Z",
+  "label": "hero-before",
+  "quality": "high",
+  "renderer": "software (SwiftShader), 1280x720, qa-scale 0.6",
+  "views": {
+    "hero-bank-golden:clear": {
+      "drawCalls": [
+        600,
+        600
+      ],
+      "triangles": [
+        1183992,
+        1183992
+      ],
+      "textures": 234,
+      "geometries": 543,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 6
+      }
+    },
+    "hero-shopfront-golden:clear": {
+      "drawCalls": [
+        580,
+        580
+      ],
+      "triangles": [
+        1156150,
+        1156886
+      ],
+      "textures": 240,
+      "geometries": 543,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 6
+      }
+    },
+    "hero-car-golden:clear": {
+      "drawCalls": [
+        368,
+        545
+      ],
+      "triangles": [
+        820316,
+        1201872
+      ],
+      "textures": 255,
+      "geometries": 729,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 6
+      }
+    }
+  },
+  "errors": [],
+  "loadToPlayableMs": 39648,
+  "environmentHook": true
+}

@@ -39,7 +39,7 @@ export const peerTracks = new Map<string,ReturnType<typeof createTrack>>();
 /** The room time remote players and vehicles are drawn at: one playback point for both, so riders stay in their seats. */
 export const roomPlayback = createPlayback();
 export const useGame = create<Game>()(persist((set,get)=>({
- phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,firstPerson:false,volume:DEFAULT_VOLUME,ambience:1,dialogueVolume:1,steering:STEERING.default,
+ phase:'welcome',panel:null,ready:false,name:'New explorer',avatar:sanitizeAvatar(),quality:suggestedQuality(),reducedMotion:false,timeOfDay:'live',weather:'live',firstPerson:false,volume:DEFAULT_VOLUME,ambience:1,dialogueVolume:1,steering:STEERING.default,
  discovered:[],tokens:[],tour:false,tourStep:0,bestScore:0,nearby:null,toast:'',destination:null,
  status:'offline',connectionLagging:false,count:1,peers:[],messages:[],muted:[],invite:'',fps:0,
  set:(value)=>set(value),
@@ -50,9 +50,10 @@ export const useGame = create<Game>()(persist((set,get)=>({
  // Version 1 brought footsteps, doors, vehicles and ambience. Sound used to start off (volume 0) and almost
  // nobody had changed it, so a saved 0 from before is turned up once; anyone can turn it down again.
  version:1,migrate:(saved,version)=>{const s=(saved&&typeof saved==='object'?{...saved}:{}) as Partial<Game>;if(version<1&&!s.volume)s.volume=DEFAULT_VOLUME;return s as Game;},
- partialize:s=>({name:s.name,avatar:s.avatar,quality:s.quality,reducedMotion:s.reducedMotion,firstPerson:s.firstPerson,volume:s.volume,ambience:s.ambience,dialogueVolume:s.dialogueVolume,steering:s.steering,discovered:s.discovered,tokens:s.tokens,tour:s.tour,tourStep:s.tourStep,bestScore:s.bestScore,muted:s.muted}),merge:(saved,current)=>({...current,...preferences(saved,current),phase:'welcome',panel:null})}));
+ partialize:s=>({name:s.name,avatar:s.avatar,quality:s.quality,reducedMotion:s.reducedMotion,timeOfDay:s.timeOfDay,weather:s.weather,firstPerson:s.firstPerson,volume:s.volume,ambience:s.ambience,dialogueVolume:s.dialogueVolume,steering:s.steering,discovered:s.discovered,tokens:s.tokens,tour:s.tour,tourStep:s.tourStep,bestScore:s.bestScore,muted:s.muted}),merge:(saved,current)=>({...current,...preferences(saved,current),phase:'welcome',panel:null})}));
 interface Game {
- phase:'welcome'|'playing'; panel:Panel;ready:boolean;name:string;avatar:AvatarConfig;quality:'low'|'medium'|'high'|'ultra';reducedMotion:boolean;firstPerson:boolean;volume:number;
+ phase:'welcome'|'playing'; panel:Panel;ready:boolean;name:string;avatar:AvatarConfig;quality:'low'|'medium'|'high'|'ultra';reducedMotion:boolean;
+ /** Open-world time of day and weather: 'live' follows the shared cycle (shared/environment.mjs), or a fixed preset. */timeOfDay:string;weather:string;firstPerson:boolean;volume:number;
  /** Environment sound level (birdsong, breeze, fountain), under the master volume. */ambience:number; dialogueVolume:number;
  /** Steering sensitivity for driving, 0.2–1 (src/vehicles/steering.mjs). */steering:number;
  discovered:string[];tokens:string[];tour:boolean;tourStep:number;bestScore:number;nearby:string|null;toast:string;destination:string|null;

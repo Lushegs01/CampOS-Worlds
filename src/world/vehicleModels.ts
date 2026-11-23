@@ -115,6 +115,8 @@ const shared = {
   amber: new THREE.MeshStandardMaterial({ name: 'indicator', color: '#e39a34', emissive: '#a35a00', emissiveIntensity: .2, roughness: .2 }),
   canopy: new THREE.MeshStandardMaterial({ name: 'canopy', color: '#f1eee6', roughness: .55 }),
 };
+/** Materials whose meshes never cast shadows (see VehicleBuilder.build). */
+const SHADOWLESS = new Set(['headlamp', 'indicator', 'taillamp', 'reverseLamp', 'vehicleChrome', 'vehicleTrim', 'archLiner', 'seatFabric', 'instrument', 'instrumentMark', 'glass', 'alloy', 'steelWheel', 'tyreWall']);
 const instrument = new THREE.MeshStandardMaterial({color:'#728c96',emissive:'#608b92',emissiveIntensity:.32,roughness:.28});
 const instrumentMark = new THREE.MeshStandardMaterial({color:'#dce5e6',emissive:'#9eb6b9',emissiveIntensity:.32,roughness:.4});
 const lens = new THREE.MeshPhysicalMaterial({ name: 'smoked lens', color: '#91a6a8', roughness: .17, metalness: .18, clearcoat: .8, transparent: true, opacity: .49, depthWrite: false });
@@ -168,7 +170,10 @@ class Parts {
   build(group: THREE.Group, shadow = true) {
     for (const [material, list] of this.buckets) {
       const merged = mergeGeometries(list, false); list.forEach(g => g.dispose()); if (!merged) continue;
-      const mesh = new THREE.Mesh(merged, material); mesh.castShadow = shadow && !(material as THREE.Material).transparent; mesh.receiveShadow = true; group.add(mesh);
+      // Only the parts that shape the car's shadow cast one: lamps, trim, chrome, seats and dials inside the body
+      // add a shadow-pass draw each (16+ per car) without changing the shadow on the road.
+      const name = (material as THREE.Material).name, small = SHADOWLESS.has(name);
+      const mesh = new THREE.Mesh(merged, material); mesh.castShadow = shadow && !small && !(material as THREE.Material).transparent; mesh.receiveShadow = true; group.add(mesh);
     }
     this.buckets.clear();
   }
@@ -292,7 +297,7 @@ function addWheels(model: VehicleModel, type: VehicleType, track: number, style:
   for (const z of [-t.wheelbase / 2, t.wheelbase / 2]) for (const s of [-1, 1]) {
     const pivot = new THREE.Group(), spin = new THREE.Group();
     pivot.position.set(s * track, t.wheelRadius, z); pivot.add(spin);
-    for (const [g, m] of [[parts.tyre, shared.rubber], [parts.wall, shared.tread], [parts.rim, rim], [parts.face, shared.trim]] as const) { const mesh = new THREE.Mesh(g, m); mesh.castShadow = true; spin.add(mesh); }
+    for (const [g, m] of [[parts.tyre, shared.rubber], [parts.wall, shared.tread], [parts.rim, rim], [parts.face, shared.trim]] as const) { const mesh = new THREE.Mesh(g, m); mesh.castShadow = m === shared.rubber; spin.add(mesh); }
     model.root.add(pivot); model.wheels.push({ pivot, spin, front: z > 0 });
   }
 }

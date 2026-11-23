@@ -36,6 +36,13 @@ export const CAST = [
   { id: 'seun', name: 'Seun', src: 'Professions/Sports_Male_03', body: 'm', style: 'Football kit' },
 ];
 
+// Ambient city characters: built and shipped like the cast, but never offered to players (the avatar picker lists
+// shared/campus.mjs MODELS only). `npc` marks them in the manifest.
+export const PEDESTRIANS = [
+  // The Commercial District hero slice's pedestrian (src/world/heroPedestrian.tsx): a bank customer outside Coastal Bank.
+  { id: 'funmi', name: 'Funmilayo', src: 'Professions/Business_Female_03', body: 'f', style: 'Skirt suit', npc: true },
+];
+
 // Motion-captured clips. `xy` clips have horizontal root motion we measure, then remove.
 const CLIPS = {
   idle: 'static/{g}_idle_neutral_01', look: 'static/{g}_idle_look_around_01', walk: 'xy/{g}_walk_neutral_01', jog: 'xy/{g}_run_slow_01',
@@ -45,6 +52,8 @@ const CLIPS = {
   sitIdle: 'static/{g}_sit_chair_idle_neutral_01', sitLook: 'static/{g}_sit_chair_idle_look_around', sitTable: 'static/{g}_sit_table_idle_neutral_01',
   // Doors, picking things up and holding an object in front of the body.
   doorPush: 'static/{g}_try_door_inwards', doorPull: 'static/{g}_try_door_outwards', crouch: 'static/{g}_crouch_idle', holdFront: 'static/{g}_documents_idle',
+  // Ambient life: texting on a phone, checking a document or receipt in both hands.
+  phone: 'static/{g}_cell_phone_textmessage', documents: 'static/{g}_documents_check',
 };
 const KEEP_ROOT = new Set(['sitDown', 'standUp', 'sitDownTable', 'standUpTable']);
 
@@ -171,7 +180,7 @@ async function buildCharacter(c, tree) {
   const meta = await sharp(preview).metadata();
   await sharp(preview).extract({ left: Math.round(meta.width * (c.portrait ?? .41)), top: Math.round(meta.height * .02), width: Math.round(meta.width * .18), height: Math.round(meta.height * .3) }).resize(160, 200).flatten({ background: '#22352d' }).webp({ quality: 80 }).toFile(path.join(OUT_DIR, `${c.id}.webp`));
   console.log(`  ${c.id}: ${kb(out)} skin ${ref.srgb} height ${top.toFixed(2)}m hip ${bip.getTranslation()[1].toFixed(3)}`);
-  return { id: c.id, name: c.name, body: c.body, style: c.style, source: `${RB.replace('raw.githubusercontent.com', 'github.com').replace('/master', '/tree/master')}/Assets/Avatars/${c.src}`, skinRef: linRef, height: +top.toFixed(3), hip: +bip.getTranslation()[1].toFixed(4) };
+  return { id: c.id, name: c.name, body: c.body, style: c.style, ...(c.npc ? { npc: true } : {}), source: `${RB.replace('raw.githubusercontent.com', 'github.com').replace('/master', '/tree/master')}/Assets/Avatars/${c.src}`, skinRef: linRef, height: +top.toFixed(3), hip: +bip.getTranslation()[1].toFixed(4) };
 }
 
 /** Merge the clips for one body type into a single animation library GLB. */
@@ -229,10 +238,10 @@ await MeshoptEncoder.ready;
 const tree = JSON.parse(fs.readFileSync(await fetchCached('https://api.github.com/repos/microsoft/Microsoft-Rocketbox/git/trees/master?recursive=1', path.join(RB_CACHE, 'api', 'tree.json')), 'utf8')).tree;
 const filter = process.argv[2];
 const characters = [];
-for (const c of CAST) { if (filter && filter !== 'anims' && c.id !== filter) continue; if (filter === 'anims') break; characters.push(await buildCharacter(c, tree)); }
+for (const c of [...CAST, ...PEDESTRIANS]) { if (filter && filter !== 'anims' && c.id !== filter) continue; if (filter === 'anims') break; characters.push(await buildCharacter(c, tree)); }
 const animations = (!filter || filter === 'anims') ? { m: await buildAnimations('m'), f: await buildAnimations('f') } : null;
 const manifestFile = path.join(OUT_DIR, 'manifest.json');
 const prev = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, 'utf8')) : { characters: [], animations: {} };
-const merged = { licence: 'Microsoft Rocketbox Avatar Library, MIT License (Copyright (c) 2020 Microsoft)', characters: CAST.map(c => characters.find(x => x.id === c.id) || prev.characters.find(x => x.id === c.id)).filter(Boolean), animations: animations || prev.animations };
+const merged = { licence: 'Microsoft Rocketbox Avatar Library, MIT License (Copyright (c) 2020 Microsoft)', characters: [...CAST, ...PEDESTRIANS].map(c => characters.find(x => x.id === c.id) || prev.characters.find(x => x.id === c.id)).filter(Boolean), animations: animations || prev.animations };
 writeJSON(manifestFile, merged);
 console.log('done');
