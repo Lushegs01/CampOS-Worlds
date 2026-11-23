@@ -8,6 +8,7 @@ import { activeCombat, command, equip, heldFire, openMissionJournal, setAim, sur
 import { RadioCaptions } from './radio';
 import { IncomingBrief, RegionBanner } from './Briefing';
 import { SpokenLine } from '../audio/SpokenLine';
+import { useCinema } from '../cinema/store';
 import { SADE } from './dialogue';
 import './mission.css';
 
@@ -53,18 +54,20 @@ function Statistics({ report }: { report: Report }) {
   </>;
 }
 function SadeLine({ line }: { line: keyof typeof SADE }) {
+  const voiced = useCinema(c => c.voiced.includes(`voice/sade/${line}`));
   return <div className="getaway-dialogue">
     <b>Sade</b>
     {SADE[line].map(text => <p key={text}>{text}</p>)}
-    <SpokenLine key={line} id={`voice/sade/${line}`} speaker="Sade" />
+    <SpokenLine key={line} id={`voice/sade/${line}`} speaker="Sade" autoplay={!voiced} />
   </div>;
 }
 export default function GetawayHud() {
   const { mission, history, resume, brief, journal, aim } = useGetaway();
   const phase = useGame(s => s.phase), panel = useGame(s => s.panel), status = useGame(s => s.status);
+  const cinema = useCinema(c => !!c.active && c.blocking);
   const vehicleId = useVehicle(s => s.id);
   const car = mission?.vehicles.find(v => v.id === vehicleId), vehicle = currentVehicle();
-  if (phase !== 'playing' || panel) return null;
+  if (phase !== 'playing' || panel || cinema) return null;
   const stage = mission?.stage ?? 0;
   const dialogue = brief || journal || mission?.paused || mission?.failed || stage >= O.commit;
   const recentlyHurt = mission?.events.some(e => e.kind === 'hurt');

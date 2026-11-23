@@ -17,6 +17,7 @@ import { AvatarBoundary } from '../avatar/AvatarBoundary';
 import { surfaceHeight } from '../world/layout';
 import { registerMovingCaster } from '../world/shadows';
 import { activeCombat, combatView, onMissionEvent, useGetaway } from './client';
+import { useCinema } from '../cinema/store';
 
 const GETAWAY_ASSET = { priority: 1 as const, retries: 2, stallMs: 12000, timeoutMs: 45000 };
 async function soldierKit(type: string, mobile: boolean) {
@@ -233,11 +234,12 @@ function FirstPerson({ id }: { id: string }) {
 }
 
 export default function CombatPresentation({ stage }: { stage: number }) {
+  const inScene = useCinema(c => !!c.active);
   const gun = useGetaway(s => s.mission?.gun.id);
   const actors = useGetaway(useShallow(s => s.mission?.actors.map(a => a.id) ?? []));
   useCombatPreload(stage);
   return <>
     {actors.map(id => <Hostile key={id} id={id} operative={useGetaway.getState().mission?.actors.find(a => a.id === id)?.kind === 'operative'}/>)}
-    {gun && stage >= O.combat && stage <= O.ambush && <FirstPerson id={gun}/>}
+    {gun && stage >= O.combat && stage <= O.ambush && !inScene && <FirstPerson id={gun}/>}
   </>;
 }

@@ -12,6 +12,7 @@ import Expansion from './Expansion';
 import HarbourDistrict from './Harbour';
 import MetroCity from './MetroCity';
 import CityLife from '../city/CityLife';
+import Director from '../cinema/Director';
 import Npcs from '../npc/Npcs';
 import Vehicles from './Vehicles';
 import { QA_HOOKS } from '../qa';
@@ -272,7 +273,7 @@ function Campus({ quality }: { quality: QualityProfile }) {
     <Props placements={campus.context.props} quality={quality} />
     <DistanceCull object={campus.books} centre={LIBRARY_CENTRE} distance={Math.min(60, quality.detailDistance)} />
     <Doors lib={lib} distance={quality.detailDistance + 12} /><Chairs distance={quality.detailDistance} post={quality.post} /><Computers /><Balls />
-    <Collectibles /><Waypoint /><Player /><GetawayScene lib={lib} /><Peers /><Npcs /><CityLife />
+    <Collectibles /><Waypoint /><Player /><GetawayScene lib={lib} /><Peers /><Npcs /><CityLife /><Director />
     </CompileGate>
     <Suspense fallback={null}><CompileGate post={quality.post}><Vegetation lib={lib} quality={quality} reduced={reduced} /></CompileGate></Suspense>
   </>;

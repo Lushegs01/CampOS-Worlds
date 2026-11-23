@@ -1,0 +1,14 @@
+.cinema { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+.cinema-bar { position: absolute; left: 0; right: 0; height: 0; background: #050607; transition: height .55s cubic-bezier(.4, 0, .2, 1); }
+.cinema-bar.top { top: 0; } .cinema-bar.bottom { bottom: 0; }
+.cinema.on .cinema-bar { height: 10.5vh; }
+.cinema-title { position: absolute; left: 50%; top: 22vh; transform: translateX(-50%); color: #f5efe2; font: 600 clamp(15px, 2.2vw, 26px)/1.2 'Manrope Variable', system-ui, sans-serif; letter-spacing: .42em; text-shadow: 0 2px 18px rgba(0,0,0,.55); animation: cinema-fade 3.2s ease both; white-space: nowrap; }
+.cinema-subtitle { position: absolute; left: 50%; bottom: calc(10.5vh + 18px); transform: translateX(-50%); max-width: min(880px, 88vw); margin: 0; padding: 8px 14px; color: #fbf8f1; background: rgba(8, 10, 12, .55); border-radius: 6px; font: 500 clamp(14px, 1.6vw, 19px)/1.45 'DM Sans Variable', system-ui, sans-serif; text-align: center; }
+.cinema-subtitle b { color: #f0c27a; font-weight: 700; margin-right: .4em; }
+.cinema-skip { position: absolute; right: 22px; bottom: calc(10.5vh - 44px); pointer-events: auto; background: rgba(15, 18, 20, .6); color: #e9e4d8; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 6px 12px; font: 600 12px 'DM Sans Variable', system-ui, sans-serif; cursor: pointer; }
+.cinema-skip kbd { margin-left: 6px; font: inherit; opacity: .7; }
+@keyframes cinema-fade { 0% { opacity: 0; letter-spacing: .6em; } 18% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; letter-spacing: .38em; } }
+@media (prefers-reduced-motion: reduce) { .cinema-bar { transition: none; } .cinema-title { animation: none; } }
+
+/* While a scene plays, the gameplay interface steps aside (the dialogue panel waits; toasts stay readable). */
+.cinema-active :is(.topbar, .location-hud, .minimap, .game-dock, .quest-card, .control-hint, .getaway-hud, .getaway-vitals, .region-banner, .interact-prompt, .getaway-region, .hoops-hud, .touch-controls, .party-hud) { opacity: 0 !important; pointer-events: none !important; transition: opacity .35s ease; }
