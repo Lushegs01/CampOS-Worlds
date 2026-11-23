@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-23T17:57:58.816Z",
+  "label": "hero-after",
+  "quality": "low",
+  "renderer": "software (SwiftShader), 1280x720, qa-scale 0.6",
+  "views": {
+    "hero-bank-golden:clear": {
+      "drawCalls": [
+        371,
+        371
+      ],
+      "triangles": [
+        543972,
+        548238
+      ],
+      "textures": 111,
+      "geometries": 426,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 4
+      }
+    },
+    "hero-car-golden:clear": {
+      "drawCalls": [
+        266,
+        266
+      ],
+      "triangles": [
+        494520,
+        494520
+      ],
+      "textures": 122,
+      "geometries": 637,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 4
+      }
+    }
+  },
+  "errors": [],
+  "loadToPlayableMs": 19970,
+  "environmentHook": true
+}

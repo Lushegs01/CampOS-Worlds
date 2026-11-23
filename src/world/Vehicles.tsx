@@ -6,7 +6,8 @@ import { env } from './environment';
 import { WORLD_VEHICLE_SPAWNS, VEHICLE_TYPES } from '../../shared/vehicles.mjs';
 import { vehicleVisuals, vehicleLift, tickVehicles, missionVehicleInfo, useVehicle } from '../vehicles/client';
 import { surfaceHeight } from './layout';
-import { buildVehicleModel, type VehicleType } from './vehicleModels';
+import { buildVehicleModel, type VehicleType, type VehicleModel as VehicleModelData } from './vehicleModels';
+import { buildHeroCar, HERO_CAR_ID, useHeroCar } from './heroSlice';
 import { registerMovingCaster } from './shadows';
 import { freeze } from './rendering';
 import { silenceVehicle, vehicleSound } from '../audio/vehicles';
@@ -16,7 +17,9 @@ import { softTexture } from '../arena/scene/world';
 export function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
   // Every part is static until it moves: a parked vehicle's forty-odd parts were re-composed every frame
   // (fourteen vehicles, over half the scene). Moving parts are updated below only when they change.
-  const model = useMemo(() => { const m = buildVehicleModel(id, type); freeze(m.root); return m; }, [id, type]), group = useRef<THREE.Group>(null!);
+  // The Commercial District's compact is the hero slice's production car once it has loaded (./heroSlice.tsx).
+  const hero = useHeroCar(id === HERO_CAR_ID);
+  const model = useMemo(() => { const m: VehicleModelData & { steering?: THREE.Object3D; dispose?: () => void } = hero ? buildHeroCar(hero) : buildVehicleModel(id, type); freeze(m.root); return m; }, [id, type, hero]), group = useRef<THREE.Group>(null!);
   const freight = isGetawayVehicle(id);
   const motion = useRef({ condition: 100, speed: 0, accel: 0, yaw: 0, yawRate: 0, pitch: 0, roll: 0, brake: 0, x: NaN, z: NaN, placedYaw: NaN, lift: 0, placedLift: NaN, under: 0, liftX: NaN, liftZ: NaN, liftYaw: NaN });
   useEffect(() => () => {
@@ -27,6 +30,7 @@ export function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
     });
     model.tail.dispose();
     model.reverse.dispose();
+    model.dispose?.();
     if (freight) model.head.dispose();
     model.finish?.coat.dispose();
   }, [model, freight]);
@@ -58,6 +62,8 @@ export function VehicleModel({ id, type }: { id: string; type: VehicleType }) {
     m.roll = THREE.MathUtils.damp(m.roll, THREE.MathUtils.clamp(-v.speed * m.yawRate * .006 * soft, -.045, .045), 5, dt);
     turn(model.body, 'x', m.pitch); turn(model.body, 'z', m.roll);
     for (const w of model.wheels) { turn(w.pivot, 'y', w.front ? v.steering : 0); turn(w.spin, 'x', v.wheel * .32 / model.radius); }
+    // The steering wheel turns with the road wheels (a quick 6:1 ratio so the motion reads from outside).
+    if (model.steering) turn(model.steering, 'y', -v.steering * 6);
     // Brake lamps light while slowing (or held stationary with a driver aboard); reverse lamps while backing.
     const driven = !!v.occupants[0], braking = (m.accel * Math.sign(v.speed) < -1.2 && Math.abs(v.speed) > .2) || (driven && Math.abs(v.speed) < .05);
     m.brake = THREE.MathUtils.damp(m.brake, braking ? 1 : 0, 14, dt);

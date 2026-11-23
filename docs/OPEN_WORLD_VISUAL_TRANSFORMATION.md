@@ -5,8 +5,8 @@ Scope: the campus and Metropolitan City renderer (`src/world/`, `src/city/`). Th
 
 **Summary.** This pass delivered the *visual foundation* the brief asks for first: a deterministic, shared time of
 day and weather system, a sky, lighting and reflection pipeline that follows it, wet surfaces, rain, night lighting
-and a material layer used by every architectural surface. It also fixed the one failing test. **The hero environment
-slice (a fully modelled building, vehicle and pedestrian built in Blender) was not built in this pass.** Nothing
+and a material layer used by every architectural surface. It also fixed the one failing test. The hero environment slice
+followed as Phase 2: see [HERO_SLICE_COMMERCIAL_DISTRICT.md](HERO_SLICE_COMMERCIAL_DISTRICT.md). Nothing
 here has been measured on a real GPU or a physical device. See §6 for what remains.
 
 ## 1. Starting point
@@ -154,10 +154,8 @@ Reproduce: `node tests/browser-world-visual.mjs` (see its header for `VISUAL_LAB
 
 Not implemented in this pass (no claim is made for any of these):
 
-* **Hero slice in the Commercial District**: a Blender-modelled building with real facade depth, balconies,
-  storefront interiors and LODs; one production vehicle (interior, dashboard, mirrors, lamps, suspension); one
-  production pedestrian rig with the full locomotion/interaction clip set. No Blender MCP session was used and no
-  new GLB assets were created.
+* **Hero slice in the Commercial District**: built in Phase 2 ([HERO_SLICE_COMMERCIAL_DISTRICT.md](HERO_SLICE_COMMERCIAL_DISTRICT.md))
+  with the building, street dressing and production car. A new production pedestrian is still outstanding.
 * Modular architectural kit with district identities beyond palette; trim sheets and atlases; KTX2 texture tiers for
   new assets; asset streaming priorities for them.
 * Vehicle visual systems beyond existing ones (suspension compression, interior lights); human animation

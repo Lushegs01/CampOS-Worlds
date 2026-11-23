@@ -26,6 +26,11 @@ const ALL_VIEWS = {
   residential: [-50, 1935.4, 1.57, .12, 9],
   industrial: [-300, 1681.4, 1.57, .14, 9],
   campus: [0, 30, 3.14, .2, 10],
+  // Commercial District hero slice: Coastal Bank and its street (block-0-1), and the district's production car.
+  'hero-bank': [-99, 1703, 0, .17, 12],
+  'hero-shopfront': [-101.6, 1693.5, 0, .06, 4.2],
+  'hero-car': [-148.6, 1761.2, 3.5, .32, 4.2],
+  'hero-car-close': [-152.4, 1764.6, 1.2, .38, 2.4],
 };
 const VIEWS = (process.env.VIEWS ? process.env.VIEWS.split(',') : Object.keys(ALL_VIEWS)).map(k => [k, ...ALL_VIEWS[k]]);
 

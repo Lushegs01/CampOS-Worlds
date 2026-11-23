@@ -10,6 +10,7 @@ import { MeshAsset } from '../mission/meshAsset';
 import { Kit } from './architecture/kit';
 import { sign } from './architecture/signage';
 import type { Materials } from './materials';
+import { HERO_BLOCK, HERO_BUILDING, HERO_CLIP, HeroBank, HeroStreet } from './heroSlice';
 
 const box = new THREE.BoxGeometry();
 const fallback = new THREE.MeshStandardMaterial({ color: '#9a9180', roughness: .82 });
@@ -25,7 +26,9 @@ const storefronts = ['#244c41', '#672f24', '#24394d'];
 const cast = ['amara', 'tunde', 'ngozi', 'kelechi', 'zainab', 'ibrahim', 'ada', 'chidi', 'mel'];
 
 function Parcel({ data, lib, low }: { data: typeof HARBOUR_BLOCKS[number]; lib: Materials; low: boolean }) {
-  const buildings = HARBOUR_BUILDINGS.filter(b => b.block === data.id);
+  // The Commercial District hero slice replaces one building of block-0-1 with its own model (./heroSlice.tsx).
+  const hero = data.id === HERO_BLOCK;
+  const buildings = HARBOUR_BUILDINGS.filter(b => b.block === data.id && b.id !== HERO_BUILDING);
   const surfaces = useMemo(() => ({
     paversGrey: lib.paversGrey, concrete: lib.concrete, stucco: lib.stuccoCream, brick: lib.brick,
     roof: lib.roofGreen, glass, shopGlass, aluminium: lib.aluminium, darkSteel: lib.darkMetal, shopGlow: glow,
@@ -39,11 +42,12 @@ function Parcel({ data, lib, low }: { data: typeof HARBOUR_BLOCKS[number]; lib: 
   }), [data]);
   useEffect(() => () => signs.forEach(o => { o.geometry.dispose(); o.material.dispose(); }), [signs]);
   return <group name={'harbour:' + data.id}>
-    <MeshAsset file={`harbour/${data.id}.glb`} surfaces={surfaces} cast={!low}>
+    <MeshAsset file={`harbour/${data.id}.glb`} surfaces={surfaces} cast={!low} clip={hero ? HERO_CLIP : undefined}>
       <mesh geometry={box} material={lib.paversGrey} position={[data.x,.063,data.z]} scale={[data.w,.124,data.d]} dispose={null} receiveShadow/>
       {buildings.map(b => <mesh key={b.id} geometry={box} material={fallback} position={[b.x,b.h/2,b.z]} scale={[b.w,b.h,b.d]} dispose={null} castShadow receiveShadow/>)}
     </MeshAsset>
     {signs.map(o => <primitive key={o.name} object={o}/>)}
+    {hero && <><HeroBank lib={lib} low={low}/><HeroStreet lib={lib} low={low}/></>}
   </group>;
 }
 
