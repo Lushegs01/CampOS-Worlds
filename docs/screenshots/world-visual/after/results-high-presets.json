@@ -1,0 +1,479 @@
+{
+  "date": "2026-11-23T16:49:28.856Z",
+  "label": "after",
+  "quality": "high",
+  "renderer": "software (SwiftShader), 1280x720, qa-scale 0.6",
+  "views": {
+    "commercial-street-sunrise:clear": {
+      "drawCalls": [
+        377,
+        406
+      ],
+      "triangles": [
+        941556,
+        974422
+      ],
+      "textures": 233,
+      "geometries": 472,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 6.1,
+        "weather": "clear",
+        "night": 0.14,
+        "lights": 0.05,
+        "wet": 0,
+        "exposure": 1.23,
+        "keyIntensity": 0.74,
+        "probeRevision": 6
+      }
+    },
+    "commercial-street-midday:clear": {
+      "drawCalls": [
+        272,
+        278
+      ],
+      "triangles": [
+        658394,
+        669416
+      ],
+      "textures": 244,
+      "geometries": 527,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 12.4,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1,
+        "keyIntensity": 4.2,
+        "probeRevision": 7
+      }
+    },
+    "commercial-street-sunset:clear": {
+      "drawCalls": [
+        275,
+        278
+      ],
+      "triangles": [
+        669864,
+        673760
+      ],
+      "textures": 244,
+      "geometries": 534,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 18.05,
+        "weather": "clear",
+        "night": 0.36,
+        "lights": 0.65,
+        "wet": 0,
+        "exposure": 1.4,
+        "keyIntensity": 0.07,
+        "probeRevision": 8
+      }
+    },
+    "commercial-street-night:clear": {
+      "drawCalls": [
+        278,
+        278
+      ],
+      "triangles": [
+        665596,
+        669876
+      ],
+      "textures": 244,
+      "geometries": 539,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 22.5,
+        "weather": "clear",
+        "night": 1,
+        "lights": 1,
+        "wet": 0,
+        "exposure": 1.85,
+        "keyIntensity": 0.22,
+        "probeRevision": 9
+      }
+    },
+    "commercial-street-afternoon:overcast": {
+      "drawCalls": [
+        442,
+        444
+      ],
+      "triangles": [
+        1068834,
+        1073114
+      ],
+      "textures": 245,
+      "geometries": 554,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 15.2,
+        "weather": "overcast",
+        "night": 0,
+        "lights": 0.01,
+        "wet": 0,
+        "exposure": 1.17,
+        "keyIntensity": 1.57,
+        "probeRevision": 10
+      }
+    },
+    "commercial-street-afternoon:lightRain": {
+      "drawCalls": [
+        446,
+        446
+      ],
+      "triangles": [
+        1110622,
+        1113226
+      ],
+      "textures": 245,
+      "geometries": 554,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 15.2,
+        "weather": "lightRain",
+        "night": 0,
+        "lights": 0.03,
+        "wet": 0.7,
+        "exposure": 1.18,
+        "keyIntensity": 1.35,
+        "probeRevision": 11
+      }
+    },
+    "commercial-street-dusk:heavyRain": {
+      "drawCalls": [
+        251,
+        294
+      ],
+      "triangles": [
+        674838,
+        714662
+      ],
+      "textures": 245,
+      "geometries": 554,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 18.6,
+        "weather": "heavyRain",
+        "night": 1,
+        "lights": 1,
+        "wet": 1,
+        "exposure": 1.85,
+        "keyIntensity": 0.05,
+        "probeRevision": 12
+      }
+    },
+    "commercial-street-night:storm": {
+      "drawCalls": [
+        291,
+        294
+      ],
+      "triangles": [
+        702218,
+        714662
+      ],
+      "textures": 245,
+      "geometries": 554,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 22.5,
+        "weather": "storm",
+        "night": 1,
+        "lights": 1,
+        "wet": 1,
+        "exposure": 1.85,
+        "keyIntensity": 0.04,
+        "probeRevision": 13
+      }
+    },
+    "commercial-street-morning:fog": {
+      "drawCalls": [
+        480,
+        480
+      ],
+      "triangles": [
+        1087350,
+        1087350
+      ],
+      "textures": 245,
+      "geometries": 554,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 8.6,
+        "weather": "fog",
+        "night": 0,
+        "lights": 0.02,
+        "wet": 0.25,
+        "exposure": 1.13,
+        "keyIntensity": 1.6,
+        "probeRevision": 14
+      }
+    },
+    "downtown-sunrise:clear": {
+      "drawCalls": [
+        581,
+        581
+      ],
+      "triangles": [
+        1094564,
+        1095300
+      ],
+      "textures": 289,
+      "geometries": 694,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 6.1,
+        "weather": "clear",
+        "night": 0.14,
+        "lights": 0.05,
+        "wet": 0,
+        "exposure": 1.23,
+        "keyIntensity": 0.74,
+        "probeRevision": 15
+      }
+    },
+    "downtown-midday:clear": {
+      "drawCalls": [
+        578,
+        578
+      ],
+      "triangles": [
+        1081484,
+        1081484
+      ],
+      "textures": 290,
+      "geometries": 697,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 12.4,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1,
+        "keyIntensity": 4.2,
+        "probeRevision": 16
+      }
+    },
+    "downtown-sunset:clear": {
+      "drawCalls": [
+        652,
+        652
+      ],
+      "triangles": [
+        1388276,
+        1392556
+      ],
+      "textures": 290,
+      "geometries": 702,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 18.05,
+        "weather": "clear",
+        "night": 0.36,
+        "lights": 0.65,
+        "wet": 0,
+        "exposure": 1.4,
+        "keyIntensity": 0.07,
+        "probeRevision": 17
+      }
+    },
+    "downtown-night:clear": {
+      "drawCalls": [
+        581,
+        581
+      ],
+      "triangles": [
+        1086332,
+        1086332
+      ],
+      "textures": 290,
+      "geometries": 702,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 22.5,
+        "weather": "clear",
+        "night": 1,
+        "lights": 1,
+        "wet": 0,
+        "exposure": 1.85,
+        "keyIntensity": 0.22,
+        "probeRevision": 18
+      }
+    },
+    "downtown-afternoon:overcast": {
+      "drawCalls": [
+        581,
+        581
+      ],
+      "triangles": [
+        1092172,
+        1096476
+      ],
+      "textures": 290,
+      "geometries": 704,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 15.2,
+        "weather": "overcast",
+        "night": 0,
+        "lights": 0.01,
+        "wet": 0,
+        "exposure": 1.17,
+        "keyIntensity": 1.57,
+        "probeRevision": 19
+      }
+    },
+    "downtown-afternoon:lightRain": {
+      "drawCalls": [
+        661,
+        661
+      ],
+      "triangles": [
+        1479874,
+        1487570
+      ],
+      "textures": 290,
+      "geometries": 704,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 15.2,
+        "weather": "lightRain",
+        "night": 0,
+        "lights": 0.03,
+        "wet": 0.7,
+        "exposure": 1.18,
+        "keyIntensity": 1.35,
+        "probeRevision": 20
+      }
+    },
+    "downtown-dusk:heavyRain": {
+      "drawCalls": [
+        583,
+        583
+      ],
+      "triangles": [
+        1136156,
+        1137628
+      ],
+      "textures": 290,
+      "geometries": 704,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 18.6,
+        "weather": "heavyRain",
+        "night": 1,
+        "lights": 1,
+        "wet": 1,
+        "exposure": 1.85,
+        "keyIntensity": 0.05,
+        "probeRevision": 21
+      }
+    },
+    "downtown-night:storm": {
+      "drawCalls": [
+        650,
+        650
+      ],
+      "triangles": [
+        1423668,
+        1423668
+      ],
+      "textures": 290,
+      "geometries": 704,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 22.5,
+        "weather": "storm",
+        "night": 1,
+        "lights": 1,
+        "wet": 1,
+        "exposure": 1.85,
+        "keyIntensity": 0.04,
+        "probeRevision": 22
+      }
+    },
+    "downtown-morning:fog": {
+      "drawCalls": [
+        581,
+        584
+      ],
+      "triangles": [
+        1089448,
+        1092864
+      ],
+      "textures": 290,
+      "geometries": 704,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 8.6,
+        "weather": "fog",
+        "night": 0,
+        "lights": 0.02,
+        "wet": 0.25,
+        "exposure": 1.13,
+        "keyIntensity": 1.6,
+        "probeRevision": 23
+      }
+    }
+  },
+  "errors": [],
+  "loadToPlayableMs": 39806,
+  "environmentHook": true
+}

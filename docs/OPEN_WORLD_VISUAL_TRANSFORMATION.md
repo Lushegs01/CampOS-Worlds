@@ -114,10 +114,18 @@ All runs: Chromium + SwiftShader software WebGL, 1280×720, `qa-scale=0.6`, High
 triangles are exact renderer counts, given as the [min, max] over five samples taken 2.2 s apart (the shadow map
 and probe are not drawn every frame). Before = untouched code with the same harness; after = golden hour, clear.
 
-RESULTS_TABLE
+| View | Draw calls before | after | Triangles before | after |
+|---|---|---|---|---|
+| commercial | 278–314 | 369–409 | 691,269–897,251 | 968,720–996,392 |
+| commercial-street | 262–296 | 272–278 | 694,939–907,351 | 665,578–676,600 |
+| downtown | 567 | 576 | 1,194,883–1,196,267 | 1,096,020–1,097,888 |
+| downtown-avenue | 446–483 | 558 | 1,012,443–1,240,901 | 1,255,798–1,260,078 |
+| campus | 235–530 | 252 | 1,114,205–1,768,452 | 1,114,222 |
 
-Reading the table: the increase in the city views is the shadow pass now covering the area around the player
-(defect 2), not the sky or material layer. A split of one Commercial District frame (afternoon) after all changes:
+Reading the table: most views are within the sampling range of the baseline; the Commercial District overview and
+Downtown avenue rise because the shadow pass now actually covers the area around the player (defect 2), offset by
+the vehicle-caster reduction. Low profile (`results-low.json`): Commercial street 170 draws in heavy rain, Downtown
+320 at golden hour. A split of one Commercial District frame (afternoon) after all changes:
 main pass 95 calls, shadow pass 144; before: main 142, shadow 26.
 
 Other effects:
@@ -131,7 +139,7 @@ Other effects:
 
 | Check | Result |
 |---|---|
-| `npm test` | 462 run; the only failure after the environment work was the preferences hydration test, fixed (time/weather keys only hydrate when the store defines them). See the commit log for the final run. |
+| `npm test` | **463 passed, 0 failed** (baseline 455/456). One regression found and fixed on the way: the preferences hydration test (time/weather keys now only hydrate when the store defines them). |
 | `npm run build`, `npm run verify:release` | Pass |
 | In-game captures, High: 5 views before/after | `docs/screenshots/world-visual/{before,after}/`, `results-high*.json` |
 | In-game captures, High: 9 time/weather presets × 2 views | `docs/screenshots/world-visual/after/*-{preset}-high.jpg`, `results-high-presets.json` |

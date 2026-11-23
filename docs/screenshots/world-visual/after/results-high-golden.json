@@ -1,0 +1,141 @@
+{
+  "date": "2026-11-23T16:42:22.663Z",
+  "label": "after",
+  "quality": "high",
+  "renderer": "software (SwiftShader), 1280x720, qa-scale 0.6",
+  "views": {
+    "commercial-golden:clear": {
+      "drawCalls": [
+        369,
+        409
+      ],
+      "triangles": [
+        968720,
+        996392
+      ],
+      "textures": 239,
+      "geometries": 455,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 7
+      }
+    },
+    "commercial-street-golden:clear": {
+      "drawCalls": [
+        272,
+        278
+      ],
+      "triangles": [
+        665578,
+        676600
+      ],
+      "textures": 251,
+      "geometries": 548,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 7
+      }
+    },
+    "downtown-golden:clear": {
+      "drawCalls": [
+        576,
+        576
+      ],
+      "triangles": [
+        1096020,
+        1097888
+      ],
+      "textures": 289,
+      "geometries": 693,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 7
+      }
+    },
+    "downtown-avenue-golden:clear": {
+      "drawCalls": [
+        558,
+        558
+      ],
+      "triangles": [
+        1255798,
+        1260078
+      ],
+      "textures": 295,
+      "geometries": 872,
+      "fps": [
+        1,
+        1
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 7
+      }
+    },
+    "campus-golden:clear": {
+      "drawCalls": [
+        252,
+        252
+      ],
+      "triangles": [
+        1114222,
+        1114222
+      ],
+      "textures": 301,
+      "geometries": 837,
+      "fps": [
+        0,
+        0
+      ],
+      "env": {
+        "hour": 17.35,
+        "weather": "clear",
+        "night": 0,
+        "lights": 0,
+        "wet": 0,
+        "exposure": 1.08,
+        "keyIntensity": 4.19,
+        "probeRevision": 7
+      }
+    }
+  },
+  "errors": [],
+  "loadToPlayableMs": 46986,
+  "environmentHook": true
+}
