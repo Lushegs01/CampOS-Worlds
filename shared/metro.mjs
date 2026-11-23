@@ -123,6 +123,22 @@ for (const [xa, xb] of [[COL.west, COL.r1], [COL.r1, COL.r2], [COL.r2, COL.boule
 add({ id: 'out-motel', district: 'outskirts', kind: 'shed', name: 'Lakeside Motel', x: -432, z: 1590, w: 30, d: 40, h: 7, style: 1, front: 1, yaw: 0 });
 add({ id: 'out-store-1', district: 'outskirts', kind: 'shed', name: 'Ringway Storage', x: 432, z: 1600, w: 30, d: 48, h: 9, style: 2, front: 1 });
 export const METRO_BUILDINGS = out;
+/** Street trees in planters along the building line of Downtown and the Security District (between buildings,
+ *  clear of the sidewalk): shared, so their trunks collide on clients and the room alike. */
+export const METRO_PLANTERS = (() => {
+  const list = [];
+  for (const b of out) {
+    if (!(b.district === 'downtown' || b.district === 'security' || b.kind === 'mall')) continue;
+    for (const s of [-1, 1]) {
+      const x = r2(b.x + s * (b.w / 2 + 1.7)), z = r2(b.z + b.front * (b.d / 2 - .4));
+      // Only in a real gap between buildings, and not twice in the same gap.
+      if (out.some(o => o !== b && Math.abs(o.x - x) < o.w / 2 + 1.2 && Math.abs(o.z - z) < o.d / 2 + 1.2)) continue;
+      if (list.some(p => Math.hypot(p.x - x, p.z - z) < 3)) continue;
+      list.push({ x, z, species: list.length % 3 === 0 ? 'neem' : 'terminalia', s: .62 });
+    }
+  }
+  return list;
+})();
 export const METRO_LOCATIONS = [
   { id: 'metro-entrance', name: 'Metropolitan City', type: 'City limits', x: 0, z: 1548, icon: 'compass', description: 'The Gateway Expressway enters the city here.' },
   { id: 'metro-downtown', name: 'Downtown', type: 'Metropolitan district', x: 150, z: 1701.55, icon: 'grid', description: 'Towers, plazas and the financial quarter.' },

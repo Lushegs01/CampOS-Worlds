@@ -1,6 +1,6 @@
 import { HARBOUR_BLOCKS, HARBOUR_LINKS, HARBOUR_NODES, inHarbour } from './harbour.mjs';
 import { INDUSTRIAL_NODES, INDUSTRIAL_LINKS, inDistrict } from './getaway.mjs';
-import { METRO_STREETS, METRO_BUILDINGS, inMetro } from './metro.mjs';
+import { METRO_PLANTERS, METRO_STREETS, METRO_BUILDINGS, inMetro } from './metro.mjs';
 // Metres; +X east, +Z south. Stable authored data is used by rendering, maps and physics.
 export const WORLD_LIMIT = 1400;
 export const DISTRICTS = [
@@ -94,6 +94,7 @@ export const ROADSIDE_TREES=(()=>{
    out.push({x:Math.round(x*100)/100,z:Math.round(z*100)/100,species:avenue?'royal':shade[k++%shade.length],s:Math.round((.85+f*.3)*100)/100});
   }
  }
+ out.push(...METRO_PLANTERS);
  out.push(...HARBOUR_BLOCKS.flatMap((b,i)=>[-1,1].map(side=>({
   x:b.x+side*16,z:b.z+b.d/2-1.3,species:i%3===0?'royal':i%3===1?'neem':'terminalia',s:i%3===0?.7:.62,
  }))));

@@ -27,7 +27,7 @@ const results = { date: new Date().toISOString(), quality: QUALITY, renderer: gp
 const check = (name, ok, data) => { results.checks[name] = { ok, ...data }; console.log(ok ? 'PASS' : 'FAIL', name, JSON.stringify(data)); };
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  await ctx.addInitScript(q => { localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: q, name: 'City QA', reducedMotion: false }, version: 0 })); }, QUALITY);
+  await ctx.addInitScript(q => { sessionStorage.setItem('campos-cinema-seen', '["city-reveal"]'); localStorage.setItem('campos-worlds-v1', JSON.stringify({ state: { quality: q, name: 'City QA', reducedMotion: false }, version: 0 })); }, QUALITY);
   const page = await ctx.newPage(); page.setDefaultTimeout(240000);
   page.on('pageerror', e => results.errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION|Failed to load resource/.test(m.text())) results.errors.push(m.text()); });

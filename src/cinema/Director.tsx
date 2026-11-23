@@ -78,7 +78,8 @@ export default function Director() {
   }, [camera]);
 
   useFrame((_, raw) => {
-    const dt = Math.min(raw, .1), g = useGetaway.getState(), mission = g.mission;
+    // Scenes run on real time (a slow frame must not stretch a ten-second scene), but one stall never skips a shot.
+    const dt = Math.min(raw, .5), g = useGetaway.getState(), mission = g.mission;
     const ctx: Ctx = { mission, prev: prev.current, brief: g.brief, prevBrief: prevBrief.current };
     if (!run.current && useGame.getState().phase === 'playing') {
       const seen = useCinema.getState().seen.length ? useCinema.getState().seen : loadSeen();

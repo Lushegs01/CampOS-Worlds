@@ -218,13 +218,13 @@ function stepPerson(p, c, dt, ctx, grid) {
   const ux = dx / (d || 1), uz = dz / (d || 1);
   let speed = running ? 4.6 + c.seed : c.pace;
   // Other people just ahead: slow down and drift to one side (everyone keeps right).
-  let latT = c.crossing ? 0 : .35 + (c.seed - .5) * .5;
+  let latT = c.crossing ? 0 : .2 + (c.seed - .5) * .5;
   if (c.tier === 0) {
     const gx = Math.floor(c.x / 4), gz = Math.floor(c.z / 4);
     for (let ix = gx - 1; ix <= gx + 1; ix++) for (let iz = gz - 1; iz <= gz + 1; iz++) for (const o of grid.get(ix * 100003 + iz) ?? []) {
       if (o === c) continue;
       const ox = o.x - c.x, oz = o.z - c.z, ahead = ox * ux + oz * uz, side = -ox * uz + oz * ux;
-      if (ahead > 0 && ahead < 2.2 && Math.abs(side) < .75) { if (o.v < c.v * .7) latT = side > 0 ? -.75 : .85; else speed = Math.min(speed, o.v + .05); }
+      if (ahead > 0 && ahead < 2.2 && Math.abs(side) < .75) { if (o.v < c.v * .7) latT = side > 0 ? -.7 : .7; else speed = Math.min(speed, o.v + .05); }
       // Two strollers meeting: sometimes they stop for a chat.
       if (!running && o.state === 'walk' && c.state === 'walk' && Math.hypot(ox, oz) < 1.6 && p.r() < .0015 && c.place?.kind !== 'busstop') {
         for (const q of [c, o]) { q.state = 'talk'; q.until = p.time + 8 + p.r() * 14; }
@@ -232,7 +232,7 @@ function stepPerson(p, c, dt, ctx, grid) {
       }
     }
     // The player on foot in the way.
-    for (const pl of ctx.walkersExt) { const ox = pl.x - c.x, oz = pl.z - c.z, ahead = ox * ux + oz * uz, side = -ox * uz + oz * ux; if (ahead > 0 && ahead < 1.8 && Math.abs(side) < .8) latT = side > 0 ? -.9 : .9; }
+    for (const pl of ctx.walkersExt) { const ox = pl.x - c.x, oz = pl.z - c.z, ahead = ox * ux + oz * uz, side = -ox * uz + oz * ux; if (ahead > 0 && ahead < 1.8 && Math.abs(side) < .8) latT = side > 0 ? -.7 : .7; }
   }
   c.lat += clamp(latT - c.lat, -1.2 * dt, 1.2 * dt);
   // Sidewalk lateral offset: right of travel is (-uz, ux).
