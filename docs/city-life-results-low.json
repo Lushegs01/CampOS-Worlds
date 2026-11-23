@@ -1,0 +1,332 @@
+{
+  "date": "2026-11-23T13:26:12.001Z",
+  "quality": "low",
+  "renderer": "software (SwiftShader)",
+  "districts": {
+    "downtown": {
+      "vehicles": 15,
+      "moving": 4,
+      "parked": 7,
+      "people": 15,
+      "classes": [
+        "sports",
+        "sedan",
+        "suv",
+        "hatch",
+        "van"
+      ],
+      "fps": 1,
+      "drawCalls": 234,
+      "triangles": 362078
+    },
+    "commercial": {
+      "vehicles": 10,
+      "moving": 5,
+      "parked": 2,
+      "people": 14,
+      "classes": [
+        "sedan",
+        "suv",
+        "moto",
+        "taxi",
+        "hatch",
+        "truck",
+        "police"
+      ],
+      "fps": 1,
+      "drawCalls": 113,
+      "triangles": 257346
+    },
+    "residential": {
+      "vehicles": 9,
+      "moving": 9,
+      "parked": 0,
+      "people": 4,
+      "classes": [
+        "hatch",
+        "sedan",
+        "suv",
+        "moto",
+        "sports"
+      ],
+      "fps": 1,
+      "drawCalls": 110,
+      "triangles": 278134
+    },
+    "industrial": {
+      "vehicles": 6,
+      "moving": 6,
+      "parked": 0,
+      "people": 2,
+      "classes": [
+        "truck",
+        "moto",
+        "pickup"
+      ],
+      "fps": 1,
+      "drawCalls": 125,
+      "triangles": 264350
+    },
+    "security": {
+      "vehicles": 28,
+      "moving": 10,
+      "parked": 15,
+      "people": 10,
+      "classes": [
+        "sedan",
+        "suv",
+        "hatch",
+        "sports",
+        "police",
+        "taxi",
+        "truck"
+      ],
+      "fps": 1,
+      "drawCalls": 154,
+      "triangles": 328028
+    },
+    "entrance": {
+      "vehicles": 16,
+      "moving": 10,
+      "parked": 2,
+      "people": 6,
+      "classes": [
+        "sedan",
+        "suv",
+        "hatch",
+        "van",
+        "moto",
+        "taxi",
+        "bus"
+      ],
+      "fps": 2,
+      "drawCalls": 91,
+      "triangles": 292860
+    },
+    "expressway": {
+      "vehicles": 5,
+      "moving": 0,
+      "parked": 0,
+      "people": 1,
+      "classes": [
+        "sedan",
+        "suv",
+        "taxi",
+        "hatch",
+        "bus"
+      ],
+      "fps": 1,
+      "drawCalls": 257,
+      "triangles": 450848
+    }
+  },
+  "checks": {
+    "downtown busier on foot than industrial and the expressway": {
+      "ok": true,
+      "downtown": 15,
+      "industrial": 2,
+      "expressway": 1
+    },
+    "traffic in every district": {
+      "ok": true,
+      "downtown": 15,
+      "commercial": 10,
+      "residential": 9,
+      "industrial": 6,
+      "security": 28,
+      "entrance": 16,
+      "expressway": 5
+    },
+    "trafficSamples": [
+      {
+        "n": 105,
+        "offLane": 0,
+        "worstLateral": 0.17,
+        "overlaps": 0,
+        "moving": 50,
+        "stopped": 20
+      },
+      {
+        "n": 104,
+        "offLane": 0,
+        "worstLateral": 0.3,
+        "overlaps": 0,
+        "moving": 40,
+        "stopped": 30
+      },
+      {
+        "n": 103,
+        "offLane": 0,
+        "worstLateral": 0.36,
+        "overlaps": 0,
+        "moving": 46,
+        "stopped": 24
+      },
+      {
+        "n": 100,
+        "offLane": 0,
+        "worstLateral": 0.25,
+        "overlaps": 0,
+        "moving": 47,
+        "stopped": 23
+      },
+      {
+        "n": 98,
+        "offLane": 0,
+        "worstLateral": 0.11,
+        "overlaps": 0,
+        "moving": 42,
+        "stopped": 28
+      },
+      {
+        "n": 93,
+        "offLane": 0,
+        "worstLateral": 0.17,
+        "overlaps": 0,
+        "moving": 55,
+        "stopped": 13
+      },
+      {
+        "n": 95,
+        "offLane": 0,
+        "worstLateral": 0.3,
+        "overlaps": 0,
+        "moving": 48,
+        "stopped": 22
+      },
+      {
+        "n": 97,
+        "offLane": 0,
+        "worstLateral": 0.12,
+        "overlaps": 0,
+        "moving": 44,
+        "stopped": 27
+      }
+    ],
+    "vehicles stay on their lanes (incl. overtakes, < 4.3 m)": {
+      "ok": true,
+      "worst": 0.36
+    },
+    "no two ambient vehicles overlap": {
+      "ok": true,
+      "overlaps": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pairs": []
+    },
+    "junction entries on red: none": {
+      "ok": true,
+      "entries": 509,
+      "redRuns": 0
+    },
+    "vehicles stop at red lights": {
+      "ok": true,
+      "redStops": 127
+    },
+    "traffic keeps flowing (2 min)": {
+      "ok": true,
+      "moving": 44,
+      "total": 97
+    },
+    "parking and garages are used": {
+      "ok": true,
+      "parkings": 16,
+      "departures": 39
+    },
+    "population within budget": {
+      "ok": true,
+      "total": 97
+    },
+    "a car stops for a player standing in its lane": {
+      "ok": true,
+      "closest": 6.81,
+      "stoppedAt": 6.82,
+      "trace": [
+        [
+          21,
+          7.5,
+          ""
+        ],
+        [
+          8.3,
+          2,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ],
+        [
+          6.8,
+          0,
+          "obstacle"
+        ]
+      ]
+    },
+    "pedestrians flee or take cover from gunfire": {
+      "ok": true,
+      "fleeing": 4,
+      "near": 7
+    },
+    "no pedestrian inside a building collider": {
+      "ok": true,
+      "n": 77,
+      "inside": 0
+    },
+    "people cross streets and use buildings": {
+      "ok": true,
+      "crossed": 135,
+      "entered": 19,
+      "exited": 53,
+      "conversations": 2
+    },
+    "no page errors": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  "performance": {
+    "loadToPlayableMs": 32198,
+    "sim": {
+      "msPerSimStep": 0.302,
+      "note": "traffic + pedestrians, one 1/30 s step, whole city"
+    },
+    "frame": {
+      "fps": 1,
+      "drawCalls": 290,
+      "triangles": 506962,
+      "geometries": 572,
+      "textures": 142,
+      "heapMB": 297
+    }
+  },
+  "errors": []
+}

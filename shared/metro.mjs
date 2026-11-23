@@ -134,6 +134,10 @@ export const METRO_PLANTERS = (() => {
       // Only in a real gap between buildings, and not twice in the same gap.
       if (out.some(o => o !== b && Math.abs(o.x - x) < o.w / 2 + 1.2 && Math.abs(o.z - z) < o.d / 2 + 1.2)) continue;
       if (list.some(p => Math.hypot(p.x - x, p.z - z) < 3)) continue;
+      // Never on a carriageway, sidewalk or junction corner (a street's half width, sidewalk and kerb return).
+      // Nor on a junction's square (every crossing of a row and an avenue).
+      if (METRO_STREETS.some(([ax, at, a, b]) => ax === 'h' && METRO_STREETS.some(([bx, bt, c, d]) => bx === 'v' && bt >= Math.min(a, b) && bt <= Math.max(a, b) && at >= Math.min(c, d) && at <= Math.max(c, d) && Math.abs(x - bt) < 9.8 && Math.abs(z - at) < 9.8))) continue;
+      if (METRO_STREETS.some(([axis, at, a, b]) => { const along = axis === 'h' ? x : z, across = axis === 'h' ? z : x, lo = Math.min(a, b) - 10, hi = Math.max(a, b) + 10; return along > lo && along < hi && Math.abs(across - at) < 6.9; })) continue;
       list.push({ x, z, species: list.length % 3 === 0 ? 'neem' : 'terminalia', s: .62 });
     }
   }
