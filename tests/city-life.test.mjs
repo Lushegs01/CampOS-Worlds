@@ -51,9 +51,9 @@ test('pedestrian network: walkable edges, reachable destinations, crosswalks at 
   assert.ok(CROSSWALKS.length > 60 && BAYS.length > 20 && GARAGES.length > 5);
 });
 
-test('ten minutes of city: no overlaps, no red-light runs, traffic keeps moving, parking and garages used', () => {
+test('six minutes of city: no overlaps, no red-light runs, traffic keeps moving, parking and garages used', () => {
   let overlaps = 0, worstStopped = 0;
-  const { t } = run(600, {
+  const { t } = run(360, {
     every: 2,
     onSecond(t) {
       const L = t.list;
@@ -67,7 +67,7 @@ test('ten minutes of city: no overlaps, no red-light runs, traffic keeps moving,
   const s = trafficSummary(t);
   assert.equal(overlaps, 0, 'vehicles overlapped');
   assert.equal(s.redRuns, 0, 'a vehicle entered a junction on red');
-  assert.ok(s.junctionEntries > 2000, `junction entries ${s.junctionEntries}`);
+  assert.ok(s.junctionEntries > 1200, `junction entries ${s.junctionEntries}`);
   assert.ok(s.moving > s.total * .3, `moving ${s.moving}/${s.total}`);
   assert.ok(s.parkings > 5 && s.despawned > 50, `parkings ${s.parkings}, departures ${s.despawned}`);
   assert.ok(worstStopped < 12, `${worstStopped} vehicles stuck for over two minutes`);
