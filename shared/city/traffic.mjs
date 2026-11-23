@@ -12,6 +12,7 @@
 // docs/METROPOLITAN-LIFE.md for the multiplayer trade-off). It is deterministic for a given seed and inputs.
 import { SEGMENTS, LANES, JUNCTION, BAYS, GARAGES, PORTALS, FURNITURE, CROSSWALKS, DISTRICT_PROFILE, activityAt, route, pointAt, signalAspect, signalRemaining, LANE_OFFSET } from './network.mjs';
 import { CITY_CLASSES, CLASS_MIX, PAINTS, PAINT_WEIGHTS, LIVERY } from './vehicles.mjs';
+import { HARBOUR_TRAFFIC } from '../harbour.mjs';
 
 const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -38,6 +39,17 @@ for (const f of FURNITURE) if (f.kind === 'busstop') {
   if (best) { if (!STOPS_BY_LANE.has(best.lane)) STOPS_BY_LANE.set(best.lane, []); STOPS_BY_LANE.get(best.lane).push(best); }
 }
 const CONN_TO = new Map(); for (const sg of SEGMENTS) if (sg.kind === 'conn') { if (!CONN_TO.has(sg.outLane)) CONN_TO.set(sg.outLane, []); CONN_TO.get(sg.outLane).push(sg.id); }
+// The room's scripted Harbour Exchange cars drive fixed loops and do not stop for anyone: ambient drivers never
+// route along, or appear on, the lanes those loops use (they still cross them at junctions, as obstacles).
+export const SCRIPTED_LANES = new Set();
+for (const car of HARBOUR_TRAFFIC) for (let i = 0; i < car.route.length; i++) {
+  const [ax, az] = car.route[i], [bx, bz] = car.route[(i + 1) % car.route.length], len = Math.hypot(bx - ax, bz - az) || 1, ux = (bx - ax) / len, uz = (bz - az) / len;
+  for (const l of LANES) {
+    if (Math.abs(l.dir.x * ux + l.dir.z * uz) < .9) continue; // (either direction: some loop sides run against the lane)
+    const m = { x: (l.pts[0].x + l.pts.at(-1).x) / 2, z: (l.pts[0].z + l.pts.at(-1).z) / 2 }, t = (m.x - ax) * ux + (m.z - az) * uz, off = Math.abs(-(m.x - ax) * uz + (m.z - az) * ux);
+    if (t > -2 && t < len + 2 && off < 3.5) SCRIPTED_LANES.add(l.id);
+  }
+}
 const crossingsAt = new Map(); for (const c of CROSSWALKS) { if (!crossingsAt.has(c.node)) crossingsAt.set(c.node, []); crossingsAt.get(c.node).push(c); }
 
 function polyline(pts) { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist(pts[i - 1], pts[i])); return { pts, cum, len: cum.at(-1) }; }
@@ -92,7 +104,7 @@ function laneClear(t, lane, s, before = 14, after = 10) {
 }
 function spawnMoving(t, district, players, initial) {
   for (let k = 0; k < 14; k++) {
-    const lanes = LANES.filter(l => l.district === district && l.len > 30);
+    const lanes = LANES.filter(l => l.district === district && l.len > 30 && !SCRIPTED_LANES.has(l.id));
     if (!lanes.length) return null;
     const lane = lanes[Math.floor(t.r() * lanes.length)], s = 8 + t.r() * (lane.len - 16), p = pointAt(lane, s);
     if (!initial && !hidden(p, players, 230)) continue;
@@ -170,7 +182,7 @@ function newGoal(t, v) {
 }
 function avoidSet(t) { const s = new Set(); for (const [id, until] of t.blockedLanes) { if (t.time > until) t.blockedLanes.delete(id); else s.add(id); } return s; }
 function replan(t, v) {
-  const avoid = avoidSet(t); avoid.delete(v.seg);
+  const avoid = avoidSet(t); for (const id of SCRIPTED_LANES) avoid.add(id); avoid.delete(v.seg);
   const busy = id => (t.load.get(id) ?? 0) * 2.8;
   let p = v.goal.lane === v.seg ? [v.seg] : route(v.seg, v.goal.lane, avoid.size ? avoid : null, busy) ?? route(v.seg, v.goal.lane);
   if (!p) { // Unreachable: just keep driving and pick again later.

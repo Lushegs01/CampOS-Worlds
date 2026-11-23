@@ -119,3 +119,26 @@ test('a driver overtakes a disabled vehicle without touching it (or waits behind
   }
   assert.ok(checked >= 2, 'scenarios ran');
 });
+
+test('the scripted Harbour Exchange loops (which yield to nobody) never pile ambient cars into each other', async () => {
+  const { HARBOUR_TRAFFIC } = await import('../shared/harbour.mjs');
+  const t = createTraffic({ seed: 5, quality: 'high' });
+  // Each scripted car runs its loop at 8 m/s, presented to the drivers exactly as the game does (src/city/CityLife.tsx).
+  const loops = HARBOUR_TRAFFIC.map(c => ({ route: c.route, leg: 0, x: c.route[0][0], z: c.route[0][1], yaw: 0 }));
+  let overlaps = 0;
+  for (let i = 0; i < 30 * 240; i++) {
+    const obstacles = [];
+    for (const c of loops) {
+      const [tx, tz] = c.route[(c.leg + 1) % c.route.length], d = Math.hypot(tx - c.x, tz - c.z);
+      if (d < .3) c.leg = (c.leg + 1) % c.route.length; else { c.yaw = Math.atan2(tx - c.x, tz - c.z); const k = Math.min(d, 8 / 30); c.x += Math.sin(c.yaw) * k; c.z += Math.cos(c.yaw) * k; }
+      for (const s of [-1, 0, 1]) obstacles.push({ x: c.x + Math.sin(c.yaw) * s * 1.4, z: c.z + Math.cos(c.yaw) * s * 1.4, r: 1, v: 8, yaw: c.yaw, len: 4.3, wid: 1.8, kind: 'part', id: 'h' });
+      obstacles.push({ x: c.x, z: c.z, r: 0, v: 8, yaw: c.yaw, len: 4.3, wid: 1.8, kind: 'vehicle', id: 'h' });
+    }
+    stepTraffic(t, 1 / 30, { players: [{ x: -120, z: 1720, yaw: 0 }], obstacles });
+    if (i % 30) continue;
+    const L = t.list;
+    for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) { const p = L[a], q = L[b]; if (Math.abs(p.x - q.x) < 12 && Math.abs(p.z - q.z) < 12 && obb(p.x, p.z, p.yaw, p.len / 2 - .15, p.wid / 2 - .1, q.x, q.z, q.yaw, q.len / 2 - .15, q.wid / 2 - .1)) overlaps++; }
+  }
+  assert.equal(overlaps, 0);
+  assert.ok(t.stats.crashes < 25, `crashes ${t.stats.crashes}`);
+});
