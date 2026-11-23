@@ -13,6 +13,8 @@ Shadow Protocol: The Getaway visual slice (Bay 04, the Orisun freight yard, vehi
 
 Operation: Metropolis rendering (sky and image-based light per weather, height fog, weathered and wet materials, interior-mapped windows, rain, street reflections, the Storm Break weather with light shafts and the rebuilt port, profiles and measurements): [photorealism report](docs/PHOTOREALISM.md).
 
+Metropolitan City living population, autonomous traffic and in-engine cinematics (audit, architecture, evidence, outstanding work): [Metropolitan life](docs/METROPOLITAN-LIFE.md).
+
 Operation: Metropolis cinematic presentation (filmic finish, round tactical map, elimination card and experience popups with medals, "Back on top" lead calls, the after-action weapon-unlocks report, a finish at every weapon level): [cinematic presentation](docs/ARENA-CINEMATIC.md).
 
 Combat Arena HUD customization, Armory (three free firearms including the SIG Sauer M7, premium weapons), auto-fire and adaptive performance: [engineering report](docs/ARENA-ARMORY-HUD-REPORT.md).

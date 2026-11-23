@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { METRO_BUILDINGS, METRO_PARKED, METRO_ROWS, METRO_COLS, EXPRESSWAY, SAFEHOUSE_PLOT, inMetro } from '../../shared/metro.mjs';
+import { METRO_BUILDINGS, METRO_PARKED, METRO_PLANTERS, METRO_ROWS, METRO_COLS, EXPRESSWAY, SAFEHOUSE_PLOT, inMetro } from '../../shared/metro.mjs';
 import { player, useGame } from '../state';
 import { Kit, rng, windowUnit, hipRoof, flatRoof, waterTank, acUnit, door, railing, downpipe, wall, type V3 } from './architecture/kit';
 import { sign } from './architecture/signage';
@@ -29,16 +29,20 @@ const CELLS = (() => {
   return [...m.values()];
 })();
 
-// Facade palettes (multiplied over the stucco scan through vertex colour).
+// Facade palettes (multiplied over the stucco scan through vertex colour). A warm West African city palette:
+// sandstone, laterite terracotta, ochre and limestone downtown with the odd sage or slate accent; pastel stucco in
+// the residential streets; crisp whites and civic blues in the Security District. Colour comes from the materials
+// themselves, never from saturated paint on everything.
 const WALLS: Record<string, string[]> = {
-  downtown: ['#d9d4c9', '#b9b4ab', '#cfc0a8', '#9ea4a6'],
-  residential: ['#efe1c8', '#e7c9a5', '#d9e0d0', '#f1d9cf', '#e8dcc0', '#cfd8db'],
-  security: ['#dfe2e3', '#c5ccd1', '#e4e1da'],
-  entrance: ['#e2ddd2', '#c9c2b4', '#dcd2bd'],
-  outskirts: ['#d6cdb9', '#c3b8a2'],
+  downtown: ['#dccdb4', '#c99470', '#e4d7bf', '#b9c3bd', '#d9ad74', '#a9b7c4', '#cfb79a', '#e8e0cf'],
+  residential: ['#efe1c8', '#e7c9a5', '#d9e0d0', '#f1d9cf', '#e8dcc0', '#cfd8db', '#f0cfa8', '#dbe6dc'],
+  security: ['#e6e8e7', '#c9d3da', '#e4e1da'],
+  entrance: ['#e2ddd2', '#d7b48a', '#c9c2b4', '#bfcdc2'],
+  outskirts: ['#d6cdb9', '#c9a983', '#c3b8a2'],
 };
-const GLASS = ['#1b2b33', '#23343c', '#2a3c40', '#1d2a33', '#30413f'];
-const ACCENT = ['#2f4b6e', '#7a3e2c', '#2f5a46', '#5b4a7a'];
+// Curtain-wall tints: blue-green, bronze, silver-blue and deep teal, not one grey-black.
+const GLASS = ['#1f3a44', '#3a3128', '#3d5266', '#18393a', '#2c3f52', '#42484c'];
+const ACCENT = ['#2f4b6e', '#9a3f2a', '#2f5a46', '#5b4a7a', '#b0762a', '#1f6b6b'];
 
 /** Runs `fn` in each facade frame of a building: facade along +X (length L), outer face at z = 0. */
 function faces(kit: Kit, b: { x: number; z: number; w: number; d: number }, fn: (L: number, side: 'front' | 'back' | 'left' | 'right') => void, front = 1) {
@@ -89,7 +93,7 @@ function tower(kit: Kit, b: B, signs: THREE.Object3D[]) {
   const podium = 5.2, styles: { pier: MaterialKey; color?: string; bay: number; pierW: number; band: number; floor: number }[] = [
     { pier: 'brushed', bay: 1.5, pierW: .12, band: .28, floor: 3.6 },           // glass curtain wall
     { pier: 'granite', bay: 3.0, pierW: .7, band: 1.0, floor: 3.6 },            // stone grid, punched glazing
-    { pier: 'stuccoTint', color: WALLS.downtown[Math.floor(r() * 4)], bay: 2.4, pierW: .5, band: .9, floor: 3.4 }, // concrete frame
+    { pier: 'stuccoTint', color: WALLS.downtown[Math.floor(r() * WALLS.downtown.length)], bay: 2.4, pierW: .5, band: .9, floor: 3.4 }, // concrete frame
     { pier: 'aluminium', bay: 1.2, pierW: .08, band: .55, floor: 3.8 },          // ribbon glazing
   ];
   const s = styles[b.style % styles.length];
@@ -116,7 +120,7 @@ function tower(kit: Kit, b: B, signs: THREE.Object3D[]) {
 }
 
 function house(kit: Kit, b: B, signs: THREE.Object3D[]) {
-  const r = rng(Math.floor(b.x * 13 + b.z * 7) % 2147483646 + 1), color = WALLS.residential[Math.floor(r() * 6)], storeys = b.h > 7 ? 2 : 1, top = storeys * 2.9 + .4;
+  const r = rng(Math.floor(b.x * 13 + b.z * 7) % 2147483646 + 1), color = WALLS.residential[Math.floor(r() * WALLS.residential.length)], storeys = b.h > 7 ? 2 : 1, top = storeys * 2.9 + .4;
   const shop = b.kind === 'shop';
   faces(kit, b, (L, side) => {
     const front = side === 'front', openings: { x0: number; x1: number; y0: number; y1: number }[] = [];
@@ -136,7 +140,7 @@ function house(kit: Kit, b: B, signs: THREE.Object3D[]) {
     }
     if (shop && front) {
       shopfront(kit, L - 1.2, 2.9, { seed: b.x, door: 1, canopy: 'fabricShade' });
-      const board = sign({ text: ['MAMA T PROVISIONS', 'CORNER CHEMIST', 'QUICK PRINT', 'BLESSED BARBERS', 'FRESH BREAD', 'MOBILE REPAIRS'][Math.floor(r() * 6)], kind: 'panel', width: Math.min(L - 1.6, 6), height: .55, background: ACCENT[Math.floor(r() * 4)], color: '#f6eedc', tracking: .06 });
+      const board = sign({ text: ['MAMA T PROVISIONS', 'CORNER CHEMIST', 'QUICK PRINT', 'BLESSED BARBERS', 'FRESH BREAD', 'MOBILE REPAIRS'][Math.floor(r() * 6)], kind: 'panel', width: Math.min(L - 1.6, 6), height: .55, background: ACCENT[Math.floor(r() * ACCENT.length)], color: '#f6eedc', tracking: .06 });
       signs.push(kit.place(board, [0, 3.35, .06]));
     }
     if (front && !shop) {
@@ -278,9 +282,9 @@ function grounds(kit: Kit, list: B[]) {
   for (const b of list) {
     if (b.district === 'downtown' || b.district === 'security' || b.kind === 'mall') {
       kit.box('paversGrey', [b.x, .045, b.z + b.front * 2], [b.w + 8, .09, b.d + 6], { shadow: false });
-      for (const s of [-1, 1]) {
-        const x = b.x + s * (b.w / 2 + 1.6), z = b.z + b.front * (b.d / 2 + 2.6);
-        kit.box('concrete', [x, .3, z], [1.6, .5, 1.6]); kit.box('soil', [x, .56, z], [1.3, .04, 1.3], { shadow: false });
+      // Planters with street trees in the gaps between buildings (the trees themselves are shared vegetation).
+      for (const p of METRO_PLANTERS) if (Math.abs(p.x - b.x) < b.w / 2 + 2.2 && Math.abs(p.z - b.z) < b.d / 2 + 1) {
+        kit.box('concrete', [p.x, .3, p.z], [1.7, .5, 1.7], { color: '#cfc6b6' }); kit.box('soil', [p.x, .56, p.z], [1.4, .04, 1.4], { shadow: false });
       }
     } else if (b.kind === 'house' || b.kind === 'shop') {
       kit.box('concrete', [b.x + b.w / 2 + 1.6, .03, b.z + b.front * (b.d / 2 + 1.5)], [2.8, .06, 3.2], { shadow: false });
@@ -310,8 +314,14 @@ function buildFar(lib: Materials) {
   for (const c of CELLS) {
     const kit = new Kit();
     for (const b of c.buildings) {
-      const tall = b.kind === 'tower';
-      kit.box(tall ? 'glass' : 'stuccoTint', [b.x, b.h / 2, b.z], [b.w, b.h, b.d], { color: tall ? GLASS[b.style % GLASS.length] : (WALLS[b.district] ?? WALLS.entrance)[b.style % 2], shadow: false });
+      const tall = b.kind === 'tower', wall = (WALLS[b.district] ?? WALLS.entrance)[(b.style + Math.round(b.x)) % (WALLS[b.district] ?? WALLS.entrance).length];
+      kit.box(tall ? 'glass' : 'stuccoTint', [b.x, b.h / 2, b.z], [b.w, b.h, b.d], { color: tall ? GLASS[(b.style + Math.round(b.z)) % GLASS.length] : wall, shadow: false });
+      if (tall) {
+        // Stone podium, floor spandrels every few storeys and a crown: the skyline reads as architecture.
+        kit.box('granite', [b.x, 2.6, b.z], [b.w + .3, 5.2, b.d + .3], { color: wall, shadow: false });
+        for (let y = 9; y < b.h - 2; y += b.style % 2 ? 7.2 : 10.8) kit.box('concrete', [b.x, y, b.z], [b.w + .12, .45, b.d + .12], { color: '#d8d2c6', shadow: false });
+        kit.box('concrete', [b.x, b.h + .6, b.z], [b.w + .2, 1.2, b.d + .2], { color: '#cfc8bb', shadow: false });
+      } else if (b.kind !== 'house') kit.box('concrete', [b.x, b.h + .3, b.z], [b.w + .15, .6, b.d + .15], { color: '#cbc3b4', shadow: false });
       if (b.kind === 'house') hipRoof(kit, 'roofRed', b.x - b.w / 2, b.x + b.w / 2, b.z - b.d / 2, b.z + b.d / 2, b.h, .3, .3);
     }
     const g = kit.build(lib, 'metro:far:' + c.key); g.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = false; });

@@ -15,7 +15,7 @@ function stop(clip: Playback) {
   clip.mixer.duck.gain.setTargetAtTime(1, now, .18);
 }
 
-export function SpokenLine({ id, speaker }: { id: string; speaker: string }) {
+export function SpokenLine({ id, speaker, autoplay = true }: { id: string; speaker: string; autoplay?: boolean }) {
   const enabled = useGame(s => s.volume > 0 && s.dialogueVolume > 0);
   const [available, setAvailable] = useState('');
   const [playing, setPlaying] = useState(false);
@@ -61,7 +61,7 @@ export function SpokenLine({ id, speaker }: { id: string; speaker: string }) {
   useEffect(() => {
     let shown = true;
     void hasElevenLabsClip(id).then(found => { if (shown && found) setAvailable(id); });
-    void play();
+    if (autoplay) void play();
     const visibility = () => { if (document.hidden) cancel(); };
     document.addEventListener('visibilitychange', visibility);
     const unsub = useGame.subscribe(s => { if (!s.volume || !s.dialogueVolume) cancel(); });

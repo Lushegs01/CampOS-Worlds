@@ -14,6 +14,8 @@ import { Label } from '../world/Primitives';
 import { surfaceHeight } from '../world/layout';
 import { VehicleModel } from '../world/Vehicles';
 import { useGetaway } from './client';
+import { acting } from '../cinema/sequences';
+import { useCinema } from '../cinema/store';
 import GetawayEffects from './effects';
 import Police from './Police';
 import BlastSite from './BlastSite';
@@ -33,13 +35,18 @@ const bodyMotion = ():AvatarMotion => ({ speed:0,y:0,vy:0,turn:0 });
 function Contact({ delivery=false }: { delivery?: boolean }) {
   const here=delivery?SAFEHOUSE:CONTACT;
   const root=useRef<THREE.Group>(null!),motion=useMemo(bodyMotion,[]);
+  const inScene=useCinema(c=>!!c.active);
   useFrame((_,dt)=>{
     const nearby=Math.hypot(player.x-here.x,player.z-here.z)<14;
-    if(nearby)root.current.rotation.y=THREE.MathUtils.damp(root.current.rotation.y,Math.atan2(player.x-here.x,player.z-here.z),5,dt);
+    // In a scene the director may ask her to look at someone or to gesture (src/cinema/sequences.ts).
+    const look=acting.sade.look??(nearby?player:null);
+    if(look)root.current.rotation.y=THREE.MathUtils.damp(root.current.rotation.y,Math.atan2(look.x-here.x,look.z-here.z),5,dt);
+    if(acting.sade.until>Date.now()){motion.emote=acting.sade.emote;motion.emoteUntil=acting.sade.until;}
+    if(!useCinema.getState().active)acting.sade.look=null;
   });
   return <group position={[here.x,surfaceHeight(here.x,here.z),here.z]}><group ref={root}>
     <AvatarBoundary accent={CONTACT_AVATAR.accent}><Suspense fallback={null}><Avatar id="sade" config={CONTACT_AVATAR} motion={()=>motion}/></Suspense></AvatarBoundary>
-  </group><Label text="Sade" p={[0,2.16,0]} width={1.35} height={.31} background="#203b33"/></group>;
+  </group>{!inScene&&<Label text="Sade" p={[0,2.16,0]} width={1.35} height={.31} background="#203b33"/>}</group>;
 }
 function YardAlarm(){
   const lamps=useRef<THREE.Group>(null!);
