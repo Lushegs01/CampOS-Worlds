@@ -74,14 +74,14 @@ try {
         if (best > 4.3) offLane++; worst = Math.max(worst, best);
       }
       const L = { sedan: 4.65, hatch: 4.05, suv: 4.75, sports: 4.45, pickup: 5.25, van: 5.05, truck: 7.6, bus: 11.2, taxi: 4.65, moto: 2.1, police: 4.8 }, W = { moto: .8, truck: 2.4, bus: 2.5 };
-      for (let i = 0; i < list.length; i++) for (let k = i + 1; k < list.length; k++) { const a = list[i], b = list[k]; if (Math.abs(a.x - b.x) > 12 || Math.abs(a.z - b.z) > 12) continue; if (obb(a.x, a.z, a.yaw, L[a.cls] / 2 - .15, (W[a.cls] ?? 1.85) / 2 - .1, b.x, b.z, b.yaw, L[b.cls] / 2 - .15, (W[b.cls] ?? 1.85) / 2 - .1)) overlaps++; }
+      for (let i = 0; i < list.length; i++) for (let k = i + 1; k < list.length; k++) { const a = list[i], b = list[k]; if (Math.abs(a.x - b.x) > 12 || Math.abs(a.z - b.z) > 12) continue; if (obb(a.x, a.z, a.yaw, L[a.cls] / 2 - .15, (W[a.cls] ?? 1.85) / 2 - .1, b.x, b.z, b.yaw, L[b.cls] / 2 - .15, (W[b.cls] ?? 1.85) / 2 - .1)) { overlaps++; (window.__overlapPairs ??= []).push([a, b]); } }
       return { n: list.length, offLane, worstLateral: +worst.toFixed(2), overlaps, summary: window.__cityLife().traffic };
     }));
   }
   const after = samples.at(-1).summary;
   results.checks.trafficSamples = samples.map(s => ({ n: s.n, offLane: s.offLane, worstLateral: s.worstLateral, overlaps: s.overlaps, moving: s.summary.moving, stopped: s.summary.stopped }));
   check('vehicles stay on their lanes (incl. overtakes, < 4.3 m)', samples.every(s => s.offLane === 0), { worst: Math.max(...samples.map(s => s.worstLateral)) });
-  check('no two ambient vehicles overlap', samples.every(s => s.overlaps === 0), { overlaps: samples.map(s => s.overlaps) });
+  check('no two ambient vehicles overlap', samples.every(s => s.overlaps === 0), { overlaps: samples.map(s => s.overlaps), pairs: await page.evaluate(() => (window.__overlapPairs ?? []).slice(0, 3)) });
   check('junction entries on red: none', after.redRuns === 0 && after.junctionEntries - before.junctionEntries > 100, { entries: after.junctionEntries - before.junctionEntries, redRuns: after.redRuns });
   check('vehicles stop at red lights', after.redStops > before.redStops, { redStops: after.redStops - before.redStops });
   check('traffic keeps flowing (2 min)', after.moving > after.total * .25, { moving: after.moving, total: after.total });
@@ -91,22 +91,25 @@ try {
   // ---- a player standing in the road: the next car stops short of them.
   const block = await page.evaluate(async () => {
     const net = await import('/shared/city/network.mjs');
-    const v = window.__cityVehicles(400).find(o => o.state === 'drive' && o.v > 4 && net.SEGMENTS[o.seg].kind === 'lane' && net.SEGMENTS[o.seg].len - 0 > 60);
+    // A car with at least 45 m of this lane still ahead of it (so its route passes the point where the player stands).
+    const v = window.__cityVehicles(500).find(o => { if (o.state !== 'drive' || o.v < 4) return false; const seg = net.SEGMENTS[o.seg]; if (seg.kind !== 'lane') return false; const s = (o.x - seg.pts[0].x) * seg.dir.x + (o.z - seg.pts[0].z) * seg.dir.z; return seg.len - s > 45 && !(seg.parking?.length || seg.garages?.length); });
     if (!v) return null;
-    const seg = net.SEGMENTS[v.seg], p0 = seg.pts[0], s = (v.x - p0.x) * seg.dir.x + (v.z - p0.z) * seg.dir.z, at = Math.min(seg.len - 3, s + 26), q = net.pointAt(seg, at);
+    const seg = net.SEGMENTS[v.seg], p0 = seg.pts[0], s = (v.x - p0.x) * seg.dir.x + (v.z - p0.z) * seg.dir.z, at = s + 30, q = net.pointAt(seg, at);
     window.__campusDebug.teleport(q.x, q.z, Math.atan2(seg.dir.x, seg.dir.z), .2, 9);
     return { id: v.id, at: q, seg: v.seg };
   });
   if (block) {
     await sleep(2500);
-    let minGap = Infinity, finalV = null, passed = false;
-    for (let k = 0; k < 40; k++) {
+    let minGap = Infinity, stoppedAt = null, hit = false, trace = [];
+    for (let k = 0; k < 48; k++) {
       await advance(.25);
-      const r = await page.evaluate(id => { const v = window.__cityVehicles(200).find(o => o.id === id); const p = window.__campusDebug.state(); return v ? { d: Math.hypot(v.x - p.x, v.z - p.z), v: v.v, why: v.why, seg: v.seg } : null; }, block.id);
-      if (!r) break; minGap = Math.min(minGap, r.d); finalV = r.v; if (r.d < 1.2) passed = true;
+      const r = await page.evaluate(id => { const v = window.__cityVehicles(300).find(o => o.id === id); const p = window.__campusDebug.state(); return v ? { d: Math.hypot(v.x - p.x, v.z - p.z), v: v.v, why: v.why, seg: v.seg } : null; }, block.id);
+      if (!r) break; trace.push([+r.d.toFixed(1), +r.v.toFixed(1), r.why]);
+      minGap = Math.min(minGap, r.d); if (r.d < 2.6) hit = true;
+      if (r.v < .3 && r.d < 12 && stoppedAt === null) stoppedAt = +r.d.toFixed(2);
     }
     await page.screenshot({ path: `${OUT}/player-in-road.jpg`, type: 'jpeg', quality: 84 });
-    check('a car stops for a player standing in its lane', !passed && finalV !== null && finalV < .5, { closest: +minGap.toFixed(2), speed: finalV });
+    check('a car stops for a player standing in its lane', !hit && stoppedAt !== null, { closest: +minGap.toFixed(2), stoppedAt, trace: trace.filter((_, i) => i % 6 === 0) });
   } else check('a car stops for a player standing in its lane', false, { reason: 'no candidate vehicle' });
 
   // ---- gunfire downtown: people run or take cover, drivers flee.
