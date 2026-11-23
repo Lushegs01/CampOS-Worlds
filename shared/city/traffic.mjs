@@ -45,7 +45,7 @@ function bez(p0, c, p1, n = 10) { return Array.from({ length: n + 1 }, (_, i) =>
 function along(poly, s) { return pointAt(poly, s, 0); }
 
 export function createTraffic({ seed = 1, quality = 'medium', hour = 17.5 } = {}) {
-  const t = { r: mulberry(seed), list: [], nextId: 1, time: 0, frame: 0, hour, quality, events: [], bayTaken: new Map(), garageStock: GARAGES.map(() => 2), blockedLanes: new Map(), reserved: new Map(), load: new Map(), stats: { spawned: 0, despawned: 0, parked: 0, crashes: 0, overtakes: 0, uturns: 0, redStops: 0 }, frozen: false };
+  const t = { r: mulberry(seed), list: /** @type {any[]} */ ([]), nextId: 1, time: 0, frame: 0, hour, quality, events: /** @type {any[]} */ ([]), bayTaken: new Map(), garageStock: GARAGES.map(() => 2), blockedLanes: new Map(), reserved: new Map(), load: new Map(), stats: { spawned: 0, despawned: 0, parked: 0, crashes: 0, overtakes: 0, uturns: 0, redStops: 0 }, frozen: false };
   // Start with the city already running: parked cars in about half the bays, moving traffic spread over the lanes.
   for (const bay of BAYS) if (t.r() < .55) spawnParked(t, bay);
   fill(t, null, true);

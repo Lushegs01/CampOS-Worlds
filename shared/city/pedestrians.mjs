@@ -33,7 +33,7 @@ function look(r, kind = null) {
 }
 
 export function createPeople({ seed = 2, quality = 'medium', hour = 17.5 } = {}) {
-  const p = { r: mulberry(seed), list: [], nextId: 1, time: 0, frame: 0, hour, quality, incidents: [], seatsUsed: new Map(), stats: { spawned: 0, entered: 0, exited: 0, crossed: 0, boarded: 0, fled: 0, conversations: 0, dodges: 0 }, frozen: false };
+  const p = { r: mulberry(seed), list: /** @type {any[]} */ ([]), nextId: 1, time: 0, frame: 0, hour, quality, incidents: /** @type {any[]} */ ([]), seatsUsed: new Map(), stats: { spawned: 0, entered: 0, exited: 0, crossed: 0, boarded: 0, fled: 0, conversations: 0, dodges: 0 }, frozen: false };
   fillPeople(p, [], true);
   return p;
 }

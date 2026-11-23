@@ -91,7 +91,7 @@ export function walkSignal(j, armAxis, t) {
 }
 
 // ------------------------------------------------------------------ lanes and connectors
-/** @typedef {{id:number,kind:'lane'|'conn',pts:{x:number,z:number}[],cum:number[],len:number,next:number[],from:string,to:string,road?:any,axis?:string,speed:number,district:string,turn?:string,node?:string,inLane?:number,outLane?:number,conflicts?:number[],parking?:number[]}} Segment */
+/** @typedef {{id:number,kind:'lane'|'conn',pts:{x:number,z:number}[],cum:number[],len:number,next:number[],from:string,to:string,road?:any,axis?:string,speed:number,district:string,turn?:string,node?:string,inLane?:number,outLane?:number,conflicts?:number[],parking?:number[],dir?:any,road?:any,garages?:number[]}} Segment */
 /** @type {Segment[]} */
 export const SEGMENTS = [];
 function polyline(pts) { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist(pts[i - 1], pts[i])); return { pts, cum, len: cum.at(-1) }; }
