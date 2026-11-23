@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-23T16:16:04.670Z",
+  "label": "before",
+  "quality": "high",
+  "renderer": "software (SwiftShader), 1280x720, qa-scale 0.6",
+  "views": {
+    "commercial": {
+      "drawCalls": [
+        278,
+        314
+      ],
+      "triangles": [
+        691269,
+        897251
+      ],
+      "textures": 234,
+      "geometries": 454,
+      "fps": [
+        1,
+        1
+      ],
+      "env": null
+    },
+    "commercial-street": {
+      "drawCalls": [
+        262,
+        296
+      ],
+      "triangles": [
+        694939,
+        907351
+      ],
+      "textures": 234,
+      "geometries": 464,
+      "fps": [
+        1,
+        1
+      ],
+      "env": null
+    },
+    "downtown": {
+      "drawCalls": [
+        567,
+        567
+      ],
+      "triangles": [
+        1194883,
+        1196267
+      ],
+      "textures": 266,
+      "geometries": 668,
+      "fps": [
+        1,
+        1
+      ],
+      "env": null
+    },
+    "downtown-avenue": {
+      "drawCalls": [
+        446,
+        483
+      ],
+      "triangles": [
+        1012443,
+        1240901
+      ],
+      "textures": 275,
+      "geometries": 848,
+      "fps": [
+        1,
+        1
+      ],
+      "env": null
+    },
+    "campus": {
+      "drawCalls": [
+        235,
+        530
+      ],
+      "triangles": [
+        1114205,
+        1768452
+      ],
+      "textures": 286,
+      "geometries": 805,
+      "fps": [
+        0,
+        0
+      ],
+      "env": null
+    }
+  },
+  "errors": [],
+  "loadToPlayableMs": 27890,
+  "environmentHook": false
+}
