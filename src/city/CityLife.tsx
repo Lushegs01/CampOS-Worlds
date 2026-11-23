@@ -82,15 +82,18 @@ export default function CityLife() {
   }), []);
   useEffect(() => { if (sim.current) { sim.current.t.quality = quality; sim.current.p.quality = quality; } }, [quality]);
   const lastShot = useRef(0);
+  const lastCtx = useRef<{ traffic: Parameters<typeof stepTraffic>[2]; people: Parameters<typeof stepPeople>[2] } | null>(null);
   useEffect(() => {
     if (!QA_HOOKS) return;
     const w = window as unknown as Record<string, unknown>;
     w.__cityLife = () => sim.current ? { traffic: trafficSummary(sim.current.t), people: peopleSummary(sim.current.p), hour: sim.current.t.hour, network: NETWORK_STATS, time: sim.current.t.time } : null;
-    w.__cityControl = (o: { hour?: number; freeze?: boolean; incident?: { kind: string; x: number; z: number } }) => {
+    w.__cityControl = (o: { hour?: number; freeze?: boolean; advance?: number; incident?: { kind: string; x: number; z: number } }) => {
       const s = sim.current; if (!s) return false;
       if (o.hour != null) { s.t.hour = s.p.hour = o.hour; cityHour.override = o.hour; }
       if (o.freeze != null) s.t.frozen = s.p.frozen = o.freeze;
       if (o.incident) pending.current.push({ kind: o.incident.kind, at: o.incident, strength: 1 });
+      // Fast-forward the live simulation with the inputs of the latest frame (the browser here may render slowly).
+      if (o.advance && lastCtx.current) { const c = lastCtx.current; for (let k = 0; k < o.advance * 30; k++) { stepTraffic(s.t, 1 / 30, c.traffic); stepPeople(s.p, 1 / 30, c.people); s.t.events.length = 0; } }
       return true;
     };
     w.__cityVehicles = (r = 80) => sim.current?.t.list.filter(v => Math.hypot(v.x - player.x, v.z - player.z) < r).map(v => ({ id: v.id, cls: v.cls, x: +v.x.toFixed(2), z: +v.z.toFixed(2), yaw: +v.yaw.toFixed(3), v: +v.v.toFixed(2), state: v.state, why: v.why, seg: v.seg, brake: v.brake, ind: v.ind }));
@@ -140,7 +143,9 @@ export default function CityLife() {
       stepTraffic(t, dt, { players, obstacles, sirens, walkers: onRoad });
       const moving: { x: number; z: number; yaw: number; v: number }[] = [], buses: { x: number; z: number; stop: number }[] = [];
       for (const v of t.list) { if (v.v > .3 && v.tier === 0) moving.push(v); if (v.cls === 'bus' && v.dwell != null) buses.push({ x: v.x, z: v.z, stop: v.dwell }); }
-      stepPeople(p, dt, { players, vehicles: moving, fast: [...fast, ...t.list.filter(v => v.tier === 0 && v.v > 6)], walkersExt, buses });
+      const pctx = { players, vehicles: moving, fast: [...fast, ...t.list.filter(v => v.tier === 0 && v.v > 6)], walkersExt, buses };
+      stepPeople(p, dt, pctx);
+      if (QA_HOOKS) lastCtx.current = { traffic: { players, obstacles, sirens, walkers: onRoad }, people: pctx };
       for (const e of t.events.splice(0)) {
         if (e.kind === 'horn') { audio.horn(e); peopleIncident(p, 'horn', e, .3); }
         if (e.kind === 'crash') { peopleIncident(p, 'crash', e, e.strength ?? .6); audio.crash(e); }

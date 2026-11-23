@@ -45,7 +45,7 @@ function bez(p0, c, p1, n = 10) { return Array.from({ length: n + 1 }, (_, i) =>
 function along(poly, s) { return pointAt(poly, s, 0); }
 
 export function createTraffic({ seed = 1, quality = 'medium', hour = 17.5 } = {}) {
-  const t = { r: mulberry(seed), list: /** @type {any[]} */ ([]), nextId: 1, time: 0, frame: 0, hour, quality, events: /** @type {any[]} */ ([]), bayTaken: new Map(), garageStock: GARAGES.map(() => 2), blockedLanes: new Map(), reserved: new Map(), load: new Map(), stats: { spawned: 0, despawned: 0, parked: 0, crashes: 0, overtakes: 0, uturns: 0, redStops: 0 }, frozen: false };
+  const t = { r: mulberry(seed), list: /** @type {any[]} */ ([]), nextId: 1, time: 0, frame: 0, hour, quality, events: /** @type {any[]} */ ([]), bayTaken: new Map(), garageStock: GARAGES.map(() => 2), blockedLanes: new Map(), reserved: new Map(), load: new Map(), stats: { spawned: 0, despawned: 0, parkings: 0, junctionEntries: 0, redRuns: 0, amberClears: 0, crashes: 0, overtakes: 0, uturns: 0, redStops: 0 }, frozen: false };
   // Start with the city already running: parked cars in about half the bays, moving traffic spread over the lanes.
   for (const bay of BAYS) if (t.r() < .55) spawnParked(t, bay);
   fill(t, null, true);
@@ -69,7 +69,7 @@ function make(t, cls, district) {
 function chooseClass(t, district) { return pick(t.r, CLASS_MIX[district] ?? CLASS_MIX.downtown); }
 
 function spawnParked(t, bay) {
-  const cls = pick(t.r, { sedan: 4, hatch: 4, suv: 3, pickup: bay.district === 'industrial' ? 3 : 1, van: bay.district === 'industrial' ? 3 : 1, police: bay.kind === 'police' ? 8 : 0, taxi: 1, sports: 1 });
+  const cls = pick(t.r, { sedan: 4, hatch: 4, suv: 3, pickup: bay.district === 'industrial' ? 2 : 1, police: bay.kind === 'police' ? 8 : 0, taxi: 1, sports: 1 });
   const v = make(t, cls, bay.district);
   v.state = 'parked'; v.until = 20 + t.r() * 260; v.bay = bay.id; t.bayTaken.set(bay.id, v.id);
   v.x = bay.x; v.z = bay.z; v.yaw = bay.yaw; v.seg = bay.lane; v.s = bay.s;
@@ -85,7 +85,7 @@ function hidden(p, players, min = 150) {
   return true;
 }
 /** Pulling out but not yet on the carriageway (does not block the lane yet). */
-const pending = o => (o.state === 'unpark' || o.state === 'exit' || o.state === 'unpark-rev') && (o.state === 'unpark-rev' || o.freeS < o.free.len * .55);
+const pending = o => (o.state === 'unpark' || o.state === 'exit' || o.state === 'unpark-rev') && (o.state === 'unpark-rev' || o.freeS < 1.5);
 function laneClear(t, lane, s, before = 14, after = 10) {
   for (const o of t.list) if (o.state !== 'parked' && !pending(o) && o.seg === lane && o.s > s - before && o.s < s + after) return false;
   return true;
@@ -113,7 +113,7 @@ function spawnFromGarage(t, players) {
   t.garageStock[g.id]--;
   const lane = SEGMENTS[g.lane], out = pointAt(lane, g.s + 9), inside = { x: g.x + Math.sin(g.yaw + Math.PI) * 4, z: g.z + Math.cos(g.yaw + Math.PI) * 4 };
   v.free = polyline([inside, ...bez({ x: g.x, z: g.z }, { x: g.x + Math.sin(g.yaw) * 6, z: g.z + Math.cos(g.yaw) * 6 }, out, 10)]); v.freeS = 0;
-  v.state = 'exit'; v.seg = g.lane; v.s = g.s + 9; v.exitS = g.s + 9; v.ind = -1;
+  v.state = 'exit'; v.seg = g.lane; v.s = g.s + 9; v.exitS = g.s + 9; v.ind = -1; v.garageFrom = g.id;
   pose(v); t.list.push(v); t.stats.spawned++; return v;
 }
 function spawnFromPortal(t, players) {
@@ -148,12 +148,14 @@ function fill(t, players, initial = false) {
 }
 
 // ------------------------------------------------------------------ goals and routing
+/** Bays are car-sized: vans, trucks, buses and motorcycles do not use them. */
+const BAY_CLASSES = new Set(['sedan', 'hatch', 'suv', 'sports', 'taxi', 'pickup', 'police']);
 function newGoal(t, v) {
   const u = t.r(), here = v.seg;
   let goal = null;
   if (v.cls === 'bus' || v.cls === 'police' || v.cls === 'taxi' && u < .5) goal = { type: 'cruise' };
   else if (u < .38) {
-    const free = BAYS.filter(b => !t.bayTaken.has(b.id));
+    const free = BAY_CLASSES.has(v.cls) ? BAYS.filter(b => !t.bayTaken.has(b.id)) : [];
     if (free.length) { const b = free[Math.floor(t.r() * free.length)]; goal = { type: 'bay', id: b.id, lane: b.lane }; t.bayTaken.set(b.id, v.id); }
   } else if (u < .6 && GARAGES.length) { const g = GARAGES[Math.floor(t.r() * GARAGES.length)]; goal = { type: 'garage', id: g.id, lane: g.lane }; }
   else if (u < .72 && PORTALS.length) { const node = PORTALS[0]; const lane = LANES.find(l => l.to === node); if (lane) goal = { type: 'portal', lane: lane.id }; }
@@ -224,6 +226,25 @@ function leaderGap(t, v, occ, look) {
   }
   return { gap, lv, who };
 }
+function nearAhead(v, grid) {
+  let gap = Infinity, lv = 0, who = null;
+  const gx = Math.floor(v.x / 12), gz = Math.floor(v.z / 12), sy = Math.sin(v.yaw), cy = Math.cos(v.yaw);
+  for (let ix = gx - 1; ix <= gx + 1; ix++) for (let iz = gz - 1; iz <= gz + 1; iz++) for (const o of grid.get(ix * 7919 + iz) ?? []) {
+    if (o === v) continue;
+    // Crossing traffic is the junction rules' business; this guards against same-direction traffic and against
+    // vehicles manoeuvring, parked half out of a bay, crashed or abandoned.
+    const special = o.free || o.state === 'disabled' || o.state === 'abandoned' || o.state === 'crashed';
+    if (!special && Math.cos(o.yaw - v.yaw) < .5) continue;
+    if ((o.state === 'parked' && !v.free) || pending(o)) continue;
+    const dx = o.x - v.x, dz = o.z - v.z, ahead = dx * sy + dz * cy, side = Math.abs(dx * cy - dz * sy);
+    // The other's half-extent across my direction of travel.
+    const rel = Math.abs(Math.sin(o.yaw - v.yaw)), half = (o.wid / 2) * (1 - rel) + (o.len / 2) * rel;
+    if (ahead <= .5 || side > v.wid / 2 + half + .25) continue;
+    const along = (o.len / 2) * (1 - rel) + (o.wid / 2) * rel, g = ahead - v.len / 2 - along;
+    if (g < gap && g < 14) { gap = g; lv = Math.max(0, o.v * Math.cos(o.yaw - v.yaw)); who = o; }
+  }
+  return { gap, lv, who };
+}
 function idm(v, v0, gap, dv) {
   const ss = IDM.s0 + Math.max(0, v.v * IDM.T + v.v * dv / (2 * Math.sqrt(v.a * IDM.b)));
   const free = 1 - Math.pow(Math.max(0, v.v) / Math.max(.1, v0), 4);
@@ -291,7 +312,7 @@ function stepVehicle(t, v, dt, ctx) {
     if (t.time < v.until) return;
     const bay = BAYS[v.bay], lane = SEGMENTS[bay.lane];
     if (!laneClear(t, bay.lane, bay.s, 28, 10) || t.list.some(o => o !== v && o.state !== 'parked' && Math.hypot(o.x - bay.x, o.z - bay.z) < 9)) { v.until = t.time + 2; return; }
-    const back = { x: bay.x - Math.sin(bay.yaw) * 4.8, z: bay.z - Math.cos(bay.yaw) * 4.8 };
+    const back = { x: bay.x - Math.sin(bay.yaw) * 3.4, z: bay.z - Math.cos(bay.yaw) * 3.4 };
     v.reverse = true; startFree(v, [{ x: bay.x, z: bay.z }, back], 'unpark-rev'); v.ind = -1; v.seg = bay.lane; v.s = bay.s; v.v = 0;
     v.exitS = bay.s + 8; v.nextFree = [back, ...bez(back, pointAt(lane, bay.s + 1), pointAt(lane, bay.s + 8), 8).slice(1)];
     t.bayTaken.delete(bay.id); v.bay = -1; v.district = bay.district; v.goal = null;
@@ -305,14 +326,17 @@ function stepVehicle(t, v, dt, ctx) {
   if (v.free) {
     const target = v.state === 'unpark-rev' ? 1.6 : v.state === 'uturn' ? 3 : 3.6;
     // Pulling onto the road: wait for a gap.
-    if ((v.state === 'unpark' || v.state === 'exit') && v.freeS < 2 && !laneClear(t, v.seg, v.exitS, 26, 8)) { v.v = 0; v.brake = true; pose(v); return; }
-    const o = ctx.near ? obstacleGap(v, ctx, 6) : { gap: Infinity };
-    const want = o.gap < 2.5 ? 0 : target;
+    if ((v.state === 'unpark' || v.state === 'exit') && v.freeS < 1.5 && (!laneClear(t, v.seg, v.exitS, 48, 10) || t.list.some(o => o !== v && (o.state === 'park' || o.state === 'unpark' || o.state === 'garage' || o.state === 'exit') && o.freeS > 0 && Math.hypot(o.x - v.x, o.z - v.z) < 9))) { v.v = 0; v.brake = true; pose(v); return; }
+    const o = ctx.near ? obstacleGap(v, ctx, 6) : { gap: Infinity }, q = v.reverse ? { gap: Infinity } : nearAhead(v, ctx.grid);
+    const want = o.gap < 2.5 || q.gap < 1.8 ? 0 : target;
     v.v += clamp(want - v.v, -4 * dt, 1.6 * dt); v.brake = want < v.v;
+    // A manoeuvre that cannot finish (something parked in the way): when nobody is watching, it is completed.
+    v.freeStuck = want === 0 && v.state !== 'unpark' && v.state !== 'exit' ? (v.freeStuck ?? 0) + dt : 0;
+    if (v.freeStuck > 12 && hidden(v, ctx.players, 120)) { if (v.state === 'park' && v.bay >= 0) t.bayTaken.delete(v.bay); v.gone = true; return; }
     v.freeS += v.v * dt; pose(v);
     if (v.freeS >= v.free.len - .05) {
       if (v.state === 'unpark-rev') { v.reverse = false; startFree(v, v.nextFree, 'unpark'); pose(v); return; }
-      if (v.state === 'park') { v.free = null; v.state = 'parked'; v.until = t.time + 40 + t.r() * 300; v.v = 0; v.ind = 0; t.stats.parked++; const b = BAYS[v.bay]; v.x = b.x; v.z = b.z; v.yaw = b.yaw; return; }
+      if (v.state === 'park') { v.free = null; v.state = 'parked'; v.until = t.time + 40 + t.r() * 300; v.v = 0; v.ind = 0; t.stats.parkings++; const b = BAYS[v.bay]; v.x = b.x; v.z = b.z; v.yaw = b.yaw; return; }
       if (v.state === 'garage') { v.gone = true; t.garageStock[v.garage] = (t.garageStock[v.garage] ?? 0) + 1; return; }
       // Back on the lane (after pulling out or a U-turn).
       v.free = null; v.state = 'drive'; v.s = v.exitS; v.v = Math.max(v.v, 2); v.ind = 0; v.path = [v.seg]; v.pi = 0;
@@ -333,13 +357,19 @@ function stepVehicle(t, v, dt, ctx) {
   if (seg.kind === 'lane' && next && next.kind === 'conn' && v.committed !== next.id) {
     if (dEnd < Math.max(30, v.v * v.v / 3 + 10)) {
       reason = mayEnter(t, v, next, ctx, dEnd);
-      if (!reason) { if (dEnd < Math.max(4, v.v * 1.2)) { v.committed = next.id; t.reserved.set(next.id, v.id); } }
+      if (!reason) { if (dEnd < Math.max(4, v.v * 1.2)) { v.committed = next.id; t.reserved.set(next.id, v.id); const cj = JUNCTION.get(next.node); v.clearedOn = cj.control === 'signal' ? signalAspect(cj, seg.axis, t.time) : 'free'; } }
       else { a = Math.min(a, idm(v, v0, Math.max(.1, dEnd + IDM.s0 - 1.2), v.v)); if (reason === 'red' && v.v < .2 && dEnd < 12) v.redWait = true; }
     }
     if (JUNCTION.get(next.node).control === 'priority' && seg.axis === 'v' && dEnd < 14) a = Math.min(a, (3 - v.v) * 1.5); // give way: slow right down
   }
   // Leader on the path.
   const L = leaderGap(t, v, ctx.occ, look);
+  // Anything else close in front (a car that took another turn from the same lane, one manoeuvring in or out
+  // of a bay or garage): treat the nearest as a leader too.
+  const P = nearAhead(v, ctx.grid);
+  if (P.gap < L.gap) { L.gap = P.gap; L.lv = P.lv; L.who = P.who; L.near = true; }
+  // A leader turning across (into a bay or garage) sweeps its corners: keep extra room.
+  if (L.who?.free) L.gap -= 2;
   if (L.gap < Infinity) a = Math.min(a, idm(v, v0, Math.max(.1, L.gap), v.v - L.lv));
   // Bus stops and parking.
   const stops = v.cls === 'bus' ? STOPS_BY_LANE.get(v.seg) : null;
@@ -352,10 +382,19 @@ function stepVehicle(t, v, dt, ctx) {
     const spot = v.goal.type === 'bay' ? BAYS[v.goal.id] : GARAGES[v.goal.id], d = spot.s - 7 - v.s;
     v.ind = d < 45 ? 1 : v.ind;
     if (d > -2 && d < 40) a = Math.min(a, idm(v, v0, Math.max(.1, d + IDM.s0 - .3), v.v));
-    if (d < 1.2 && d > -4 && v.v < 2.2) {
+    const busySpot = t.list.some(o => o !== v && o.state !== 'parked' && o.state !== 'drive' && !pending(o) && Math.hypot(o.x - spot.x, o.z - spot.z) < 11);
+    if (busySpot && d < 3) a = Math.min(a, -4);
+    if (d < 1.2 && d > -4 && v.v < 2.2 && !busySpot && L.gap > 5.5) {
       const from = pointAt(seg, v.s), end = { x: spot.x, z: spot.z }, ctrl = { x: end.x - Math.sin(spot.yaw) * 4.5, z: end.z - Math.cos(spot.yaw) * 4.5 };
-      if (v.goal.type === 'bay') { v.bay = spot.id; startFree(v, bez(from, ctrl, end, 10), 'park'); }
-      else { v.garage = spot.id; startFree(v, [...bez(from, ctrl, end, 10), { x: end.x + Math.sin(spot.yaw) * 5, z: end.z + Math.cos(spot.yaw) * 5 }], 'garage'); }
+      // Into a bay: curve round to line up square with it 5 m out, then straight in between the neighbours.
+      const front = { x: end.x - Math.sin(spot.yaw) * 5.2, z: end.z - Math.cos(spot.yaw) * 5.2 };
+      const c1 = seg.axis === 'v' ? { x: from.x, z: front.z } : { x: front.x, z: from.z };
+      if (v.goal.type === 'bay') { v.bay = spot.id; startFree(v, [...bez(from, c1, front, 10), ...bez(front, { x: (front.x + end.x) / 2, z: (front.z + end.z) / 2 }, end, 4).slice(1)], 'park'); }
+      else {
+        v.garage = spot.id;
+        // Someone still waiting inside this door to come out stays in for now.
+        for (const o of t.list) if (o.state === 'exit' && o.garageFrom === spot.id && pending(o)) { o.gone = true; t.garageStock[spot.id]++; }
+        startFree(v, [...bez(from, ctrl, end, 10), { x: end.x + Math.sin(spot.yaw) * 5, z: end.z + Math.cos(spot.yaw) * 5 }], 'garage'); }
       pose(v); return;
     }
   }
@@ -399,7 +438,7 @@ function stepVehicle(t, v, dt, ctx) {
     }
   }
   // Integrate.
-  v.why = reason || (L.gap < 8 ? 'leader' : ext.gap < 8 ? 'obstacle' : '');
+  v.why = reason || (L.gap < 8 ? (L.near ? 'near' : 'leader') : ext.gap < 8 ? 'obstacle' : '');
   v.leader = L.gap < 8 ? L.who?.id : null; v.stillT = v.v < .2 ? (v.stillT ?? 0) + dt : 0;
   a = clamp(a, -9, v.a);
   const before = v.v;
@@ -416,8 +455,19 @@ function stepVehicle(t, v, dt, ctx) {
     const cur = SEGMENTS[v.seg];
     if (v.pi >= v.path.length - 1) ensurePath(t, v);
     if (v.pi >= v.path.length - 1) { v.s = cur.len; v.v = 0; break; }
+    // Nobody crosses a stop line without having been cleared to (a long update step could otherwise skip the check).
+    const nx = SEGMENTS[v.path[v.pi + 1]];
+    if (cur.kind === 'lane' && nx.kind === 'conn' && v.committed !== nx.id) {
+      if (mayEnter(t, v, nx, ctx, 0)) { v.s = cur.len - .05; v.v = 0; break; }
+      v.committed = nx.id; t.reserved.set(nx.id, v.id); const nj = JUNCTION.get(nx.node); v.clearedOn = nj.control === 'signal' ? signalAspect(nj, cur.axis, t.time) : 'free';
+    }
     v.s -= cur.len; v.prev = v.seg; v.pi++; v.seg = v.path[v.pi];
     if (SEGMENTS[v.seg].kind === 'lane') { if (t.reserved.get(v.prev) === v.id) t.reserved.delete(v.prev); v.committed = -1; v.district = SEGMENTS[v.seg].district; if (v.goal?.type === 'cruise' && v.goal.lane === v.seg) newGoal(t, v); }
+    if (SEGMENTS[v.seg].kind === 'conn') {
+      // A vehicle cleared on green or amber may still be crossing as the lights change (the all-red clears it).
+      const cj = JUNCTION.get(SEGMENTS[v.seg].node); t.stats.junctionEntries++;
+      if (cj.control === 'signal' && signalAspect(cj, SEGMENTS[v.prev].axis, t.time) === 'red') { if (v.clearedOn === 'red') t.stats.redRuns++; else t.stats.amberClears++; }
+    }
     if (SEGMENTS[v.seg].kind === 'conn') v.ind = SEGMENTS[v.seg].turn === 'left' ? -1 : SEGMENTS[v.seg].turn === 'right' ? 1 : 0;
     else if (!v.yielding && !v.overtaking && v.goal?.lane !== v.seg) v.ind = 0;
   }
@@ -490,12 +540,16 @@ export function stepTraffic(t, dt, ctx) {
   const occ = new Map();
   for (const v of t.list) {
     if (v.state === 'parked' || v.gone) continue;
-    const id = (v.free && v.state !== 'unpark' && v.state !== 'exit' && v.state !== 'uturn') || pending(v) ? null : v.seg;
+    // Cars turning off into a bay or garage still occupy the lane for their first few metres.
+    const leaving = (v.state === 'park' || v.state === 'garage') && v.freeS < 7;
+    const id = ((v.free && v.state !== 'unpark' && v.state !== 'exit' && v.state !== 'uturn') && !leaving) || pending(v) ? null : v.seg;
     if (id == null) continue;
     if (!occ.has(id)) occ.set(id, []); occ.get(id).push(v);
   }
   t.load.clear(); for (const [id, list] of occ) t.load.set(id, list.length);
-  const c = { ...ctx, occ, players, sirens: ctx.sirens ?? [], walkers: ctx.walkers ?? [], obstacles: ctx.obstacles ?? [] };
+  const grid = new Map();
+  for (const v of t.list) { if (v.gone) continue; const k = Math.floor(v.x / 12) * 7919 + Math.floor(v.z / 12); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(v); }
+  const c = { ...ctx, occ, grid, players, sirens: ctx.sirens ?? [], walkers: ctx.walkers ?? [], obstacles: ctx.obstacles ?? [] };
   for (const v of t.list) {
     if (v.gone) continue;
     let d = Infinity; for (const p of players) d = Math.min(d, Math.abs(p.x - v.x) + Math.abs(p.z - v.z));

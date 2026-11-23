@@ -182,7 +182,7 @@ export function route(from, goal, avoid = null, extra = null) {
 /** @typedef {{id:number,lane:number,s:number,x:number,z:number,yaw:number,district:string,kind:string}} Bay */
 /** @type {Bay[]} */
 export const BAYS = [];
-const takenBay = (x, z) => BAYS.some(b => Math.hypot(b.x - x, b.z - z) < 2.6);
+const takenBay = (x, z) => BAYS.some(b => Math.hypot(b.x - x, b.z - z) < 2.95);
 for (const b of METRO_BUILDINGS) {
   if (!['shed', 'apartment', 'fuel', 'mall', 'civic', 'police', 'security', 'tower', 'carpark', 'shop'].includes(b.kind)) continue;
   // Find the lane that runs past the building's frontage (the street it faces).
@@ -200,9 +200,9 @@ for (const b of METRO_BUILDINGS) {
   if (!best || best.gap < 14.5) continue;
   // Nose-in bays 2.7 m apart, centred 10.6 m out from the road centre (clear of the 6.6 m sidewalk edge).
   const out = best.z + Math.sign(fz - best.z) * 10.6, yaw = Math.sign(fz - best.z) > 0 ? 0 : Math.PI;
-  const count = Math.min(b.kind === 'shop' ? 2 : 8, Math.floor((b.w - 4) / 2.7));
+  const count = Math.min(b.kind === 'shop' ? 2 : 8, Math.floor((b.w - 4) / 3));
   for (let i = 0; i < count; i++) {
-    const x = r2(b.x - (count - 1) * 1.35 + i * 2.7), z = r2(out);
+    const x = r2(b.x - (count - 1) * 1.5 + i * 3), z = r2(out);
     if (takenBay(x, z) || blocked(x, z, 1.1) || blocked(x, z + 2.1, .9) || blocked(x, z - 2.1, .9)) continue;
     if (METRO_PARKED.some(p => Math.hypot(p.x - x, p.z - z) < 4.5) || POLICE_BAYS.some(p => Math.hypot(p.x - x, p.z - z) < 4.5)) continue;
     const l = best.l, s = (x - l.pts[0].x) * l.dir.x + (x - l.pts[0].z * 0 - 0) * 0;
@@ -234,7 +234,8 @@ for (const b of METRO_BUILDINGS) {
 }
 for (const g of GARAGES) (SEGMENTS[g.lane].garages ??= []).push(g.id);
 // (A bay right beside a garage entrance would have cars pulling out across each other.)
-for (let i = BAYS.length - 1; i >= 0; i--) if (GARAGES.some(g => Math.hypot(g.x - BAYS[i].x, g.z - BAYS[i].z) < 7)) BAYS.splice(i, 1);
+const nearSegment = (p, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / l)); return Math.hypot(p.x - a.x - dx * t, p.z - a.z - dz * t); };
+for (let i = BAYS.length - 1; i >= 0; i--) if (GARAGES.some(g => { const from = pointAt(SEGMENTS[g.lane], g.s - 7); return Math.hypot(g.x - BAYS[i].x, g.z - BAYS[i].z) < 11 || nearSegment(BAYS[i], from, g) < 5.5 || nearSegment(BAYS[i], pointAt(SEGMENTS[g.lane], g.s + 9), g) < 5.5; })) BAYS.splice(i, 1);
 BAYS.forEach((b, i) => { b.id = i; });
 for (const l of LANES) delete l.parking;
 for (const bay of BAYS) (SEGMENTS[bay.lane].parking ??= []).push(bay.id);
