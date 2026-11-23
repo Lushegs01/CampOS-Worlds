@@ -40,6 +40,9 @@ export interface AvatarMotion {
   coverPose?: boolean; vehicleSeatHeight?:number|null; vehicleMotion?:VehicleMotion|null; vehicleSpeed?:number; sprinting?:boolean; sit?: SitState | null; gesture?: Gesture | null; holding?: boolean; charge?: number | null; release?: number;
   /** Head turn towards someone, radians from straight ahead (campus characters looking at a player; src/npc). */
   gaze?: number;
+  /** A seat that is not in the shared interaction table (an ambient character's bench, ../world/heroPedestrian.tsx):
+   *  used instead of looking `sit.seat` up, so a decorative seat never becomes a player-usable one. */
+  seatAt?: { id: string; x: number; y: number; z: number; table: boolean; pull: number; kind: string };
 }
 
 const LOCO = ['walk', 'jog', 'run'] as const;
@@ -521,7 +524,7 @@ export const chairPull = new Map<string, number>();
 const SCOOT = .6;
 const GESTURE_CLIPS=['doorPush','doorPull','crouch'] as const;
 const SEAT_CLIPS=['sitDown','sitIdle','sitTable','sitLook'] as const;
-const SIDES=['L','R'] as const, EMOTES=['wave','dance','cheer'] as const;
+const SIDES=['L','R'] as const, EMOTES=['wave','dance','cheer','phone','documents'] as const; // phone, documents: ambient characters only
 const idleMotion:AvatarMotion={speed:0,y:0,vy:0};
 const actionContext={vehicle:false,seat:false,grounded:true,vy:0,speed:0,sprint:false,sport:false,interaction:false};
 const vehicleSit:SitState={seat:'vehicle',phase:'seated',t:0};
@@ -563,7 +566,7 @@ export default function Avatar({ config, motion, preview = false, id, duty = fal
     const inVehicle=m.vehicleSeatHeight!=null;
     vehicleSeat.y=m.vehicleSeatHeight??0;
     const sit=inVehicle?vehicleSit:preview?null:m.sit??null;
-    const seat=authoring?.seat??(inVehicle?vehicleSeat:sit?SEAT_BY_ID.get(sit.seat):undefined);
+    const seat=authoring?.seat??(inVehicle?vehicleSeat:sit?(m.seatAt&&m.seatAt.id===sit.seat?m.seatAt:SEAT_BY_ID.get(sit.seat)):undefined);
     actionContext.vehicle=inVehicle;actionContext.seat=!!seat;actionContext.grounded=m.y<.04;actionContext.vy=m.vy;
     actionContext.speed=m.speed;actionContext.sprint=!!m.sprinting;actionContext.sport=!!m.holding;
     actionContext.interaction=!!m.gesture&&now-m.gesture.start<(gestureSpec(m.gesture.kind)?.seconds??0);
@@ -715,7 +718,7 @@ export default function Avatar({ config, motion, preview = false, id, duty = fal
     const rest = (1 - s.weights.emote) * (1 - sitW) * (1 - gestureW) * (1 - s.cover);
     actions.idle.setEffectiveWeight(s.weights.idle * rest * (1 - lookW)); actions.look.setEffectiveWeight(s.weights.idle * rest * lookW);
     for (const n of LOCO) actions[n].setEffectiveWeight(s.weights[n] * rest);
-    for (const e of EMOTES) actions[e].setEffectiveWeight(e === s.emote ? s.weights.emote * (1 - sitW) : 0);
+    for (const e of EMOTES) actions[e]?.setEffectiveWeight(e === s.emote ? s.weights.emote * (1 - sitW) : 0);
 
     // ------------------------------------------------------------------ ball handling layers
     // Arm-only clips carry a large weight: the mixer normalises per bone, so on arm bones they

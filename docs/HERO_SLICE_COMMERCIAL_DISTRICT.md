@@ -19,7 +19,7 @@ x −150, z 1765.8). Teleport for review: `__campusDebug.teleport(-99, 1703, 0, 
 | Street furniture | Two cast-iron and timber benches. The planters and benches dress block-0-1's front-side shared colliders (`HARBOUR_FURNITURE`), which previously had **no visuals** (invisible obstacles). | Done |
 | Production vehicle | `hero-car.glb` (16,224 tris): lofted saloon shell, bumpers, grille, projector headlamps, indicators and side repeaters, tail, reverse lamps, plates, mirrors with mirror glass, door handles and seams, wipers, exhaust, aerial; underbody (tray, exhaust run, tank, arms, dampers); **interior**: carpet, dashboard, instrument cluster, centre screen, console and selector, front seats with headrests, rear bench, door cards, headliner, rear-view mirror; separate wheels (tyre, 36 tread blocks, five-spoke alloy, nuts) and a separate steering wheel. Transparent tinted glass so the interior is seen. | Done |
 | Vehicle visual systems | `buildHeroCar()` returns the game's `VehicleModel`, so `src/world/Vehicles.tsx` drives it exactly like the procedural cars: wheel spin, front-wheel steer, suspension pitch/roll, brake, reverse and head lamps (brighter at night), plus the steering wheel turning with the road wheels (new). Physics, seats and networking are untouched. Verified in-engine (see below). Indicators have no game state to follow and stay dim. | Done except indicators |
-| Pedestrian | Block-0-1's existing skinned, animated pedestrian (`Pedestrian` in `Harbour.tsx`) walks the frontage. **No new character asset was created**: no new rig, clothing, gaze or interaction clips. | Not new |
+| Pedestrian | **Funmilayo**, a bank customer: see *Production pedestrian* below. Block-0-1's existing walker still crosses the frontage on its own line. | Done (no facial animation) |
 | Lighting and reflections | Phase 1: analytic sky and PMREM probe, sun/moon key, lamp pools, wet surfaces, lit windows, bloom. All hero materials carry the environment layer. | Done (Phase 1) |
 | LOD and streaming | LOD1 loads with the block; LOD0 is fetched only within 150 m of the bank; `THREE.LOD` switches at 85 m camera distance; until LOD1 arrives, or if it fails, the collision box is drawn as before. The old bank is cut out of block-0-1's batched GLB at load (`MeshAsset` `clip`), so the batch file did not need regenerating. The car loads on demand; the procedural compact is shown until then or on failure. | Done |
 
@@ -37,6 +37,30 @@ membrane, solar glass, screens, foliage, bark, cast iron, brand colours, the car
 made in `src/world/heroSlice.tsx`. The slice therefore downloads **no new textures**. The four GLBs total about
 520 KB (bank 194 KB, LOD1 94 KB, car 142 KB, street 90 KB). Every asset is project-original; there is no third-party
 content (`manifest.json`).
+
+## Production pedestrian
+
+| Part | Implementation |
+|---|---|
+| Character | Microsoft Rocketbox `Professions/Business_Female_03` (MIT), not used anywhere else in the game. Built by `scripts/assets/build-characters.mjs` like the player cast: Basis KTX2 textures, meshopt geometry, the baked skin mask (tinted to a deep skin tone), 81-bone Biped rig, 837 KB. Listed in the character manifest with `npc: true`. The avatar picker, `sanitizeAvatar` and the database allowlist only accept `MODELS`, so players cannot choose her (tested). |
+| Animation | The shared motion-capture library through `src/avatar/Avatar.tsx`: speed-blended walking with turns, the captured sit-down and stand-up transitions, the seated idle with its look-around, a wave. Two Rocketbox clips were added to both body libraries for ambient life: texting on a phone (`phone`) and checking a document or receipt (`documents`). The existing clips' speeds, seat offsets and root heights are unchanged. |
+| Behaviour | `src/world/heroPedestrianPlan.mjs`: a 144 s round as a pure function of the room clock, identical on every client and with no network traffic. She walks in from the west end of the block, steps up to Coastal Bank's ATM and checks her receipt (9 s), crosses to the hero bench and sits (26 s), stands, walks to the east end and texts (11 s), then walks back. |
+| Reactions | Per viewer: her head and neck follow a player within 7 m in front of her; she turns and waves at a player who stops within 4 m (at most every 30 s, never while walking or seated); and she steps up to 0.85 m aside on her walking line instead of walking through a player. |
+| Seating | She sits on the hero bench, which dresses a shared bench collider. `AvatarMotion.seatAt`, a small client-only addition to `Avatar.tsx`, gives the avatar this seat without adding it to the shared, server-authoritative seat table, so no new player interaction is created. |
+| Animation LOD | Avatar's existing rules for non-local characters: not posed or drawn off screen, posed every 2nd frame beyond 30 m and every 4th beyond 60 m, and no shadow beyond 60 m. She is mounted only while block-0-1 is drawn (within 175 m, or 100 m on Low). |
+| Robustness | If the captured stand-up has not finished 4 s after it was requested (a very low frame rate, or a clock jump), the seat is released and the round continues. If the character fails to load, `AvatarBoundary` shows its fallback as for every other character. |
+
+Verification: `tests/hero-pedestrian.test.mjs` (4 tests) covers purity and periodicity; continuous movement at walking pace; every activity reached; the route staying outside every building, clear of planters and on the block; the bench being a shared bench collider; the ATM stand outside the bank's collider; and the character shipping with `npc` and both new clips. In-engine (High, `docs/screenshots/world-visual/hero-pedestrian/`, 0 page errors) her round was pinned and frozen at each moment: walking past the bank, at the ATM with the receipt, approaching the bench, seated with her head turned to the player (gaze 0.39 rad), standing up, texting, and a wave reported by the avatar for a player who stopped beside her.
+
+Found and fixed during verification:
+* **The stand-up could stall** at very low frame rates or after a clock jump. Fixed with the 4 s release above.
+* **She waved with her back to the player.** She now turns to face whoever she greets.
+* **An apparent "invisible at the ATM" problem** turned out to be capture lag: only 2–3 frames render in 2.5 s under software WebGL. Captures now freeze her clock and wait.
+
+Costs:
+* +837 KB for her character, loaded only near the slice.
+* The two new clips add about 0.3–0.4 MB to each shared clip library (`anim-m.glb` 2.51 → 2.94 MB, `anim-f.glb` 2.39 → 2.70 MB), which every player downloads.
+* Loading her took about 70 s under software WebGL with 18 other assets queued. This was not measured on a GPU.
 
 ## Verification
 
@@ -57,8 +81,10 @@ here, and no physical device or real GPU was available.
 
 ## Remaining limitations of this slice
 
-* **Pedestrian**: no new production character, rig or animation set (gaze, carrying, sitting at the bench, vehicle
-  entry/exit, facial animation, lip sync). The existing walker is reused.
+* **Pedestrian**: no facial animation, blinking or lip sync. Rocketbox ships `_facial` FBX variants with blend
+  shapes, but the pipeline does not import them yet. No carrying, vehicle entry/exit or conversation with the player.
+  Gaze is a horizontal head and neck turn only (no eyes). The new clips cost every player about 0.7 MB; a separate
+  ambient-clip file would avoid that.
 * **Road and sidewalk geometry**: no remodelled kerb stones, drop kerbs, tactile paving or paving joints; the detail
   is in the shader layer, gullies and a manhole cover.
 * **Vegetation**: planter shrubs and trees are static leaf cards without wind or LOD; the district's shared street
@@ -81,4 +107,5 @@ here, and no physical device or real GPU was available.
    batched boxes block by block with the same clip/LOD/stream pattern.
 3. Car variants (paint, trim, SUV and coupé proportions) for the rest of the player fleet; then instanced LODs of the
    same model for city traffic.
-4. A production pedestrian (new rig and clip set) to replace the walkers, with the instanced crowd for distant people.
+4. Facial blend shapes (Rocketbox `_facial` exports) for blinking and speech on dialogue characters; ambient clips in their
+   own file; more pedestrians on the same pattern, with the instanced crowd for distant people.

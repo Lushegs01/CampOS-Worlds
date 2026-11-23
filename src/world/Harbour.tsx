@@ -11,6 +11,7 @@ import { Kit } from './architecture/kit';
 import { sign } from './architecture/signage';
 import type { Materials } from './materials';
 import { HERO_BLOCK, HERO_BUILDING, HERO_CLIP, HeroBank, HeroStreet } from './heroSlice';
+import HeroPedestrian from './heroPedestrian';
 
 const box = new THREE.BoxGeometry();
 const fallback = new THREE.MeshStandardMaterial({ color: '#9a9180', roughness: .82 });
@@ -47,7 +48,7 @@ function Parcel({ data, lib, low }: { data: typeof HARBOUR_BLOCKS[number]; lib: 
       {buildings.map(b => <mesh key={b.id} geometry={box} material={fallback} position={[b.x,b.h/2,b.z]} scale={[b.w,b.h,b.d]} dispose={null} castShadow receiveShadow/>)}
     </MeshAsset>
     {signs.map(o => <primitive key={o.name} object={o}/>)}
-    {hero && <><HeroBank lib={lib} low={low}/><HeroStreet lib={lib} low={low}/></>}
+    {hero && <><HeroBank lib={lib} low={low}/><HeroStreet lib={lib} low={low}/><HeroPedestrian/></>}
   </group>;
 }
 
