@@ -1,0 +1,250 @@
+{
+  "date": "2026-11-23T13:26:06.544Z",
+  "sequences": {
+    "city-reveal": {
+      "started": {
+        "id": "city-reveal",
+        "t": 0.5,
+        "shot": 0,
+        "shotName": "aerial reveal",
+        "total": 10.6
+      },
+      "shots": [
+        "aerial reveal",
+        "vehicle tracking",
+        "low chase"
+      ],
+      "frames": [
+        {
+          "shot": "aerial reveal",
+          "at": 1,
+          "file": "docs/screenshots/cinema/city-reveal-01.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": null
+        },
+        {
+          "shot": "vehicle tracking",
+          "at": 5.5,
+          "file": "docs/screenshots/cinema/city-reveal-02.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": null
+        },
+        {
+          "shot": "low chase",
+          "at": 9.9,
+          "file": "docs/screenshots/cinema/city-reveal-03.jpg",
+          "letterbox": "0px",
+          "subtitle": null
+        }
+      ],
+      "subtitles": [],
+      "log": [
+        {
+          "id": "city-reveal",
+          "at": 88967,
+          "event": "start",
+          "detail": "3 shots, 10.6 s"
+        },
+        {
+          "id": "city-reveal",
+          "at": 88967,
+          "event": "shot",
+          "detail": "aerial reveal"
+        },
+        {
+          "id": "city-reveal",
+          "at": 97444,
+          "event": "shot",
+          "detail": "vehicle tracking"
+        },
+        {
+          "id": "city-reveal",
+          "at": 101946,
+          "event": "shot",
+          "detail": "low chase"
+        },
+        {
+          "id": "city-reveal",
+          "at": 105643,
+          "event": "end",
+          "detail": "t=10.90"
+        }
+      ],
+      "cameraRestored": {
+        "x": 6.448978134935575e-16,
+        "y": 2.775552767923761,
+        "z": 1299.7340097247422,
+        "fov": 52
+      },
+      "active": null
+    },
+    "meet-contact": {
+      "started": {
+        "id": "meet-contact",
+        "t": 0.5,
+        "shot": 0,
+        "shotName": "establishing two-shot",
+        "total": 25.877272727272725
+      },
+      "shots": [
+        "establishing two-shot",
+        "over the shoulder: player → Sade",
+        "close-up: Sade",
+        "reverse: Sade → player",
+        "close-up: Sade (instruction)"
+      ],
+      "frames": [
+        {
+          "shot": "establishing two-shot",
+          "at": 1,
+          "file": "docs/screenshots/cinema/meet-contact-01.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": null
+        },
+        {
+          "shot": "over the shoulder: player → Sade",
+          "at": 5.5,
+          "file": "docs/screenshots/cinema/meet-contact-02.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": "Orisun Freight, out in the Industrial District, used to move university equipment."
+        },
+        {
+          "shot": "close-up: Sade",
+          "at": 10.5,
+          "file": "docs/screenshots/cinema/meet-contact-03.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": "I need the one with the amber latch."
+        },
+        {
+          "shot": "reverse: Sade → player",
+          "at": 18.5,
+          "file": "docs/screenshots/cinema/meet-contact-04.jpg",
+          "letterbox": "65.0938px",
+          "subtitle": "If the yard lights turn red, get to the motor pool and take a car."
+        },
+        {
+          "shot": "close-up: Sade (instruction)",
+          "at": 23,
+          "file": "docs/screenshots/cinema/meet-contact-05.jpg",
+          "letterbox": "0px",
+          "subtitle": "Lose anyone following you, then bring the case to the lock-up on Baobab Close."
+        }
+      ],
+      "subtitles": [
+        "Sade: Orisun Freight, out in the Industrial District, used to move university equipment.",
+        "Sade: I need the one with the amber latch.",
+        "Sade: If the yard lights turn red, get to the motor pool and take a car.",
+        "Sade: Lose anyone following you, then bring the case to the lock-up on Baobab Close."
+      ],
+      "log": [
+        {
+          "id": "meet-contact",
+          "at": 122211,
+          "event": "start",
+          "detail": "5 shots, 25.9 s"
+        },
+        {
+          "id": "meet-contact",
+          "at": 122211,
+          "event": "shot",
+          "detail": "establishing two-shot"
+        },
+        {
+          "id": "meet-contact",
+          "at": 128434,
+          "event": "shot",
+          "detail": "over the shoulder: player → Sade"
+        },
+        {
+          "id": "meet-contact",
+          "at": 147610,
+          "event": "shot",
+          "detail": "close-up: Sade"
+        },
+        {
+          "id": "meet-contact",
+          "at": 163392,
+          "event": "shot",
+          "detail": "reverse: Sade → player"
+        },
+        {
+          "id": "meet-contact",
+          "at": 174025,
+          "event": "shot",
+          "detail": "close-up: Sade (instruction)"
+        },
+        {
+          "id": "meet-contact",
+          "at": 182720,
+          "event": "end",
+          "detail": "t=26.00"
+        }
+      ],
+      "cameraRestored": {
+        "x": -30.96599027525781,
+        "y": 2.9005527679237604,
+        "z": 1691,
+        "fov": 52
+      },
+      "active": null
+    },
+    "warehouse-arrival": {
+      "started": {
+        "id": "warehouse-arrival",
+        "t": 0.5,
+        "shot": 0,
+        "shotName": "yard establishing",
+        "total": 5.4
+      },
+      "shots": [
+        "yard establishing"
+      ],
+      "frames": [
+        {
+          "shot": "yard establishing",
+          "at": 2,
+          "file": "docs/screenshots/cinema/warehouse-arrival-01.jpg",
+          "letterbox": "0px",
+          "subtitle": null
+        }
+      ],
+      "subtitles": [],
+      "log": [
+        {
+          "id": "warehouse-arrival",
+          "at": 225516,
+          "event": "start",
+          "detail": "2 shots, 5.4 s"
+        },
+        {
+          "id": "warehouse-arrival",
+          "at": 225516,
+          "event": "shot",
+          "detail": "yard establishing"
+        },
+        {
+          "id": "warehouse-arrival",
+          "at": 232335,
+          "event": "shot",
+          "detail": "approach"
+        },
+        {
+          "id": "warehouse-arrival",
+          "at": 236332,
+          "event": "end",
+          "detail": "t=5.50"
+        }
+      ],
+      "cameraRestored": {
+        "x": -330,
+        "y": 2.7755514134646737,
+        "z": 1741.734015690659,
+        "fov": 52
+      },
+      "active": null
+    }
+  },
+  "errors": [],
+  "ok": false,
+  "failure": "AssertionError [ERR_ASSERTION]: skipped\n    at file:///home/user/CampOS-Worlds/tests/browser-cinema.mjs:79:10"
+}

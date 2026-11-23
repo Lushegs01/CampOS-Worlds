@@ -27,6 +27,8 @@ const render = () => page.evaluate(() => { const gl = window.__campusGL, s = win
 async function capture(id, { shots = 6, skipAfter = null, since = 0 } = {}) {
   const started = await until(async () => { const c = await cinema(); return (c.running?.id === id || c.log.some(e => e.id === id && e.event === 'start' && e.at >= since)) && c; }, `cinematic ${id} starts`, 30000);
   const seen = new Set(), frames = [];
+  // Skip tests press Skip as soon as the scene has visibly started (screenshots here can take seconds).
+  if (skipAfter !== null) { await until(async () => ((await cinema()).running?.t ?? 99) > skipAfter, 'scene running', 10000).catch(() => {}); await page.keyboard.press('Enter'); skipAfter = null; }
   let shotIndex = -1, subtitles = new Set();
   while (true) {
     const s = await cinema(); if (!s.running || s.running.id !== id) break;
@@ -75,7 +77,7 @@ try {
   // 5. Arriving at Bay 04 (skipped after a second: the mission state must be identical either way).
   const stageBefore = mission().stage;
   await place(WAREHOUSE.x + 4, WAREHOUSE.z + 26, Math.PI);
-  const yard = await capture('warehouse-arrival', { skipAfter: 1.2 });
+  const yard = await capture('warehouse-arrival', { skipAfter: .4 });
   assert.ok(yard.log.some(e => e.event === 'skip'), 'skipped');
   assert.equal(mission().stage, stageBefore, 'skipping changed nothing');
   const controls = await page.evaluate(async () => { const { player } = await import('/src/state.ts'); const z0 = player.z; return z0; });
