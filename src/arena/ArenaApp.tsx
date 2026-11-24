@@ -61,6 +61,7 @@ const Armory = lazy(() => import('./Armory'));
 
 export default function ArenaApp() {
   const phase = useArena(s => s.phase), map = useArena(s => s.match?.map), editor = useArena(s => s.editor), menu = useArena(s => s.menu), settings = useArena(s => s.settingsOpen), status = useArena(s => s.status);
+  const sceneReady = useArena(s => s.sceneReady);
   const hudEditor = useArena(s => s.hudEditor), armory = useArena(s => s.armory);
   useEffect(() => {
     useArena.getState().set({ open: true, phase: 'lobby', error: '', hud: emptyHud() });
@@ -88,8 +89,8 @@ export default function ArenaApp() {
     {phase === 'match' && map && <SceneBoundary>{Scene => <Suspense fallback={null}><Scene mapId={map} /></Suspense>}</SceneBoundary>}
     {phase === 'match' && <DeployScreen />}
     {phase === 'match' && <Hud />}
-    {phase === 'match' && <TouchControls />}
-    {phase === 'match' && !menu && !editor && !settings && !hudEditor && armory === null && <ClickToPlay />}
+    {phase === 'match' && sceneReady && <TouchControls />}
+    {phase === 'match' && sceneReady && !menu && !editor && !settings && !hudEditor && armory === null && <ClickToPlay />}
     {phase === 'lobby' && <Lobby />}
     {phase === 'results' && <Results onExit={exit} />}
     {phase === 'lobby' && <button className="ar-exit" onClick={exit} aria-label="Return to campus"><X size={18} /><span>Campus</span></button>}
